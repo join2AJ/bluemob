@@ -22,20 +22,20 @@
   // ---------- Sky answers survival questions from the built-in guide ----------
   const SKY_KEYS = {
     cpr: ["cpr", "unconscious", "not breathing", "stopped breathing", "heart attack", "cardiac", "collapsed", "resuscitat", "no pulse"],
-    bleed: ["bleed", "blood", "deep cut", "wound", "tourniquet", "gash"],
-    burns: ["burn", "scald"],
+    bleed: ["bleed", "blood", "deep cut", "wound", "tourniquet", "gash", "cut+knife", "cut+deep"],
+    burns: ["burn", "scald", "hot water+skin"],
     choke: ["chok", "can't breathe food", "swallowed"],
     hypo: ["hypotherm", "freezing", "shiver", "too cold", "very cold", "frostbite"],
     heat: ["heat stroke", "heatstroke", "sunstroke", "overheat", "too hot", "heat exhaustion"],
     snake: ["snake", "venom", "bitten"],
     fracture: ["broken", "fracture", "sprain", "bone", "ankle", "twisted", "splint"],
-    "find-water": ["find water", "no water", "thirst", "dehydrat", "where to get water", "out of water"],
-    purify: ["purif", "boil water", "clean water", "safe water", "dirty water", "drink water", "drinking water", "safe to drink"],
-    fire: ["fire", "campfire", "matches", "lighter", "tinder"],
-    shelter: ["shelter", "sleep outside", "sleep in the open", "stay dry", "build a hut"],
+    "find-water": ["find water", "no water", "thirst", "dehydrat", "where to get water", "out of water", "water+find", "water+where", "water+running out", "water+collect"],
+    purify: ["purif", "boil water", "clean water", "safe water", "dirty water", "drink water", "drinking water", "safe to drink", "water+safe", "water+clean", "water+boil", "water+treat", "water+filter", "water+drinkable", "water+germs", "stream+drink", "river+drink"],
+    fire: ["fire", "campfire", "matches", "lighter", "tinder", "keep+warm+wood"],
+    shelter: ["shelter", "sleep outside", "sleep in the open", "stay dry", "build a hut", "sleep+night+outside", "rain+sleep"],
     "help-sos": ["someone sent an sos", "someone sent sos", "received an sos", "got an sos", "sos from", "help someone", "someone needs help", "friend needs help"],
-    north: ["north", "direction", "which way", "without a compass", "navigate", "stars"],
-    lost: ["lost", "can't find my way", "cant find my way", "stranded", "where am i"],
+    north: ["north", "direction", "which way", "without a compass", "navigate", "stars", "shadow stick", "shadow", "polaris", "north star", "southern cross", "sunrise", "sunset"],
+    lost: ["lost", "can't find my way", "cant find my way", "stranded", "where am i", "way+back"],
     signals: ["rescue", "signal", "helicopter", "whistle", "get found", "be found", "attract attention"],
     lightning: ["lightning", "thunder", "storm"],
     quake: ["earthquake", "quake", "tremor"],
@@ -51,7 +51,8 @@
     if (appAnswer) return appAnswer;
     let best = null, score = 0;
     for (const [id, keys] of Object.entries(SKY_KEYS)) {
-      const sc = keys.reduce((n, k) => n + (t.includes(k) ? k.length : 0), 0);
+      // "a+b" means every part must appear, in any order: "water+safe" matches "make water safe".
+      const sc = keys.reduce((n, k) => n + (k.split("+").every((part) => t.includes(part)) ? k.length : 0), 0);
       if (sc > score) { score = sc; best = id; }
     }
     if (best) {

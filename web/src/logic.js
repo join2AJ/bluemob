@@ -66,7 +66,7 @@
     [["good", "fine", "great", "awesome", "nice", "cool"], [
       "Love that! 🌻",
       "Awesome 🙌. Want to know how BlueMob reaches people without signal? Just ask \"how does it work\"."]],
-    [["how does", "how it works", "how do", "work", "bluetooth", "wifi", "wi-fi", "mesh"], [
+    [["how does bluemob", "how bluemob works", "how it works", "how does it work", "how does this work", "how does the app", "mesh network", "without towers"], [
       "Here's the magic ✨: phones running BlueMob find each other over Bluetooth and Wi-Fi and link up directly. No SIM, no towers, no internet.\n\nEvery phone can pass messages along, so a message can hop A → B → C to reach someone out of your range. And if one phone nearby has internet, it can carry the group's messages to the wider world. Try messaging Dee once Meera is online to watch it happen!"]],
     [["what can", "feature", "help", "do here", "options"], [
       "Here's what you can do:\n📡 Radar: see who's around, how far and when they were last online\n💬 Chats: message anyone nearby\n🌍 Reach Dee, 2,000 km away, through a friend's internet\n📍 Share your location so friends see the distance\n🙋 Your profile: pick a name and an avatar"]],
