@@ -1,233 +1,370 @@
 <title>BlueMob</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: one phone-sized app column, centred on wide screens, edge to edge on phones.
-   Palette "open sky & wild meadow", matching the Android app's design system. */
+/* ==========================================================================
+   BlueMob design system  ·  "Pine & Sand"
+   Calm like Signal (flat lists, one accent, lots of air), warm like Airbnb
+   (sand neutrals, soft elevation, generous radii, confident display type).
+   Layout: one phone-sized app column, centred on wide screens, full-bleed on phones.
+   ========================================================================== */
 :root {
-  --bg: #F6F8F1;
-  --stage: #E9EFE6;
-  --surface: #FFFFFF;
-  --surface-2: #E6EDE1;
-  --fg: #1E2A24;
-  --muted: #5B6B62;
-  --line: #DCE4DD;
-  --leaf: #2E7D5B;
-  --on-leaf: #FFFFFF;
-  --leaf-soft: #CDEFD9;
-  --sky: #2B7BB9;
-  --sky-soft: #D5E9F8;
-  --sun: #E8A33D;
-  --sun-soft: #FCE7C4;
-  --on-soft: #1E2A24;
-  --horizon-a: #2B7BB9;
-  --horizon-b: #2E7D5B;
-  --online: #3CC47C;
-  --away: #E8A33D;
-  --offline: #9AA59F;
-  --coral: #D9534F;
-  --tick: #E8A33D;
-  --shadow: 0 30px 80px -30px rgba(30, 60, 45, .35);
+  /* Color: neutrals lean warm (sand), the brand is a deep pine, ember marks the internet bridge */
+  --canvas: #FFFFFF;
+  --sand: #F6F4EF;
+  --sand-2: #EDEAE3;
+  --line: #E8E4DC;
+  --ink: #15201B;
+  --ink-2: #5D6A64;
+  --ink-3: #98A29D;
+  --pine: #11694E;
+  --pine-press: #0B5A42;
+  --on-pine: #FFFFFF;
+  --pine-tint: #E2F1E9;
+  --mint: #5FD3A3;
+  --sky: #2F7BC0;
+  --sky-tint: #E3EEF8;
+  --ember: #E07F2E;
+  --ember-tint: #FBEBDC;
+  --rose: #D94F55;
+  --online: #1FB26F;
+  --away: #E9A23B;
+  --offline: #B5BDB9;
+  --bubble-them: #F1EEE8;
+  --glass: rgba(255, 255, 255, .8);
+  --stage: #E7E3DA;
+  --night-1: #0A1B16;
+  --night-2: #12382C;
+  --shadow-1: 0 1px 2px rgba(21, 32, 27, .06), 0 2px 10px rgba(21, 32, 27, .05);
+  --shadow-2: 0 10px 30px -10px rgba(21, 32, 27, .22);
+  --shadow-frame: 0 40px 100px -40px rgba(21, 32, 27, .45);
+
+  /* Type: Bricolage Grotesque for display moments, Figtree for everything you read */
   --font-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
   --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --r-sm: 12px; --r-md: 18px; --r-lg: 24px; --r-xl: 32px;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --t-hero: 34px; --t-title: 28px; --t-head: 20px; --t-body: 16px; --t-sub: 14px; --t-cap: 12px; --t-micro: 11px;
+
+  /* Shape and space */
+  --r-xs: 8px; --r-sm: 12px; --r-md: 16px; --r-lg: 22px; --r-xl: 28px; --r-pill: 999px;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px;
+
+  /* Motion: everything eases out; springs only for things you touch */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --d-1: 140ms; --d-2: 240ms; --d-3: 420ms;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0F1A17; --stage: #0A1210; --surface: #16241F; --surface-2: #223630;
-    --fg: #E2EBE5; --muted: #A9BAB0; --line: #2A3D35;
-    --leaf: #7FD8A8; --on-leaf: #0F1A17; --leaf-soft: #1D4A37;
-    --sky: #9CCBF0; --sky-soft: #173E5C; --sun: #FFCF80; --sun-soft: #5A3D0E; --on-soft: #E2EBE5;
-    --horizon-a: #1F5A86; --horizon-b: #1F6047; --tick: #FFCF80;
-    --shadow: 0 30px 80px -30px rgba(0, 0, 0, .7);
+    --canvas: #0E1412; --sand: #0A0F0D; --sand-2: #18201D; --line: #212B27;
+    --ink: #EDF2EF; --ink-2: #A3B0AA; --ink-3: #6C7873;
+    --pine: #3FC897; --pine-press: #34B386; --on-pine: #05231A; --pine-tint: #123129; --mint: #5FD3A3;
+    --sky: #7DB7EA; --sky-tint: #14283A; --ember: #F0A564; --ember-tint: #3A2614; --rose: #F0858A;
+    --offline: #56625D; --bubble-them: #1B2421; --glass: rgba(14, 20, 18, .78); --stage: #050807;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .4); --shadow-2: 0 12px 30px -10px rgba(0, 0, 0, .6);
+    --shadow-frame: 0 40px 100px -40px rgba(0, 0, 0, .9);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0F1A17; --stage: #0A1210; --surface: #16241F; --surface-2: #223630;
-  --fg: #E2EBE5; --muted: #A9BAB0; --line: #2A3D35;
-  --leaf: #7FD8A8; --on-leaf: #0F1A17; --leaf-soft: #1D4A37;
-  --sky: #9CCBF0; --sky-soft: #173E5C; --sun: #FFCF80; --sun-soft: #5A3D0E; --on-soft: #E2EBE5;
-  --horizon-a: #1F5A86; --horizon-b: #1F6047; --tick: #FFCF80;
-  --shadow: 0 30px 80px -30px rgba(0, 0, 0, .7);
+  --canvas: #0E1412; --sand: #0A0F0D; --sand-2: #18201D; --line: #212B27;
+  --ink: #EDF2EF; --ink-2: #A3B0AA; --ink-3: #6C7873;
+  --pine: #3FC897; --pine-press: #34B386; --on-pine: #05231A; --pine-tint: #123129; --mint: #5FD3A3;
+  --sky: #7DB7EA; --sky-tint: #14283A; --ember: #F0A564; --ember-tint: #3A2614; --rose: #F0858A;
+  --offline: #56625D; --bubble-them: #1B2421; --glass: rgba(14, 20, 18, .78); --stage: #050807;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4); --shadow-2: 0 12px 30px -10px rgba(0, 0, 0, .6);
+  --shadow-frame: 0 40px 100px -40px rgba(0, 0, 0, .9);
   color-scheme: dark;
 }
 
+/* ---------- base ---------- */
 html, body { height: 100%; }
-body {
-  background: var(--stage); color: var(--fg);
-  font-family: var(--font-body); font-size: 15px; line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-}
-* { box-sizing: border-box; }
-button { font: inherit; color: inherit; cursor: pointer; }
-:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; border-radius: 8px; }
-h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+body { background: var(--stage); color: var(--ink); font: 400 var(--t-body)/1.45 var(--font-body); -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+input { font: inherit; color: inherit; }
+:focus-visible { outline: 2.5px solid var(--sky); outline-offset: 2px; border-radius: var(--r-xs); }
+h1, h2, h3 { margin: 0; font-family: var(--font-display); text-wrap: balance; }
+p { margin: 0; }
+svg { display: block; }
 
 .stage { height: 100%; display: grid; place-items: center; padding-block: 16px; }
-.app {
-  position: relative; width: min(420px, 100%); height: min(880px, 100%);
-  background: var(--bg); border-radius: var(--r-xl); box-shadow: var(--shadow);
-  display: flex; flex-direction: column; overflow: hidden;
-}
-@media (max-width: 480px) {
-  .stage { padding-block: 0; }
-  .app { width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
-}
-.scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 16px 16px 24px; display: flex; flex-direction: column; gap: 16px; }
+.app { position: relative; width: min(420px, 100%); height: min(880px, 100%); background: var(--canvas); border-radius: 36px; box-shadow: var(--shadow-frame); overflow: hidden; isolation: isolate; }
+@media (max-width: 480px) { .stage { padding-block: 0; } .app { width: 100%; height: 100%; border-radius: 0; box-shadow: none; } }
 
-/* ---------- shared pieces ---------- */
-.card { background: var(--surface); border-radius: var(--r-lg); padding: 16px; }
-.muted { color: var(--muted); }
-.small { font-size: 13px; }
-.label { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
-.row { display: flex; align-items: center; gap: 12px; }
-.grow { flex: 1; min-width: 0; }
+/* ---------- type ---------- */
+.t-hero { font: 700 var(--t-hero)/1.05 var(--font-display); letter-spacing: -.03em; }
+.t-title { font: 700 var(--t-title)/1.1 var(--font-display); letter-spacing: -.025em; }
+.t-head { font: 700 var(--t-head)/1.2 var(--font-display); letter-spacing: -.015em; }
+.t-strong { font-weight: 600; }
+.t-sub { font-size: var(--t-sub); color: var(--ink-2); }
+.t-cap { font-size: var(--t-cap); color: var(--ink-2); }
+.t-over { font-size: var(--t-micro); font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
 .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; letter-spacing: .04em; background: var(--surface-2); color: var(--fg); }
-.pill.sun { background: var(--sun-soft); color: var(--on-soft); }
-.pill.sky { background: var(--sky-soft); color: var(--on-soft); }
-.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
-.btn { border: 0; border-radius: 99px; padding: 12px 22px; font-weight: 600; background: var(--leaf); color: var(--on-leaf); display: inline-flex; align-items: center; gap: 8px; }
-.btn:disabled { opacity: .45; cursor: default; }
-.btn.ghost { background: transparent; color: var(--leaf); padding: 8px 12px; }
-.btn.tonal { background: var(--leaf-soft); color: var(--on-soft); }
-.icon-btn { border: 0; background: var(--leaf-soft); color: var(--on-soft); width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex: none; }
-.icon-btn.plain { background: transparent; color: var(--fg); }
-.icon-btn svg, .btn svg { width: 20px; height: 20px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- screen scaffold: glass app bar + large title + floating tab bar ---------- */
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--canvas); }
+.screen.grouped { background: var(--sand); }
+.screen.push-in { animation: pushIn var(--d-3) var(--ease); }
+.screen.fade-in { animation: fadeIn var(--d-2) var(--ease); }
+@keyframes pushIn { from { transform: translateX(28%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.bar { position: absolute; z-index: 3; top: 0; left: 0; right: 0; height: 56px; display: flex; align-items: center; gap: var(--s-2); padding: 0 var(--s-3); transition: background var(--d-2), box-shadow var(--d-2); }
+.bar.scrolled, .bar.solid { background: var(--glass); backdrop-filter: saturate(1.6) blur(18px); -webkit-backdrop-filter: saturate(1.6) blur(18px); box-shadow: 0 1px 0 var(--line); }
+.bar-title { flex: 1; min-width: 0; font-weight: 700; font-size: 17px; opacity: 0; transform: translateY(6px); transition: opacity var(--d-2), transform var(--d-2) var(--ease); padding-left: var(--s-1); }
+.bar.scrolled .bar-title { opacity: 1; transform: none; }
+.scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 60px var(--s-4) 120px; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.large-title { margin: 4px 4px var(--s-4); }
+.stack { display: flex; flex-direction: column; gap: var(--s-4); }
+
+.icon-btn { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--ink); transition: background var(--d-1), transform var(--d-1) var(--ease); flex: none; }
+.icon-btn:hover { background: var(--sand-2); }
+.icon-btn:active { transform: scale(.9); }
+.icon-btn svg { width: 22px; height: 22px; }
+
+.tabbar { position: absolute; z-index: 4; left: 12px; right: 12px; bottom: 12px; height: 64px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: saturate(1.6) blur(20px); -webkit-backdrop-filter: saturate(1.6) blur(20px); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line); display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px; }
+.tab-ind { position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px) / 3); border-radius: var(--r-pill); background: var(--pine-tint); transition: transform var(--d-3) var(--spring); }
+.tab { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: var(--t-micro); font-weight: 700; letter-spacing: .02em; color: var(--ink-3); border-radius: var(--r-pill); transition: color var(--d-2); }
+.tab svg { width: 22px; height: 22px; }
+.tab[aria-selected="true"] { color: var(--pine); }
+.tab .count { position: absolute; top: 4px; left: calc(50% + 6px); }
+
+/* ---------- primitives ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); height: 48px; padding: 0 var(--s-6); border-radius: var(--r-pill); background: var(--pine); color: var(--on-pine); font-weight: 600; transition: transform var(--d-1) var(--ease), background var(--d-1), opacity var(--d-1); }
+.btn:hover { background: var(--pine-press); }
+.btn:active { transform: scale(.96); }
+.btn:disabled { opacity: .4; cursor: default; transform: none; }
+.btn svg { width: 20px; height: 20px; }
+.btn.secondary { background: var(--sand-2); color: var(--ink); }
+.btn.text { background: none; color: var(--pine); height: 36px; padding: 0 var(--s-3); }
+.btn.small { height: 36px; padding: 0 var(--s-4); font-size: var(--t-sub); }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: var(--r-pill); font-size: var(--t-sub); font-weight: 600; background: var(--canvas); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); white-space: nowrap; transition: background var(--d-1), color var(--d-1), box-shadow var(--d-1); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--canvas); box-shadow: none; }
+.tag { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: var(--r-pill); font-size: var(--t-micro); font-weight: 700; letter-spacing: .03em; background: var(--sand-2); color: var(--ink-2); white-space: nowrap; }
+.tag.pine { background: var(--pine-tint); color: var(--pine); }
+.tag.ember { background: var(--ember-tint); color: var(--ember); }
+.tag.sky { background: var(--sky-tint); color: var(--sky); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-pill); background: var(--pine); color: var(--on-pine); font-size: 12px; font-weight: 700; display: inline-grid; place-items: center; font-variant-numeric: tabular-nums; }
 
 .avatar { position: relative; flex: none; border-radius: 50%; display: grid; place-items: center; line-height: 1; }
-.avatar .status { position: absolute; right: 0; bottom: 0; width: 28%; height: 28%; border-radius: 50%; border: 2px solid var(--surface); }
+.avatar .face { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center; }
+.avatar .badge { position: absolute; right: 0; bottom: 0; width: 27%; height: 27%; min-width: 10px; min-height: 10px; border-radius: 50%; box-shadow: 0 0 0 2.5px var(--canvas); }
+/* An online person wears a pine ring, like a story ring */
+.avatar.ring { padding: 3px; background: conic-gradient(from 200deg, var(--mint), var(--pine), var(--sky), var(--mint)); }
+.avatar.ring .face { box-shadow: 0 0 0 2.5px var(--canvas); }
 
-.switch { position: relative; width: 52px; height: 32px; border-radius: 99px; border: 2px solid var(--muted); background: var(--surface-2); flex: none; padding: 0; transition: background .2s, border-color .2s; }
-.switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: transform .2s, background .2s; }
-.switch[aria-checked="true"] { background: var(--leaf); border-color: var(--leaf); }
-.switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--on-leaf); }
-.switch.on-hero { border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.2); }
-.switch.on-hero::after { background: #fff; }
-.switch.on-hero[aria-checked="true"] { background: #fff; border-color: #fff; }
-.switch.on-hero[aria-checked="true"]::after { background: #2E7D5B; }
+.switch { position: relative; width: 50px; height: 30px; border-radius: var(--r-pill); background: var(--sand-2); box-shadow: inset 0 0 0 1px var(--line); flex: none; transition: background var(--d-2); }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: transform var(--d-3) var(--spring); }
+.switch[aria-checked="true"] { background: var(--pine); box-shadow: none; }
+.switch[aria-checked="true"]::after { transform: translateX(20px); }
+
+.search { display: flex; align-items: center; gap: var(--s-2); height: 44px; padding: 0 var(--s-3); border-radius: var(--r-sm); background: var(--sand); color: var(--ink-3); }
+.search svg { width: 20px; height: 20px; flex: none; }
+.search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; color: var(--ink); font-size: var(--t-body); }
+.search input::placeholder { color: var(--ink-3); }
+
+.card { background: var(--canvas); border-radius: var(--r-lg); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); }
+.enter { animation: rise var(--d-3) var(--ease) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.press { transition: background var(--d-1), transform var(--d-1) var(--ease); }
+.press:active { transform: scale(.985); }
+
+/* ---------- lists (Signal-style: flat rows, inset dividers) ---------- */
+.rows { display: flex; flex-direction: column; margin: 0 calc(var(--s-4) * -1); }
+.row { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 10px var(--s-4); position: relative; }
+.row:hover { background: var(--sand); }
+.row + .row::before { content: ""; position: absolute; top: 0; right: 0; left: 82px; height: 1px; background: var(--line); }
+.row .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row .line1 { display: flex; align-items: center; gap: 6px; }
+.row .name { font-weight: 600; font-size: 16px; }
+.row .preview { font-size: var(--t-sub); color: var(--ink-2); }
+.row .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; align-self: stretch; justify-content: center; }
+.row .time { font-size: var(--t-cap); color: var(--ink-3); }
+.row.unread .time { color: var(--pine); font-weight: 600; }
+.row.unread .preview { color: var(--ink); }
+.typing-text { color: var(--pine); font-weight: 500; }
+.section-h { display: flex; align-items: baseline; justify-content: space-between; margin: var(--s-6) 4px var(--s-2); }
+
+/* grouped settings lists (Signal settings) */
+.group { background: var(--canvas); border-radius: var(--r-lg); overflow: hidden; }
+.group-label { margin: var(--s-6) 12px var(--s-2); }
+.set { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 12px 14px; min-height: 60px; position: relative; }
+.set + .set::before { content: ""; position: absolute; top: 0; right: 0; left: 62px; height: 1px; background: var(--line); }
+button.set:hover { background: var(--sand); }
+.tile { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; flex: none; }
+.tile svg { width: 19px; height: 19px; }
+.set .main { flex: 1; min-width: 0; }
+.chev { width: 18px; height: 18px; color: var(--ink-3); flex: none; }
 
 /* ---------- onboarding ---------- */
-.onboard { flex: 1; display: flex; flex-direction: column; background: linear-gradient(180deg, var(--sky-soft), var(--bg) 45%, var(--leaf-soft)); min-height: 0; }
-.onboard-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 0; }
-.brand { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--leaf); }
-.slide { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; padding: 8px 24px; animation: slideIn .35s ease; min-height: 0; }
-@keyframes slideIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
-.slide h1 { font-size: 32px; line-height: 1.1; }
-.slide p { margin: 0; max-width: 32ch; color: var(--muted); font-size: 16px; }
-.hero { width: min(300px, 78%); aspect-ratio: 1; position: relative; display: grid; place-items: center; max-width: 100%; }
-.onboard-bottom { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 22px; }
-.dots { display: flex; gap: 6px; align-items: center; }
-.dots span { height: 8px; width: 8px; border-radius: 99px; background: var(--line); transition: width .25s, background .25s; }
-.dots span.on { width: 24px; background: var(--leaf); }
-
-.ripple { position: absolute; inset: 0; margin: auto; border-radius: 50%; border: 3px solid var(--sky); opacity: 0; animation: ripple 2.6s linear infinite; }
-.ripple:nth-child(2) { animation-delay: .87s; } .ripple:nth-child(3) { animation-delay: 1.73s; }
-@keyframes ripple { from { width: 30%; height: 30%; opacity: .55; } to { width: 100%; height: 100%; opacity: 0; } }
-.node { border-radius: 50%; display: grid; place-items: center; line-height: 1; position: absolute; }
-.hero-badge { position: absolute; top: 6%; right: 6%; width: 52px; height: 52px; border-radius: 50%; background: var(--sun-soft); color: var(--on-soft); display: grid; place-items: center; }
+.onboard { position: absolute; inset: 0; display: flex; flex-direction: column; background:
+  radial-gradient(120% 60% at 50% 0%, var(--sky-tint), transparent 70%),
+  radial-gradient(120% 50% at 50% 100%, var(--pine-tint), transparent 70%), var(--canvas); }
+.onboard-top { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; height: 56px; }
+.wordmark { display: flex; align-items: center; gap: 8px; font: 800 20px/1 var(--font-display); letter-spacing: -.02em; }
+.wordmark i { width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(135deg, var(--sky), var(--pine)); display: grid; place-items: center; }
+.wordmark i::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.35); }
+.slide { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; padding: 8px 28px; animation: slideIn var(--d-3) var(--ease); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+.slide p { max-width: 31ch; color: var(--ink-2); font-size: 17px; }
+.hero { width: min(290px, 76%); aspect-ratio: 1; max-width: 100%; position: relative; display: grid; place-items: center; }
+.onboard-bottom { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 24px; }
+.dots { display: flex; gap: 6px; }
+.dots span { width: 7px; height: 7px; border-radius: var(--r-pill); background: var(--line); transition: width var(--d-3) var(--ease), background var(--d-2); }
+.dots span.on { width: 26px; background: var(--ink); }
+.ripple { position: absolute; inset: 0; margin: auto; border-radius: 50%; border: 2.5px solid var(--sky); opacity: 0; animation: ripple 2.8s linear infinite; }
+.ripple:nth-child(2) { animation-delay: .93s; } .ripple:nth-child(3) { animation-delay: 1.86s; }
+@keyframes ripple { from { width: 30%; height: 30%; opacity: .6; } to { width: 100%; height: 100%; opacity: 0; } }
+.node { position: absolute; border-radius: 50%; display: grid; place-items: center; line-height: 1; box-shadow: var(--shadow-2); background: var(--canvas); }
+.hero-badge { position: absolute; top: 6%; right: 6%; width: 50px; height: 50px; border-radius: 16px; background: var(--ember-tint); color: var(--ember); display: grid; place-items: center; transform: rotate(8deg); }
 .hero-badge svg { width: 26px; height: 26px; }
-.bubble-demo { width: 100%; display: flex; flex-direction: column; gap: 12px; }
-.bubble-demo .b { max-width: 80%; padding: 10px 16px; border-radius: 20px; font-size: 15px; animation: bob 2.8s ease-in-out infinite; }
-.bubble-demo .b.me { align-self: flex-end; background: var(--leaf); color: var(--on-leaf); border-bottom-right-radius: 4px; }
-.bubble-demo .b.them { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 4px; animation-delay: .5s; }
+.bubble-demo { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.bubble-demo .b { max-width: 82%; padding: 10px 15px; border-radius: 20px; font-size: 16px; text-align: left; animation: bob 3s ease-in-out infinite; }
+.bubble-demo .b.me { align-self: flex-end; background: var(--pine); color: var(--on-pine); border-bottom-right-radius: 6px; }
+.bubble-demo .b.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 6px; animation-delay: .6s; }
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.field label { display: block; text-align: left; margin: 0 0 6px 4px; }
+.field input { width: 100%; height: 52px; padding: 0 16px; border-radius: var(--r-md); border: 0; background: var(--sand); color: var(--ink); font-size: 17px; box-shadow: inset 0 0 0 1.5px transparent; transition: box-shadow var(--d-1); }
+.field input:focus { outline: none; box-shadow: inset 0 0 0 1.5px var(--pine); }
+.picker { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; width: 100%; }
+.picker button { aspect-ratio: 1; border-radius: 14px; font-size: 24px; display: grid; place-items: center; background: var(--sand); transition: transform var(--d-2) var(--spring), background var(--d-1), box-shadow var(--d-1); }
+.picker button[aria-pressed="true"] { background: var(--pine-tint); box-shadow: inset 0 0 0 2px var(--pine); transform: scale(1.06); }
+.me-badge { width: 104px; height: 104px; border-radius: 34px; background: linear-gradient(140deg, var(--sky), var(--pine)); display: grid; place-items: center; font-size: 52px; box-shadow: var(--shadow-2); flex: none; transform: rotate(-4deg); }
 
-.field { width: 100%; text-align: left; }
-.field label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px 4px; }
-.field input { width: 100%; padding: 14px 16px; border-radius: var(--r-md); border: 1.5px solid var(--line); background: var(--surface); color: var(--fg); font: inherit; font-size: 16px; }
-.field input:focus { outline: none; border-color: var(--leaf); }
-.avatar-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; width: 100%; }
-.avatar-grid button { aspect-ratio: 1; border: 0; border-radius: 16px; background: var(--surface); font-size: 24px; display: grid; place-items: center; transition: background .2s, transform .15s; }
-.avatar-grid button[aria-pressed="true"] { background: var(--leaf-soft); transform: scale(1.06); }
-.big-avatar { width: 104px; height: 104px; border-radius: 50%; background: linear-gradient(135deg, var(--horizon-a), var(--horizon-b)); display: grid; place-items: center; font-size: 52px; flex: none; }
-
-/* ---------- radar tab ---------- */
-.greet { display: flex; align-items: center; gap: 12px; }
-.greet h1 { font-size: 28px; }
-.hero-card { border-radius: var(--r-lg); padding: 22px; color: #fff; background: linear-gradient(120deg, var(--horizon-a), var(--horizon-b)); display: flex; flex-direction: column; gap: 16px; }
-.hero-card h2 { font-size: 21px; display: flex; align-items: center; gap: 10px; }
-.hero-card p { margin: 2px 0 0; opacity: .88; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.stat { background: rgba(255,255,255,.16); border-radius: var(--r-md); padding: 10px 12px; }
-.stat b { display: block; font-family: var(--font-display); font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.stat span { font-size: 11px; letter-spacing: .05em; opacity: .9; }
-.live { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: breathe 1.4s ease-in-out infinite; flex: none; }
-@keyframes breathe { 0%, 100% { transform: scale(.7); opacity: .7; } 50% { transform: scale(1.1); opacity: 1; } }
+/* ---------- radar ---------- */
+.night { position: relative; border-radius: var(--r-xl); overflow: hidden; color: #EAF5F0; background: radial-gradient(120% 90% at 50% 40%, var(--night-2), var(--night-1) 70%); box-shadow: var(--shadow-2); }
+.night-top { position: absolute; z-index: 2; top: 14px; left: 14px; right: 14px; display: flex; align-items: center; justify-content: space-between; }
+.live { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; border-radius: var(--r-pill); background: rgba(255,255,255,.1); font-size: var(--t-micro); font-weight: 700; letter-spacing: .08em; backdrop-filter: blur(6px); }
+.live .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 0 rgba(95,211,163,.7); animation: beacon 1.6s infinite; }
+.live.off .pulse { background: #8C9A94; animation: none; }
+@keyframes beacon { to { box-shadow: 0 0 0 10px rgba(95,211,163,0); } }
+.night .switch { background: rgba(255,255,255,.18); box-shadow: none; }
+.night .switch[aria-checked="true"] { background: var(--mint); }
 .radar-wrap { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; }
-.radar-wrap canvas { width: 100%; height: 100%; display: block; }
-.blip { position: absolute; width: 32px; height: 32px; margin: -16px 0 0 -16px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; border: 0; padding: 0; transition: left .8s ease, top .8s ease, opacity .4s; }
-.blip .status { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--surface); }
-.legend { display: flex; flex-wrap: wrap; gap: 8px; }
-.hint { display: flex; gap: 10px; align-items: center; background: var(--sky-soft); color: var(--on-soft); border-radius: var(--r-md); padding: 10px 12px; }
-.bridge { display: flex; gap: 14px; align-items: center; border-radius: var(--r-lg); padding: 16px; }
-.bridge svg { width: 32px; height: 32px; flex: none; }
-.person { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--surface); border-radius: var(--r-md); border: 0; width: 100%; text-align: left; }
-.person + .person { margin-top: 0; }
-.list { display: flex; flex-direction: column; gap: 8px; }
-.section-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-top: 4px; }
-.empty { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; }
+.radar-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.blip { position: absolute; z-index: 1; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; display: grid; place-items: center; font-size: 19px; transition: left 1s var(--ease), top 1s var(--ease), opacity var(--d-3); }
+.blip .face { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 0 0 2px rgba(255,255,255,.85), 0 0 18px 2px var(--glow, transparent); }
+.blip .badge { position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px var(--night-1); }
+.blip:hover { z-index: 2; }
+.night-foot { position: absolute; z-index: 2; left: 14px; right: 14px; bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+.stat-line { display: flex; gap: 16px; }
+.stat-line div { display: flex; flex-direction: column; }
+.stat-line b { font: 700 22px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.stat-line span { font-size: var(--t-micro); opacity: .7; letter-spacing: .04em; margin-top: 3px; }
+.scale { font-size: var(--t-micro); opacity: .6; text-align: right; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: var(--r-pill); background: var(--sand); position: relative; }
+.seg button { position: relative; z-index: 1; height: 36px; border-radius: var(--r-pill); font-size: var(--t-sub); font-weight: 600; color: var(--ink-2); transition: color var(--d-2); }
+.seg button[aria-pressed="true"] { color: var(--ink); }
+.seg .knob { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: var(--r-pill); background: var(--canvas); box-shadow: var(--shadow-1); transition: transform var(--d-3) var(--spring); }
+.seg.right .knob { transform: translateX(100%); }
+
+.hscroll { display: flex; gap: 12px; overflow-x: auto; margin: 0 calc(var(--s-4) * -1); padding: 4px var(--s-4) 8px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.hscroll::-webkit-scrollbar { display: none; }
+.pcard { scroll-snap-align: start; flex: none; width: 148px; text-align: left; border-radius: var(--r-lg); background: var(--canvas); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); overflow: hidden; }
+.pcard .art { height: 96px; display: grid; place-items: center; font-size: 44px; position: relative; }
+.pcard .art .tag { position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,.85); color: #15201B; }
+.pcard .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 2px; }
+.feature { display: flex; gap: 14px; align-items: center; padding: 16px; text-align: left; width: 100%; }
+.feature .tile { width: 48px; height: 48px; border-radius: 15px; }
+.feature .tile svg { width: 24px; height: 24px; }
 
 /* ---------- chats ---------- */
-.badge { min-width: 22px; height: 22px; border-radius: 99px; padding: 0 6px; background: var(--leaf); color: var(--on-leaf); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
-.typing-text { color: var(--leaf); font-weight: 500; }
+.stories { display: flex; gap: 14px; overflow-x: auto; margin: 0 calc(var(--s-4) * -1); padding: 4px var(--s-4) 4px; scrollbar-width: none; }
+.stories::-webkit-scrollbar { display: none; }
+.story { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 64px; flex: none; font-size: var(--t-cap); font-weight: 500; }
+.filters { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: var(--s-4) calc(var(--s-4) * -1) var(--s-2); padding: 0 var(--s-4); }
 
-.chat { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.chat-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); }
-.messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
-.msg { display: flex; flex-direction: column; max-width: 82%; animation: pop .25s ease; }
-@keyframes pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* ---------- chat ---------- */
+.chat-bar { gap: 6px; padding-left: 6px; }
+.chat-bar .who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; }
+.chat-bar .who b { display: block; font-size: 16px; }
+.messages { flex: 1; overflow-y: auto; padding: 68px 14px 8px; display: flex; flex-direction: column; scrollbar-width: none; }
+.messages::-webkit-scrollbar { display: none; }
+.intro { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 18px 12px 22px; }
+.intro p { max-width: 30ch; }
+.day { align-self: center; margin: 8px 0 12px; }
+.msg { display: flex; flex-direction: column; max-width: 80%; margin-top: 2px; }
+.msg.gap { margin-top: 10px; }
+.msg.new { animation: bubbleIn var(--d-3) var(--spring); }
+@keyframes bubbleIn { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
 .msg.me { align-self: flex-end; align-items: flex-end; }
-.msg .body { padding: 10px 14px 6px; border-radius: 20px; background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; }
-.msg.me .body { background: var(--leaf); color: var(--on-leaf); border-bottom-right-radius: 4px; }
-.msg.them .body { border-bottom-left-radius: 4px; }
-.meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-size: 11px; opacity: .75; margin-top: 2px; font-variant-numeric: tabular-nums; }
-.meta svg { width: 14px; height: 14px; }
-.meta .delivered { color: var(--tick); opacity: 1; }
-.msg.me .meta .delivered { color: var(--sun-soft); }
-.route { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; font-size: 11px; color: var(--muted); }
-.msg.me .route { justify-content: flex-end; }
-.route .hop { padding: 2px 8px; border-radius: 99px; background: var(--surface-2); transition: background .3s, color .3s; }
-.route .hop.done { background: var(--leaf-soft); color: var(--on-soft); }
-.route .hop.now { background: var(--sun-soft); color: var(--on-soft); }
-.banner { background: var(--sun-soft); color: var(--on-soft); border-radius: var(--r-md); padding: 10px 12px; font-size: 13px; margin-bottom: 8px; }
-.banner.sky { background: var(--sky-soft); }
-.typing { align-self: flex-start; background: var(--surface-2); border-radius: 20px 20px 20px 4px; padding: 14px 16px; display: flex; gap: 4px; }
-.typing i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); animation: blink 1s infinite; }
-.typing i:nth-child(2) { animation-delay: .16s; } .typing i:nth-child(3) { animation-delay: .32s; }
-@keyframes blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
-.chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 8px; scrollbar-width: none; }
-.chips button { flex: none; border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 12px; font-size: 13px; }
-.composer { display: flex; gap: 8px; align-items: center; padding: 8px 10px 12px; background: var(--surface); }
-.composer input { flex: 1; min-width: 0; border: 0; border-radius: 99px; padding: 13px 18px; background: var(--surface-2); color: var(--fg); font: inherit; font-size: 15px; }
-.composer input:focus { outline: 2px solid var(--leaf); }
-.composer .send { width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--leaf); color: var(--on-leaf); display: grid; place-items: center; flex: none; }
-.composer .send:disabled { opacity: .4; cursor: default; }
-.note { font-size: 12px; color: var(--muted); padding: 0 16px 8px; }
+.bubble { padding: 9px 14px; border-radius: 20px; background: var(--bubble-them); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.38; }
+.msg.me .bubble { background: var(--pine); color: var(--on-pine); }
+.msg.them.first .bubble { border-bottom-left-radius: 6px; }
+.msg.them.mid .bubble { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.msg.them.last .bubble { border-top-left-radius: 6px; }
+.msg.me.first .bubble { border-bottom-right-radius: 6px; }
+.msg.me.mid .bubble { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.msg.me.last .bubble { border-top-right-radius: 6px; }
+.meta { display: flex; align-items: center; gap: 5px; margin: 4px 6px 0; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.meta svg { width: 15px; height: 15px; }
+.meta .ok { color: var(--pine); }
+.meta .fail { color: var(--rose); font-weight: 600; }
+.typing { align-self: flex-start; margin-top: 10px; padding: 14px 16px; border-radius: 20px; border-bottom-left-radius: 6px; background: var(--bubble-them); display: flex; gap: 4px; animation: bubbleIn var(--d-3) var(--spring); }
+.typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); animation: bounce 1.2s infinite var(--ease); }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%, 60%, 100% { transform: none; opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+/* The journey a message takes through the mesh and the bridge */
+.msg.routed { max-width: 92%; }
+.journey { list-style: none; display: flex; margin: 8px 0 2px; padding: 10px 8px 8px; border-radius: var(--r-md); background: var(--sand); width: 300px; max-width: 100%; }
+.journey li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; font-size: 10.5px; font-weight: 600; color: var(--ink-3); min-width: 0; text-align: center; }
+.journey li::before { content: ""; position: absolute; top: 5px; right: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0; transition: background var(--d-3); }
+.journey li:first-child::before { display: none; }
+.journey i { position: relative; z-index: 1; width: 12px; height: 12px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 2px var(--line); transition: background var(--d-3), box-shadow var(--d-3); }
+.journey li.done { color: var(--ink-2); }
+.journey li.done i { background: var(--pine); box-shadow: none; }
+.journey li.done::before, .journey li.now::before { background: var(--pine); }
+.journey li.now { color: var(--ember); }
+.journey li.now i { background: var(--ember); box-shadow: 0 0 0 4px var(--ember-tint); animation: hop 1s infinite var(--ease); }
+@keyframes hop { 50% { box-shadow: 0 0 0 7px var(--ember-tint); } }
+.journey-note { font-size: var(--t-micro); color: var(--ink-3); margin: 2px 6px 0; }
+
+.suggest { display: flex; gap: 8px; overflow-x: auto; padding: 6px 14px 4px; scrollbar-width: none; }
+.suggest::-webkit-scrollbar { display: none; }
+.composer-wrap { padding: 6px 10px 12px; }
+.composer-note { font-size: var(--t-cap); color: var(--ink-2); text-align: center; padding: 0 16px 8px; }
+.composer { display: flex; align-items: flex-end; gap: 8px; }
+.field-pill { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; min-height: 46px; padding: 0 4px 0 6px; border-radius: 24px; background: var(--sand); }
+.field-pill input { flex: 1; min-width: 0; height: 46px; border: 0; background: none; outline: none; font-size: 16px; padding: 0 6px; color: var(--ink); }
+.field-pill input::placeholder { color: var(--ink-3); }
+.field-pill .icon-btn { width: 36px; height: 36px; color: var(--ink-2); }
+.field-pill .icon-btn:hover { background: var(--sand-2); }
+.send { width: 46px; height: 46px; border-radius: 50%; background: var(--pine); color: var(--on-pine); display: grid; place-items: center; flex: none; transition: transform var(--d-2) var(--spring), background var(--d-1); }
+.send:active { transform: scale(.88); }
+.send svg { width: 22px; height: 22px; }
+.send.mic { background: var(--sand); color: var(--ink-2); }
+.send:disabled { opacity: .45; cursor: default; }
 
 /* ---------- profile ---------- */
-.profile-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding-top: 8px; }
-.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: .04em; }
-.group-title { font-weight: 600; margin: 0 0 8px 4px; }
-.setting { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
-.setting + .setting { border-top: 1px solid var(--line); }
-.setting svg { width: 22px; height: 22px; color: var(--leaf); flex: none; }
-.group { background: var(--surface); border-radius: var(--r-lg); overflow: hidden; }
-.log { font-family: ui-monospace, Menlo, monospace; font-size: 12px; padding: 0 16px 14px; display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; }
+.me-head { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 8px 0 4px; }
+.idline { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--font-mono); letter-spacing: .06em; color: var(--ink-2); padding: 8px 12px; border-radius: var(--r-pill); background: var(--canvas); }
+.idline svg { width: 14px; height: 14px; }
+.log { font: 12px/1.6 var(--font-mono); color: var(--ink-2); padding: 4px 16px 14px; max-height: 220px; overflow-y: auto; }
 
-/* ---------- tab bar ---------- */
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); padding: 8px 8px 10px; border-top: 1px solid var(--line); }
-.tabs button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 0; position: relative; }
-.tabs .ic { width: 64px; height: 32px; border-radius: 99px; display: grid; place-items: center; transition: background .2s; }
-.tabs svg { width: 22px; height: 22px; }
-.tabs button[aria-selected="true"] { color: var(--fg); }
-.tabs button[aria-selected="true"] .ic { background: var(--leaf-soft); color: var(--on-soft); }
-.tabs .badge { position: absolute; top: 0; left: calc(50% + 8px); min-width: 18px; height: 18px; font-size: 11px; }
+/* ---------- style guide ---------- */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px; }
+.swatch { display: flex; flex-direction: column; gap: 6px; font-size: var(--t-micro); }
+.swatch i { height: 56px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); }
+.swatch b { font-size: var(--t-cap); }
+.spec { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.spec-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.radii { display: flex; gap: 10px; flex-wrap: wrap; }
+.radii div { width: 56px; height: 56px; background: var(--pine-tint); box-shadow: inset 0 0 0 1.5px var(--pine); display: grid; place-items: end center; padding-bottom: 4px; font-size: 10px; color: var(--pine); font-weight: 700; }
+.curve { display: flex; align-items: center; gap: 12px; }
+.curve .track { flex: 1; height: 6px; border-radius: 3px; background: var(--sand-2); position: relative; }
+.curve .track span { position: absolute; top: -5px; left: 0; width: 16px; height: 16px; border-radius: 50%; background: var(--pine); animation: travel 1.6s infinite alternate; }
+@keyframes travel { to { left: calc(100% - 16px); } }
 
-.toast { position: absolute; left: 16px; right: 16px; bottom: 90px; background: var(--fg); color: var(--bg); border-radius: var(--r-md); padding: 12px 16px; font-size: 14px; transform: translateY(20px); opacity: 0; pointer-events: none; transition: all .3s; z-index: 5; }
-.toast.show { transform: none; opacity: 1; }
+.toast { position: absolute; z-index: 9; left: 50%; bottom: 92px; transform: translate(-50%, 16px); max-width: calc(100% - 32px); padding: 12px 18px; border-radius: var(--r-pill); background: var(--ink); color: var(--canvas); font-size: var(--t-sub); font-weight: 500; box-shadow: var(--shadow-2); opacity: 0; pointer-events: none; transition: opacity var(--d-2), transform var(--d-3) var(--spring); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.screen.chat-screen ~ .toast, .toast.high { bottom: 96px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
@@ -235,38 +372,51 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 </style>
 
 <div class="stage">
-  <main class="app" id="app" aria-live="polite"></main>
+  <main class="app" id="app"></main>
 </div>
-
 <script>
 (() => {
   "use strict";
 
-  // ---------- icons (Material-style paths) ----------
+  // ---------- icons: one stroke family (2px, round caps) so every glyph feels related ----------
+  const svg = (d, extra = "") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${d}</svg>`;
   const I = {
-    radar: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2Zm0 4a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4V6Zm0 4a2 2 0 1 0 2 2c0-.2 0-.4-.1-.6l5.3-5.3-1.4-1.4-5.3 5.3c-.2-.1-.3 0-.5 0Z"/></svg>',
-    chat: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7l-5 4V6a2 2 0 0 1 2-2Zm2 5v2h12V9H6Zm0 4v2h8v-2H6Z"/></svg>',
-    person: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-4 0-8 2-8 5v2h16v-2c0-3-4-5-8-5Z"/></svg>',
-    back: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2Z"/></svg>',
-    send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5 21 12 3 3.5v6.6L15 12 3 13.9v6.6Z"/></svg>',
-    arrow: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.4 1.4 5.6 5.6H4v2h12.2l-5.6 5.6L12 20l8-8-8-8Z"/></svg>',
-    check: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"/></svg>',
-    checks: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m18 7-1.4-1.4-6.3 6.3 1.4 1.4L18 7Zm4.2-1.4L11.7 16.2 7.5 12l-1.4 1.4 5.6 5.6 12-12-1.5-1.4ZM.4 13.4 6 19l1.4-1.4L1.8 12 .4 13.4Z"/></svg>',
-    clock: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7Z"/></svg>',
-    queue: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2v6l4 4-4 4v6h12v-6l-4-4 4-4V2H6Zm10 14.5V20H8v-3.5l4-4 4 4Z"/></svg>',
-    speed: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.4 8.6 19 10a8 8 0 0 1-.6 8H5.6A8 8 0 0 1 16 5.6l1.4-1.4A10 10 0 0 0 3.9 19a2 2 0 0 0 1.7 1h12.8a2 2 0 0 0 1.7-1 10 10 0 0 0 .3-10.4ZM10.6 15.4a2 2 0 0 0 2.8 0l5.7-8.5-8.5 5.7a2 2 0 0 0 0 2.8Z"/></svg>',
-    globe: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1 17.9A8 8 0 0 1 4.2 10L9 15v1a2 2 0 0 0 2 2v1.9Zm6.9-2.5A2 2 0 0 0 16 16h-1v-3a1 1 0 0 0-1-1H8v-2h2a1 1 0 0 0 1-1V7h2a2 2 0 0 0 2-2v-.4a8 8 0 0 1 2.9 12.8Z"/></svg>',
-    cloudOff: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 10A7.5 7.5 0 0 0 8.1 4.5l1.5 1.5A5.5 5.5 0 0 1 17.5 11v.5H19a2.5 2.5 0 0 1 1 4.8l1.4 1.4A4.5 4.5 0 0 0 19.4 10ZM3 5.3l2.8 2.7A6 6 0 0 0 6 20h11.7l2 2 1.3-1.3L4.3 4 3 5.3ZM7.7 10l8 8H6a4 4 0 0 1 0-8h1.7Z"/></svg>',
-    signalOff: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 1 1 21h20V1Zm-2 18h-2v-7.2l2-2V19ZM2.4 2.4 1 3.8l18.2 18.2 1.4-1.4L2.4 2.4Z"/></svg>',
-    pin: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.3 7 13 7 13s7-7.7 7-13a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/></svg>',
-    wifi: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m1 9 2 2a12.7 12.7 0 0 1 18 0l2-2A15.6 15.6 0 0 0 1 9Zm8 8 3 3 3-3a4.2 4.2 0 0 0-6 0Zm-4-4 2 2a7 7 0 0 1 10 0l2-2a9.9 9.9 0 0 0-14 0Z"/></svg>',
-    refresh: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.7 6.3A8 8 0 1 0 19.7 14h-2.1a6 6 0 1 1-1.4-6.2L13 11h7V4l-2.3 2.3Z"/></svg>',
-    trash: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12ZM8 9h8v10H8V9Zm7.5-5-1-1h-5l-1 1H5v2h14V4h-3.5Z"/></svg>',
-    info: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 7h2v2h-2V7Zm0 4h2v6h-2v-6Zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>',
+    radar: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12 18.4 5.6"/><circle cx="12" cy="12" r="1" fill="currentColor"/>'),
+    chat: svg('<path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.1A8.5 8.5 0 1 1 21 12Z"/>'),
+    person: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+    back: svg('<path d="M15 5 8 12l7 7"/>'),
+    chevron: svg('<path d="m9 6 6 6-6 6"/>'),
+    send: svg('<path d="M5 12h13M12 5l7 7-7 7"/>', 'stroke-width="2.4"'),
+    mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
+    smile: svg('<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4 4 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>'),
+    plus: svg('<path d="M12 5v14M5 12h14"/>'),
+    phone: svg('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>'),
+    video: svg('<rect x="3" y="6" width="13" height="12" rx="3"/><path d="m16 10 5-3v10l-5-3"/>'),
+    speed: svg('<path d="M12 14l4-4M3.3 17a9.5 9.5 0 1 1 17.4 0"/><circle cx="12" cy="14" r="1.2" fill="currentColor"/>'),
+    search: svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+    globe: svg('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
+    cloudOff: svg('<path d="M3 3l18 18M8 7.2A6 6 0 0 1 17.7 11 4 4 0 0 1 20 18M17 19H7a5 5 0 0 1-1.6-9.7"/>'),
+    signalOff: svg('<path d="M3 3l18 18M6 20v-3M10 20v-7M14 20v-4M18 20V8M18 4v.01"/>'),
+    pin: svg('<path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/>'),
+    mesh: svg('<circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="12" cy="6" r="2"/><path d="M6.2 15.4 10.8 7.7M13.2 7.7l4.6 7.7M7 17h10"/>'),
+    refresh: svg('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/>'),
+    trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+    palette: svg('<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.8 1.5-1.6 0-1.2-1-1.6-1-2.6 0-.9.7-1.3 1.6-1.3H16a5 5 0 0 0 5-5c0-4.2-4-7.5-9-7.5Z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/><circle cx="15" cy="7.5" r="1" fill="currentColor"/>'),
+    terminal: svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3M13 15h4"/>'),
+    copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),
+    sparkle: svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'),
+    bot: svg('<rect x="4" y="8" width="16" height="12" rx="4"/><path d="M12 4v4M9 14h.01M15 14h.01"/>'),
+  };
+  // Message status, Signal style: dotted ring while sending, ring + check when sent, two rings when delivered.
+  const TICK = {
+    sending: '<svg viewBox="0 0 16 16" aria-label="Sending"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2.4"/></svg>',
+    sent: '<svg viewBox="0 0 16 16" aria-label="Sent"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m5.4 8.2 1.8 1.8 3.5-3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    delivered: '<svg viewBox="0 0 22 16" style="width:21px" aria-label="Delivered"><circle cx="7" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="14" cy="8" r="6.75" fill="var(--canvas)"/><circle cx="14" cy="8" r="6" fill="currentColor"/><path d="m11.4 8.2 1.8 1.8 3.5-3.6" fill="none" stroke="var(--canvas)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    queued: '<svg viewBox="0 0 16 16" aria-label="Waiting"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3l2 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
   };
 
   const AVATARS = ["🌿", "🦅", "🌊", "⛰️", "🌻", "🦋", "🐬", "🔥", "🌙", "🍀", "🐺", "🌵"];
-  const TINTS = ["#7FD8A8", "#9CCBF0", "#FFCF80", "#F4A6A0", "#C3B1F0", "#8FD3D0"];
+  const TINTS = ["#CFEBDC", "#D6E6F5", "#F8E2C4", "#F5D5D2", "#E0D8F4", "#CDECE8"];
   const tint = (seed) => TINTS[Math.abs([...seed].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)) % TINTS.length];
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -528,6 +678,10 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
     if (S.tab === "radar" && !S.chat && S.onboarded) { placeBlips(); updatePeopleText(); }
   }, 4000);
 
+
+  // ---------- extra UI state ----------
+  Object.assign(S, { screen: "main", query: "", filter: "all", prevTab: S.tab, seen: new Set() });
+
   // ---------- formatting ----------
   function fmtDist(m) {
     if (m < 10) return "a few m";
@@ -543,62 +697,76 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
     return Math.floor(s / 86400) + " d ago";
   }
   const clock = (t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const presenceColor = (p) => ({ online: "var(--online)", range: "var(--away)", offline: "var(--offline)", remote: "var(--sky)" }[p]);
+  const stamp = (t) => (now() - t < 60e3 ? "now" : clock(t));
+  const PCOLOR = { online: "var(--online)", range: "var(--away)", offline: "var(--offline)", remote: "var(--sky)" };
+  const ORDER = { online: 0, range: 1, offline: 2, remote: 3 };
 
   function statusLine(p) {
-    if (p.remote) return bridgeOnline()
-      ? "2,000 km away · reachable through Meera's internet"
-      : "2,000 km away · needs someone nearby with internet";
-    const parts = [];
-    if (p.presence === "online") {
-      parts.push("Online");
-      if (S.shareLoc) parts.push(fmtDist(p.dist) + " away");
-      parts.push(p.link);
-    } else if (p.presence === "range") {
-      parts.push("In range, connecting…");
-    } else {
-      parts.push("Last seen " + ago(p.lastSeen));
-      if (S.shareLoc) parts.push("was " + fmtDist(p.dist) + " away");
-    }
-    return parts.join(" · ");
+    if (p.remote) return bridgeOnline() ? "2,000 km away · via Meera's internet" : "2,000 km away · waiting for a bridge";
+    if (p.presence === "online") return ["Online", S.shareLoc ? fmtDist(p.dist) + " away" : null, p.link].filter(Boolean).join(" · ");
+    if (p.presence === "range") return "In range · connecting…";
+    return "Seen " + ago(p.lastSeen) + (S.shareLoc ? " · was " + fmtDist(p.dist) + " away" : "");
   }
 
+  // Avatar: emoji on a soft tint. Online people get a ring, others a small status badge.
   function avatar(emoji, seed, size, presence) {
-    const status = presence ? `<span class="status" style="background:${presenceColor(presence)}"></span>` : "";
-    return `<span class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .48)}px;background:${tint(seed)}88">${esc(emoji)}${status}</span>`;
+    const ring = presence === "online";
+    const badge = presence && !ring ? `<span class="badge" style="background:${PCOLOR[presence]}"></span>` : "";
+    return `<span class="avatar${ring ? " ring" : ""}" style="width:${size}px;height:${size}px">
+      <span class="face" style="background:${tint(seed)};font-size:${Math.round(size * (ring ? .44 : .5))}px">${esc(emoji)}</span>${badge}</span>`;
   }
 
-  // ---------- rendering ----------
+  // ---------- rendering core ----------
   const app = document.getElementById("app");
   let toastTimer;
   function toast(text) {
     let el = app.querySelector(".toast");
     if (!el) { el = document.createElement("div"); el.className = "toast"; el.setAttribute("role", "status"); app.appendChild(el); }
     el.textContent = text;
+    el.classList.toggle("high", S.screen === "chat");
     requestAnimationFrame(() => el.classList.add("show"));
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2400);
   }
 
   function refresh() {
     if (!S.onboarded) return;
-    if (S.chat) { renderChatParts(); return; }
-    render();
+    if (S.screen === "chat") { renderChatParts(); return; }
+    if (S.screen === "main") render();
   }
 
-  function render() {
-    const keepScroll = app.querySelector(".scroll")?.scrollTop ?? 0;
+  /** anim: "fade" when switching tabs, "push" when opening a screen, none for live updates. */
+  function render(anim) {
+    const active = document.activeElement;
+    const focusId = active && active.id, caret = active && active.selectionStart;
+    const keepScroll = !anim ? app.querySelector("#scroll")?.scrollTop ?? 0 : 0;
+    const toastEl = app.querySelector(".toast");
+
     if (!S.onboarded) { app.innerHTML = onboardingView(); afterOnboardingRender(); return; }
-    if (S.chat) { app.innerHTML = chatView(); renderChatParts(true); return; }
-    app.innerHTML = `<div class="scroll" id="scroll">${
-      S.tab === "radar" ? radarView() : S.tab === "chats" ? chatsView() : profileView()
-    }</div>${tabsView()}`;
-    const sc = app.querySelector(".scroll");
-    if (sc) sc.scrollTop = keepScroll;
-    if (S.tab === "radar") placeBlips();
-  }
+    if (S.screen === "chat") { app.innerHTML = chatView(anim); renderChatParts(true); }
+    else if (S.screen === "guide") app.innerHTML = guideView(anim);
+    else app.innerHTML = mainView(anim);
 
-  // ----- onboarding -----
+    if (toastEl) app.appendChild(toastEl);
+    const sc = app.querySelector("#scroll");
+    if (sc) { sc.scrollTop = keepScroll; syncBar(sc); }
+    if (S.screen === "main" && S.tab === "radar") placeBlips();
+    if (focusId) {
+      const el = document.getElementById(focusId);
+      if (el) { el.focus(); if (caret != null && el.setSelectionRange) el.setSelectionRange(caret, caret); }
+    }
+    if (S.screen === "main") requestAnimationFrame(() => {
+      const ind = app.querySelector(".tab-ind");
+      if (ind) ind.style.transform = `translateX(${TABS.findIndex((t) => t.id === S.tab) * 100}%)`;
+    });
+  }
+  function syncBar(sc) {
+    const bar = app.querySelector(".bar");
+    if (bar && !bar.classList.contains("solid")) bar.classList.toggle("scrolled", sc.scrollTop > 36);
+  }
+  app.addEventListener("scroll", (e) => { if (e.target.id === "scroll") syncBar(e.target); }, true);
+
+  // ---------- onboarding ----------
   const SLIDES = [
     { art: "offgrid", title: "Talk freely, anywhere", body: "No towers. No internet. BlueMob links phones directly over Bluetooth and Wi-Fi: in the mountains, at sea, or when the network goes down." },
     { art: "hops", title: "Every phone is a path", body: "Messages hop from friend to friend until they reach the right person. The more people around, the further your voice travels." },
@@ -606,142 +774,174 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
     { art: "radar", title: "See who's around", body: "A live radar shows who's online, how far away they are, and when you last saw them." },
     { art: "buddy", title: "Never alone", body: "Chat with Sky, your built-in buddy, to feel what talking off-grid is like before friends join." },
   ];
+  const node = (emoji, x, y, size, seed) =>
+    `<span class="node" style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;margin:${-size / 2}px;font-size:${size / 2}px;background:${tint(seed)}">${emoji}</span>`;
   function heroArt(kind) {
     if (kind === "offgrid") return `<div class="hero"><span class="ripple"></span><span class="ripple"></span><span class="ripple"></span>
-      <span class="node" style="position:relative;width:88px;height:88px;font-size:44px;background:${tint("me")}99">📱</span>
-      <span class="hero-badge">${I.signalOff}</span></div>`;
+      ${node("📱", 50, 50, 92, "me")}<span class="hero-badge">${I.signalOff}</span></div>`;
     if (kind === "hops") return `<div class="hero"><svg viewBox="0 0 300 300" width="100%" height="100%" aria-hidden="true">
-      <path id="hopPath" d="M45 210 L150 90 L255 210" fill="none" stroke="var(--line)" stroke-width="5" stroke-dasharray="14 12"/>
-      <circle r="16" fill="var(--sun)" opacity=".3"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#hopPath"/></animateMotion></circle>
-      <circle r="8" fill="var(--sun)"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#hopPath"/></animateMotion></circle></svg>
-      <span class="node" style="left:15%;top:70%;width:64px;height:64px;margin:-32px;font-size:32px;background:${tint("a")}99">🦅</span>
-      <span class="node" style="left:50%;top:30%;width:64px;height:64px;margin:-32px;font-size:32px;background:${tint("b")}99">🌊</span>
-      <span class="node" style="left:85%;top:70%;width:64px;height:64px;margin:-32px;font-size:32px;background:${tint("c")}99">⛰️</span></div>`;
+      <path id="hopPath" d="M45 210 L150 90 L255 210" fill="none" stroke="var(--line)" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round"/>
+      <circle r="16" fill="var(--ember)" opacity=".22"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#hopPath"/></animateMotion></circle>
+      <circle r="7" fill="var(--ember)"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#hopPath"/></animateMotion></circle></svg>
+      ${node("🦅", 15, 70, 64, "a")}${node("🌊", 50, 30, 64, "b")}${node("⛰️", 85, 70, 64, "c")}</div>`;
     if (kind === "bridge") return `<div class="hero"><svg viewBox="0 0 300 300" width="100%" height="100%" aria-hidden="true">
-      <line x1="54" y1="234" x2="135" y2="258" stroke="var(--line)" stroke-width="4"/>
-      <line x1="135" y1="258" x2="234" y2="222" stroke="var(--line)" stroke-width="4"/>
-      <line x1="234" y1="222" x2="150" y2="60" stroke="var(--leaf)" stroke-width="6" stroke-dasharray="18 10">
-        <animate attributeName="stroke-dashoffset" from="56" to="0" dur="1.2s" repeatCount="indefinite"/></line></svg>
-      <span class="node" style="left:18%;top:78%;width:56px;height:56px;margin:-28px;font-size:28px;background:${tint("f0")}99">🌻</span>
-      <span class="node" style="left:45%;top:86%;width:56px;height:56px;margin:-28px;font-size:28px;background:${tint("f1")}99">🍀</span>
-      <span class="node" style="left:78%;top:74%;width:56px;height:56px;margin:-28px;font-size:28px;background:${tint("f2")}99">📶</span>
-      <span class="node" style="left:50%;top:20%;width:84px;height:84px;margin:-42px;font-size:46px;background:var(--leaf-soft)">🌍</span></div>`;
-    if (kind === "radar") return `<div class="hero"><div class="radar-wrap" data-demo="1"><canvas></canvas></div></div>`;
+      <path d="M54 234 L135 258 L234 222" fill="none" stroke="var(--line)" stroke-width="4" stroke-linecap="round"/>
+      <line x1="234" y1="222" x2="150" y2="60" stroke="var(--pine)" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round">
+        <animate attributeName="stroke-dashoffset" from="48" to="0" dur="1.2s" repeatCount="indefinite"/></line></svg>
+      ${node("🌻", 18, 78, 56, "f0")}${node("🍀", 45, 86, 56, "f1")}${node("📶", 78, 74, 56, "f2")}${node("🌍", 50, 20, 88, "earth")}</div>`;
+    if (kind === "radar") return `<div class="hero"><div class="night" style="width:100%;height:100%;border-radius:50%"><div class="radar-wrap" data-demo="1"><canvas></canvas></div></div></div>`;
     return `<div class="hero"><div class="bubble-demo"><div class="b me">Hi Sky! 👋</div><div class="b them">Hey! 🌤️ Ready to explore?</div><div class="b me">Let's go! 🚀</div></div></div>`;
   }
   function onboardingView() {
     const last = S.slide === SLIDES.length;
     const s = SLIDES[S.slide];
     const content = last ? `
-      <div class="slide" key="setup">
-        <span class="big-avatar" id="ob-avatar">${esc(S.avatar)}</span>
-        <h1 style="font-size:28px">Who are you out there?</h1>
+      <div class="slide">
+        <span class="me-badge" id="ob-avatar">${esc(S.avatar)}</span>
+        <h1 class="t-title" style="margin-top:8px">Who are you out there?</h1>
         <p>Pick a name and a spirit. People nearby will see these.</p>
-        <div class="field"><label for="ob-name">Your name</label>
+        <div class="field" style="width:100%;margin-top:6px"><label class="t-over" for="ob-name">Your name</label>
           <input id="ob-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Arjun" value="${esc(S.name)}"></div>
-        <div class="avatar-grid" role="group" aria-label="Choose an avatar">${AVATARS.map((a) =>
+        <div class="picker" role="group" aria-label="Choose an avatar">${AVATARS.map((a) =>
           `<button data-act="pick-avatar" data-v="${a}" aria-pressed="${a === S.avatar}">${a}</button>`).join("")}</div>
       </div>` : `
       <div class="slide">
         ${heroArt(s.art)}
-        ${s.art === "hops" || s.art === "bridge" ? '<span class="pill sun">COMING TO ANDROID SOON · TRY IT IN THIS PREVIEW</span>' : ""}
-        <h1>${s.title}</h1>
+        ${s.art === "hops" || s.art === "bridge" ? '<span class="tag ember">COMING TO ANDROID · TRY IT IN THIS PREVIEW</span>' : ""}
+        <h1 class="t-hero" style="margin-top:6px">${s.title}</h1>
         <p>${s.body}</p>
       </div>`;
     return `<div class="onboard">
-      <div class="onboard-top"><span class="brand">BlueMob</span>
-        ${last ? "<span></span>" : '<button class="btn ghost" data-act="skip">Skip</button>'}</div>
+      <div class="onboard-top"><span class="wordmark"><i></i>BlueMob</span>
+        ${last ? "" : '<button class="btn text" data-act="skip">Skip</button>'}</div>
       ${content}
       <div class="onboard-bottom">
         <div class="dots" aria-hidden="true">${Array.from({ length: SLIDES.length + 1 }, (_, i) => `<span class="${i === S.slide ? "on" : ""}"></span>`).join("")}</div>
         <button class="btn" data-act="${last ? "finish" : "next"}" id="ob-next" ${last && !S.name.trim() ? "disabled" : ""}>
-          ${last ? "Start exploring" : "Next"} ${I.arrow}</button>
+          ${last ? "Start exploring" : "Continue"} ${I.send}</button>
       </div></div>`;
   }
   function afterOnboardingRender() {
     const input = document.getElementById("ob-name");
-    if (input) {
-      input.addEventListener("input", () => {
-        S.name = input.value.replace(/\|/g, " ").slice(0, 24);
-        document.getElementById("ob-next").disabled = !S.name.trim();
-      });
-      input.addEventListener("keydown", (e) => { if (e.key === "Enter" && S.name.trim()) finishOnboarding(); });
-    }
+    if (!input) return;
+    input.addEventListener("input", () => {
+      S.name = input.value.replace(/\|/g, " ").slice(0, 24);
+      document.getElementById("ob-next").disabled = !S.name.trim();
+    });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter" && S.name.trim()) finishOnboarding(); });
   }
   function finishOnboarding() {
     S.name = S.name.trim() || "Explorer";
     S.onboarded = true;
     store.set("name", S.name); store.set("avatar", S.avatar); store.set("onboarded", true);
-    S.tab = "radar";
-    render();
+    S.tab = "radar"; S.screen = "main";
+    render("fade");
     later(500, startMesh);
   }
 
-  // ----- radar tab -----
+  // ---------- main shell ----------
+  const TABS = [
+    { id: "radar", label: "Nearby", icon: I.radar },
+    { id: "chats", label: "Chats", icon: I.chat },
+    { id: "you", label: "You", icon: I.person },
+  ];
+  function mainView(anim) {
+    const title = { radar: "Nearby", chats: "Chats", you: "You" }[S.tab];
+    const body = S.tab === "radar" ? radarView() : S.tab === "chats" ? chatsView() : profileView();
+    const actions = S.tab === "radar"
+      ? `<button class="icon-btn" data-act="tab" data-v="you" aria-label="Your profile">${avatar(S.avatar, "me", 32)}</button>` : "";
+    return `<div class="screen ${S.tab === "you" ? "grouped" : ""} ${anim === "fade" ? "fade-in" : anim === "push" ? "push-in" : ""}">
+      <header class="bar"><div class="bar-title">${title}</div>${actions}</header>
+      <div class="scroll" id="scroll">${body}</div>
+      ${tabbar()}</div>`;
+  }
+  function tabbar() {
+    const unread = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
+    const from = TABS.findIndex((t) => t.id === S.prevTab);
+    return `<nav class="tabbar" role="tablist"><span class="tab-ind" style="transform:translateX(${from * 100}%)"></span>${TABS.map((t) =>
+      `<button class="tab" role="tab" aria-selected="${S.tab === t.id}" data-act="tab" data-v="${t.id}">${t.icon}${t.label}${
+        t.id === "chats" && unread ? `<span class="count">${unread}</span>` : ""}</button>`).join("")}</nav>`;
+  }
+
+  // ---------- Nearby (radar) ----------
   function greeting() {
     const h = new Date().getHours();
-    return h >= 5 && h < 12 ? "Good morning" : h < 17 && h >= 12 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Hello, night owl";
+    return h >= 5 && h < 12 ? "Good morning" : h >= 12 && h < 17 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Hello, night owl";
   }
   const nearby = () => Object.values(P).filter((p) => !p.remote && p.met);
   function radarView() {
-    const list = nearby();
+    const list = nearby().sort((a, b) => ORDER[a.presence] - ORDER[b.presence] || b.lastSeen - a.lastSeen);
     const online = list.filter((p) => p.presence === "online").length;
     const range = list.filter((p) => p.presence === "range").length;
-    const ordered = [...list].sort((a, b) => ({ online: 0, range: 1, offline: 2 }[a.presence] - { online: 0, range: 1, offline: 2 }[b.presence]) || b.lastSeen - a.lastSeen);
+    const bridge = bridgeOnline();
     return `
-      <div class="greet"><div class="grow"><div class="muted">${greeting()}</div><h1 class="ellipsis">${esc(S.name)}</h1></div>${avatar(S.avatar, "me", 52)}</div>
-      <section class="hero-card">
-        <div class="row"><div class="grow">
-          <h2>${S.mesh ? '<span class="live"></span>You’re on the mesh' : "Mesh is off"}</h2>
-          <p>${S.mesh ? "Nearby phones can see and reach you" : "Switch on to find people around you"}</p></div>
-          <button class="switch on-hero" role="switch" aria-checked="${S.mesh}" aria-label="Mesh" data-act="toggle-mesh"></button></div>
-        <div class="stats">
-          <div class="stat"><b>${online}</b><span>online</span></div>
-          <div class="stat"><b>${range}</b><span>in range</span></div>
-          <div class="stat"><b>${list.length}</b><span>met so far</span></div>
+      <div class="large-title"><div class="t-sub">${greeting()}, ${esc(S.name)}</div><h1 class="t-hero">Nearby</h1></div>
+
+      <section class="night">
+        <div class="night-top">
+          <span class="live ${S.mesh ? "" : "off"}"><span class="pulse"></span>${S.mesh ? "MESH ON" : "MESH OFF"}</span>
+          <button class="switch" role="switch" aria-checked="${S.mesh}" aria-label="Mesh" data-act="toggle-mesh"></button>
+        </div>
+        <div class="radar-wrap" id="radar"><canvas></canvas>${list.map((p) => {
+          const { x, y } = blipPos(p);
+          return `<button class="blip" data-act="open-chat" data-id="${p.id}" data-blip="${p.id}" aria-label="${esc(p.name)}, ${statusLine(p)}"
+            style="left:${x}%;top:${y}%;opacity:${p.presence === "offline" ? .45 : 1};--glow:${p.presence === "online" ? "rgba(95,211,163,.55)" : "transparent"}">
+            <span class="face" style="background:${tint(p.id)}">${p.avatar}</span><span class="badge" style="background:${PCOLOR[p.presence]}"></span></button>`;
+        }).join("")}</div>
+        <div class="night-foot">
+          <div class="stat-line num"><div><b>${online}</b><span>online</span></div><div><b>${range}</b><span>in range</span></div><div><b>${list.length}</b><span>met</span></div></div>
+          <div class="scale">${S.shareLoc ? "10 m · 300 m · 10 km" : "inner ring = online"}</div>
         </div>
       </section>
-      <section class="card" style="display:flex;flex-direction:column;gap:12px">
-        <div class="row"><h3 class="grow" style="font-size:20px">Radar</h3>
-          <span class="small muted">${S.shareLoc ? "rings: 10 m · 300 m · 10 km" : "you're in the middle"}</span></div>
-        <div class="radar-wrap" id="radar"><canvas></canvas>${list.map((p) =>
-          `<button class="blip" data-act="open-chat" data-id="${p.id}" data-blip="${p.id}" aria-label="${esc(p.name)}" style="background:${tint(p.id)}e6;left:${blipPos(p).x}%;top:${blipPos(p).y}%;opacity:${p.presence === "offline" ? .45 : 1}">${p.avatar}<span class="status" style="background:${presenceColor(p.presence)}"></span></button>`).join("")}</div>
-        <div class="legend">
-          <span class="pill"><span class="dot" style="background:var(--online)"></span>Online</span>
-          <span class="pill"><span class="dot" style="background:var(--away)"></span>In range</span>
-          <span class="pill"><span class="dot" style="background:var(--offline)"></span>Seen before</span>
-        </div>
-        ${S.shareLoc ? "" : `<div class="hint">${I.pin.replace("<svg", '<svg width="22" height="22" style="flex:none"')}
-          <span class="grow small">Share your location to see real distances. GPS works without internet.</span>
-          <button class="btn ghost" data-act="share-loc">Share</button></div>`}
-      </section>
-      ${bridgeOnline() ? `<section class="bridge" style="background:var(--leaf-soft);color:var(--on-soft)">${I.globe}
-          <div><b>Meera is your bridge</b><div class="small">She has internet, so your messages can reach anyone in the world, like Dee 2,000 km away.</div></div></section>`
-        : `<section class="bridge" style="background:var(--sun-soft);color:var(--on-soft)">${I.cloudOff}
-          <div><b>Off-grid mode</b><div class="small">No internet here, and that's fine. BlueMob talks phone to phone.</div></div></section>`}
-      <div class="section-title">People</div>
-      ${ordered.length === 0 ? "" : `<div class="list" id="people">${ordered.map(personRow).join("")}</div>`}
-      ${S.mesh ? "" : `<section class="card empty"><div style="font-size:36px">🏕️</div><b>${ordered.length ? "Mesh is off" : "Quiet out here"}</b>
-        <div class="small muted">Switch on the mesh to look for people nearby, or practise with Sky.</div>
-        <button class="btn" data-act="open-chat" data-id="sky">Say hi to Sky 🌤️</button></section>`}
-      <p class="small muted" style="margin:0;text-align:center">Web preview: nearby people are simulated. The Android app finds real phones over Bluetooth and Wi-Fi.</p>`;
+
+      <div class="seg ${S.shareLoc ? "right" : ""}" role="group" aria-label="Radar view" style="margin-top:14px">
+        <span class="knob"></span>
+        <button data-act="seg" data-v="status" aria-pressed="${!S.shareLoc}">By status</button>
+        <button data-act="seg" data-v="distance" aria-pressed="${S.shareLoc}">By distance</button>
+      </div>
+
+      <div class="section-h"><h2 class="t-head">Around you</h2><span class="t-cap">${list.length ? list.length + " people" : ""}</span></div>
+      ${list.length ? `<div class="hscroll">${list.map(personCard).join("")}</div>`
+        : `<div class="card" style="padding:20px;text-align:center"><div style="font-size:34px">🏕️</div>
+            <div class="t-strong" style="margin-top:6px">Quiet out here</div>
+            <div class="t-sub">Switch the mesh on. People nearby appear as they open BlueMob.</div></div>`}
+
+      <div class="section-h"><h2 class="t-head">Reach further</h2></div>
+      <div class="stack" style="gap:10px">
+        <button class="card feature press" data-act="open-chat" data-id="dee">
+          <span class="tile" style="background:${bridge ? "var(--pine)" : "var(--ember)"}">${bridge ? I.globe : I.cloudOff}</span>
+          <span style="flex:1;min-width:0"><span class="t-strong" style="display:block">${bridge ? "Meera is your bridge to the world" : "You're off-grid"}</span>
+            <span class="t-sub">${bridge ? "She has internet. Message Dee, 2,000 km away, and watch it travel." : "No internet nearby yet. Messages to faraway friends will wait for a bridge."}</span></span>
+          <span class="chev">${I.chevron}</span></button>
+        <button class="card feature press" data-act="open-chat" data-id="sky">
+          <span class="tile" style="background:var(--sky)">${I.bot}</span>
+          <span style="flex:1;min-width:0"><span class="t-strong" style="display:block">Practise with Sky</span>
+            <span class="t-sub">A friendly bot that shows how off-grid chats feel.</span></span>
+          <span class="chev">${I.chevron}</span></button>
+      </div>
+      <p class="t-cap" style="text-align:center;margin-top:24px">Web preview · nearby people are simulated. The Android app finds real phones over Bluetooth and Wi-Fi.</p>`;
   }
-  function personRow(p) {
-    return `<button class="person" data-act="open-chat" data-id="${p.id}">
-      ${avatar(p.avatar, p.id, 48, p.presence)}
-      <span class="grow"><b class="ellipsis" style="display:block">${esc(p.name)}</b><span class="small muted" data-status="${p.id}">${statusLine(p)}</span></span>
-      <span class="icon-btn" aria-hidden="true">${I.chat}</span></button>`;
+  function personCard(p) {
+    const label = { online: "ONLINE", range: "IN RANGE", offline: "AWAY" }[p.presence];
+    const sub = p.presence === "online" ? (S.shareLoc ? fmtDist(p.dist) + " · " : "") + p.link
+      : p.presence === "range" ? "Connecting…" : "Seen " + ago(p.lastSeen);
+    return `<button class="pcard press" data-act="open-chat" data-id="${p.id}">
+      <span class="art" style="background:${tint(p.id)}"><span class="tag"><span class="dot" style="background:${PCOLOR[p.presence]}"></span>${label}</span>${p.avatar}</span>
+      <span class="body"><span class="t-strong ellipsis">${esc(p.name)}</span><span class="t-cap ellipsis" data-status-card="${p.id}">${sub}</span></span></button>`;
   }
   function updatePeopleText() {
-    document.querySelectorAll("[data-status]").forEach((el) => { el.textContent = statusLine(P[el.dataset.status]); });
+    document.querySelectorAll("[data-status-card]").forEach((el) => {
+      const p = P[el.dataset.statusCard];
+      if (p.presence === "online") el.textContent = (S.shareLoc ? fmtDist(p.dist) + " · " : "") + p.link;
+    });
   }
 
-  // Where each person sits: with location, real bearing on a log scale (rings at 10 m, ~300 m, 10 km);
+  // Placement: with location, real bearing on a log scale (rings at 10 m, ~300 m, 10 km);
   // without, a stable direction and a ring that reflects how reachable they are.
   function blipPos(p) {
-    let r;
-    if (S.shareLoc) r = Math.min(.95, Math.max(.12, (Math.log10(Math.max(1, p.dist)) + .5) / 4.5));
-    else r = { online: .42, range: .66, offline: .9 }[p.presence];
+    const r = S.shareLoc
+      ? Math.min(.9, Math.max(.14, (Math.log10(Math.max(1, p.dist)) + .5) / 4.5))
+      : { online: .36, range: .6, offline: .84 }[p.presence];
     const a = (p.bearing * Math.PI) / 180;
     return { x: 50 + 50 * r * Math.sin(a), y: 50 - 50 * r * Math.cos(a) };
   }
@@ -749,203 +949,319 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
     document.querySelectorAll("[data-blip]").forEach((el) => {
       const p = P[el.dataset.blip];
       const { x, y } = blipPos(p);
-      el.style.left = x + "%";
-      el.style.top = y + "%";
-      el.style.opacity = p.presence === "offline" ? .45 : 1;
-      el.querySelector(".status").style.background = presenceColor(p.presence);
+      el.style.left = x + "%"; el.style.top = y + "%";
     });
   }
 
-  // Animated sweep, drawn on every radar canvas on screen.
+  // The radar is always drawn on a night sky, in both themes.
+  const STARS = Array.from({ length: 46 }, () => [Math.random(), Math.random(), Math.random() * 1.2 + .3, Math.random()]);
   let sweep = 0;
   function drawRadars() {
-    const css = getComputedStyle(document.documentElement);
-    const col = (n) => css.getPropertyValue(n).trim();
     document.querySelectorAll(".radar-wrap canvas").forEach((cv) => {
       const box = cv.getBoundingClientRect();
       if (!box.width) return;
       const dpr = window.devicePixelRatio || 1;
-      if (cv.width !== Math.round(box.width * dpr)) { cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr); }
+      const W = Math.round(box.width * dpr);
+      if (cv.width !== W) { cv.width = W; cv.height = W; }
       const ctx = cv.getContext("2d");
-      const w = cv.width, c = w / 2, r = c - 2 * dpr;
-      ctx.clearRect(0, 0, w, w);
-      ctx.fillStyle = col("--surface-2"); ctx.globalAlpha = .5;
-      ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
-      ctx.strokeStyle = col("--line"); ctx.lineWidth = 1.5 * dpr;
+      const c = W / 2, r = c * .92;
+      ctx.clearRect(0, 0, W, W);
+      STARS.forEach(([x, y, s, tw]) => {
+        ctx.fillStyle = `rgba(234,245,240,${.15 + .35 * Math.abs(Math.sin(sweep / 40 + tw * 6))})`;
+        ctx.beginPath(); ctx.arc(x * W, y * W, s * dpr, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.strokeStyle = "rgba(234,245,240,.10)"; ctx.lineWidth = dpr;
       for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(c, c, (r * i) / 3, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.setLineDash([2 * dpr, 6 * dpr]);
       ctx.beginPath(); ctx.moveTo(c - r, c); ctx.lineTo(c + r, c); ctx.moveTo(c, c - r); ctx.lineTo(c, c + r); ctx.stroke();
+      ctx.setLineDash([]);
       const demo = cv.parentElement.dataset.demo;
-      if (S.mesh || demo) {
+      if ((S.mesh || demo) && ctx.createConicGradient) {
         const a = (sweep * Math.PI) / 180;
-        const g = ctx.createConicGradient ? ctx.createConicGradient(a - Math.PI / 2 - Math.PI / 2, c, c) : null;
-        if (g) {
-          g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(.75, "rgba(0,0,0,0)");
-          const leaf = col("--leaf");
-          g.addColorStop(.999, leaf); g.addColorStop(1, "rgba(0,0,0,0)");
-          ctx.globalAlpha = .35; ctx.fillStyle = g;
-          ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
-        }
+        const g = ctx.createConicGradient(a, c, c);
+        g.addColorStop(0, "rgba(95,211,163,.55)"); g.addColorStop(.18, "rgba(95,211,163,0)"); g.addColorStop(1, "rgba(95,211,163,0)");
+        ctx.save(); ctx.scale(1, 1);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "rgba(95,211,163,.8)"; ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath(); ctx.moveTo(c, c); ctx.lineTo(c + r * Math.cos(a), c + r * Math.sin(a)); ctx.stroke();
+        ctx.restore();
       }
       if (demo) {
-        [[40, .35, "--online"], [150, .62, "--online"], [250, .85, "--away"]].forEach(([b, rr, k]) => {
-          const ang = (b * Math.PI) / 180;
-          ctx.fillStyle = col(k);
-          ctx.beginPath(); ctx.arc(c + r * rr * Math.sin(ang), c - r * rr * Math.cos(ang), 9 * dpr, 0, Math.PI * 2); ctx.fill();
+        [[40, .35, "#3FC897"], [150, .62, "#3FC897"], [250, .84, "#E9A23B"]].forEach(([b, rr, col]) => {
+          const ang = (b * Math.PI) / 180, x = c + r * rr * Math.sin(ang), y = c - r * rr * Math.cos(ang);
+          ctx.fillStyle = col; ctx.globalAlpha = .25; ctx.beginPath(); ctx.arc(x, y, 14 * dpr, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(x, y, 7 * dpr, 0, Math.PI * 2); ctx.fill();
         });
       }
-      const pulse = .6 + .4 * Math.abs(Math.sin(sweep / 30));
-      ctx.fillStyle = col("--sky"); ctx.globalAlpha = .25 * pulse;
-      ctx.beginPath(); ctx.arc(c, c, 18 * dpr * pulse, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(c, c, 7 * dpr, 0, Math.PI * 2); ctx.fill();
+      const pulse = .5 + .5 * Math.abs(Math.sin(sweep / 25));
+      ctx.fillStyle = "rgba(125,183,234,.28)"; ctx.beginPath(); ctx.arc(c, c, (10 + 12 * pulse) * dpr, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#7DB7EA"; ctx.beginPath(); ctx.arc(c, c, 6.5 * dpr, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2 * dpr; ctx.stroke();
     });
-    if (!reduceMotion) sweep = (sweep + 1.5) % 360;
+    if (!reduceMotion) sweep = (sweep + 1.6) % 360;
     requestAnimationFrame(drawRadars);
   }
 
-  // ----- chats tab -----
-  function chatRow(id, name, emoji, presence, fallback, badge) {
-    const c = S.convos[id];
-    const last = c?.messages.at(-1);
-    const sub = c?.typing ? '<span class="typing-text">typing…</span>'
-      : last ? esc((last.me ? "You: " : "") + last.text.split("\n")[0]) : esc(fallback);
-    return `<button class="person" data-act="open-chat" data-id="${id}">
-      ${avatar(emoji, id, 52, presence)}
-      <span class="grow"><span class="row" style="gap:8px"><b class="ellipsis">${esc(name)}</b>${badge || ""}</span>
-        <span class="small muted ellipsis" style="display:block">${sub}</span></span>
-      <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-        ${last ? `<span class="small muted">${ago(last.time)}</span>` : ""}
-        ${c?.unread ? `<span class="badge">${c.unread}</span>` : ""}</span></button>`;
+  // ---------- Chats ----------
+  function chatEntries() {
+    const entries = [
+      { id: "sky", name: SKY.name, emoji: SKY.avatar, presence: "online", kind: "bot", status: "Your practice buddy" },
+      { id: "dee", name: P.dee.name, emoji: P.dee.avatar, presence: "remote", kind: "far", status: statusLine(P.dee) },
+      ...nearby().map((p) => ({ id: p.id, name: p.name, emoji: p.avatar, presence: p.presence, kind: "near", status: statusLine(p) })),
+    ];
+    const lastTime = (e) => S.convos[e.id]?.messages.at(-1)?.time ?? 0;
+    return entries.sort((a, b) => (a.id === "sky" ? -1 : b.id === "sky" ? 1 : 0) || lastTime(b) - lastTime(a) || ORDER[a.presence] - ORDER[b.presence]);
   }
   function chatsView() {
-    const list = nearby().sort((a, b) => ({ online: 0, range: 1, offline: 2 }[a.presence] - { online: 0, range: 1, offline: 2 }[b.presence]));
-    return `<h1 style="font-size:28px">Chats</h1>
-      <div class="list">${chatRow("sky", SKY.name, SKY.avatar, "online", "Your practice buddy, always here", '<span class="pill sun">PRACTICE</span>')}</div>
-      <div class="group-title" style="margin-top:8px">Far away</div>
-      <div class="list">${chatRow("dee", P.dee.name, P.dee.avatar, "remote", statusLine(P.dee), '<span class="pill sky">VIA BRIDGE</span>')}</div>
-      <div class="group-title" style="margin-top:8px">People you've met</div>
-      ${list.length ? `<div class="list">${list.map((p) => chatRow(p.id, p.name, p.avatar, p.presence,
-        p.presence === "online" ? "Online now: say hello!" : p.presence === "range" ? "In range" : "Last seen " + ago(p.lastSeen))).join("")}</div>`
-        : '<p class="muted small" style="margin:0">No one yet. Turn on the mesh on the Radar tab.</p>'}`;
+    const q = S.query.trim().toLowerCase();
+    const all = chatEntries();
+    const list = all.filter((e) => (!q || e.name.toLowerCase().includes(q)) &&
+      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && e.kind === "far")));
+    const onlineNow = nearby().filter((p) => p.presence === "online");
+    return `
+      <h1 class="t-hero large-title">Chats</h1>
+      <label class="search">${I.search}<input id="q" type="search" placeholder="Search" value="${esc(S.query)}" aria-label="Search chats"></label>
+      ${onlineNow.length && !q ? `<div class="section-h" style="margin-top:20px"><span class="t-over">Online nearby</span></div>
+        <div class="stories">${onlineNow.map((p) => `<button class="story press" data-act="open-chat" data-id="${p.id}">${avatar(p.avatar, p.id, 60, "online")}<span class="ellipsis" style="max-width:64px">${esc(p.name)}</span></button>`).join("")}</div>` : ""}
+      <div class="filters" role="group" aria-label="Filter chats">${[["all", "All"], ["nearby", "Nearby"], ["far", "Far away"]].map(([v, l]) =>
+        `<button class="chip" data-act="filter" data-v="${v}" aria-pressed="${S.filter === v}">${l}</button>`).join("")}</div>
+      <div class="rows">${list.map(chatRow).join("") || '<p class="t-sub" style="padding:24px 16px;text-align:center">No chats match.</p>'}</div>`;
+  }
+  function chatRow(e) {
+    const c = S.convos[e.id];
+    const last = c?.messages.at(-1);
+    const unread = c?.unread || 0;
+    const tag = e.kind === "bot" ? '<span class="tag sky">BOT</span>' : e.kind === "far" ? '<span class="tag ember">VIA BRIDGE</span>' : "";
+    const preview = c?.typing ? '<span class="typing-text">typing…</span>'
+      : last ? (last.me ? "You: " : "") + esc(last.text.split("\n")[0]) : esc(e.status);
+    return `<button class="row press ${unread ? "unread" : ""}" data-act="open-chat" data-id="${e.id}">
+      ${avatar(e.emoji, e.id, 54, e.presence)}
+      <span class="main"><span class="line1"><span class="name ellipsis">${esc(e.name)}</span>${tag}</span>
+        <span class="preview ellipsis">${preview}</span></span>
+      <span class="side">${last ? `<span class="time num">${stamp(last.time)}</span>` : ""}${unread ? `<span class="count">${unread}</span>` : ""}</span></button>`;
   }
 
-  // ----- chat screen -----
+  // ---------- Chat ----------
   function chatInfo(id) {
-    if (id === "sky") return { name: SKY.name, emoji: SKY.avatar, presence: "online", isBot: true };
+    if (id === "sky") return { name: SKY.name, emoji: SKY.avatar, presence: "online", bot: true };
     const p = P[id];
     return { name: p.name, emoji: p.avatar, presence: p.presence, remote: p.remote };
   }
-  function chatView() {
+  function canSend(id) { return id === "sky" || P[id].remote || P[id].presence === "online"; }
+  function chatView(anim) {
     const id = S.chat, info = chatInfo(id);
-    return `<section class="chat">
-      <header class="chat-head">
-        <button class="icon-btn plain" data-act="back" aria-label="Back">${I.back}</button>
-        ${avatar(info.emoji, id, 40, info.presence)}
-        <div class="grow"><b>${esc(info.name)}</b><div class="small" id="chat-sub"></div></div>
-        ${!info.isBot && !info.remote ? `<button class="icon-btn plain" data-act="ping" aria-label="Check link speed" id="ping-btn">${I.speed}</button>` : ""}
+    const live = !info.bot && !info.remote;
+    return `<div class="screen chat-screen ${anim === "push" ? "push-in" : ""}">
+      <header class="bar solid chat-bar">
+        <button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>
+        <span class="who">${avatar(info.emoji, id, 38, info.presence)}<span style="min-width:0"><b class="ellipsis">${esc(info.name)}</b><span class="t-cap ellipsis" id="chat-sub" style="display:block"></span></span></span>
+        ${live ? `<button class="icon-btn" data-act="ping" id="ping-btn" aria-label="Check link speed">${I.speed}</button>` : ""}
+        <button class="icon-btn" data-act="soon" data-v="Voice calls" aria-label="Voice call">${I.phone}</button>
+        <button class="icon-btn" data-act="soon" data-v="Video calls" aria-label="Video call">${I.video}</button>
       </header>
       <div class="messages" id="messages"></div>
-      <div class="chips" id="chips"></div>
-      <div class="note" id="note"></div>
-      <form class="composer" id="composer">
-        <input id="draft" autocomplete="off" placeholder="Message" aria-label="Message">
-        <button class="send" type="submit" aria-label="Send" id="send-btn" disabled>${I.send}</button>
-      </form></section>`;
+      <div class="suggest" id="chips"></div>
+      <div class="composer-wrap">
+        <div class="composer-note" id="note" hidden></div>
+        <form class="composer" id="composer">
+          <div class="field-pill">
+            <button type="button" class="icon-btn" data-act="soon" data-v="Emoji" aria-label="Emoji">${I.smile}</button>
+            <input id="draft" autocomplete="off" placeholder="Message" aria-label="Message">
+            <button type="button" class="icon-btn" data-act="soon" data-v="Photos and files" aria-label="Attach">${I.plus}</button>
+          </div>
+          <button class="send mic" type="submit" id="send-btn" aria-label="Send">${I.mic}</button>
+        </form>
+      </div></div>`;
   }
-  function canSend(id) {
-    if (id === "sky" || P[id].remote) return true;
-    return P[id].presence === "online";
+  function introHtml(id, info) {
+    const sub = info.bot ? "Practice bot · lives on your phone, works with zero signal"
+      : info.remote ? "2,000 km away. Messages travel through a nearby friend who has internet."
+      : "Met nearby over " + (P[id].link || "Bluetooth") + ". Messages go phone to phone.";
+    const tag = info.bot ? '<span class="tag sky">PRACTICE CHAT</span>' : info.remote ? '<span class="tag ember">VIA BRIDGE</span>' : '<span class="tag pine">DIRECT</span>';
+    return `<div class="intro">${avatar(info.emoji, id, 80)}<h2 class="t-title" style="margin-top:8px">${esc(info.name)}</h2>${tag}<p class="t-sub" style="margin-top:4px">${sub}</p></div>`;
   }
-  function tickHtml(m) {
-    if (m.status === "sending") return I.clock;
-    if (m.status === "sent") return I.check;
-    if (m.status === "delivered") return `<span class="delivered" style="display:inline-flex">${I.checks}</span>`;
-    if (m.status === "queued") return I.queue;
-    return '<span style="color:var(--coral)">not sent</span>';
+  function journeyHtml(m) {
+    if (m.status === "queued") return '<div class="journey-note">Waiting for someone nearby with internet…</div>';
+    if (!m.route) return "";
+    const done = m.status === "delivered";
+    const steps = m.route.map((h, i) => `<li class="${done || i < m.hop ? "done" : i === m.hop ? "now" : ""}"><i></i><span class="ellipsis" style="max-width:100%">${esc(h.replace(" 🌐", ""))}</span></li>`).join("");
+    const note = done ? "Delivered through Meera's internet" : m.hop === 0 ? "Leaving your phone…" : "Passing through " + m.route[m.hop].replace(" 🌐", "") + "…";
+    return `<ol class="journey" aria-label="Route">${steps}</ol><div class="journey-note">${note}</div>`;
   }
-  function msgHtml(m) {
-    const route = m.route ? `<div class="route" aria-label="Route">${m.route.map((h, i) =>
-      `<span class="hop ${i < m.hop ? "done" : i === m.hop && m.status !== "delivered" ? "now" : m.status === "delivered" ? "done" : ""}">${esc(h)}</span>${i < m.route.length - 1 ? "→" : ""}`).join("")}</div>`
-      : m.status === "queued" ? '<div class="route">Waiting for someone nearby with internet…</div>' : "";
-    return `<div class="msg ${m.me ? "me" : "them"}" data-mid="${m.id}"><div class="body">${esc(m.text)}
-      <div class="meta">${clock(m.time)} ${m.me ? tickHtml(m) : ""}</div></div>${route}</div>`;
+  function messagesHtml(id, info, c) {
+    const out = [introHtml(id, info), '<span class="tag day">TODAY</span>'];
+    const ms = c.messages;
+    const same = (a, b) => a && b && a.me === b.me && Math.abs(b.time - a.time) < 120e3 && !a.route && !b.route && a.status !== "queued" && b.status !== "queued";
+    ms.forEach((m, i) => {
+      const withPrev = same(ms[i - 1], m), withNext = same(m, ms[i + 1]);
+      const pos = withPrev && withNext ? "mid" : withNext ? "first" : withPrev ? "last" : "";
+      const isNew = !S.seen.has(m.id);
+      S.seen.add(m.id);
+      const showMeta = !withNext || m.route || m.status === "failed";
+      const tick = m.me ? (m.status === "failed" ? '<span class="fail">Not sent · out of range</span>'
+        : `<span class="${m.status === "delivered" ? "ok" : ""}" style="display:inline-flex">${TICK[m.status] || ""}</span>`) : "";
+      out.push(`<div class="msg ${m.me ? "me" : "them"} ${m.route ? "routed" : ""} ${pos} ${withPrev ? "" : "gap"} ${isNew ? "new" : ""}" data-mid="${m.id}">
+        <div class="bubble">${esc(m.text)}</div>${m.me ? journeyHtml(m) : ""}
+        ${showMeta ? `<div class="meta">${clock(m.time)}${tick}</div>` : ""}</div>`);
+    });
+    if (c.typing) out.push('<div class="typing" aria-label="typing"><i></i><i></i><i></i></div>');
+    return out.join("");
   }
   function renderChatParts(first) {
     const id = S.chat, info = chatInfo(id), c = convo(id);
     c.unread = 0;
     const sub = document.getElementById("chat-sub");
     if (!sub) return;
+    if (first) S.convos[id].messages.forEach((m) => S.seen.add(m.id));
     sub.innerHTML = c.typing ? '<span class="typing-text">typing…</span>'
-      : info.isBot ? '<span class="muted">Practice bot · always online</span>'
-      : info.remote ? `<span class="muted">${statusLine(P.dee)}</span>`
-      : info.presence === "online" ? '<span style="color:var(--leaf)">Online · nearby</span>'
-      : info.presence === "range" ? '<span class="muted">In range · connecting…</span>'
-      : `<span class="muted">Last seen ${ago(P[id].lastSeen)}</span>`;
+      : info.bot ? "Practice bot · always here"
+      : info.remote ? statusLine(P.dee)
+      : info.presence === "online" ? '<span style="color:var(--pine)">Online nearby</span>'
+      : info.presence === "range" ? "In range · connecting…" : "Seen " + ago(P[id].lastSeen);
     const ping = document.getElementById("ping-btn");
     if (ping) ping.hidden = info.presence !== "online";
 
     const box = document.getElementById("messages");
-    const nearBottom = first || box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-    const banner = info.isBot
-      ? '<div class="banner">🌱 This is a practice chat. Sky is a friendly bot on your phone that shows how real BlueMob chats feel: ticks, typing and replies. No signal needed.</div>'
-      : info.remote ? '<div class="banner sky">🌍 Dee is 2,000 km away. Your message hops to someone nearby with internet, who carries it out to Dee. Watch the route under each message.</div>' : "";
-    // Update in place so existing bubbles don't re-animate.
-    if (first || box.dataset.count != c.messages.length || box.dataset.typing != String(c.typing)) {
-      box.innerHTML = banner + c.messages.map(msgHtml).join("") + (c.typing ? '<div class="typing" aria-label="typing"><i></i><i></i><i></i></div>' : "");
-      box.dataset.count = c.messages.length;
-      box.dataset.typing = String(c.typing);
-    } else {
-      c.messages.forEach((m) => {
-        const el = box.querySelector(`[data-mid="${m.id}"]`);
-        if (el && m.me) el.outerHTML = msgHtml(m).replace('class="msg', 'style="animation:none" class="msg');
-      });
-    }
-    if (nearBottom) box.scrollTop = box.scrollHeight;
+    const nearBottom = first || box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+    box.innerHTML = messagesHtml(id, info, c);
+    if (nearBottom) box.scrollTo({ top: box.scrollHeight, behavior: first ? "auto" : "smooth" });
 
-    document.getElementById("chips").innerHTML = info.isBot && !c.typing
-      ? SKY_SUGGEST.map((s) => `<button data-act="suggest" data-v="${esc(s)}">${esc(s)}</button>`).join("") : "";
+    document.getElementById("chips").innerHTML = info.bot && !c.typing
+      ? SKY_SUGGEST.map((s) => `<button class="chip" data-act="suggest" data-v="${esc(s)}">${esc(s)}</button>`).join("") : "";
     const ok = canSend(id);
-    document.getElementById("note").textContent = ok ? (info.remote && !bridgeOnline() ? "No internet nearby yet. Messages will wait and go out once someone with internet joins." : "")
-      : info.name + " is out of range. Soon messages will hop through others to reach them.";
+    const note = document.getElementById("note");
+    const noteText = !ok ? info.name + " is out of range. Soon messages will hop through others to reach them."
+      : info.remote && !bridgeOnline() ? "No internet nearby yet. Messages wait, then go out when someone with internet joins." : "";
+    note.textContent = noteText; note.hidden = !noteText;
     const draft = document.getElementById("draft");
     draft.disabled = !ok;
     draft.placeholder = ok ? "Message" : "Out of range";
-    document.getElementById("send-btn").disabled = !ok || !draft.value.trim();
+    syncSend();
+  }
+  function syncSend() {
+    const draft = document.getElementById("draft"), btn = document.getElementById("send-btn");
+    if (!draft || !btn) return;
+    const has = !!draft.value.trim();
+    btn.classList.toggle("mic", !has);
+    btn.innerHTML = has ? I.send : I.mic;
+    btn.setAttribute("aria-label", has ? "Send" : "Record voice note");
+    btn.disabled = draft.disabled;
   }
 
-  // ----- profile tab -----
+  // ---------- You ----------
   function profileView() {
-    return `<div class="profile-head"><span class="big-avatar">${esc(S.avatar)}</span>
-        <h1 style="font-size:26px">${esc(S.name)}</h1><span class="mono muted">ID 3f9a 1c2b 7d4e 8a01</span></div>
-      <section><div class="group-title">Your profile</div>
-        <div class="group" style="padding:16px;display:flex;flex-direction:column;gap:14px">
-          <div class="field"><label for="pf-name">Name</label><input id="pf-name" maxlength="24" value="${esc(S.name)}"></div>
-          <div class="avatar-grid" role="group" aria-label="Choose an avatar">${AVATARS.map((a) =>
-            `<button data-act="pick-avatar" data-v="${a}" aria-pressed="${a === S.avatar}">${a}</button>`).join("")}</div>
-        </div></section>
-      <section><div class="group-title">Connections</div><div class="group">
-        <div class="setting">${I.wifi}<div class="grow"><b>Mesh</b><div class="small muted">Find and be found by nearby phones</div></div>
-          <button class="switch" role="switch" aria-checked="${S.mesh}" aria-label="Mesh" data-act="toggle-mesh"></button></div>
-        <div class="setting">${I.pin}<div class="grow"><b>Share my location</b><div class="small muted">Connected people see how far you are. Uses GPS, no internet.</div></div>
-          <button class="switch" role="switch" aria-checked="${S.shareLoc}" aria-label="Share my location" data-act="toggle-loc"></button></div>
-      </div></section>
-      <section><div class="group-title">App</div><div class="group">
-        <div class="setting">${I.refresh}<div class="grow"><b>Replay the intro</b></div><button class="btn ghost" data-act="replay">Show</button></div>
-        <div class="setting">${I.trash}<div class="grow"><b>Forget people I've met</b><div class="small muted">Clears the list and last-seen history</div></div>
-          <button class="btn ghost" data-act="forget">Clear</button></div>
-      </div></section>
-      <section><div class="group-title">For testers</div><div class="group">
-        <div class="setting">${I.info}<div class="grow"><b>Mesh activity log</b><div class="small muted">What the mesh is doing, step by step</div></div>
-          <button class="btn ghost" data-act="toggle-log">${S.showLog ? "Hide" : "Show"}</button></div>
-        ${S.showLog ? `<div class="log">${S.log.length ? S.log.map((l) => `<span>${esc(l)}</span>`).join("") : "<span>Nothing yet</span>"}</div>` : ""}
-      </div></section>
-      <p class="small muted" style="text-align:center;margin:0">BlueMob web preview 0.2 · made for the open sky 🌍<br>Nearby people and distances are simulated here.</p>`;
+    const set = (tileColor, icon, title, sub, right, act = "", v = "") => {
+      const tagName = act ? "button" : "div";
+      return `<${tagName} class="set" ${act ? `data-act="${act}" data-v="${v}"` : ""}>
+        <span class="tile" style="background:${tileColor}">${icon}</span>
+        <span class="main"><span class="t-strong" style="display:block">${title}</span>${sub ? `<span class="t-cap">${sub}</span>` : ""}</span>${right}</${tagName}>`;
+    };
+    const chev = `<span class="chev">${I.chevron}</span>`;
+    return `
+      <div class="me-head">
+        <span class="me-badge">${esc(S.avatar)}</span>
+        <h1 class="t-title" style="margin-top:10px">${esc(S.name)}</h1>
+        <button class="idline" data-act="copy-id" aria-label="Copy your BlueMob ID">3F9A 1C2B 7D4E 8A01 ${I.copy}</button>
+      </div>
+
+      <div class="group-label t-over">Profile</div>
+      <div class="group" style="padding:14px;display:flex;flex-direction:column;gap:14px">
+        <div class="field"><label class="t-over" for="pf-name">Name</label><input id="pf-name" maxlength="24" value="${esc(S.name)}"></div>
+        <div class="picker" role="group" aria-label="Choose an avatar">${AVATARS.map((a) =>
+          `<button data-act="pick-avatar" data-v="${a}" aria-pressed="${a === S.avatar}">${a}</button>`).join("")}</div>
+      </div>
+
+      <div class="group-label t-over">Connections</div>
+      <div class="group">
+        ${set("var(--pine)", I.mesh, "Mesh", "Find and be found by nearby phones",
+          `<button class="switch" role="switch" aria-checked="${S.mesh}" aria-label="Mesh" data-act="toggle-mesh"></button>`)}
+        ${set("var(--sky)", I.pin, "Share my location", "Friends see how far you are. GPS, no internet",
+          `<button class="switch" role="switch" aria-checked="${S.shareLoc}" aria-label="Share my location" data-act="toggle-loc"></button>`)}
+      </div>
+
+      <div class="group-label t-over">BlueMob</div>
+      <div class="group">
+        ${set("var(--ember)", I.palette, "Design system", "Colours, type, shape and motion", chev, "guide")}
+        ${set("#7C6BD6", I.sparkle, "Replay the intro", "", chev, "replay")}
+        ${set("var(--rose)", I.trash, "Forget people I've met", "Clears last-seen history", "", "forget")}
+      </div>
+
+      <div class="group-label t-over">For testers</div>
+      <div class="group">
+        ${set("#3A4A44", I.terminal, "Mesh activity log", "What the mesh is doing, step by step",
+          `<span class="chev" style="transform:rotate(${S.showLog ? 90 : 0}deg);transition:transform var(--d-2)">${I.chevron}</span>`, "toggle-log")}
+        ${S.showLog ? `<div class="log">${S.log.length ? S.log.map((l) => `<div>${esc(l)}</div>`).join("") : "Nothing yet"}</div>` : ""}
+      </div>
+      <p class="t-cap" style="text-align:center;margin-top:24px">BlueMob web preview 0.3 · made for the open sky</p>`;
   }
 
-  function tabsView() {
-    const unread = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
-    const tab = (id, label, icon) => `<button role="tab" aria-selected="${S.tab === id}" data-act="tab" data-v="${id}">
-      <span class="ic">${icon}</span>${label}${id === "chats" && unread ? `<span class="badge">${unread}</span>` : ""}</button>`;
-    return `<nav class="tabs" role="tablist">${tab("radar", "Radar", I.radar)}${tab("chats", "Chats", I.chat)}${tab("you", "You", I.person)}</nav>`;
+  // ---------- Design system (style guide) ----------
+  function guideView(anim) {
+    const sw = (name, token, note) => `<div class="swatch"><i style="background:var(${token})"></i><b>${name}</b><span class="t-cap">${note}</span></div>`;
+    return `<div class="screen grouped ${anim === "push" ? "push-in" : ""}">
+      <header class="bar solid"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><div class="bar-title" style="opacity:1;transform:none">Design system</div></header>
+      <div class="scroll" id="scroll">
+        <div class="large-title" style="margin-top:12px"><span class="tag ember">PINE &amp; SAND · v0.3</span>
+          <h1 class="t-hero" style="margin-top:10px">Calm like Signal, warm like Airbnb.</h1>
+          <p class="t-sub" style="margin-top:8px;max-width:36ch">One accent, warm neutrals, soft depth and motion that settles like a breath. Everything below is live and follows your light or dark setting.</p></div>
+
+        <div class="group-label t-over">Colour</div>
+        <div class="group" style="padding:14px"><div class="swatches">
+          ${sw("Pine", "--pine", "Brand, actions")}${sw("Pine tint", "--pine-tint", "Selected")}${sw("Mint", "--mint", "Live, radar")}
+          ${sw("Ember", "--ember", "Internet bridge")}${sw("Sky", "--sky", "Info, bot")}${sw("Rose", "--rose", "Errors")}
+          ${sw("Ink", "--ink", "Text")}${sw("Ink 2", "--ink-2", "Secondary")}${sw("Sand", "--sand", "Fields")}
+          ${sw("Canvas", "--canvas", "Surfaces")}${sw("Night", "--night-2", "Radar sky")}${sw("Line", "--line", "Dividers")}
+        </div></div>
+
+        <div class="group-label t-over">Type</div>
+        <div class="group spec">
+          <div class="spec-row"><span class="t-hero">Off-grid</span><span class="t-cap num">Hero 34</span></div>
+          <div class="spec-row"><span class="t-title">Nearby</span><span class="t-cap num">Title 28</span></div>
+          <div class="spec-row"><span class="t-head">Around you</span><span class="t-cap num">Head 20</span></div>
+          <div class="spec-row"><span>Messages hop from friend to friend.</span><span class="t-cap num">Body 16</span></div>
+          <div class="spec-row"><span class="t-sub">Seen 2 h ago · 1.8 km</span><span class="t-cap num">Sub 14</span></div>
+          <div class="spec-row"><span class="t-over">Online nearby</span><span class="t-cap num">Over 11</span></div>
+          <p class="t-cap">Display: Bricolage Grotesque, tight tracking. Text: Figtree.</p>
+        </div>
+
+        <div class="group-label t-over">Shape &amp; depth</div>
+        <div class="group spec">
+          <div class="radii">${[["8", "--r-xs"], ["12", "--r-sm"], ["16", "--r-md"], ["22", "--r-lg"], ["28", "--r-xl"], ["pill", "--r-pill"]].map(([l, t]) =>
+            `<div style="border-radius:var(${t})">${l}</div>`).join("")}</div>
+          <div style="display:flex;gap:12px">
+            <div class="card" style="flex:1;padding:14px"><b>Level 1</b><div class="t-cap">Cards and rows</div></div>
+            <div style="flex:1;padding:14px;border-radius:var(--r-lg);background:var(--canvas);box-shadow:var(--shadow-2)"><b>Level 2</b><div class="t-cap">Floating bars</div></div>
+          </div>
+        </div>
+
+        <div class="group-label t-over">Motion</div>
+        <div class="group spec">
+          <div class="curve"><span class="t-cap" style="width:70px">Ease out</span><div class="track"><span style="animation-timing-function:var(--ease)"></span></div></div>
+          <div class="curve"><span class="t-cap" style="width:70px">Spring</span><div class="track"><span style="animation-timing-function:var(--spring)"></span></div></div>
+          <p class="t-cap">140 ms for taps, 240 ms for fades, 420 ms for screens. Springs only on things you touch.</p>
+        </div>
+
+        <div class="group-label t-over">Components</div>
+        <div class="group spec">
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-act="noop">Primary</button><button class="btn small secondary" data-act="noop">Secondary</button><button class="btn text" data-act="noop">Text</button></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="chip" aria-pressed="true">All</span><span class="chip">Nearby</span><span class="tag pine">DIRECT</span><span class="tag ember">VIA BRIDGE</span><span class="tag sky">BOT</span></div>
+          <div style="display:flex;gap:14px;align-items:center">${avatar("🦋", "asha", 48, "online")}${avatar("🌵", "meera", 48, "range")}${avatar("🐺", "kabir", 48, "offline")}${avatar("🌻", "dee", 48, "remote")}
+            <button class="switch" role="switch" aria-checked="true" aria-label="Example switch" data-act="noop"></button></div>
+          <div style="display:flex;flex-direction:column">
+            <div class="msg them first"><div class="bubble">Saw you on my radar 👋</div></div>
+            <div class="msg them last"><div class="bubble">Meet at camp?</div></div>
+            <div class="msg me gap"><div class="bubble">On my way!</div><div class="meta">18:42<span class="ok" style="display:inline-flex">${TICK.delivered}</span></div></div>
+          </div>
+          <div class="t-cap" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+            <span style="display:inline-flex;gap:4px;align-items:center">${TICK.sending.replace("<svg", '<svg width="15" height="15"')} Sending</span>
+            <span style="display:inline-flex;gap:4px;align-items:center">${TICK.sent.replace("<svg", '<svg width="15" height="15"')} Sent</span>
+            <span class="ok" style="display:inline-flex;gap:4px;align-items:center;color:var(--pine)">${TICK.delivered.replace("<svg", '<svg height="15"')} Delivered</span>
+            <span style="display:inline-flex;gap:4px;align-items:center">${TICK.queued.replace("<svg", '<svg width="15" height="15"')} Waiting</span>
+          </div>
+          <div class="msg me" style="max-width:100%">${journeyHtml({ status: "sent", route: ["You", "Ravi", "Meera 🌐", "Internet", "Dee"], hop: 2 })}</div>
+        </div>
+        <p class="t-cap" style="text-align:center;margin-top:24px">The Android app uses the same tokens in Jetpack Compose.</p>
+      </div></div>`;
   }
 
   // ---------- events ----------
@@ -965,26 +1281,39 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
         } else render();
         break;
       case "toggle-mesh": S.mesh ? stopMesh() : startMesh(); break;
-      case "share-loc": case "toggle-loc":
-        S.shareLoc = act === "share-loc" ? true : !S.shareLoc; store.set("shareLoc", S.shareLoc);
+      case "seg":
+        S.shareLoc = v === "distance"; store.set("shareLoc", S.shareLoc);
         if (S.shareLoc) toast("Sharing your location with people nearby");
         render(); break;
-      case "tab": S.tab = v; store.set("tab", v); render(); app.querySelector(".scroll").scrollTop = 0; break;
-      case "open-chat": S.chat = el.dataset.id; render(); break;
-      case "back": S.chat = null; render(); break;
+      case "toggle-loc":
+        S.shareLoc = !S.shareLoc; store.set("shareLoc", S.shareLoc);
+        if (S.shareLoc) toast("Sharing your location with people nearby");
+        render(); break;
+      case "tab":
+        if (S.tab === v) { app.querySelector("#scroll")?.scrollTo({ top: 0, behavior: "smooth" }); break; }
+        S.prevTab = S.tab; S.tab = v; store.set("tab", v); render("fade"); S.prevTab = v; break;
+      case "filter": S.filter = v; render(); break;
+      case "open-chat": S.chat = el.dataset.id; S.screen = "chat"; render("push"); break;
+      case "guide": S.screen = "guide"; render("push"); break;
+      case "back": S.chat = null; S.screen = "main"; render("fade"); break;
       case "suggest": send("sky", v); break;
+      case "soon": toast(v + (v.endsWith("s") ? " are" : " is") + " coming soon"); break;
+      case "copy-id":
+        try { navigator.clipboard.writeText("3F9A1C2B7D4E8A01").then(() => toast("ID copied"), () => toast("Your ID: 3F9A 1C2B 7D4E 8A01")); }
+        catch { toast("Your ID: 3F9A 1C2B 7D4E 8A01"); }
+        break;
       case "ping": {
         const p = P[S.chat];
         const rtt = Math.round(p.rtt * (0.8 + Math.random() * 0.5));
         log("Ping " + p.name + ": " + rtt + " ms");
-        toast("Link check: " + rtt + " ms round trip");
+        toast("Link to " + p.name + ": " + rtt + " ms round trip");
         break;
       }
       case "toggle-log": S.showLog = !S.showLog; render(); break;
       case "replay": S.onboarded = false; S.slide = 0; store.set("onboarded", false); render(); break;
       case "forget":
         for (const p of Object.values(P)) if (!p.remote && p.presence === "offline") p.met = false;
-        toast("Forgot everyone who isn't nearby right now");
+        toast("Forgot everyone who isn't nearby");
         render(); break;
     }
   });
@@ -992,27 +1321,29 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
     if (e.target.id !== "composer") return;
     e.preventDefault();
     const input = document.getElementById("draft");
-    if (!canSend(S.chat) || !input.value.trim()) return;
+    if (!canSend(S.chat)) return;
+    if (!input.value.trim()) { toast("Voice notes are coming soon"); return; }
     send(S.chat, input.value);
     input.value = "";
-    document.getElementById("send-btn").disabled = true;
+    syncSend();
     input.focus();
   });
   app.addEventListener("input", (e) => {
-    if (e.target.id === "draft") document.getElementById("send-btn").disabled = !e.target.value.trim() || !canSend(S.chat);
+    if (e.target.id === "draft") syncSend();
+    if (e.target.id === "q") { S.query = e.target.value; render(); }
     if (e.target.id === "pf-name") {
       const v = e.target.value.replace(/\|/g, " ").slice(0, 24);
-      if (v.trim()) { S.name = v.trim(); store.set("name", S.name); app.querySelector(".profile-head h1").textContent = S.name; }
+      if (v.trim()) { S.name = v.trim(); store.set("name", S.name); app.querySelector(".me-head h1").textContent = S.name; }
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && S.chat) { S.chat = null; render(); }
+    if (e.key === "Escape" && S.screen !== "main" && S.onboarded) { S.chat = null; S.screen = "main"; render("fade"); }
   });
 
   // Keep "last seen" times fresh.
-  setInterval(() => { if (S.onboarded && !S.chat && S.tab !== "you") refresh(); }, 30000);
+  setInterval(() => { if (S.onboarded && S.screen === "main" && S.tab !== "you") refresh(); }, 30000);
 
-  render();
+  render("fade");
   requestAnimationFrame(drawRadars);
   if (S.onboarded) later(600, startMesh);
 })();
