@@ -51,10 +51,10 @@
   // ---------- Sky, the practice bot (same rules as the Android app) ----------
   const SKY_GREETING = [
     "Hey there! 👋 I'm Sky, your BlueMob buddy.",
-    "I live right here on your phone, so we can chat even with zero signal. Try saying hi, or tap one of the suggestions below.",
+    "I live inside this app on your phone. I don't use the internet, so I work with zero signal and nothing you ask me leaves your phone.\n\nAsk me how to use BlueMob, what's happening around you, or any survival question. Or tap a suggestion below.",
   ];
   const SKY_SUGGEST = ["Hi 👋", "How does BlueMob work?", "What can I do here?", "Tell me a joke"];
-  const SKY_CHIPS = ["How do I make water safe?", "What do I do for a burn?", "I'm lost", "How do I find north?", "My friend got stung", "Tell me a joke"];
+  const SKY_CHIPS = ["Who is nearby?", "Is there a bridge?", "How do I send an SOS?", "What do the ticks mean?", "How do I make water safe?", "What do I do for a burn?", "Where do you live?", "Tell me a joke"];
   const SKY_RULES = [
     [["hello", "hi", "hey", "hii", "namaste", "hola", "yo"], [
       "Hi! 😊 Great to hear from you. This is exactly how it feels when a friend nearby messages you, no towers needed.",
@@ -184,10 +184,9 @@
     refresh();
 
     if (id === "sky") {
-      Object.assign(m, { route: ["You", "Sky"], hop: 0, hopTimes: [now()], paths: { direct: { state: "trying" } } });
-      later(350, () => { m.status = "sent"; refresh(); });
-      later(800, () => { m.hop = 1; m.hopTimes.push(now()); delivered(m, id, "direct", "On this phone"); });
-      reply("sky", skyReply(text), { wait: 1200 });
+      // Sky runs inside the app: nothing is sent anywhere, so no network ticks or receipts.
+      m.status = "local";
+      reply("sky", skyReply(text), { wait: 500 });
       return m;
     }
     const p = P[id];

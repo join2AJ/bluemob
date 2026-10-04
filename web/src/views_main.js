@@ -450,13 +450,13 @@
   }
   function introHtml(id, info) {
     const p = P[id];
-    const sub = info.bot ? "Ask me survival questions. My answers come from the guide on your phone, so I work with zero signal."
+    const sub = info.bot ? "Built into BlueMob, on your phone. No internet, no server: what you ask stays here. I know the app, the survival guide, and what's happening around you."
       : id === "experts" ? "Volunteer medics, rangers and rescuers. Your questions go out as soon as someone nearby has internet, and you're notified when they reply."
       : info.sms ? `${esc(p.phone)} · They don't need BlueMob. Your message reaches them as a normal text once someone nearby has internet.`
       : info.remote ? "2,000 km away. Messages travel through a nearby friend who has internet."
       : p.presence === "offline" ? `You met on the trip. ${p.home ? "Now in " + esc(p.home) + ". " : ""}You can still talk, by BlueMob ID, with no phone numbers shared.`
       : "Met nearby over " + (p.link || "Bluetooth") + ". Messages go phone to phone.";
-    const tag = info.bot ? '<span class="tag sky">SURVIVAL BUDDY</span>' : info.sms ? '<span class="tag ember">BY TEXT MESSAGE</span>'
+    const tag = info.bot ? '<span class="tag sky">ON THIS PHONE · OFFLINE</span>' : info.sms ? '<span class="tag ember">BY TEXT MESSAGE</span>'
       : info.far ? '<span class="tag ember">VIA BRIDGE</span>' : '<span class="tag pine">DIRECT</span>';
     return `<div class="intro">${avatar(info.emoji, id, 80)}<h2 class="t-title" style="margin-top:8px">${esc(info.name)}</h2>${tag}<p class="t-sub" style="margin-top:4px">${sub}</p></div>`;
   }
@@ -478,9 +478,10 @@
       const isNew = !S.seen.has(m.id);
       S.seen.add(m.id);
       const showMeta = !withNext || m.route || m.status === "failed";
-      const tick = m.me ? (m.status === "failed" ? '<span class="fail">Not sent · out of range</span>'
+      const tick = m.me && m.status === "local" ? '<span class="t-cap">on this phone</span>' : m.me ? (m.status === "failed" ? '<span class="fail">Not sent · out of range</span>'
         : `<span class="${m.status === "delivered" || m.status === "read" ? "ok" : ""}" style="display:inline-flex">${TICK[m.status] || ""}</span>`) : "";
-      out.push(`<div class="msg ${m.me ? "me tappable" : "them"} ${m.route && m.route.length > 2 ? "routed" : ""} ${pos} ${withPrev ? "" : "gap"} ${isNew ? "new" : ""}" data-mid="${m.id}" ${m.me ? `data-act="msg-info" data-v="${m.id}"` : ""}>
+      const tap = m.me && m.status !== "local";
+      out.push(`<div class="msg ${m.me ? "me" : "them"} ${tap ? "tappable" : ""} ${m.route && m.route.length > 2 ? "routed" : ""} ${pos} ${withPrev ? "" : "gap"} ${isNew ? "new" : ""}" data-mid="${m.id}" ${tap ? `data-act="msg-info" data-v="${m.id}"` : ""}>
         <div class="bubble">${esc(m.text)}</div>${m.me ? journeyHtml(m) : ""}
         ${m.actions ? `<div class="bot-actions">${m.actions.map((a) => `<button class="chip" data-act="${a.act}" data-v="${a.v || ""}">${esc(a.label)}</button>`).join("")}</div>` : ""}
         ${showMeta ? `<div class="meta">${clock(m.time)}${tick}</div>` : ""}</div>`);
@@ -495,7 +496,7 @@
     if (!sub) return;
     if (first) S.convos[id].messages.forEach((m) => S.seen.add(m.id));
     sub.innerHTML = c.typing ? '<span class="typing-text">typing…</span>'
-      : info.bot ? "Survival buddy · answers from your guide"
+      : info.bot ? "Lives on your phone · works offline"
       : info.far ? statusLine(P[id])
       : info.presence === "online" ? '<span style="color:var(--pine)">Online nearby</span>'
       : info.presence === "range" ? "In range · connecting…" : "Seen " + ago(P[id].lastSeen);
@@ -699,6 +700,7 @@
       case "open-chat": open("chat", { chat: el.dataset.id }); break;
       case "design": case "power": case "insights": case "games": case "contacts": case "money": case "play": open(act); break;
       case "sos": S.sosArmed = false; open("soshub"); break;
+      case "go-tab": S.stack = []; S.chat = null; S.screen = "main"; S.prevTab = S.tab; S.tab = v; render("fade"); S.prevTab = v; break;
       case "sos-light": S.signalMode = S.signalDefault; open("sos"); break;
       case "signal-mode": S.signalMode = v; clearTimeout(sosTimer); render(); break;
       case "signal-default": S.signalDefault = v; S.signalMode = v; store.set("signalDefault", v); toast(SIGNAL_MODES.find((x) => x.id === v).label + " is now your default SOS signal"); if (S.screen === "sos") { clearTimeout(sosTimer); } render(); break;

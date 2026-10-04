@@ -46,6 +46,9 @@
   function skyReply(text) {
     const t = text.toLowerCase();
     S.lastQ = text;
+    // Questions about the app itself, and live insights from this phone, come first.
+    const appAnswer = skyAppAnswer(t);
+    if (appAnswer) return appAnswer;
     let best = null, score = 0;
     for (const [id, keys] of Object.entries(SKY_KEYS)) {
       const sc = keys.reduce((n, k) => n + (t.includes(k) ? k.length : 0), 0);
