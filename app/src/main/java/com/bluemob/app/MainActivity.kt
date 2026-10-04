@@ -1,7 +1,7 @@
 package com.bluemob.app
 
+import android.Manifest
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -11,19 +11,30 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.mutableStateOf
 import com.bluemob.app.permissions.MeshPermissions
-import com.bluemob.app.ui.HomeScreen
-import com.bluemob.app.ui.MeshViewModel
-import com.bluemob.app.ui.PermissionStatus
+import com.bluemob.app.ui.AppViewModel
+import com.bluemob.app.ui.BlueMobRoot
+import com.bluemob.app.ui.SystemStatus
 import com.bluemob.app.ui.theme.BlueMobTheme
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MeshViewModel by viewModels()
-    private val permissionStatus = mutableStateOf(PermissionStatus(granted = false, locationOff = false))
+    private val viewModel: AppViewModel by viewModels()
+    private val systemStatus = mutableStateOf(SystemStatus(permissionsGranted = false, locationServicesOff = false))
 
-    private val permissionLauncher =
+    private val meshPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-            refreshPermissions()
+            refreshStatus()
+            // Get going straight away once the user says yes.
+            if (systemStatus.value.permissionsGranted) viewModel.startMesh()
+        }
+
+    private val locationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            ) {
+                viewModel.setShareLocation(true)
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,16 +42,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BlueMobTheme {
-                HomeScreen(
-                    viewModel = viewModel,
-                    permissions = permissionStatus.value,
-                    onRequestPermissions = { permissionLauncher.launch(MeshPermissions.required) },
-                    onOpenAppSettings = {
-                        startActivity(
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
+                BlueMobRoot(
+                    vm = viewModel,
+                    system = systemStatus.value,
+                    onRequestPermissions = { meshPermissionLauncher.launch(MeshPermissions.required) },
+                    onOpenLocationSettings = { startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) },
+                    onEnableLocationSharing = {
+                        locationPermissionLauncher.launch(
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
                         )
                     },
-                    onOpenLocationSettings = { startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) },
                 )
             }
         }
@@ -48,13 +59,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        refreshPermissions()
+        refreshStatus()
     }
 
-    private fun refreshPermissions() {
-        permissionStatus.value = PermissionStatus(
-            granted = MeshPermissions.allGranted(this),
-            locationOff = MeshPermissions.needsLocationServices(this),
+    private fun refreshStatus() {
+        systemStatus.value = SystemStatus(
+            permissionsGranted = MeshPermissions.allGranted(this),
+            locationServicesOff = MeshPermissions.needsLocationServices(this),
         )
     }
 }
