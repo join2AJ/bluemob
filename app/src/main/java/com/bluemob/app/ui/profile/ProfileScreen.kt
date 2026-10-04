@@ -1,40 +1,33 @@
 package com.bluemob.app.ui.profile
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.outlined.BatterySaver
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.outlined.Hub
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.PowerSettingsNew
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +37,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -52,9 +49,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bluemob.app.identity.Identity
 import com.bluemob.app.mesh.LogLine
+import com.bluemob.app.settings.SignalMode
+import com.bluemob.app.ui.components.Group
+import com.bluemob.app.ui.components.GroupLabel
+import com.bluemob.app.ui.components.SettingRow
 import com.bluemob.app.ui.onboarding.AvatarPicker
+import com.bluemob.app.ui.theme.Extra
 import com.bluemob.app.ui.theme.Gradients
 import com.bluemob.app.ui.theme.Space
+import com.bluemob.app.util.formatId
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -66,159 +69,122 @@ fun ProfileScreen(
     nodeId: String,
     running: Boolean,
     sharingLocation: Boolean,
+    keepsRunning: Boolean,
+    signalDefault: SignalMode,
     log: List<LogLine>,
     contentPadding: PaddingValues,
     onName: (String) -> Unit,
     onAvatar: (String) -> Unit,
     onToggleMesh: (Boolean) -> Unit,
     onToggleLocation: (Boolean) -> Unit,
+    onBatterySaver: () -> Unit,
+    onKeepRunning: () -> Unit,
+    onSos: () -> Unit,
     onReplayIntro: () -> Unit,
     onForgetPeople: () -> Unit,
+    onClearMessages: () -> Unit,
 ) {
     var draft by remember(name) { mutableStateOf(name) }
     var showLog by rememberSaveable { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+    val chevron: @Composable () -> Unit = { Icon(Icons.Outlined.ChevronRight, null, tint = Extra.ink3) }
 
     LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = Space.lg, end = Space.lg,
-            top = contentPadding.calculateTopPadding() + Space.lg,
-            bottom = contentPadding.calculateBottomPadding() + Space.xl,
-        ),
-        verticalArrangement = Arrangement.spacedBy(Space.lg),
+        Modifier.fillMaxSize().background(Extra.sand),
+        contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding() + 8.dp, bottom = 120.dp),
     ) {
         item {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    Modifier.size(104.dp).clip(CircleShape).background(Gradients.horizon()),
-                    contentAlignment = Alignment.Center,
-                ) { Text(avatar, fontSize = 52.sp) }
-                Spacer(Modifier.size(Space.md))
-                Text(name, style = MaterialTheme.typography.headlineMedium)
+                Box(Modifier.size(104.dp).rotate(-4f).clip(RoundedCornerShape(34.dp)).background(Gradients.horizon()), contentAlignment = Alignment.Center) {
+                    Text(avatar, fontSize = 52.sp)
+                }
+                Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 12.dp))
                 Text(
-                    "ID ${nodeId.chunked(4).joinToString(" ")}",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    "BM · ${formatId(nodeId)}" + if (copied) "  ✓ copied" else "  ⧉",
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = Extra.ink2,
+                    modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface)
+                        .clickable { clipboard.setText(AnnotatedString("BM-$nodeId")); copied = true }.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
+                Text("Your unique ID, given automatically to this phone", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 6.dp))
             }
         }
+
+        item { GroupLabel("Profile") }
         item {
-            Section("Your profile") {
-                Column(Modifier.padding(Space.lg), verticalArrangement = Arrangement.spacedBy(Space.lg)) {
-                    OutlinedTextField(
-                        value = draft,
-                        onValueChange = {
+            Group {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("NAME", style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
+                    Box(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(14.dp)) {
+                        BasicTextField(draft, {
                             draft = it.take(Identity.MAX_NAME_LENGTH)
                             if (draft.isNotBlank()) onName(draft)
-                        },
-                        label = { Text("Name") },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium,
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                        }, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.fillMaxWidth())
+                    }
                     AvatarPicker(selected = avatar, onSelect = onAvatar)
                 }
             }
         }
+
+        item { GroupLabel("Connections") }
         item {
-            Section("Connections") {
-                ToggleRow(Icons.Filled.Wifi, "Mesh", "Find and be found by nearby phones", running, onToggleMesh)
-                HorizontalDivider(Modifier.padding(horizontal = Space.lg))
-                ToggleRow(
-                    Icons.Filled.LocationOn, "Share my location",
-                    "Connected people see how far you are. Uses GPS, no internet.",
-                    sharingLocation, onToggleLocation,
-                )
+            Group {
+                SettingRow(Icons.Outlined.Hub, MaterialTheme.colorScheme.primary, "Mesh", "Find and be found by nearby phones") { Switch(running, onToggleMesh) }
+                SettingRow(Icons.Outlined.LocationOn, Extra.sky, "Share my location", "Connected people see how far you are. GPS, no internet", divider = true) {
+                    Switch(sharingLocation, onToggleLocation)
+                }
             }
         }
+
+        item { GroupLabel("Battery") }
         item {
-            Section("App") {
-                ListItem(
-                    headlineContent = { Text("Replay the intro") },
-                    leadingContent = { Icon(Icons.Filled.Refresh, null) },
-                    trailingContent = { TextButton(onClick = onReplayIntro) { Text("Show") } },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                )
-                HorizontalDivider(Modifier.padding(horizontal = Space.lg))
-                ListItem(
-                    headlineContent = { Text("Forget people I've met") },
-                    supportingContent = { Text("Clears the list and last-seen history") },
-                    leadingContent = { Icon(Icons.Outlined.DeleteOutline, null) },
-                    trailingContent = { TextButton(onClick = onForgetPeople) { Text("Clear") } },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                )
+            Group {
+                SettingRow(Icons.Outlined.BatterySaver, Color(0xFF3A9A5B), "Phone Battery Saver", "Slows every other app. Opens Android settings", onClick = onBatterySaver) { chevron() }
+                SettingRow(Icons.Outlined.PowerSettingsNew, MaterialTheme.colorScheme.primary, "Keep BlueMob running",
+                    if (keepsRunning) "Done: BlueMob stays awake while Battery Saver is on" else "So messages and SOS still reach you with Battery Saver on",
+                    divider = true, onClick = if (keepsRunning) null else onKeepRunning) { if (!keepsRunning) chevron() else Text("✓", color = MaterialTheme.colorScheme.primary) }
             }
         }
+
+        item { GroupLabel("Safety") }
         item {
-            Section("For testers") {
-                ListItem(
-                    headlineContent = { Text("Mesh activity log") },
-                    supportingContent = { Text("Useful to screenshot if something doesn't connect") },
-                    trailingContent = {
-                        Icon(if (showLog) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
-                    },
-                    modifier = Modifier.clickable { showLog = !showLog },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                )
-                AnimatedVisibility(showLog) {
-                    Column(Modifier.padding(horizontal = Space.lg, vertical = Space.sm)) {
-                        if (log.isEmpty()) Text("Nothing yet", style = MaterialTheme.typography.bodySmall)
-                        log.take(80).forEach { LogRow(it) }
+            Group {
+                SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS", "Default signal: ${signalDefault.emoji} ${signalDefault.label}", onClick = onSos) { chevron() }
+            }
+        }
+
+        item { GroupLabel("App") }
+        item {
+            Group {
+                SettingRow(Icons.Outlined.Refresh, Color(0xFF7C6BD6), "Replay the intro", onClick = onReplayIntro) { chevron() }
+                SettingRow(Icons.Outlined.DeleteOutline, Extra.ember, "Forget people I've met", "Clears the list and last-seen history", divider = true, onClick = onForgetPeople)
+                SettingRow(Icons.Outlined.DeleteOutline, Extra.rose, "Delete all messages", "From this phone only", divider = true, onClick = onClearMessages)
+            }
+        }
+
+        item { GroupLabel("For testers") }
+        item {
+            Group {
+                SettingRow(Icons.Outlined.Terminal, Color(0xFF3A4A44), "Mesh activity log", "What the mesh is doing, step by step", onClick = { showLog = !showLog }) {
+                    Icon(Icons.Outlined.ChevronRight, null, tint = Extra.ink3, modifier = Modifier.rotate(if (showLog) 90f else 0f))
+                }
+                if (showLog) Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    if (log.isEmpty()) Text("Nothing yet", style = MaterialTheme.typography.bodySmall)
+                    log.take(80).forEach {
+                        Text("${logTime.format(Date(it.timeMillis))}  ${it.text}", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = Extra.ink2)
                     }
                 }
             }
         }
         item {
-            Text(
-                "BlueMob 0.2 · made for the open sky 🌍",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(top = Space.sm),
-                textAlign = TextAlign.Center,
-            )
+            Text("BlueMob 0.3 · made for the open sky", style = MaterialTheme.typography.bodySmall, color = Extra.ink3,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 24.dp))
         }
-    }
-}
-
-@Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = Space.xs))
-        Card(
-            shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        ) { content() }
-    }
-}
-
-@Composable
-private fun ToggleRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
-    Row(Modifier.padding(Space.lg), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(Space.lg))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(checked = checked, onCheckedChange = onChange)
     }
 }
 
 private val logTime = SimpleDateFormat("HH:mm:ss", Locale.US)
 
-@Composable
-private fun LogRow(line: LogLine) {
-    Text(
-        "${logTime.format(Date(line.timeMillis))}  ${line.text}",
-        style = MaterialTheme.typography.bodySmall,
-        fontFamily = FontFamily.Monospace,
-    )
-}

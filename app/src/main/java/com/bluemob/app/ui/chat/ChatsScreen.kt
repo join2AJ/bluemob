@@ -1,6 +1,7 @@
 package com.bluemob.app.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,153 +9,157 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bluemob.app.bot.SkyBot
-import com.bluemob.app.chat.Conversation
+import com.bluemob.app.data.MessageEntity
+import com.bluemob.app.data.MessageStatus
 import com.bluemob.app.ui.Person
 import com.bluemob.app.ui.Presence
 import com.bluemob.app.ui.components.Avatar
-import com.bluemob.app.ui.components.Pill
+import com.bluemob.app.ui.components.Chip
+import com.bluemob.app.ui.components.InsetDivider
+import com.bluemob.app.ui.components.LargeTitle
+import com.bluemob.app.ui.components.Tag
+import com.bluemob.app.ui.dashboard.statusLine
+import com.bluemob.app.ui.theme.Extra
 import com.bluemob.app.ui.theme.Space
-import com.bluemob.app.util.TimeText
+import com.bluemob.app.util.shortId
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+private enum class ChatFilter(val label: String) { ALL("All"), UNREAD("Unread"), ONLINE("Online"), WAITING("Waiting") }
+
+private data class Entry(val id: String, val name: String, val emoji: String?, val presence: Presence, val sharesName: Boolean, val status: String, val isBot: Boolean)
 
 @Composable
 fun ChatsScreen(
     people: List<Person>,
-    conversations: Map<String, Conversation>,
+    conversations: Map<String, List<MessageEntity>>,
+    typing: Set<String>,
     contentPadding: PaddingValues,
     onOpen: (String) -> Unit,
 ) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = Space.lg, end = Space.lg,
-            top = contentPadding.calculateTopPadding() + Space.lg,
-            bottom = contentPadding.calculateBottomPadding() + Space.xl,
-        ),
-        verticalArrangement = Arrangement.spacedBy(Space.sm),
-    ) {
-        item {
-            Text("Chats", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = Space.sm))
+    var query by rememberSaveable { mutableStateOf("") }
+    var filter by rememberSaveable { mutableStateOf(ChatFilter.ALL) }
+    val lastTime = { id: String -> conversations[id]?.lastOrNull()?.createdAt ?: 0L }
+    val entries = buildList {
+        add(Entry(SkyBot.NODE_ID, SkyBot.NAME, SkyBot.AVATAR, Presence.ONLINE, false, "Lives on your phone · works offline", true))
+        people.sortedByDescending { lastTime(it.nodeId) }.forEach { add(Entry(it.nodeId, it.name, it.avatar, it.presence, it.sharesName, statusLine(it), false)) }
+    }.filter { e ->
+        val msgs = conversations[e.id].orEmpty()
+        (query.isBlank() || e.name.contains(query.trim(), ignoreCase = true)) && when (filter) {
+            ChatFilter.ALL -> true
+            ChatFilter.UNREAD -> msgs.any { !it.fromMe && it.status == MessageStatus.RECEIVED }
+            ChatFilter.ONLINE -> e.presence == Presence.ONLINE && !e.isBot
+            ChatFilter.WAITING -> msgs.any { it.fromMe && (it.status == MessageStatus.PENDING || it.status == MessageStatus.SENT) }
         }
+    }
+    val onlineNow = people.filter { it.presence == Presence.ONLINE }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 120.dp)) {
+        item { LargeTitle("Chats", modifier = Modifier.padding(horizontal = Space.lg)) }
         item {
-            ChatRow(
-                avatar = SkyBot.AVATAR, name = SkyBot.NAME, seed = SkyBot.NODE_ID,
-                presence = Presence.ONLINE,
-                conversation = conversations[SkyBot.NODE_ID],
-                fallback = "Your practice buddy, always here",
-                badge = "PRACTICE",
-                onClick = { onOpen(SkyBot.NODE_ID) },
-            )
-        }
-        item {
-            Text(
-                "People you've met",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = Space.lg, bottom = Space.xs),
-            )
-        }
-        if (people.isEmpty()) {
-            item {
-                Text(
-                    "No one yet. Turn on the mesh on the Radar tab, and people nearby will show up here.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Row(
+                Modifier.padding(horizontal = Space.lg).fillMaxWidth().clip(MaterialTheme.shapes.small).background(Extra.sand).padding(horizontal = 12.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.Search, null, tint = Extra.ink3, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.weight(1f)) {
+                    if (query.isEmpty()) Text("Search", color = Extra.ink3, style = MaterialTheme.typography.bodyLarge)
+                    BasicTextField(query, { query = it }, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
+                }
             }
         }
-        items(people, key = { it.nodeId }) { p ->
-            ChatRow(
-                avatar = p.avatar, name = p.name, seed = p.nodeId,
-                presence = p.presence,
-                conversation = conversations[p.nodeId],
-                fallback = when (p.presence) {
-                    Presence.ONLINE -> "Online now: say hello!"
-                    Presence.IN_RANGE -> "In range"
-                    Presence.OFFLINE -> "Last seen ${TimeText.ago(p.lastSeen)}"
-                },
-                onClick = { onOpen(p.nodeId) },
-            )
+        if (onlineNow.isNotEmpty() && query.isBlank()) {
+            item { Text("ONLINE NEARBY", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = Space.lg), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    items(onlineNow, key = { it.nodeId }) { p ->
+                        Column(Modifier.width(64.dp).clip(RoundedCornerShape(12.dp)).clickable { onOpen(p.nodeId) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                            Avatar(p.avatar, p.name, p.nodeId, 60.dp, p.presence)
+                            Text(p.name, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            LazyRow(contentPadding = PaddingValues(horizontal = Space.lg, vertical = Space.lg), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(ChatFilter.entries) { f -> Chip(f.label, filter == f) { filter = f } }
+            }
+        }
+        itemsIndexed(entries, key = { _, e -> e.id }) { i, e ->
+            if (i > 0) InsetDivider()
+            ChatRow(e, conversations[e.id].orEmpty(), e.id in typing) { onOpen(e.id) }
+        }
+        if (entries.isEmpty()) item {
+            Text(if (people.isEmpty()) "People you meet appear here. Turn on the mesh in the Nearby tab." else "No chats match.",
+                style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(24.dp))
         }
     }
 }
 
+private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
 @Composable
-private fun ChatRow(
-    avatar: String?,
-    name: String,
-    seed: String,
-    presence: Presence,
-    conversation: Conversation?,
-    fallback: String,
-    badge: String? = null,
-    onClick: () -> Unit,
-) {
-    val last = conversation?.messages?.lastOrNull()
-    val unread = conversation?.unread ?: 0
-    Card(
-        onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Row(Modifier.padding(Space.md), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(avatar, name, seed, 52.dp, presence)
-            Spacer(Modifier.width(Space.md))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        name, style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (badge != null) {
-                        Spacer(Modifier.width(Space.sm))
-                        Pill(badge, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
-                    }
-                }
-                Text(
-                    when {
-                        conversation?.typing == true -> "typing…"
-                        last != null -> (if (last.fromMe) "You: " else "") + last.text
-                        else -> fallback
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (conversation?.typing == true) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+private fun ChatRow(e: Entry, messages: List<MessageEntity>, typing: Boolean, onClick: () -> Unit) {
+    val last = messages.lastOrNull()
+    val unread = messages.count { !it.fromMe && it.status == MessageStatus.RECEIVED }
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = Space.lg, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Avatar(e.emoji, e.name, e.id, 54.dp, if (e.isBot) null else e.presence)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(e.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (e.sharesName) Text(shortId(e.id), style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
+                if (e.isBot) Tag("On this phone", Extra.skyTint, Extra.sky)
             }
-            Column(horizontalAlignment = Alignment.End) {
-                if (last != null) {
-                    Text(
-                        TimeText.ago(last.time),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (unread > 0) {
-                    Spacer(Modifier.size(4.dp))
-                    Box(
-                        Modifier.size(22.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("$unread", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary)
-                    }
-                }
+            Text(
+                when {
+                    typing -> "typing…"
+                    last != null -> (if (last.fromMe) "You: " else "") + last.text.lineSequence().first()
+                    else -> e.status
+                },
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (unread > 0) FontWeight.SemiBold else FontWeight.Normal),
+                color = if (typing) MaterialTheme.colorScheme.primary else if (unread > 0) MaterialTheme.colorScheme.onSurface else Extra.ink2,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (last != null) Text(timeFormat.format(Date(last.createdAt)), style = MaterialTheme.typography.bodySmall,
+                color = if (unread > 0) MaterialTheme.colorScheme.primary else Extra.ink3)
+            if (unread > 0) Box(Modifier.size(20.dp).background(MaterialTheme.colorScheme.primary, CircleShape), contentAlignment = Alignment.Center) {
+                Text("$unread", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }

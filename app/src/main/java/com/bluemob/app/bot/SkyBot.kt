@@ -1,123 +1,206 @@
 package com.bluemob.app.bot
 
-import java.util.Calendar
+import com.bluemob.app.guide.GuideCategory
+import com.bluemob.app.guide.GuideContent
+
+/** A button under Sky's reply. [target] is read by the UI: "sos", "sos_signal", "guide:<id>", "tab:<name>". */
+data class SkyAction(val label: String, val target: String)
+data class SkyAnswer(val text: String, val actions: List<SkyAction> = emptyList())
+
+/** What Sky can see on this phone right now, for live answers. */
+data class SkyFacts(
+    val name: String,
+    val bluemobId: String,
+    val meshOn: Boolean,
+    val nearby: List<String>,
+    val thisPhoneOnline: Boolean,
+    val batteryPct: Int?,
+    val waitingMessages: Int,
+    val unread: Int,
+    val sosActive: Boolean,
+)
 
 /**
- * Sky: a friendly practice buddy that lives inside the app.
- *
- * It lets someone who is alone try chatting right away and feel what talking to a real
- * person over BlueMob is like (typing, delivery ticks, replies). It is a simple keyword
- * matcher that runs on the phone, so it works fully offline.
+ * Sky lives inside the app. It never uses the internet: it answers from the survival guide stored on
+ * the phone, explains how to use BlueMob, and reads live facts from the phone itself.
  */
 object SkyBot {
-    const val NODE_ID = "sky-bot"
+    const val NODE_ID = "sky"
     const val NAME = "Sky"
     const val AVATAR = "🌤️"
 
     val greeting = listOf(
         "Hey there! 👋 I'm Sky, your BlueMob buddy.",
-        "I live right here on your phone, so we can chat even with zero signal. " +
-            "Try saying hi, or tap one of the suggestions below.",
+        "I live inside this app on your phone. I don't use the internet, so I work with zero signal and nothing you ask me leaves your phone.\n\n" +
+            "Ask me how to use BlueMob, what's happening around you, or any survival question. Or tap a suggestion below.",
     )
 
-    val suggestions = listOf("Hi 👋", "How does BlueMob work?", "What can I do here?", "Tell me a joke")
+    val suggestions = listOf(
+        "Who is nearby?", "How do I send an SOS?", "What do the ticks mean?", "How do I make water safe?",
+        "What do I do for a burn?", "Where do you live?", "Tell me a joke",
+    )
 
-    private val rules: List<Pair<List<String>, List<String>>> = listOf(
+    // ---------- survival: keys that point at a guide. "a+b" means every part must appear, in any order ----------
+    private val survivalKeys: Map<String, List<String>> = mapOf(
+        "cpr" to listOf("cpr", "unconscious", "not breathing", "stopped breathing", "heart attack", "cardiac", "collapsed", "resuscitat", "no pulse"),
+        "bleed" to listOf("bleed", "blood", "deep cut", "wound", "tourniquet", "gash", "cut+knife", "cut+deep"),
+        "burns" to listOf("burn", "scald", "hot water+skin"),
+        "choke" to listOf("chok", "swallowed"),
+        "hypo" to listOf("hypotherm", "freezing", "shiver", "too cold", "very cold", "frostbite"),
+        "heat" to listOf("heat stroke", "heatstroke", "sunstroke", "overheat", "too hot", "heat exhaustion"),
+        "snake" to listOf("snake", "venom", "bitten"),
+        "fracture" to listOf("broken", "fracture", "sprain", "bone", "ankle", "twisted", "splint"),
+        "find-water" to listOf("find water", "no water", "thirst", "dehydrat", "where to get water", "out of water", "water+find", "water+where", "water+running out", "water+collect"),
+        "purify" to listOf("purif", "boil water", "clean water", "safe water", "dirty water", "drink water", "drinking water", "safe to drink",
+            "water+safe", "water+clean", "water+boil", "water+treat", "water+filter", "water+drinkable", "water+germs", "stream+drink", "river+drink"),
+        "fire" to listOf("fire", "campfire", "matches", "lighter", "tinder", "keep+warm+wood"),
+        "shelter" to listOf("shelter", "sleep outside", "sleep in the open", "stay dry", "build a hut", "sleep+night+outside", "rain+sleep"),
+        "help-sos" to listOf("someone sent an sos", "someone sent sos", "received an sos", "got an sos", "sos from", "help someone", "someone needs help", "friend needs help"),
+        "north" to listOf("north", "direction", "which way", "without a compass", "navigate", "stars", "shadow stick", "shadow", "polaris", "north star", "southern cross", "sunrise", "sunset"),
+        "lost" to listOf("lost", "can't find my way", "cant find my way", "stranded", "where am i", "way+back"),
+        "signals" to listOf("rescue", "signal", "helicopter", "whistle", "get found", "be found", "attract attention"),
+        "lightning" to listOf("lightning", "thunder", "storm"),
+        "quake" to listOf("earthquake", "quake", "tremor"),
+        "flood" to listOf("flood", "river rising", "water rising"),
+        "threes" to listOf("priorit", "first thing", "how long can", "survive without", "hungry", "food"),
+    )
+    private val urgent = Regex("\\b(hurt|pain|sick|injur|emergency|bitten|stung|sting|allerg|fever|poison|vomit|faint|seizure|pregnan|unwell|dizzy|bee|scorpion|spider)")
+    private val questionLike = Regex("\\?|\\b(how|what|why|where|when|can i|should i|is it)\\b")
+
+    // ---------- the app: how to use each part ----------
+    private fun tab(name: String, label: String) = SkyAction(label, "tab:$name")
+    private class Help(val keys: List<String>, val text: String, val actions: List<SkyAction> = emptyList())
+
+    private val appHelp = listOf(
+        Help(listOf("where do you live", "are you online", "do you need internet", "are you on the internet", "is sky online", "where is my data", "privacy", "who can see", "are you ai", "are you chatgpt", "server"),
+            "I live inside the BlueMob app on your phone. I'm not on the internet and I don't call any server, so I work with zero signal, and nothing you ask me leaves your phone.\n\n" +
+                "I know the survival guide and how every part of BlueMob works, and I can read what's happening on your phone right now: who's nearby, your battery and waiting messages."),
+        Help(listOf("send sos", "send an sos", "use sos", "sos button", "how does sos", "sos work", "ask for help", "call for help"),
+            "Tap the red SOS button at the top of any tab, then tap the big SOS circle twice (twice so it can't go off by accident).\n\n" +
+                "You can add a note like \"Injured\" or \"Lost\", but you don't have to. It reaches everyone nearby straight away, and each phone passes it on to the phones it can reach.",
+            listOf(SkyAction("Open SOS", "sos"))),
+        Help(listOf("sos signal", "flashlight", "torch", "siren", "change signal", "default signal", "flash light", "sound signal"),
+            "The SOS signal blinks ··· ––– ··· using your screen, your flashlight, a loud whistle-pitch sound, or all three. Pick one each time, or set your default in SOS → Default signal.",
+            listOf(SkyAction("Open SOS signal", "sos_signal"))),
+        Help(listOf("receive an sos", "get an sos", "someone sends sos", "someone sends an sos", "when i get an sos"),
+            "When someone nearby sends an SOS, BlueMob opens a full-screen alert with who it is, how far away they are and their message. Tap \"I'm coming\" so they know, \"Show me the way\" to follow the compass, or \"How to help\".",
+            listOf(SkyAction("How to help guide", "guide:help-sos"))),
+        Help(listOf("tick", "receipt", "read receipt", "delivered mean", "circles", "was it delivered", "did they get", "did it reach"),
+            "Under each message you send:\n• clock: waiting (they're not in range yet)\n• one circle: sent\n• two circles: delivered\n• two filled circles: read\n\nTap any message you sent to see its receipts and its full history."),
+        Help(listOf("out of range", "not in range", "message waiting", "why waiting", "stuck", "not delivered", "pending", "store and forward"),
+            "You can message anyone you've met, even if they're out of range. The message waits safely on your phone and goes the moment they're in range, over Bluetooth or Wi-Fi.\n\n" +
+                "It's shown to them exactly once: if a copy is sent twice, their phone recognises the message ID and discards the extra one."),
+        Help(listOf("navigate to", "walk to", "find my friend", "compass tab", "use the compass", "my trail", "save this spot", "waypoint", "back to camp", "find camp"),
+            "The Compass tab works offline. Pick a target (a saved spot, or a friend who shares their location) and the arrow shows the way with the distance. \"Save this spot\" remembers where you are.",
+            listOf(tab("compass", "Open Compass"))),
+        Help(listOf("battery saver", "save battery", "survival power", "battery last", "low battery", "power mode"),
+            "Go to You → Battery. Turn on the phone's Battery Saver, then let BlueMob keep running in the background, so messages and SOS still reach you.",
+            listOf(tab("you", "Open You"))),
+        Help(listOf("share my location", "share location", "distance to", "how far is"),
+            "Turn on You → Share my location. People you're connected to then see how far away you are, and you see them. It uses GPS, which needs no internet."),
+        Help(listOf("radar", "find people", "see people", "nearby tab"),
+            "The Nearby tab's radar shows everyone around you: green = online, orange = in range, grey = seen before.",
+            listOf(tab("nearby", "Open Nearby"))),
+        Help(listOf("survival guide", "guide tab", "offline guide", "first aid guide"),
+            "The Guide tab has short survival guides stored on your phone: first aid, water, fire, shelter, navigation, signals, weather and disasters. Or just ask me, like \"what do I do for a burn?\"",
+            listOf(tab("guide", "Open Guide"))),
+        Help(listOf("after the trip", "stay in touch", "without number", "keep in touch", "without exchanging"),
+            "Everyone you meet stays in your Chats, by their BlueMob ID. No phone numbers are shared. Messages reach them whenever you're in range again; reaching them far away through the internet is coming in the next update."),
+        Help(listOf("split", "money", "upi", "expense", "owe", "game", "play"),
+            "Trip money and games are coming in the next BlueMob update. You can try them now in the web preview."),
+        Help(listOf("how does bluemob", "how bluemob works", "how it works", "how does it work", "how does this work", "how does the app", "mesh network", "without towers"),
+            "Here's the magic ✨: phones running BlueMob find each other over Bluetooth and Wi-Fi and link up directly. No SIM, no towers, no internet.\n\n" +
+                "Messages wait on your phone until the person is in range, then go straight to them, exactly once."),
+    )
+
+    // ---------- small talk ----------
+    private val chat: List<Pair<List<String>, List<String>>> = listOf(
         listOf("hello", "hi", "hey", "hii", "namaste", "hola", "yo") to listOf(
-            "Hi! 😊 Great to hear from you. This is exactly how it feels when a friend nearby messages you, no towers needed.",
-            "Hello hello! 🌿 You just sent a message the BlueMob way. With a real person it would hop over Bluetooth or Wi-Fi.",
-            "Hey! 👋 How's your day out there?",
+            "Hi! 😊 Great to hear from you. Ask me anything about BlueMob or staying safe outdoors.",
+            "Hello hello! 🌿 How's your day out there?",
         ),
-        listOf("how are you", "how r u", "how're you", "wassup", "what's up", "sup") to listOf(
-            "I'm doing great, feeling free as the wind 🌬️. How about you?",
-            "All good here! Just floating around in your phone ☁️. What about you?",
-        ),
-        listOf("good", "fine", "great", "awesome", "nice", "cool") to listOf(
-            "Love that! 🌻",
-            "Awesome 🙌. Want to know how BlueMob reaches people without signal? Just ask \"how does it work\".",
-        ),
-        listOf("how does", "how it works", "how do", "work", "bluetooth", "wifi", "wi-fi", "mesh") to listOf(
-            "Here's the magic ✨: phones running BlueMob find each other over Bluetooth and Wi-Fi and link up directly. " +
-                "No SIM, no towers, no internet.\n\n" +
-                "Every phone can pass messages along, so a message can hop A → B → C to reach someone out of your range. " +
-                "And if one phone nearby has internet, it can carry the group's messages to the wider world. " +
-                "(Hopping and the internet bridge are coming in the next updates.)",
-        ),
-        listOf("what can", "feature", "help", "do here", "options") to listOf(
-            "Here's what you can do right now:\n" +
-                "📡 Radar: see who's around, how far and when they were last online\n" +
-                "💬 Chats: message anyone connected nearby\n" +
-                "📍 Share your location so friends see the distance\n" +
-                "🙋 Your profile: pick a name and an avatar\n\n" +
-                "Voice calls, video and the internet bridge are on the way.",
-        ),
+        listOf("how are you", "how r u", "wassup", "what's up", "sup") to listOf("I'm doing great, feeling free as the wind 🌬️. How about you?"),
+        listOf("good", "fine", "great", "awesome", "nice", "cool") to listOf("Love that! 🌻"),
         listOf("joke", "funny", "laugh") to listOf(
             "Why did the phone go to the mountains? To get away from all the towers 🏔️😄",
             "I told my Wi-Fi a joke… it didn't get the connection 😅",
             "What do you call a group of phones with no signal? A BlueMob! 📱📱📱",
         ),
         listOf("who are you", "your name", "are you real", "bot", "robot", "human") to listOf(
-            "I'm Sky 🌤️, a little practice bot built into BlueMob. I'm not a real person, " +
-                "but I chat like one so you can get comfy before your friends join.",
+            "I'm Sky 🌤️, a little helper built into BlueMob. I'm not a real person, but I know the app and the survival guide well.",
         ),
-        listOf("location", "distance", "far", "radar", "gps") to listOf(
-            "The Radar tab shows everyone around you 📡. If you both turn on \"Share my location\" in your profile, " +
-                "you'll see exactly how far apart you are. GPS works without internet!",
-        ),
-        listOf("call", "voice", "video") to listOf(
-            "Voice and video calls are coming soon 📞. They'll go straight over Wi-Fi between nearby phones.",
-        ),
-        listOf("safe", "private", "privacy", "secure", "encrypt") to listOf(
-            "Privacy matters 🔒. Right now messages go directly phone to phone. " +
-                "End-to-end encryption is planned, so even phones relaying your message won't be able to read it.",
-        ),
-        listOf("thank", "thx", "ty") to listOf(
-            "Anytime! 💚",
-            "You're welcome! Happy exploring 🌍",
-        ),
-        listOf("bye", "see you", "goodbye", "good night", "gn") to listOf(
-            "Bye for now! 👋 I'll be right here whenever you want to chat.",
-            "See you soon, explorer! 🌙",
-        ),
-        listOf("love", "❤️", "♥") to listOf("Aww 💚 Right back at you!"),
-        listOf("sad", "lonely", "alone", "bored") to listOf(
-            "You're not alone, I'm here 🤗. And once someone nearby opens BlueMob, they'll pop up on your Radar.",
-        ),
+        listOf("thank", "thx", "ty") to listOf("Anytime! 💚", "You're welcome! Happy exploring 🌍"),
+        listOf("bye", "see you", "goodbye", "good night", "gn") to listOf("Bye for now! 👋 I'll be right here whenever you need me."),
+        listOf("sad", "lonely", "alone", "bored") to listOf("You're not alone, I'm here 🤗. And once someone nearby opens BlueMob, they'll pop up on your radar."),
     )
-
-    private val fallbacks = listOf(
-        "Interesting! 🤔 I'm just a simple bot, so I don't know everything. Try asking how BlueMob works.",
-        "Got it! 👍 With a real friend nearby, this message would already be on their screen.",
-        "Hmm, I'm still learning 🌱. Ask me about the radar, calls, or privacy.",
+    private val fallback = listOf(
+        "I'm best at survival questions and BlueMob help. Try \"How do I make water safe?\", \"What do I do for a burn?\" or \"How do I send an SOS?\" 🌿",
+        "Got it! 👍 Ask me about first aid, water, fire, shelter, finding your way, or how to use BlueMob.",
     )
 
     private var turn = 0
 
-    fun reply(input: String): String {
-        val text = input.lowercase()
+    fun reply(input: String, facts: SkyFacts): SkyAnswer {
+        val t = input.lowercase()
         turn++
-        val time = timeGreeting(text)
-        if (time != null) return time
-        val match = rules.firstOrNull { (keys, _) -> keys.any { matches(text, it) } }
-        val options = match?.second ?: fallbacks
-        return options[turn % options.size]
+        live(t, facts)?.let { return it }
+        appHelp.firstOrNull { h -> h.keys.any { atWord(t, it) } }?.let { return SkyAnswer(it.text, it.actions) }
+        guideAnswer(t)?.let { return it }
+        val unknownHelp = SkyAnswer(
+            "I don't have a guide for that on your phone. If it's serious, send an SOS: it reaches everyone nearby right away, and they can help or pass it on.\n\n" +
+                "Asking an expert, and messaging family far away, arrive with the internet bridge in the next update.",
+            listOf(SkyAction("🆘 SOS", "sos"), tab("guide", "Browse the guide")),
+        )
+        if (urgent.containsMatchIn(t)) return unknownHelp
+        chat.firstOrNull { (keys, _) -> keys.any { matches(t, it) } }?.let { (_, options) -> return SkyAnswer(options[turn % options.size]) }
+        if (questionLike.containsMatchIn(t)) return unknownHelp
+        return SkyAnswer(fallback[turn % fallback.size])
     }
 
-    /** "Thinking" time before replying, so it feels like someone typing. */
-    fun typingDelayMs(reply: String): Long = (700L + reply.length * 18L).coerceAtMost(3_000L)
+    /** Finds the guide that best fits the question and answers with its first steps. */
+    fun guideAnswer(t: String): SkyAnswer? {
+        val best = survivalKeys.maxByOrNull { (_, keys) -> keys.sumOf { k -> if (k.split("+").all { t.contains(it) }) k.length else 0 } }
+            ?.takeIf { (_, keys) -> keys.any { k -> k.split("+").all { t.contains(it) } } }
+            ?: return null
+        val a = GuideContent.byId(best.key) ?: return null
+        val steps = a.steps.take(4).mapIndexed { i, s -> "${i + 1}. $s" }.joinToString("\n")
+        val more = if (a.steps.size > 4) "\n…plus ${a.steps.size - 4} more step${if (a.steps.size - 4 > 1) "s" else ""} in the guide." else ""
+        val avoid = if (a.avoid.isNotEmpty()) "\n\nAvoid: " + a.avoid.joinToString(" ") else ""
+        val actions = buildList {
+            add(SkyAction("Open full guide", "guide:${a.id}"))
+            if (a.category == GuideCategory.FIRST_AID) add(SkyAction("🆘 SOS", "sos"))
+        }
+        return SkyAnswer("From your survival guide: ${a.title}\n${a.intro}\n\n$steps$more$avoid", actions)
+    }
+
+    private fun live(t: String, f: SkyFacts): SkyAnswer? = when {
+        listOf("who is nearby", "who's nearby", "whos nearby", "who is around", "anyone nearby", "who's online", "who is online", "anyone around").any { atWord(t, it) } -> when {
+            !f.meshOn -> SkyAnswer("The mesh is off, so I can't see anyone. Switch it on in the Nearby tab.", listOf(tab("nearby", "Open Nearby")))
+            f.nearby.isEmpty() -> SkyAnswer("No one is connected yet. People appear as they open BlueMob near you.")
+            else -> SkyAnswer("${f.nearby.size} ${if (f.nearby.size == 1) "person is" else "people are"} connected near you:\n" + f.nearby.joinToString("\n") { "• $it" },
+                listOf(tab("nearby", "Show radar")))
+        }
+        listOf("is there a bridge", "any bridge", "is there internet", "do i have internet", "am i online", "any network").any { atWord(t, it) } ->
+            SkyAnswer(if (f.thisPhoneOnline) "This phone has internet right now. Soon it will be able to act as a bridge, carrying nearby people's messages to the wider world."
+                else "This phone has no internet right now, and that's fine: BlueMob talks phone to phone.")
+        listOf("my id", "what is my id", "bluemob id").any { atWord(t, it) } ->
+            SkyAnswer("Your BlueMob ID is ${f.bluemobId}. It was given to this phone automatically and no other phone has it. People see it with your name, ${f.name}.")
+        listOf("battery", "how much power", "charge").any { atWord(t, it) } ->
+            SkyAnswer((f.batteryPct?.let { "Battery $it%. " } ?: "") + "To make it last, turn on the phone's Battery Saver and let BlueMob keep running: You → Battery.", listOf(tab("you", "Open You")))
+        listOf("my messages", "how many messages", "waiting messages", "undelivered", "unread").any { atWord(t, it) } ->
+            SkyAnswer((if (f.waitingMessages == 0) "All your messages have been delivered." else "${f.waitingMessages} message${if (f.waitingMessages == 1) " is" else "s are"} waiting for someone to come in range.") +
+                if (f.unread > 0) " You have ${f.unread} unread." else "")
+        listOf("is my sos", "sos status", "did my sos").any { atWord(t, it) } ->
+            SkyAnswer(if (f.sosActive) "Your SOS is active. It's re-sent to every phone that comes into range until you tap \"I'm safe\"." else "You haven't sent an SOS. If you need help, tap the red SOS button at the top of any tab.")
+        else -> null
+    }
+
+    /** Keys match at the start of a word, so "tick" doesn't fire inside "stick". */
+    private fun atWord(t: String, key: String) = Regex("(^|[^a-z])" + Regex.escape(key)).containsMatchIn(t)
 
     private fun matches(text: String, key: String): Boolean =
         if (key.length <= 3) Regex("(^|\\W)${Regex.escape(key)}(\\W|$)").containsMatchIn(text) else text.contains(key)
 
-    private fun timeGreeting(text: String): String? {
-        val part = when {
-            text.contains("good morning") -> "morning"
-            text.contains("good evening") -> "evening"
-            text.contains("good afternoon") -> "afternoon"
-            else -> return null
-        }
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val actual = when (hour) { in 5..11 -> "morning"; in 12..16 -> "afternoon"; else -> "evening" }
-        return if (part == actual) "Good $part to you too! ☀️" else "Good $part! 😄 (It's $actual for me, but who's counting?)"
-    }
+    /** "Thinking" time before replying, so it feels like someone typing. */
+    fun typingDelayMs(reply: String): Long = (500L + reply.length * 8L).coerceAtMost(2_200L)
 }

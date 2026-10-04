@@ -50,14 +50,16 @@ import org.json.JSONObject
  * Messages are small JSON objects with a type field `t`:
  * - `hello`: profile (name, avatar), sent right after connecting
  * - `loc`: the sender's GPS position, only if they chose to share it
- * - `msg` / `ack`: a chat message and its delivery receipt
+ * - `msg`: a chat message with a unique ID (it may be sent again until a receipt comes back)
+ * - `rcpt`: a delivery (`k = d`) or read (`k = r`) receipt for a message ID
+ * - `sos`: an SOS, passed on by every phone that hears it (up to [SOS_MAX_HOPS] hops)
  * - `ping` / `pong`: round-trip time test
  */
 class NearbyMeshTransport(
     context: Context,
     private val identity: Identity,
     private val contacts: ContactsStore,
-) {
+) : MessageLink {
 
     private val client = Nearby.getConnectionsClient(context.applicationContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -72,10 +74,16 @@ class NearbyMeshTransport(
     val log: StateFlow<List<LogLine>> = _log.asStateFlow()
 
     private val _events = MutableSharedFlow<MeshEvent>(extraBufferCapacity = 64)
-    val events: SharedFlow<MeshEvent> = _events.asSharedFlow()
+    override val events: SharedFlow<MeshEvent> = _events.asSharedFlow()
 
     /** Ping send times, keyed by ping ID, to measure round-trip time. */
     private val pendingPings = mutableMapOf<String, Long>()
+
+    /** SOS IDs already seen, so a passed-on SOS isn't shown or passed on twice. */
+    private val seenSos = mutableSetOf<String>()
+
+    /** SOS we're currently sending: re-sent to every phone that connects until it's cancelled. */
+    private var activeSos: JSONObject? = null
 
     /** Our latest position, if the user shares it. Sent to everyone we connect to. */
     private var myLocation: GeoPoint? = null
@@ -161,11 +169,48 @@ class NearbyMeshTransport(
     }
 
     /** Sends a chat message to a directly connected phone. Returns false if they are not connected. */
-    fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long): Boolean {
+    override fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long): Boolean {
         val endpointId = connectedEndpointFor(toNodeId) ?: return false
         send(endpointId, JSONObject().put("t", TYPE_MSG).put("id", messageId).put("text", text).put("at", sentAt))
         return true
     }
+
+    /** Sends a delivery or read receipt for a message. Returns false if they are not connected. */
+    override fun sendReceipt(toNodeId: String, messageId: String, read: Boolean): Boolean {
+        val endpointId = connectedEndpointFor(toNodeId) ?: return false
+        send(endpointId, JSONObject().put("t", TYPE_RCPT).put("id", messageId).put("k", if (read) "r" else "d"))
+        return true
+    }
+
+    /** Broadcasts our SOS to everyone connected now, and to everyone who connects later, until cancelled. */
+    fun broadcastSos(sos: SosSignal): Int {
+        val json = sosJson(sos)
+        seenSos += sos.id + sos.cancelled
+        activeSos = if (sos.cancelled) null else json
+        val targets = connectedEndpoints()
+        targets.forEach { send(it, json) }
+        log((if (sos.cancelled) "Sent \"I'm safe\" to " else "SOS sent to ") + "${targets.size} phones")
+        return targets.size
+    }
+
+    /** Human words for the link to someone, e.g. "Bluetooth" or "Wi-Fi". */
+    override fun linkName(nodeId: String): String {
+        val peer = _peers.value.values.firstOrNull { it.nodeId == nodeId && it.state == PeerState.CONNECTED }
+        return when (peer?.quality) {
+            LinkQuality.HIGH -> "Wi-Fi"
+            LinkQuality.MEDIUM -> "Wi-Fi or Bluetooth"
+            else -> "Bluetooth"
+        }
+    }
+
+    /** Node IDs of everyone connected right now. */
+    fun connectedNodes(): List<String> =
+        _peers.value.values.filter { it.state == PeerState.CONNECTED }.map { it.nodeId }
+
+    private fun sosJson(s: SosSignal) = JSONObject()
+        .put("t", TYPE_SOS).put("id", s.id).put("from", s.fromNodeId).put("name", s.name).put("note", s.note)
+        .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("bat", s.battery ?: -1)
+        .put("at", s.at).put("hops", s.hops).put("cancel", s.cancelled)
 
     /** Shares our position with everyone connected; pass null to stop sharing. */
     fun updateMyLocation(location: GeoPoint?) {
@@ -177,7 +222,7 @@ class NearbyMeshTransport(
     /** Re-sends our profile after the user changes their name or avatar. */
     fun broadcastProfile() = connectedEndpoints().forEach { send(it, helloJson()) }
 
-    fun isConnected(nodeId: String): Boolean = connectedEndpointFor(nodeId) != null
+    override fun isConnected(nodeId: String): Boolean = connectedEndpointFor(nodeId) != null
 
     private fun connectedEndpointFor(nodeId: String): String? =
         _peers.value.values.firstOrNull { it.nodeId == nodeId && it.state == PeerState.CONNECTED }?.endpointId
@@ -259,6 +304,8 @@ class NearbyMeshTransport(
                 log("Connected to ${peer.name}")
                 send(endpointId, helloJson())
                 myLocation?.let { send(endpointId, locationJson(it)) }
+                activeSos?.let { send(endpointId, it) }
+                _events.tryEmit(MeshEvent.PeerConnected(peer.nodeId))
             } else {
                 setState(endpointId, PeerState.DISCOVERED)
                 log("Could not connect to ${peer.name}: " +
@@ -316,10 +363,14 @@ class NearbyMeshTransport(
                     val id = json.optString("id")
                     val text = json.optString("text")
                     if (id.isEmpty() || text.isEmpty()) return
-                    send(endpointId, JSONObject().put("t", TYPE_ACK).put("id", id))
-                    _events.tryEmit(MeshEvent.ChatReceived(peer.nodeId, id, text, json.optLong("at", System.currentTimeMillis())))
+                    // The message store decides whether this is new, and sends the receipt.
+                    _events.tryEmit(MeshEvent.MessageReceived(peer.nodeId, id, text, json.optLong("at", System.currentTimeMillis())))
                 }
-                TYPE_ACK -> _events.tryEmit(MeshEvent.ChatDelivered(peer.nodeId, json.optString("id")))
+                TYPE_RCPT -> {
+                    val id = json.optString("id")
+                    if (id.isNotEmpty()) _events.tryEmit(MeshEvent.Receipt(peer.nodeId, id, json.optString("k") == "r"))
+                }
+                TYPE_SOS -> handleSos(endpointId, json)
                 TYPE_PING -> {
                     log("Ping from ${peer.name}")
                     send(endpointId, JSONObject().put("t", TYPE_PONG).put("id", json.optString("id")))
@@ -334,6 +385,26 @@ class NearbyMeshTransport(
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) = Unit
+    }
+
+    /** Show an SOS once, then pass it on to everyone else we're connected to. */
+    private fun handleSos(fromEndpoint: String, json: JSONObject) {
+        val id = json.optString("id")
+        if (id.isEmpty() || !seenSos.add(id + json.optBoolean("cancel"))) return
+        val hops = json.optInt("hops", 0) + 1
+        val sos = SosSignal(
+            id = id, fromNodeId = json.optString("from"), name = json.optString("name"), note = json.optString("note"),
+            lat = json.optDouble("lat").takeUnless { it.isNaN() }, lon = json.optDouble("lon").takeUnless { it.isNaN() },
+            battery = json.optInt("bat", -1).takeIf { it >= 0 }, at = json.optLong("at"), hops = hops,
+            cancelled = json.optBoolean("cancel"),
+        )
+        if (sos.fromNodeId == identity.nodeId) return
+        log("SOS from ${sos.name} (${if (hops == 1) "direct" else "passed on $hops times"})")
+        _events.tryEmit(MeshEvent.SosReceived(sos))
+        if (hops < SOS_MAX_HOPS) {
+            val forward = JSONObject(json.toString()).put("hops", hops)
+            connectedEndpoints().filter { it != fromEndpoint }.forEach { send(it, forward) }
+        }
     }
 
     private fun setState(endpointId: String, state: PeerState) {
@@ -362,7 +433,9 @@ class NearbyMeshTransport(
         private const val TYPE_HELLO = "hello"
         private const val TYPE_LOC = "loc"
         private const val TYPE_MSG = "msg"
-        private const val TYPE_ACK = "ack"
+        private const val TYPE_RCPT = "rcpt"
+        private const val TYPE_SOS = "sos"
+        const val SOS_MAX_HOPS = 5
         private const val TYPE_PING = "ping"
         private const val TYPE_PONG = "pong"
     }

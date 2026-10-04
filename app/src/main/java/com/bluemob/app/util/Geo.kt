@@ -49,3 +49,12 @@ object TimeText {
         }
     }
 }
+
+/** "3F9A1C2B7D4E8A01" → "3F9A 1C2B 7D4E 8A01". */
+fun formatId(id: String): String = id.uppercase().chunked(4).joinToString(" ")
+
+/** Short form shown next to a name when two people share it: "#3F9A". */
+fun shortId(id: String): String = "#" + id.take(4).uppercase()
+
+/** 0° → "N", 90° → "E" … */
+fun cardinal(deg: Double): String = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")[(((deg % 360) + 360) % 360 / 45.0).let { Math.round(it).toInt() % 8 }]

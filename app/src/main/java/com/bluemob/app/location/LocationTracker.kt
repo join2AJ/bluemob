@@ -52,6 +52,22 @@ class LocationTracker(context: Context) {
         }
     }
 
+    /** The phone's last known position, without starting GPS. Used for SOS and the compass. */
+    @SuppressLint("MissingPermission")
+    fun lastKnown(): GeoPoint? {
+        if (manager == null || !hasPermission()) return null
+        return listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER)
+            .filter { manager.allProviders.contains(it) }
+            .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
+            .maxByOrNull { it.time }
+            ?.let { GeoPoint(it.latitude, it.longitude, it.accuracy, it.time) }
+    }
+
+    /** Screens such as the compass can hold GPS on while visible, even when not sharing. */
+    private var holds = 0
+    fun hold() { holds++; start() }
+    fun release(keepForSharing: Boolean) { holds = (holds - 1).coerceAtLeast(0); if (holds == 0 && !keepForSharing) stop() }
+
     fun stop() {
         if (!active) return
         manager?.removeUpdates(listener)

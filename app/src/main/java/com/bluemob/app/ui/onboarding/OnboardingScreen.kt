@@ -49,7 +49,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bluemob.app.identity.Identity
-import com.bluemob.app.ui.components.Pill
+import com.bluemob.app.ui.components.Tag
+import com.bluemob.app.ui.theme.Extra
 import com.bluemob.app.ui.theme.Gradients
 import com.bluemob.app.ui.theme.Space
 import kotlinx.coroutines.launch
@@ -150,7 +151,7 @@ private fun SlidePage(slide: Slide) {
         HeroArt(slide.kind, Modifier.fillMaxWidth(0.9f).aspectRatio(1f))
         Spacer(Modifier.height(Space.xl))
         if (slide.comingSoon) {
-            Pill("COMING SOON", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
+            Tag("Coming soon", Extra.emberTint, Extra.ember)
             Spacer(Modifier.height(Space.md))
         }
         Text(slide.title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)

@@ -17,51 +17,37 @@ through Meera, who has internet.
 
 ## Roadmap
 
-| Phase | Feature | Status |
-|---|---|---|
-| 1 | Project setup, permissions, discover & connect to nearby phones | ✅ Done |
-| 1.5 | Design system, intro carousel, radar dashboard, Sky practice bot, profile | ✅ Done |
-| 2 | Text chat between two phones (basic in-memory chat works; saving history is next) | ⏳ In progress |
-| 3 | Multi-hop mesh relaying (A → B → C) | |
-| 4 | Internet gateway + Firebase relay (A → B → C → internet → D, and back), SMS fallback | |
-| 5 | End-to-end encryption and identities | |
-| 6 | Location sharing, voice notes, images | |
-| 7 | Live voice calls | |
-| 8 | Live video calls | |
+| Phase | Feature | Android | Web preview |
+|---|---|---|---|
+| 1 | Discover and connect to nearby phones (Bluetooth / Wi-Fi) | ✅ | simulated |
+| 2 | Chat saved on the phone, store-and-forward, exactly-once, delivered / read receipts | ✅ 0.3 | ✅ |
+| – | Pine & Sand design system, 5 tabs, SOS button everywhere | ✅ 0.3 | ✅ |
+| – | Sky (on-device helper), survival guide, SOS (send, pass on, alert, signals), compass | ✅ 0.3 | ✅ |
+| 3 | Chat messages hopping through several phones (A → B → C) | | simulated |
+| 4 | Internet bridge + BlueMob relay (Firebase): far-away friends, SMS to loved ones, experts | | simulated |
+| 5 | End-to-end encryption | | |
+| 6 | Games, trip money, insights, offline maps | | ✅ |
+| 7–8 | Voice and video calls | | |
 
-## What's in the app
+## Android 0.3: what's real on the phone
 
-| Screen | What it does |
-|---|---|
-| **Intro carousel** | Five animated slides on what BlueMob does, then pick a name and an avatar. Unbuilt features are labelled *Coming soon*. |
-| **Radar** | Mesh on/off, counts of who's online / in range / met, an animated radar placing people by real direction and distance (when both share GPS), internet status, and a people list with distance, link type and *last seen*. |
-| **Chats** | Sky the practice bot, pinned on top, plus everyone you've met. Unread badges and typing indicators. |
-| **Chat** | Bubbles with sent ✓ / delivered ✓✓ ticks, typing dots, quick-reply chips for Sky, and a link-speed check (ping) for real people. |
-| **You** | Name, avatar, mesh and location-sharing switches, replay intro, forget people, and a mesh activity log for testers. |
-
-**Sky** (`bot/SkyBot.kt`) is a small offline keyword bot, so someone who is alone can try the app and
-feel what a real chat is like.
-
-### Design system (`ui/theme`)
-
-"Open sky & wild meadow": leaf green brand, sky blue for connection, sun amber accent, warm off-white
-backgrounds, and a deep forest night theme. Rounded shapes (12–32 dp), one spacing scale (`Space`),
-and a sky-to-meadow `Gradients.horizon()` used for hero surfaces. Illustrations are drawn in code,
-so they stay crisp and need no internet.
-
-### Under the hood
-
-- **Google Nearby Connections** (`P2P_CLUSTER`) handles discovery and links over Bluetooth/BLE,
-  upgrading to Wi-Fi when possible. Needs Google Play Services on the phone.
-- Each phone has a permanent random **device ID** plus a name and avatar, exchanged on connect.
-- Phones **auto-connect** to every BlueMob phone they find (`mesh/NearbyMeshTransport.kt`).
-- **Contacts** (`contacts/ContactsStore.kt`) remember everyone met, with last-seen time and last position.
-- **Location** (`location/LocationTracker.kt`) uses GPS only while the user shares it. GPS needs no internet.
-
-### Screenshots
-
-Rendered on the JVM with Paparazzi: run `./gradlew recordPaparazziDebug`; images are in
-[`app/src/test/snapshots/images`](app/src/test/snapshots/images).
+- **Design:** "Pine & Sand" tokens (`ui/theme`), bundled Bricolage Grotesque + Figtree fonts (SIL OFL, licences in
+  `app/src/main/assets/licenses`), light and dark, floating tab bar, SOS button on every tab.
+- **Messaging** (`chat/MessageRepository.kt`, `data/Database.kt`): messages are saved in a Room database with a unique ID.
+  If the person isn't in range, the message waits and goes over Bluetooth / Wi-Fi the moment they connect. It's re-sent on
+  each connection until a delivery receipt arrives; the receiver keeps every ID it has accepted and discards second copies,
+  so each message shows exactly once. Read receipts go back when the chat is opened, or on the next connection.
+  Tap a sent message for its receipts, delivery paths and full history.
+- **Sky** (`bot/SkyBot.kt`): runs inside the app, no internet. Answers from the survival guide, explains the app, and gives
+  live facts (who's nearby, your ID, battery, waiting messages, SOS status).
+- **Survival guide** (`guide/`): 20 articles in 9 topics, search, saved guides. Generated from `web/src/features.js`.
+- **SOS** (`sos/`): two-tap send with an optional note and your last position; re-sent to every phone that connects until
+  "I'm safe", and passed on by each phone that hears it (up to 5 hops). Receiving one opens a full-screen alert with
+  "I'm coming", "Show me the way" and "How to help". The SOS signal uses the screen, the real flashlight, a 2.8 kHz
+  tone, or all three, with a default you choose.
+- **Compass** (`compass/`, `ui/compass`): phone compass sensor + GPS, no data. Targets: saved spots and friends who share
+  their location.
+- **Battery:** shortcuts to Android's Battery Saver and to let BlueMob keep running while it's on.
 
 ## Getting the app
 
@@ -79,16 +65,22 @@ debug key, so uninstall the old version before installing a new one.
 
 ## Testing
 
-**On one phone:** go through the intro, then open **Chats → Sky** and chat with the bot.
+**Automated** (`./gradlew testDebugUnitTest`): the delivery engine with two simulated phones (waits until in range,
+exactly-once after a re-send, read receipts), 26 Sky questions, geo maths, and screenshots of 13 screens.
+The web preview has its own Sky test: `node web/tests/sky_answers.test.js`.
 
-**With 2 or more real Android phones** (emulators cannot use Bluetooth with each other):
+**On one phone:** go through the intro, ask Sky questions, read the guide, try the SOS signal (flashlight and sound),
+and the compass (outdoors for GPS).
+
+**With 2 or more phones** (emulators can't use Bluetooth with each other):
 
 1. Install the APK on each phone, go through the intro and tap **Allow** for nearby devices.
 2. On Android 12 and older, switch **Location** on in quick settings (no internet is used).
-3. Turn on airplane mode, then turn Bluetooth and Wi-Fi back on to prove no cell signal is needed.
-4. Within a few seconds each phone shows the other as **Online** on the Radar.
-5. Open a chat and send messages. Ticks turn ✓✓ when delivered. Tap the speed icon to check the link.
-6. Turn on **Share my location** on both phones (outdoors helps GPS) to see the real distance on the radar.
-7. Walk apart: people go *In range*, then *Last seen …*.
+3. Turn on airplane mode, then turn Bluetooth and Wi-Fi back on.
+4. Each phone shows the other as **Online** on the Nearby radar.
+5. **Store-and-forward:** turn the mesh off on phone B, send B a message from phone A (it shows the clock),
+   then turn B's mesh back on. The message arrives, and A's tick goes to delivered, then read when B opens the chat.
+6. **SOS:** send an SOS from one phone. The other opens the alert. With three phones in a line, the middle one passes it on.
+7. Turn on **Share my location** on both phones to see distance on the radar and walk to each other with the compass.
 
 If something fails, send a screenshot of **You → Mesh activity log**.

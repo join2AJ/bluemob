@@ -7,73 +7,59 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-private val LightColors = lightColorScheme(
-    primary = Palette.Leaf,
-    onPrimary = Palette.Meadow,
-    primaryContainer = Palette.LeafContainer,
-    onPrimaryContainer = Palette.Bark,
-    secondary = Palette.Sky,
-    onSecondary = Palette.Meadow,
-    secondaryContainer = Palette.SkyContainer,
-    onSecondaryContainer = Palette.Bark,
-    tertiary = Palette.Sun,
-    onTertiary = Palette.Bark,
-    tertiaryContainer = Palette.SunContainer,
-    onTertiaryContainer = Palette.Bark,
-    background = Palette.Meadow,
-    onBackground = Palette.Bark,
-    surface = Palette.Meadow,
-    onSurface = Palette.Bark,
-    surfaceVariant = Palette.Moss,
-    onSurfaceVariant = Palette.Stone,
-    surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color(0xFFFBFCF8),
-    surfaceContainer = Color.White,
-    surfaceContainerHigh = Palette.Moss,
-    outline = Color(0xFFB9C6BD),
-    outlineVariant = Color(0xFFDCE4DD),
-    error = Palette.Coral,
+/** Colours Material's scheme has no slot for. */
+@Immutable
+data class ExtraColors(
+    val sand: Color, val sand2: Color, val line: Color, val ink2: Color, val ink3: Color,
+    val pineTint: Color, val sky: Color, val skyTint: Color, val ember: Color, val emberTint: Color,
+    val rose: Color, val bubbleThem: Color,
 )
 
+private val LightExtra = ExtraColors(
+    Palette.Sand, Palette.Sand2, Palette.Line, Palette.Ink2, Palette.Ink3, Palette.PineTint, Palette.Sky, Palette.SkyTint,
+    Palette.Ember, Palette.EmberTint, Palette.Rose, Palette.BubbleThem,
+)
+private val DarkExtra = ExtraColors(
+    Palette.SandDark, Palette.Sand2Dark, Palette.LineDark, Palette.Ink2Dark, Palette.Ink3Dark, Palette.PineTintDark,
+    Palette.SkyDark, Palette.SkyTintDark, Palette.EmberDark, Palette.EmberTintDark, Palette.RoseDark, Palette.BubbleThemDark,
+)
+val LocalExtra = staticCompositionLocalOf { LightExtra }
+
+private val LightColors = lightColorScheme(
+    primary = Palette.Pine, onPrimary = Color.White, primaryContainer = Palette.PineTint, onPrimaryContainer = Palette.Pine,
+    secondary = Palette.Sky, onSecondary = Color.White, secondaryContainer = Palette.SkyTint, onSecondaryContainer = Palette.Ink,
+    tertiary = Palette.Ember, onTertiary = Color.White, tertiaryContainer = Palette.EmberTint, onTertiaryContainer = Palette.Ink,
+    background = Palette.Canvas, onBackground = Palette.Ink, surface = Palette.Canvas, onSurface = Palette.Ink,
+    surfaceVariant = Palette.Sand, onSurfaceVariant = Palette.Ink2,
+    surfaceContainerLowest = Palette.Canvas, surfaceContainerLow = Palette.Sand, surfaceContainer = Palette.Canvas,
+    surfaceContainerHigh = Palette.Sand2, surfaceContainerHighest = Palette.Sand2,
+    outline = Palette.Ink3, outlineVariant = Palette.Line, error = Palette.Rose,
+)
 private val DarkColors = darkColorScheme(
-    primary = Palette.LeafLight,
-    onPrimary = Palette.Night,
-    primaryContainer = Palette.LeafContainerDark,
-    onPrimaryContainer = Palette.Mist,
-    secondary = Palette.SkyLight,
-    onSecondary = Palette.Night,
-    secondaryContainer = Palette.SkyContainerDark,
-    onSecondaryContainer = Palette.Mist,
-    tertiary = Palette.SunLight,
-    onTertiary = Palette.Night,
-    tertiaryContainer = Palette.SunContainerDark,
-    onTertiaryContainer = Palette.Mist,
-    background = Palette.Night,
-    onBackground = Palette.Mist,
-    surface = Palette.Night,
-    onSurface = Palette.Mist,
-    surfaceVariant = Palette.NightMoss,
-    onSurfaceVariant = Palette.MistDim,
-    surfaceContainerLowest = Palette.Night,
-    surfaceContainerLow = Palette.NightSurface,
-    surfaceContainer = Palette.NightSurface,
-    surfaceContainerHigh = Palette.NightMoss,
-    outline = Color(0xFF41564C),
-    outlineVariant = Color(0xFF2A3D35),
-    error = Color(0xFFF4A6A0),
+    primary = Palette.PineDark, onPrimary = Palette.OnPineDark, primaryContainer = Palette.PineTintDark, onPrimaryContainer = Palette.PineDark,
+    secondary = Palette.SkyDark, onSecondary = Palette.CanvasDark, secondaryContainer = Palette.SkyTintDark, onSecondaryContainer = Palette.InkDark,
+    tertiary = Palette.EmberDark, onTertiary = Palette.CanvasDark, tertiaryContainer = Palette.EmberTintDark, onTertiaryContainer = Palette.InkDark,
+    background = Palette.CanvasDark, onBackground = Palette.InkDark, surface = Palette.CanvasDark, onSurface = Palette.InkDark,
+    surfaceVariant = Palette.SandDark, onSurfaceVariant = Palette.Ink2Dark,
+    surfaceContainerLowest = Palette.SandDark, surfaceContainerLow = Palette.SandDark, surfaceContainer = Palette.CanvasDark,
+    surfaceContainerHigh = Palette.Sand2Dark, surfaceContainerHighest = Palette.Sand2Dark,
+    outline = Palette.Ink3Dark, outlineVariant = Palette.LineDark, error = Palette.RoseDark,
 )
 
 private val BlueMobShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
 /** Spacing scale, so screens share the same rhythm. */
@@ -86,33 +72,37 @@ object Space {
     val xxl = 32.dp
 }
 
-/** Brand gradients: a horizon from sky to meadow. */
 object Gradients {
-    /** Deep enough in both themes for white text on top. */
+    /** Sky to pine. Deep enough in both themes for white text. */
     @Composable
     @ReadOnlyComposable
     fun horizon(): Brush = Brush.linearGradient(
-        if (isSystemInDarkTheme()) listOf(Color(0xFF1F5A86), Color(0xFF1F6047))
-        else listOf(Palette.Sky, Palette.Leaf)
+        if (isSystemInDarkTheme()) listOf(Color(0xFF1F5A86), Color(0xFF1F6047)) else listOf(Palette.Sky, Palette.Pine)
     )
 
+    /** Soft morning wash behind the intro. */
     @Composable
     @ReadOnlyComposable
     fun dawn(): Brush = Brush.verticalGradient(
-        listOf(
-            MaterialTheme.colorScheme.secondaryContainer,
-            MaterialTheme.colorScheme.background,
-            MaterialTheme.colorScheme.primaryContainer,
-        )
+        listOf(LocalExtra.current.skyTint, MaterialTheme.colorScheme.background, LocalExtra.current.pineTint)
     )
+
+    /** The radar always sits on a night sky. */
+    val night: Brush = Brush.radialGradient(listOf(Palette.Night2, Palette.Night1))
 }
 
+/** Shortcut: `Extra.sand`, `Extra.ember` … from any composable. */
+val Extra: ExtraColors
+    @Composable @ReadOnlyComposable get() = LocalExtra.current
+
 @Composable
-fun BlueMobTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
-        typography = BlueMobTypography,
-        shapes = BlueMobShapes,
-        content = content,
-    )
+fun BlueMobTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalExtra provides if (dark) DarkExtra else LightExtra) {
+        MaterialTheme(
+            colorScheme = if (dark) DarkColors else LightColors,
+            typography = BlueMobTypography,
+            shapes = BlueMobShapes,
+            content = content,
+        )
+    }
 }
