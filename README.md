@@ -8,6 +8,13 @@ the others' messages to the outside world.
  A (no signal) ──BT/Wi-Fi──► B (no signal) ──BT/Wi-Fi──► C (has internet) ──► Firebase ──► D (far away)
 ```
 
+## Web preview
+
+`web/index.html` is a clickable web version of the app with the same screens and design. Browsers
+can't link phones over Bluetooth, so nearby people (Asha, Ravi, Meera, Kabir) are simulated there.
+It also plays out the internet-bridge idea: message Dee, 2,000 km away, and watch the message hop
+through Meera, who has internet.
+
 ## Roadmap
 
 | Phase | Feature | Status |

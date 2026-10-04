@@ -1,0 +1,1019 @@
+<title>BlueMob</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one phone-sized app column, centred on wide screens, edge to edge on phones.
+   Palette "open sky & wild meadow", matching the Android app's design system. */
+:root {
+  --bg: #F6F8F1;
+  --stage: #E9EFE6;
+  --surface: #FFFFFF;
+  --surface-2: #E6EDE1;
+  --fg: #1E2A24;
+  --muted: #5B6B62;
+  --line: #DCE4DD;
+  --leaf: #2E7D5B;
+  --on-leaf: #FFFFFF;
+  --leaf-soft: #CDEFD9;
+  --sky: #2B7BB9;
+  --sky-soft: #D5E9F8;
+  --sun: #E8A33D;
+  --sun-soft: #FCE7C4;
+  --on-soft: #1E2A24;
+  --horizon-a: #2B7BB9;
+  --horizon-b: #2E7D5B;
+  --online: #3CC47C;
+  --away: #E8A33D;
+  --offline: #9AA59F;
+  --coral: #D9534F;
+  --tick: #E8A33D;
+  --shadow: 0 30px 80px -30px rgba(30, 60, 45, .35);
+  --font-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r-sm: 12px; --r-md: 18px; --r-lg: 24px; --r-xl: 32px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1A17; --stage: #0A1210; --surface: #16241F; --surface-2: #223630;
+    --fg: #E2EBE5; --muted: #A9BAB0; --line: #2A3D35;
+    --leaf: #7FD8A8; --on-leaf: #0F1A17; --leaf-soft: #1D4A37;
+    --sky: #9CCBF0; --sky-soft: #173E5C; --sun: #FFCF80; --sun-soft: #5A3D0E; --on-soft: #E2EBE5;
+    --horizon-a: #1F5A86; --horizon-b: #1F6047; --tick: #FFCF80;
+    --shadow: 0 30px 80px -30px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1A17; --stage: #0A1210; --surface: #16241F; --surface-2: #223630;
+  --fg: #E2EBE5; --muted: #A9BAB0; --line: #2A3D35;
+  --leaf: #7FD8A8; --on-leaf: #0F1A17; --leaf-soft: #1D4A37;
+  --sky: #9CCBF0; --sky-soft: #173E5C; --sun: #FFCF80; --sun-soft: #5A3D0E; --on-soft: #E2EBE5;
+  --horizon-a: #1F5A86; --horizon-b: #1F6047; --tick: #FFCF80;
+  --shadow: 0 30px 80px -30px rgba(0, 0, 0, .7);
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--stage); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; border-radius: 8px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+
+.stage { height: 100%; display: grid; place-items: center; padding-block: 16px; }
+.app {
+  position: relative; width: min(420px, 100%); height: min(880px, 100%);
+  background: var(--bg); border-radius: var(--r-xl); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+@media (max-width: 480px) {
+  .stage { padding-block: 0; }
+  .app { width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
+}
+.scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 16px 16px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ---------- shared pieces ---------- */
+.card { background: var(--surface); border-radius: var(--r-lg); padding: 16px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+.row { display: flex; align-items: center; gap: 12px; }
+.grow { flex: 1; min-width: 0; }
+.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; letter-spacing: .04em; background: var(--surface-2); color: var(--fg); }
+.pill.sun { background: var(--sun-soft); color: var(--on-soft); }
+.pill.sky { background: var(--sky-soft); color: var(--on-soft); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.btn { border: 0; border-radius: 99px; padding: 12px 22px; font-weight: 600; background: var(--leaf); color: var(--on-leaf); display: inline-flex; align-items: center; gap: 8px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.ghost { background: transparent; color: var(--leaf); padding: 8px 12px; }
+.btn.tonal { background: var(--leaf-soft); color: var(--on-soft); }
+.icon-btn { border: 0; background: var(--leaf-soft); color: var(--on-soft); width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.icon-btn.plain { background: transparent; color: var(--fg); }
+.icon-btn svg, .btn svg { width: 20px; height: 20px; }
+
+.avatar { position: relative; flex: none; border-radius: 50%; display: grid; place-items: center; line-height: 1; }
+.avatar .status { position: absolute; right: 0; bottom: 0; width: 28%; height: 28%; border-radius: 50%; border: 2px solid var(--surface); }
+
+.switch { position: relative; width: 52px; height: 32px; border-radius: 99px; border: 2px solid var(--muted); background: var(--surface-2); flex: none; padding: 0; transition: background .2s, border-color .2s; }
+.switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: transform .2s, background .2s; }
+.switch[aria-checked="true"] { background: var(--leaf); border-color: var(--leaf); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--on-leaf); }
+.switch.on-hero { border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.2); }
+.switch.on-hero::after { background: #fff; }
+.switch.on-hero[aria-checked="true"] { background: #fff; border-color: #fff; }
+.switch.on-hero[aria-checked="true"]::after { background: #2E7D5B; }
+
+/* ---------- onboarding ---------- */
+.onboard { flex: 1; display: flex; flex-direction: column; background: linear-gradient(180deg, var(--sky-soft), var(--bg) 45%, var(--leaf-soft)); min-height: 0; }
+.onboard-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 0; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--leaf); }
+.slide { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; padding: 8px 24px; animation: slideIn .35s ease; min-height: 0; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+.slide h1 { font-size: 32px; line-height: 1.1; }
+.slide p { margin: 0; max-width: 32ch; color: var(--muted); font-size: 16px; }
+.hero { width: min(300px, 78%); aspect-ratio: 1; position: relative; display: grid; place-items: center; max-width: 100%; }
+.onboard-bottom { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 22px; }
+.dots { display: flex; gap: 6px; align-items: center; }
+.dots span { height: 8px; width: 8px; border-radius: 99px; background: var(--line); transition: width .25s, background .25s; }
+.dots span.on { width: 24px; background: var(--leaf); }
+
+.ripple { position: absolute; inset: 0; margin: auto; border-radius: 50%; border: 3px solid var(--sky); opacity: 0; animation: ripple 2.6s linear infinite; }
+.ripple:nth-child(2) { animation-delay: .87s; } .ripple:nth-child(3) { animation-delay: 1.73s; }
+@keyframes ripple { from { width: 30%; height: 30%; opacity: .55; } to { width: 100%; height: 100%; opacity: 0; } }
+.node { border-radius: 50%; display: grid; place-items: center; line-height: 1; position: absolute; }
+.hero-badge { position: absolute; top: 6%; right: 6%; width: 52px; height: 52px; border-radius: 50%; background: var(--sun-soft); color: var(--on-soft); display: grid; place-items: center; }
+.hero-badge svg { width: 26px; height: 26px; }
+.bubble-demo { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.bubble-demo .b { max-width: 80%; padding: 10px 16px; border-radius: 20px; font-size: 15px; animation: bob 2.8s ease-in-out infinite; }
+.bubble-demo .b.me { align-self: flex-end; background: var(--leaf); color: var(--on-leaf); border-bottom-right-radius: 4px; }
+.bubble-demo .b.them { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 4px; animation-delay: .5s; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+.field { width: 100%; text-align: left; }
+.field label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px 4px; }
+.field input { width: 100%; padding: 14px 16px; border-radius: var(--r-md); border: 1.5px solid var(--line); background: var(--surface); color: var(--fg); font: inherit; font-size: 16px; }
+.field input:focus { outline: none; border-color: var(--leaf); }
+.avatar-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; width: 100%; }
+.avatar-grid button { aspect-ratio: 1; border: 0; border-radius: 16px; background: var(--surface); font-size: 24px; display: grid; place-items: center; transition: background .2s, transform .15s; }
+.avatar-grid button[aria-pressed="true"] { background: var(--leaf-soft); transform: scale(1.06); }
+.big-avatar { width: 104px; height: 104px; border-radius: 50%; background: linear-gradient(135deg, var(--horizon-a), var(--horizon-b)); display: grid; place-items: center; font-size: 52px; flex: none; }
+
+/* ---------- radar tab ---------- */
+.greet { display: flex; align-items: center; gap: 12px; }
+.greet h1 { font-size: 28px; }
+.hero-card { border-radius: var(--r-lg); padding: 22px; color: #fff; background: linear-gradient(120deg, var(--horizon-a), var(--horizon-b)); display: flex; flex-direction: column; gap: 16px; }
+.hero-card h2 { font-size: 21px; display: flex; align-items: center; gap: 10px; }
+.hero-card p { margin: 2px 0 0; opacity: .88; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: rgba(255,255,255,.16); border-radius: var(--r-md); padding: 10px 12px; }
+.stat b { display: block; font-family: var(--font-display); font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; letter-spacing: .05em; opacity: .9; }
+.live { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: breathe 1.4s ease-in-out infinite; flex: none; }
+@keyframes breathe { 0%, 100% { transform: scale(.7); opacity: .7; } 50% { transform: scale(1.1); opacity: 1; } }
+.radar-wrap { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; }
+.radar-wrap canvas { width: 100%; height: 100%; display: block; }
+.blip { position: absolute; width: 32px; height: 32px; margin: -16px 0 0 -16px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; border: 0; padding: 0; transition: left .8s ease, top .8s ease, opacity .4s; }
+.blip .status { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--surface); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.hint { display: flex; gap: 10px; align-items: center; background: var(--sky-soft); color: var(--on-soft); border-radius: var(--r-md); padding: 10px 12px; }
+.bridge { display: flex; gap: 14px; align-items: center; border-radius: var(--r-lg); padding: 16px; }
+.bridge svg { width: 32px; height: 32px; flex: none; }
+.person { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--surface); border-radius: var(--r-md); border: 0; width: 100%; text-align: left; }
+.person + .person { margin-top: 0; }
+.list { display: flex; flex-direction: column; gap: 8px; }
+.section-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-top: 4px; }
+.empty { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; }
+
+/* ---------- chats ---------- */
+.badge { min-width: 22px; height: 22px; border-radius: 99px; padding: 0 6px; background: var(--leaf); color: var(--on-leaf); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.typing-text { color: var(--leaf); font-weight: 500; }
+
+.chat { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); }
+.messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.msg { display: flex; flex-direction: column; max-width: 82%; animation: pop .25s ease; }
+@keyframes pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.msg.me { align-self: flex-end; align-items: flex-end; }
+.msg .body { padding: 10px 14px 6px; border-radius: 20px; background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.me .body { background: var(--leaf); color: var(--on-leaf); border-bottom-right-radius: 4px; }
+.msg.them .body { border-bottom-left-radius: 4px; }
+.meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-size: 11px; opacity: .75; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.meta svg { width: 14px; height: 14px; }
+.meta .delivered { color: var(--tick); opacity: 1; }
+.msg.me .meta .delivered { color: var(--sun-soft); }
+.route { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+.msg.me .route { justify-content: flex-end; }
+.route .hop { padding: 2px 8px; border-radius: 99px; background: var(--surface-2); transition: background .3s, color .3s; }
+.route .hop.done { background: var(--leaf-soft); color: var(--on-soft); }
+.route .hop.now { background: var(--sun-soft); color: var(--on-soft); }
+.banner { background: var(--sun-soft); color: var(--on-soft); border-radius: var(--r-md); padding: 10px 12px; font-size: 13px; margin-bottom: 8px; }
+.banner.sky { background: var(--sky-soft); }
+.typing { align-self: flex-start; background: var(--surface-2); border-radius: 20px 20px 20px 4px; padding: 14px 16px; display: flex; gap: 4px; }
+.typing i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .16s; } .typing i:nth-child(3) { animation-delay: .32s; }
+@keyframes blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 8px; scrollbar-width: none; }
+.chips button { flex: none; border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 12px; font-size: 13px; }
+.composer { display: flex; gap: 8px; align-items: center; padding: 8px 10px 12px; background: var(--surface); }
+.composer input { flex: 1; min-width: 0; border: 0; border-radius: 99px; padding: 13px 18px; background: var(--surface-2); color: var(--fg); font: inherit; font-size: 15px; }
+.composer input:focus { outline: 2px solid var(--leaf); }
+.composer .send { width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--leaf); color: var(--on-leaf); display: grid; place-items: center; flex: none; }
+.composer .send:disabled { opacity: .4; cursor: default; }
+.note { font-size: 12px; color: var(--muted); padding: 0 16px 8px; }
+
+/* ---------- profile ---------- */
+.profile-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding-top: 8px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: .04em; }
+.group-title { font-weight: 600; margin: 0 0 8px 4px; }
+.setting { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+.setting + .setting { border-top: 1px solid var(--line); }
+.setting svg { width: 22px; height: 22px; color: var(--leaf); flex: none; }
+.group { background: var(--surface); border-radius: var(--r-lg); overflow: hidden; }
+.log { font-family: ui-monospace, Menlo, monospace; font-size: 12px; padding: 0 16px 14px; display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; }
+
+/* ---------- tab bar ---------- */
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); padding: 8px 8px 10px; border-top: 1px solid var(--line); }
+.tabs button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 0; position: relative; }
+.tabs .ic { width: 64px; height: 32px; border-radius: 99px; display: grid; place-items: center; transition: background .2s; }
+.tabs svg { width: 22px; height: 22px; }
+.tabs button[aria-selected="true"] { color: var(--fg); }
+.tabs button[aria-selected="true"] .ic { background: var(--leaf-soft); color: var(--on-soft); }
+.tabs .badge { position: absolute; top: 0; left: calc(50% + 8px); min-width: 18px; height: 18px; font-size: 11px; }
+
+.toast { position: absolute; left: 16px; right: 16px; bottom: 90px; background: var(--fg); color: var(--bg); border-radius: var(--r-md); padding: 12px 16px; font-size: 14px; transform: translateY(20px); opacity: 0; pointer-events: none; transition: all .3s; z-index: 5; }
+.toast.show { transform: none; opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+</style>
+
+<div class="stage">
+  <main class="app" id="app" aria-live="polite"></main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- icons (Material-style paths) ----------
+  const I = {
+    radar: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2Zm0 4a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4V6Zm0 4a2 2 0 1 0 2 2c0-.2 0-.4-.1-.6l5.3-5.3-1.4-1.4-5.3 5.3c-.2-.1-.3 0-.5 0Z"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7l-5 4V6a2 2 0 0 1 2-2Zm2 5v2h12V9H6Zm0 4v2h8v-2H6Z"/></svg>',
+    person: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-4 0-8 2-8 5v2h16v-2c0-3-4-5-8-5Z"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2Z"/></svg>',
+    send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5 21 12 3 3.5v6.6L15 12 3 13.9v6.6Z"/></svg>',
+    arrow: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.4 1.4 5.6 5.6H4v2h12.2l-5.6 5.6L12 20l8-8-8-8Z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"/></svg>',
+    checks: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m18 7-1.4-1.4-6.3 6.3 1.4 1.4L18 7Zm4.2-1.4L11.7 16.2 7.5 12l-1.4 1.4 5.6 5.6 12-12-1.5-1.4ZM.4 13.4 6 19l1.4-1.4L1.8 12 .4 13.4Z"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7Z"/></svg>',
+    queue: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2v6l4 4-4 4v6h12v-6l-4-4 4-4V2H6Zm10 14.5V20H8v-3.5l4-4 4 4Z"/></svg>',
+    speed: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.4 8.6 19 10a8 8 0 0 1-.6 8H5.6A8 8 0 0 1 16 5.6l1.4-1.4A10 10 0 0 0 3.9 19a2 2 0 0 0 1.7 1h12.8a2 2 0 0 0 1.7-1 10 10 0 0 0 .3-10.4ZM10.6 15.4a2 2 0 0 0 2.8 0l5.7-8.5-8.5 5.7a2 2 0 0 0 0 2.8Z"/></svg>',
+    globe: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1 17.9A8 8 0 0 1 4.2 10L9 15v1a2 2 0 0 0 2 2v1.9Zm6.9-2.5A2 2 0 0 0 16 16h-1v-3a1 1 0 0 0-1-1H8v-2h2a1 1 0 0 0 1-1V7h2a2 2 0 0 0 2-2v-.4a8 8 0 0 1 2.9 12.8Z"/></svg>',
+    cloudOff: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 10A7.5 7.5 0 0 0 8.1 4.5l1.5 1.5A5.5 5.5 0 0 1 17.5 11v.5H19a2.5 2.5 0 0 1 1 4.8l1.4 1.4A4.5 4.5 0 0 0 19.4 10ZM3 5.3l2.8 2.7A6 6 0 0 0 6 20h11.7l2 2 1.3-1.3L4.3 4 3 5.3ZM7.7 10l8 8H6a4 4 0 0 1 0-8h1.7Z"/></svg>',
+    signalOff: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 1 1 21h20V1Zm-2 18h-2v-7.2l2-2V19ZM2.4 2.4 1 3.8l18.2 18.2 1.4-1.4L2.4 2.4Z"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.3 7 13 7 13s7-7.7 7-13a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/></svg>',
+    wifi: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m1 9 2 2a12.7 12.7 0 0 1 18 0l2-2A15.6 15.6 0 0 0 1 9Zm8 8 3 3 3-3a4.2 4.2 0 0 0-6 0Zm-4-4 2 2a7 7 0 0 1 10 0l2-2a9.9 9.9 0 0 0-14 0Z"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.7 6.3A8 8 0 1 0 19.7 14h-2.1a6 6 0 1 1-1.4-6.2L13 11h7V4l-2.3 2.3Z"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12ZM8 9h8v10H8V9Zm7.5-5-1-1h-5l-1 1H5v2h14V4h-3.5Z"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 7h2v2h-2V7Zm0 4h2v6h-2v-6Zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>',
+  };
+
+  const AVATARS = ["🌿", "🦅", "🌊", "⛰️", "🌻", "🦋", "🐬", "🔥", "🌙", "🍀", "🐺", "🌵"];
+  const TINTS = ["#7FD8A8", "#9CCBF0", "#FFCF80", "#F4A6A0", "#C3B1F0", "#8FD3D0"];
+  const tint = (seed) => TINTS[Math.abs([...seed].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)) % TINTS.length];
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- storage (best effort) ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("bluemob:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("bluemob:" + k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
+  };
+
+  // ---------- state ----------
+  const now = () => Date.now();
+  const S = {
+    name: store.get("name", ""),
+    avatar: store.get("avatar", "🦅"),
+    onboarded: store.get("onboarded", false),
+    shareLoc: store.get("shareLoc", false),
+    slide: 0,
+    tab: store.get("tab", "radar"),
+    chat: null,
+    mesh: false,
+    showLog: false,
+    log: [],
+    convos: {},
+    timers: [],
+  };
+
+  // Simulated people. In the Android app these come from real Bluetooth / Wi-Fi discovery.
+  const PEOPLE = {
+    asha:  { name: "Asha",  avatar: "🦋", dist: 42,   bearing: 60,  link: "fast Wi-Fi link", rtt: 18 },
+    ravi:  { name: "Ravi",  avatar: "🐬", dist: 380,  bearing: 200, link: "Bluetooth link", rtt: 64 },
+    meera: { name: "Meera", avatar: "🌵", dist: 920,  bearing: 310, link: "good link", rtt: 41, internet: true },
+    kabir: { name: "Kabir", avatar: "🐺", dist: 1800, bearing: 130, link: "", rtt: 0 },
+    dee:   { name: "Dee",   avatar: "🌻", remote: true },
+  };
+  const P = {};
+  for (const [id, p] of Object.entries(PEOPLE)) {
+    P[id] = { id, ...p, presence: "offline", met: false, lastSeen: 0 };
+  }
+  // Kabir was met on an earlier trip; Dee is a friend far away, reachable only through the internet.
+  Object.assign(P.kabir, { met: true, lastSeen: now() - 2 * 3600e3 });
+  Object.assign(P.dee, { met: true, presence: "remote" });
+
+  const SKY = { id: "sky", name: "Sky", avatar: "🌤️" };
+
+  // ---------- Sky, the practice bot (same rules as the Android app) ----------
+  const SKY_GREETING = [
+    "Hey there! 👋 I'm Sky, your BlueMob buddy.",
+    "I live right here on your phone, so we can chat even with zero signal. Try saying hi, or tap one of the suggestions below.",
+  ];
+  const SKY_SUGGEST = ["Hi 👋", "How does BlueMob work?", "What can I do here?", "Tell me a joke"];
+  const SKY_RULES = [
+    [["hello", "hi", "hey", "hii", "namaste", "hola", "yo"], [
+      "Hi! 😊 Great to hear from you. This is exactly how it feels when a friend nearby messages you, no towers needed.",
+      "Hello hello! 🌿 You just sent a message the BlueMob way. With a real person it would hop over Bluetooth or Wi-Fi.",
+      "Hey! 👋 How's your day out there?"]],
+    [["how are you", "how r u", "wassup", "what's up", "sup"], [
+      "I'm doing great, feeling free as the wind 🌬️. How about you?",
+      "All good here! Just floating around in your phone ☁️. What about you?"]],
+    [["good", "fine", "great", "awesome", "nice", "cool"], [
+      "Love that! 🌻",
+      "Awesome 🙌. Want to know how BlueMob reaches people without signal? Just ask \"how does it work\"."]],
+    [["how does", "how it works", "how do", "work", "bluetooth", "wifi", "wi-fi", "mesh"], [
+      "Here's the magic ✨: phones running BlueMob find each other over Bluetooth and Wi-Fi and link up directly. No SIM, no towers, no internet.\n\nEvery phone can pass messages along, so a message can hop A → B → C to reach someone out of your range. And if one phone nearby has internet, it can carry the group's messages to the wider world. Try messaging Dee once Meera is online to watch it happen!"]],
+    [["what can", "feature", "help", "do here", "options"], [
+      "Here's what you can do:\n📡 Radar: see who's around, how far and when they were last online\n💬 Chats: message anyone nearby\n🌍 Reach Dee, 2,000 km away, through a friend's internet\n📍 Share your location so friends see the distance\n🙋 Your profile: pick a name and an avatar"]],
+    [["joke", "funny", "laugh"], [
+      "Why did the phone go to the mountains? To get away from all the towers 🏔️😄",
+      "I told my Wi-Fi a joke… it didn't get the connection 😅",
+      "What do you call a group of phones with no signal? A BlueMob! 📱📱📱"]],
+    [["who are you", "your name", "are you real", "bot", "robot", "human"], [
+      "I'm Sky 🌤️, a little practice bot built into BlueMob. I'm not a real person, but I chat like one so you can get comfy before your friends join."]],
+    [["location", "distance", "far", "radar", "gps"], [
+      "The Radar tab shows everyone around you 📡. Turn on \"Share my location\" to see exactly how far apart you are. GPS works without internet!"]],
+    [["call", "voice", "video"], ["Voice and video calls are coming soon 📞. They'll go straight over Wi-Fi between nearby phones."]],
+    [["safe", "private", "privacy", "secure", "encrypt"], [
+      "Privacy matters 🔒. Messages go directly phone to phone. End-to-end encryption is planned, so even phones relaying your message won't be able to read it."]],
+    [["thank", "thx", "ty"], ["Anytime! 💚", "You're welcome! Happy exploring 🌍"]],
+    [["bye", "see you", "goodbye", "good night", "gn"], ["Bye for now! 👋 I'll be right here whenever you want to chat.", "See you soon, explorer! 🌙"]],
+    [["sad", "lonely", "alone", "bored"], ["You're not alone, I'm here 🤗. And once someone nearby opens BlueMob, they'll pop up on your Radar."]],
+  ];
+  const SKY_FALLBACK = [
+    "Interesting! 🤔 I'm just a simple bot, so I don't know everything. Try asking how BlueMob works.",
+    "Got it! 👍 With a real friend nearby, this message would already be on their screen.",
+    "Hmm, I'm still learning 🌱. Ask me about the radar, calls, or privacy.",
+  ];
+  let turn = 0;
+  const matches = (text, key) => key.length <= 3
+    ? new RegExp("(^|\\W)" + key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(\\W|$)").test(text)
+    : text.includes(key);
+  function pickReply(rules, fallback, input) {
+    const text = input.toLowerCase();
+    turn++;
+    const hit = rules.find(([keys]) => keys.some((k) => matches(text, k)));
+    const options = hit ? hit[1] : fallback;
+    return options[turn % options.length];
+  }
+
+  // Simulated friends answer with their own personality.
+  const FRIEND = {
+    asha: { rules: [[["hi", "hello", "hey"], ["Hey! 🦋 I can see you on my radar, about 40 m away!", "Hiii 👋 Wi-Fi link between us is super fast"]],
+                    [["where", "location"], ["By the river, near the big rock 🪨"]]],
+            fallback: ["Haha nice 😄", "Sounds good! Meet at camp at 6?", "Zero signal here but this works perfectly 🙌"] },
+    ravi: { rules: [[["hi", "hello", "hey"], ["Hi! 🐬 Only Bluetooth between us, a bit slower but it works"]],
+                    [["where", "location"], ["Up the trail, maybe 400 m from you"]]],
+            fallback: ["👍", "Cool cool", "Can you pass a message to Asha? She's out of my range"] },
+    meera: { rules: [[["hi", "hello", "hey"], ["Hello! 🌵 I have one bar of internet up here, so I'm bridging messages out for everyone"]],
+                     [["internet", "bridge"], ["Yep, my phone carries the group's messages to the internet and back 🌐"]]],
+             fallback: ["Got it 🌵", "Haha true", "Let me know if you need to reach anyone outside, I'm your bridge"] },
+    dee: { rules: [[["hi", "hello", "hey"], ["Wow, this reached me from the mountains? 😮 2,000 km away and it came through!"]],
+                   [["safe", "ok", "fine"], ["So glad you're safe! ❤️ Say hi to everyone there"]]],
+           fallback: ["Got it loud and clear from here 🌍", "Amazing that this works with no signal on your side!", "Message received 👍 Take care out there"] },
+  };
+
+  // ---------- conversations ----------
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  function convo(id) {
+    if (!S.convos[id]) S.convos[id] = { messages: [], unread: 0, typing: false, queue: [] };
+    return S.convos[id];
+  }
+  convo("sky").messages = SKY_GREETING.map((t) => ({ id: uid(), me: false, text: t, time: now() }));
+  convo("sky").unread = 1;
+
+  const later = (ms, fn) => { const t = setTimeout(fn, ms); S.timers.push(t); return t; };
+
+  function incoming(id, text) {
+    const c = convo(id);
+    c.messages.push({ id: uid(), me: false, text, time: now() });
+    if (S.chat !== id) c.unread++;
+    refresh();
+  }
+
+  function reply(id, text, opts = {}) {
+    const c = convo(id);
+    later(opts.wait ?? 500, () => {
+      c.typing = true; refresh();
+      later(Math.min(700 + text.length * 18, 2800), () => {
+        c.typing = false;
+        incoming(id, text);
+      });
+    });
+  }
+
+  function send(id, text) {
+    text = text.trim();
+    if (!text) return;
+    const c = convo(id);
+    const m = { id: uid(), me: true, text, time: now(), status: "sending" };
+    c.messages.push(m);
+    refresh();
+
+    if (id === "sky") {
+      later(350, () => { m.status = "sent"; refresh(); });
+      later(800, () => { m.status = "delivered"; refresh(); });
+      reply("sky", pickReply(SKY_RULES, SKY_FALLBACK, text), { wait: 1200 });
+      return;
+    }
+    const p = P[id];
+    if (p.remote) { sendViaBridge(m); return; }
+    if (p.presence !== "online") { m.status = "failed"; refresh(); return; }
+    later(150 + p.rtt, () => { m.status = "sent"; refresh(); });
+    later(400 + p.rtt * 3, () => { m.status = "delivered"; refresh(); });
+    if (Math.random() < 0.85) reply(id, pickReply(FRIEND[id].rules, FRIEND[id].fallback, text), { wait: 1600 });
+  }
+
+  // A → B → C (has internet) → internet → D: the gateway idea, played out step by step.
+  const bridgeOnline = () => S.mesh && P.meera.presence === "online";
+  function routeFor() {
+    const hops = ["You"];
+    if (P.ravi.presence === "online") hops.push("Ravi");
+    hops.push("Meera 🌐", "Internet", "Dee");
+    return hops;
+  }
+  function sendViaBridge(m) {
+    if (!bridgeOnline()) {
+      m.status = "queued";
+      convo("dee").queue.push(m);
+      log("No one with internet nearby yet. Message to Dee is waiting.");
+      refresh();
+      return;
+    }
+    m.route = routeFor();
+    m.hop = 0;
+    m.status = "sent";
+    refresh();
+    const step = () => {
+      m.hop++;
+      if (m.hop >= m.route.length - 1) {
+        m.status = "delivered";
+        log("Delivered to Dee via " + m.route.slice(1, -1).join(" → "));
+        refresh();
+        reply("dee", pickReply(FRIEND.dee.rules, FRIEND.dee.fallback, m.text), { wait: 1800 });
+        return;
+      }
+      refresh();
+      later(900, step);
+    };
+    later(700, step);
+  }
+  function flushBridgeQueue() {
+    const q = convo("dee").queue.splice(0);
+    q.forEach((m, i) => later(600 + i * 400, () => sendViaBridge(m)));
+  }
+
+  // ---------- mesh simulation ----------
+  function log(text) {
+    const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    S.log.unshift(t + "  " + text);
+    S.log = S.log.slice(0, 120);
+  }
+  function setPresence(id, presence) {
+    const p = P[id];
+    p.presence = presence;
+    p.met = true;
+    p.lastSeen = now();
+    if (presence === "online") {
+      log("Connected to " + p.name + " (" + p.link + ")");
+      if (id === "meera") { log("Meera has internet: she can bridge messages out"); flushBridgeQueue(); }
+    } else if (presence === "range") {
+      log("Found " + p.name);
+    }
+    refresh();
+  }
+  function startMesh() {
+    if (S.mesh) return;
+    S.mesh = true;
+    log("Mesh on: visible to nearby phones, scanning…");
+    later(1200, () => setPresence("asha", "range"));
+    later(2300, () => setPresence("asha", "online"));
+    later(3000, () => setPresence("ravi", "range"));
+    later(4400, () => setPresence("ravi", "online"));
+    later(5600, () => setPresence("meera", "range"));
+    later(7200, () => setPresence("meera", "online"));
+    later(9000, () => { if (S.mesh && convo("asha").messages.length === 0) incoming("asha", "Hey! Saw you pop up on my radar 👋"); });
+    refresh();
+  }
+  function stopMesh() {
+    if (!S.mesh) return;
+    S.mesh = false;
+    S.timers.forEach(clearTimeout);
+    S.timers = [];
+    for (const p of Object.values(P)) {
+      if (p.presence === "online" || p.presence === "range") { p.presence = "offline"; p.lastSeen = now(); }
+    }
+    for (const c of Object.values(S.convos)) c.typing = false;
+    log("Mesh off");
+    refresh();
+  }
+
+  // People drift a little, so distances feel alive.
+  setInterval(() => {
+    if (!S.mesh) return;
+    for (const id of ["asha", "ravi", "meera"]) {
+      const p = P[id];
+      if (p.presence !== "online") continue;
+      p.dist = Math.max(8, p.dist * (0.97 + Math.random() * 0.06));
+      p.bearing = (p.bearing + (Math.random() - 0.5) * 6 + 360) % 360;
+    }
+    if (S.tab === "radar" && !S.chat && S.onboarded) { placeBlips(); updatePeopleText(); }
+  }, 4000);
+
+  // ---------- formatting ----------
+  function fmtDist(m) {
+    if (m < 10) return "a few m";
+    if (m < 1000) return Math.round(m / 5) * 5 + " m";
+    if (m < 10000) return (m / 1000).toFixed(1) + " km";
+    return Math.round(m / 1000).toLocaleString() + " km";
+  }
+  function ago(t) {
+    const s = Math.max(0, (now() - t) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    return Math.floor(s / 86400) + " d ago";
+  }
+  const clock = (t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const presenceColor = (p) => ({ online: "var(--online)", range: "var(--away)", offline: "var(--offline)", remote: "var(--sky)" }[p]);
+
+  function statusLine(p) {
+    if (p.remote) return bridgeOnline()
+      ? "2,000 km away · reachable through Meera's internet"
+      : "2,000 km away · needs someone nearby with internet";
+    const parts = [];
+    if (p.presence === "online") {
+      parts.push("Online");
+      if (S.shareLoc) parts.push(fmtDist(p.dist) + " away");
+      parts.push(p.link);
+    } else if (p.presence === "range") {
+      parts.push("In range, connecting…");
+    } else {
+      parts.push("Last seen " + ago(p.lastSeen));
+      if (S.shareLoc) parts.push("was " + fmtDist(p.dist) + " away");
+    }
+    return parts.join(" · ");
+  }
+
+  function avatar(emoji, seed, size, presence) {
+    const status = presence ? `<span class="status" style="background:${presenceColor(presence)}"></span>` : "";
+    return `<span class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .48)}px;background:${tint(seed)}88">${esc(emoji)}${status}</span>`;
+  }
+
+  // ---------- rendering ----------
+  const app = document.getElementById("app");
+  let toastTimer;
+  function toast(text) {
+    let el = app.querySelector(".toast");
+    if (!el) { el = document.createElement("div"); el.className = "toast"; el.setAttribute("role", "status"); app.appendChild(el); }
+    el.textContent = text;
+    requestAnimationFrame(() => el.classList.add("show"));
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+
+  function refresh() {
+    if (!S.onboarded) return;
+    if (S.chat) { renderChatParts(); return; }
+    render();
+  }
+
+  function render() {
+    const keepScroll = app.querySelector(".scroll")?.scrollTop ?? 0;
+    if (!S.onboarded) { app.innerHTML = onboardingView(); afterOnboardingRender(); return; }
+    if (S.chat) { app.innerHTML = chatView(); renderChatParts(true); return; }
+    app.innerHTML = `<div class="scroll" id="scroll">${
+      S.tab === "radar" ? radarView() : S.tab === "chats" ? chatsView() : profileView()
+    }</div>${tabsView()}`;
+    const sc = app.querySelector(".scroll");
+    if (sc) sc.scrollTop = keepScroll;
+    if (S.tab === "radar") placeBlips();
+  }
+
+  // ----- onboarding -----
+  const SLIDES = [
+    { art: "offgrid", title: "Talk freely, anywhere", body: "No towers. No internet. BlueMob links phones directly over Bluetooth and Wi-Fi: in the mountains, at sea, or when the network goes down." },
+    { art: "hops", title: "Every phone is a path", body: "Messages hop from friend to friend until they reach the right person. The more people around, the further your voice travels." },
+    { art: "bridge", title: "One signal frees everyone", body: "If just one person nearby has internet, the whole group can reach the world through them." },
+    { art: "radar", title: "See who's around", body: "A live radar shows who's online, how far away they are, and when you last saw them." },
+    { art: "buddy", title: "Never alone", body: "Chat with Sky, your built-in buddy, to feel what talking off-grid is like before friends join." },
+  ];
+  function heroArt(kind) {
+    if (kind === "offgrid") return `<div class="hero"><span class="ripple"></span><span class="ripple"></span><span class="ripple"></span>
+      <span class="node" style="position:relative;width:88px;height:88px;font-size:44px;background:${tint("me")}99">📱</span>
+      <span class="hero-badge">${I.signalOff}</span></div>`;
+    if (kind === "hops") return `<div class="hero"><svg viewBox="0 0 300 300" width="100%" height="100%" aria-hidden="true">
+      <path id="hopPath" d="M45 210 L150 90 L255 210" fill="none" stroke="var(--line)" stroke-width="5" stroke-dasharray="14 12"/>
+      <circle r="16" fill="var(--sun)" opacity=".3"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#hopPath"/></animateMotion></circle>
+      <circle r="8" fill="var(--sun)"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#hopPath"/></animateMotion></circle></svg>
+      <span class="node" style="left:15%;top:70%;width:64px;height:64px;margin:-32px;font-size:32px;background:${tint("a")}99">🦅</span>
+      <span class="node" style="left:50%;top:30%;width:64px;height:64px;margin:-32px;font-size:32px;background:${tint("b")}99">🌊</span>
+      <span class="node" style="left:85%;top:70%;width:64px;height:64px;margin:-32px;font-size:32px;background:${tint("c")}99">⛰️</span></div>`;
+    if (kind === "bridge") return `<div class="hero"><svg viewBox="0 0 300 300" width="100%" height="100%" aria-hidden="true">
+      <line x1="54" y1="234" x2="135" y2="258" stroke="var(--line)" stroke-width="4"/>
+      <line x1="135" y1="258" x2="234" y2="222" stroke="var(--line)" stroke-width="4"/>
+      <line x1="234" y1="222" x2="150" y2="60" stroke="var(--leaf)" stroke-width="6" stroke-dasharray="18 10">
+        <animate attributeName="stroke-dashoffset" from="56" to="0" dur="1.2s" repeatCount="indefinite"/></line></svg>
+      <span class="node" style="left:18%;top:78%;width:56px;height:56px;margin:-28px;font-size:28px;background:${tint("f0")}99">🌻</span>
+      <span class="node" style="left:45%;top:86%;width:56px;height:56px;margin:-28px;font-size:28px;background:${tint("f1")}99">🍀</span>
+      <span class="node" style="left:78%;top:74%;width:56px;height:56px;margin:-28px;font-size:28px;background:${tint("f2")}99">📶</span>
+      <span class="node" style="left:50%;top:20%;width:84px;height:84px;margin:-42px;font-size:46px;background:var(--leaf-soft)">🌍</span></div>`;
+    if (kind === "radar") return `<div class="hero"><div class="radar-wrap" data-demo="1"><canvas></canvas></div></div>`;
+    return `<div class="hero"><div class="bubble-demo"><div class="b me">Hi Sky! 👋</div><div class="b them">Hey! 🌤️ Ready to explore?</div><div class="b me">Let's go! 🚀</div></div></div>`;
+  }
+  function onboardingView() {
+    const last = S.slide === SLIDES.length;
+    const s = SLIDES[S.slide];
+    const content = last ? `
+      <div class="slide" key="setup">
+        <span class="big-avatar" id="ob-avatar">${esc(S.avatar)}</span>
+        <h1 style="font-size:28px">Who are you out there?</h1>
+        <p>Pick a name and a spirit. People nearby will see these.</p>
+        <div class="field"><label for="ob-name">Your name</label>
+          <input id="ob-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Arjun" value="${esc(S.name)}"></div>
+        <div class="avatar-grid" role="group" aria-label="Choose an avatar">${AVATARS.map((a) =>
+          `<button data-act="pick-avatar" data-v="${a}" aria-pressed="${a === S.avatar}">${a}</button>`).join("")}</div>
+      </div>` : `
+      <div class="slide">
+        ${heroArt(s.art)}
+        ${s.art === "hops" || s.art === "bridge" ? '<span class="pill sun">COMING TO ANDROID SOON · TRY IT IN THIS PREVIEW</span>' : ""}
+        <h1>${s.title}</h1>
+        <p>${s.body}</p>
+      </div>`;
+    return `<div class="onboard">
+      <div class="onboard-top"><span class="brand">BlueMob</span>
+        ${last ? "<span></span>" : '<button class="btn ghost" data-act="skip">Skip</button>'}</div>
+      ${content}
+      <div class="onboard-bottom">
+        <div class="dots" aria-hidden="true">${Array.from({ length: SLIDES.length + 1 }, (_, i) => `<span class="${i === S.slide ? "on" : ""}"></span>`).join("")}</div>
+        <button class="btn" data-act="${last ? "finish" : "next"}" id="ob-next" ${last && !S.name.trim() ? "disabled" : ""}>
+          ${last ? "Start exploring" : "Next"} ${I.arrow}</button>
+      </div></div>`;
+  }
+  function afterOnboardingRender() {
+    const input = document.getElementById("ob-name");
+    if (input) {
+      input.addEventListener("input", () => {
+        S.name = input.value.replace(/\|/g, " ").slice(0, 24);
+        document.getElementById("ob-next").disabled = !S.name.trim();
+      });
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter" && S.name.trim()) finishOnboarding(); });
+    }
+  }
+  function finishOnboarding() {
+    S.name = S.name.trim() || "Explorer";
+    S.onboarded = true;
+    store.set("name", S.name); store.set("avatar", S.avatar); store.set("onboarded", true);
+    S.tab = "radar";
+    render();
+    later(500, startMesh);
+  }
+
+  // ----- radar tab -----
+  function greeting() {
+    const h = new Date().getHours();
+    return h >= 5 && h < 12 ? "Good morning" : h < 17 && h >= 12 ? "Good afternoon" : h >= 17 && h < 22 ? "Good evening" : "Hello, night owl";
+  }
+  const nearby = () => Object.values(P).filter((p) => !p.remote && p.met);
+  function radarView() {
+    const list = nearby();
+    const online = list.filter((p) => p.presence === "online").length;
+    const range = list.filter((p) => p.presence === "range").length;
+    const ordered = [...list].sort((a, b) => ({ online: 0, range: 1, offline: 2 }[a.presence] - { online: 0, range: 1, offline: 2 }[b.presence]) || b.lastSeen - a.lastSeen);
+    return `
+      <div class="greet"><div class="grow"><div class="muted">${greeting()}</div><h1 class="ellipsis">${esc(S.name)}</h1></div>${avatar(S.avatar, "me", 52)}</div>
+      <section class="hero-card">
+        <div class="row"><div class="grow">
+          <h2>${S.mesh ? '<span class="live"></span>You’re on the mesh' : "Mesh is off"}</h2>
+          <p>${S.mesh ? "Nearby phones can see and reach you" : "Switch on to find people around you"}</p></div>
+          <button class="switch on-hero" role="switch" aria-checked="${S.mesh}" aria-label="Mesh" data-act="toggle-mesh"></button></div>
+        <div class="stats">
+          <div class="stat"><b>${online}</b><span>online</span></div>
+          <div class="stat"><b>${range}</b><span>in range</span></div>
+          <div class="stat"><b>${list.length}</b><span>met so far</span></div>
+        </div>
+      </section>
+      <section class="card" style="display:flex;flex-direction:column;gap:12px">
+        <div class="row"><h3 class="grow" style="font-size:20px">Radar</h3>
+          <span class="small muted">${S.shareLoc ? "rings: 10 m · 300 m · 10 km" : "you're in the middle"}</span></div>
+        <div class="radar-wrap" id="radar"><canvas></canvas>${list.map((p) =>
+          `<button class="blip" data-act="open-chat" data-id="${p.id}" data-blip="${p.id}" aria-label="${esc(p.name)}" style="background:${tint(p.id)}e6;left:${blipPos(p).x}%;top:${blipPos(p).y}%;opacity:${p.presence === "offline" ? .45 : 1}">${p.avatar}<span class="status" style="background:${presenceColor(p.presence)}"></span></button>`).join("")}</div>
+        <div class="legend">
+          <span class="pill"><span class="dot" style="background:var(--online)"></span>Online</span>
+          <span class="pill"><span class="dot" style="background:var(--away)"></span>In range</span>
+          <span class="pill"><span class="dot" style="background:var(--offline)"></span>Seen before</span>
+        </div>
+        ${S.shareLoc ? "" : `<div class="hint">${I.pin.replace("<svg", '<svg width="22" height="22" style="flex:none"')}
+          <span class="grow small">Share your location to see real distances. GPS works without internet.</span>
+          <button class="btn ghost" data-act="share-loc">Share</button></div>`}
+      </section>
+      ${bridgeOnline() ? `<section class="bridge" style="background:var(--leaf-soft);color:var(--on-soft)">${I.globe}
+          <div><b>Meera is your bridge</b><div class="small">She has internet, so your messages can reach anyone in the world, like Dee 2,000 km away.</div></div></section>`
+        : `<section class="bridge" style="background:var(--sun-soft);color:var(--on-soft)">${I.cloudOff}
+          <div><b>Off-grid mode</b><div class="small">No internet here, and that's fine. BlueMob talks phone to phone.</div></div></section>`}
+      <div class="section-title">People</div>
+      ${ordered.length === 0 ? "" : `<div class="list" id="people">${ordered.map(personRow).join("")}</div>`}
+      ${S.mesh ? "" : `<section class="card empty"><div style="font-size:36px">🏕️</div><b>${ordered.length ? "Mesh is off" : "Quiet out here"}</b>
+        <div class="small muted">Switch on the mesh to look for people nearby, or practise with Sky.</div>
+        <button class="btn" data-act="open-chat" data-id="sky">Say hi to Sky 🌤️</button></section>`}
+      <p class="small muted" style="margin:0;text-align:center">Web preview: nearby people are simulated. The Android app finds real phones over Bluetooth and Wi-Fi.</p>`;
+  }
+  function personRow(p) {
+    return `<button class="person" data-act="open-chat" data-id="${p.id}">
+      ${avatar(p.avatar, p.id, 48, p.presence)}
+      <span class="grow"><b class="ellipsis" style="display:block">${esc(p.name)}</b><span class="small muted" data-status="${p.id}">${statusLine(p)}</span></span>
+      <span class="icon-btn" aria-hidden="true">${I.chat}</span></button>`;
+  }
+  function updatePeopleText() {
+    document.querySelectorAll("[data-status]").forEach((el) => { el.textContent = statusLine(P[el.dataset.status]); });
+  }
+
+  // Where each person sits: with location, real bearing on a log scale (rings at 10 m, ~300 m, 10 km);
+  // without, a stable direction and a ring that reflects how reachable they are.
+  function blipPos(p) {
+    let r;
+    if (S.shareLoc) r = Math.min(.95, Math.max(.12, (Math.log10(Math.max(1, p.dist)) + .5) / 4.5));
+    else r = { online: .42, range: .66, offline: .9 }[p.presence];
+    const a = (p.bearing * Math.PI) / 180;
+    return { x: 50 + 50 * r * Math.sin(a), y: 50 - 50 * r * Math.cos(a) };
+  }
+  function placeBlips() {
+    document.querySelectorAll("[data-blip]").forEach((el) => {
+      const p = P[el.dataset.blip];
+      const { x, y } = blipPos(p);
+      el.style.left = x + "%";
+      el.style.top = y + "%";
+      el.style.opacity = p.presence === "offline" ? .45 : 1;
+      el.querySelector(".status").style.background = presenceColor(p.presence);
+    });
+  }
+
+  // Animated sweep, drawn on every radar canvas on screen.
+  let sweep = 0;
+  function drawRadars() {
+    const css = getComputedStyle(document.documentElement);
+    const col = (n) => css.getPropertyValue(n).trim();
+    document.querySelectorAll(".radar-wrap canvas").forEach((cv) => {
+      const box = cv.getBoundingClientRect();
+      if (!box.width) return;
+      const dpr = window.devicePixelRatio || 1;
+      if (cv.width !== Math.round(box.width * dpr)) { cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr); }
+      const ctx = cv.getContext("2d");
+      const w = cv.width, c = w / 2, r = c - 2 * dpr;
+      ctx.clearRect(0, 0, w, w);
+      ctx.fillStyle = col("--surface-2"); ctx.globalAlpha = .5;
+      ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = col("--line"); ctx.lineWidth = 1.5 * dpr;
+      for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(c, c, (r * i) / 3, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(c - r, c); ctx.lineTo(c + r, c); ctx.moveTo(c, c - r); ctx.lineTo(c, c + r); ctx.stroke();
+      const demo = cv.parentElement.dataset.demo;
+      if (S.mesh || demo) {
+        const a = (sweep * Math.PI) / 180;
+        const g = ctx.createConicGradient ? ctx.createConicGradient(a - Math.PI / 2 - Math.PI / 2, c, c) : null;
+        if (g) {
+          g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(.75, "rgba(0,0,0,0)");
+          const leaf = col("--leaf");
+          g.addColorStop(.999, leaf); g.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.globalAlpha = .35; ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+        }
+      }
+      if (demo) {
+        [[40, .35, "--online"], [150, .62, "--online"], [250, .85, "--away"]].forEach(([b, rr, k]) => {
+          const ang = (b * Math.PI) / 180;
+          ctx.fillStyle = col(k);
+          ctx.beginPath(); ctx.arc(c + r * rr * Math.sin(ang), c - r * rr * Math.cos(ang), 9 * dpr, 0, Math.PI * 2); ctx.fill();
+        });
+      }
+      const pulse = .6 + .4 * Math.abs(Math.sin(sweep / 30));
+      ctx.fillStyle = col("--sky"); ctx.globalAlpha = .25 * pulse;
+      ctx.beginPath(); ctx.arc(c, c, 18 * dpr * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(c, c, 7 * dpr, 0, Math.PI * 2); ctx.fill();
+    });
+    if (!reduceMotion) sweep = (sweep + 1.5) % 360;
+    requestAnimationFrame(drawRadars);
+  }
+
+  // ----- chats tab -----
+  function chatRow(id, name, emoji, presence, fallback, badge) {
+    const c = S.convos[id];
+    const last = c?.messages.at(-1);
+    const sub = c?.typing ? '<span class="typing-text">typing…</span>'
+      : last ? esc((last.me ? "You: " : "") + last.text.split("\n")[0]) : esc(fallback);
+    return `<button class="person" data-act="open-chat" data-id="${id}">
+      ${avatar(emoji, id, 52, presence)}
+      <span class="grow"><span class="row" style="gap:8px"><b class="ellipsis">${esc(name)}</b>${badge || ""}</span>
+        <span class="small muted ellipsis" style="display:block">${sub}</span></span>
+      <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        ${last ? `<span class="small muted">${ago(last.time)}</span>` : ""}
+        ${c?.unread ? `<span class="badge">${c.unread}</span>` : ""}</span></button>`;
+  }
+  function chatsView() {
+    const list = nearby().sort((a, b) => ({ online: 0, range: 1, offline: 2 }[a.presence] - { online: 0, range: 1, offline: 2 }[b.presence]));
+    return `<h1 style="font-size:28px">Chats</h1>
+      <div class="list">${chatRow("sky", SKY.name, SKY.avatar, "online", "Your practice buddy, always here", '<span class="pill sun">PRACTICE</span>')}</div>
+      <div class="group-title" style="margin-top:8px">Far away</div>
+      <div class="list">${chatRow("dee", P.dee.name, P.dee.avatar, "remote", statusLine(P.dee), '<span class="pill sky">VIA BRIDGE</span>')}</div>
+      <div class="group-title" style="margin-top:8px">People you've met</div>
+      ${list.length ? `<div class="list">${list.map((p) => chatRow(p.id, p.name, p.avatar, p.presence,
+        p.presence === "online" ? "Online now: say hello!" : p.presence === "range" ? "In range" : "Last seen " + ago(p.lastSeen))).join("")}</div>`
+        : '<p class="muted small" style="margin:0">No one yet. Turn on the mesh on the Radar tab.</p>'}`;
+  }
+
+  // ----- chat screen -----
+  function chatInfo(id) {
+    if (id === "sky") return { name: SKY.name, emoji: SKY.avatar, presence: "online", isBot: true };
+    const p = P[id];
+    return { name: p.name, emoji: p.avatar, presence: p.presence, remote: p.remote };
+  }
+  function chatView() {
+    const id = S.chat, info = chatInfo(id);
+    return `<section class="chat">
+      <header class="chat-head">
+        <button class="icon-btn plain" data-act="back" aria-label="Back">${I.back}</button>
+        ${avatar(info.emoji, id, 40, info.presence)}
+        <div class="grow"><b>${esc(info.name)}</b><div class="small" id="chat-sub"></div></div>
+        ${!info.isBot && !info.remote ? `<button class="icon-btn plain" data-act="ping" aria-label="Check link speed" id="ping-btn">${I.speed}</button>` : ""}
+      </header>
+      <div class="messages" id="messages"></div>
+      <div class="chips" id="chips"></div>
+      <div class="note" id="note"></div>
+      <form class="composer" id="composer">
+        <input id="draft" autocomplete="off" placeholder="Message" aria-label="Message">
+        <button class="send" type="submit" aria-label="Send" id="send-btn" disabled>${I.send}</button>
+      </form></section>`;
+  }
+  function canSend(id) {
+    if (id === "sky" || P[id].remote) return true;
+    return P[id].presence === "online";
+  }
+  function tickHtml(m) {
+    if (m.status === "sending") return I.clock;
+    if (m.status === "sent") return I.check;
+    if (m.status === "delivered") return `<span class="delivered" style="display:inline-flex">${I.checks}</span>`;
+    if (m.status === "queued") return I.queue;
+    return '<span style="color:var(--coral)">not sent</span>';
+  }
+  function msgHtml(m) {
+    const route = m.route ? `<div class="route" aria-label="Route">${m.route.map((h, i) =>
+      `<span class="hop ${i < m.hop ? "done" : i === m.hop && m.status !== "delivered" ? "now" : m.status === "delivered" ? "done" : ""}">${esc(h)}</span>${i < m.route.length - 1 ? "→" : ""}`).join("")}</div>`
+      : m.status === "queued" ? '<div class="route">Waiting for someone nearby with internet…</div>' : "";
+    return `<div class="msg ${m.me ? "me" : "them"}" data-mid="${m.id}"><div class="body">${esc(m.text)}
+      <div class="meta">${clock(m.time)} ${m.me ? tickHtml(m) : ""}</div></div>${route}</div>`;
+  }
+  function renderChatParts(first) {
+    const id = S.chat, info = chatInfo(id), c = convo(id);
+    c.unread = 0;
+    const sub = document.getElementById("chat-sub");
+    if (!sub) return;
+    sub.innerHTML = c.typing ? '<span class="typing-text">typing…</span>'
+      : info.isBot ? '<span class="muted">Practice bot · always online</span>'
+      : info.remote ? `<span class="muted">${statusLine(P.dee)}</span>`
+      : info.presence === "online" ? '<span style="color:var(--leaf)">Online · nearby</span>'
+      : info.presence === "range" ? '<span class="muted">In range · connecting…</span>'
+      : `<span class="muted">Last seen ${ago(P[id].lastSeen)}</span>`;
+    const ping = document.getElementById("ping-btn");
+    if (ping) ping.hidden = info.presence !== "online";
+
+    const box = document.getElementById("messages");
+    const nearBottom = first || box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    const banner = info.isBot
+      ? '<div class="banner">🌱 This is a practice chat. Sky is a friendly bot on your phone that shows how real BlueMob chats feel: ticks, typing and replies. No signal needed.</div>'
+      : info.remote ? '<div class="banner sky">🌍 Dee is 2,000 km away. Your message hops to someone nearby with internet, who carries it out to Dee. Watch the route under each message.</div>' : "";
+    // Update in place so existing bubbles don't re-animate.
+    if (first || box.dataset.count != c.messages.length || box.dataset.typing != String(c.typing)) {
+      box.innerHTML = banner + c.messages.map(msgHtml).join("") + (c.typing ? '<div class="typing" aria-label="typing"><i></i><i></i><i></i></div>' : "");
+      box.dataset.count = c.messages.length;
+      box.dataset.typing = String(c.typing);
+    } else {
+      c.messages.forEach((m) => {
+        const el = box.querySelector(`[data-mid="${m.id}"]`);
+        if (el && m.me) el.outerHTML = msgHtml(m).replace('class="msg', 'style="animation:none" class="msg');
+      });
+    }
+    if (nearBottom) box.scrollTop = box.scrollHeight;
+
+    document.getElementById("chips").innerHTML = info.isBot && !c.typing
+      ? SKY_SUGGEST.map((s) => `<button data-act="suggest" data-v="${esc(s)}">${esc(s)}</button>`).join("") : "";
+    const ok = canSend(id);
+    document.getElementById("note").textContent = ok ? (info.remote && !bridgeOnline() ? "No internet nearby yet. Messages will wait and go out once someone with internet joins." : "")
+      : info.name + " is out of range. Soon messages will hop through others to reach them.";
+    const draft = document.getElementById("draft");
+    draft.disabled = !ok;
+    draft.placeholder = ok ? "Message" : "Out of range";
+    document.getElementById("send-btn").disabled = !ok || !draft.value.trim();
+  }
+
+  // ----- profile tab -----
+  function profileView() {
+    return `<div class="profile-head"><span class="big-avatar">${esc(S.avatar)}</span>
+        <h1 style="font-size:26px">${esc(S.name)}</h1><span class="mono muted">ID 3f9a 1c2b 7d4e 8a01</span></div>
+      <section><div class="group-title">Your profile</div>
+        <div class="group" style="padding:16px;display:flex;flex-direction:column;gap:14px">
+          <div class="field"><label for="pf-name">Name</label><input id="pf-name" maxlength="24" value="${esc(S.name)}"></div>
+          <div class="avatar-grid" role="group" aria-label="Choose an avatar">${AVATARS.map((a) =>
+            `<button data-act="pick-avatar" data-v="${a}" aria-pressed="${a === S.avatar}">${a}</button>`).join("")}</div>
+        </div></section>
+      <section><div class="group-title">Connections</div><div class="group">
+        <div class="setting">${I.wifi}<div class="grow"><b>Mesh</b><div class="small muted">Find and be found by nearby phones</div></div>
+          <button class="switch" role="switch" aria-checked="${S.mesh}" aria-label="Mesh" data-act="toggle-mesh"></button></div>
+        <div class="setting">${I.pin}<div class="grow"><b>Share my location</b><div class="small muted">Connected people see how far you are. Uses GPS, no internet.</div></div>
+          <button class="switch" role="switch" aria-checked="${S.shareLoc}" aria-label="Share my location" data-act="toggle-loc"></button></div>
+      </div></section>
+      <section><div class="group-title">App</div><div class="group">
+        <div class="setting">${I.refresh}<div class="grow"><b>Replay the intro</b></div><button class="btn ghost" data-act="replay">Show</button></div>
+        <div class="setting">${I.trash}<div class="grow"><b>Forget people I've met</b><div class="small muted">Clears the list and last-seen history</div></div>
+          <button class="btn ghost" data-act="forget">Clear</button></div>
+      </div></section>
+      <section><div class="group-title">For testers</div><div class="group">
+        <div class="setting">${I.info}<div class="grow"><b>Mesh activity log</b><div class="small muted">What the mesh is doing, step by step</div></div>
+          <button class="btn ghost" data-act="toggle-log">${S.showLog ? "Hide" : "Show"}</button></div>
+        ${S.showLog ? `<div class="log">${S.log.length ? S.log.map((l) => `<span>${esc(l)}</span>`).join("") : "<span>Nothing yet</span>"}</div>` : ""}
+      </div></section>
+      <p class="small muted" style="text-align:center;margin:0">BlueMob web preview 0.2 · made for the open sky 🌍<br>Nearby people and distances are simulated here.</p>`;
+  }
+
+  function tabsView() {
+    const unread = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
+    const tab = (id, label, icon) => `<button role="tab" aria-selected="${S.tab === id}" data-act="tab" data-v="${id}">
+      <span class="ic">${icon}</span>${label}${id === "chats" && unread ? `<span class="badge">${unread}</span>` : ""}</button>`;
+    return `<nav class="tabs" role="tablist">${tab("radar", "Radar", I.radar)}${tab("chats", "Chats", I.chat)}${tab("you", "You", I.person)}</nav>`;
+  }
+
+  // ---------- events ----------
+  app.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const act = el.dataset.act, v = el.dataset.v;
+    switch (act) {
+      case "next": S.slide++; render(); break;
+      case "skip": S.slide = SLIDES.length; render(); break;
+      case "finish": finishOnboarding(); break;
+      case "pick-avatar":
+        S.avatar = v; store.set("avatar", v);
+        if (!S.onboarded) {
+          document.getElementById("ob-avatar").textContent = v;
+          document.querySelectorAll('[data-act="pick-avatar"]').forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === v));
+        } else render();
+        break;
+      case "toggle-mesh": S.mesh ? stopMesh() : startMesh(); break;
+      case "share-loc": case "toggle-loc":
+        S.shareLoc = act === "share-loc" ? true : !S.shareLoc; store.set("shareLoc", S.shareLoc);
+        if (S.shareLoc) toast("Sharing your location with people nearby");
+        render(); break;
+      case "tab": S.tab = v; store.set("tab", v); render(); app.querySelector(".scroll").scrollTop = 0; break;
+      case "open-chat": S.chat = el.dataset.id; render(); break;
+      case "back": S.chat = null; render(); break;
+      case "suggest": send("sky", v); break;
+      case "ping": {
+        const p = P[S.chat];
+        const rtt = Math.round(p.rtt * (0.8 + Math.random() * 0.5));
+        log("Ping " + p.name + ": " + rtt + " ms");
+        toast("Link check: " + rtt + " ms round trip");
+        break;
+      }
+      case "toggle-log": S.showLog = !S.showLog; render(); break;
+      case "replay": S.onboarded = false; S.slide = 0; store.set("onboarded", false); render(); break;
+      case "forget":
+        for (const p of Object.values(P)) if (!p.remote && p.presence === "offline") p.met = false;
+        toast("Forgot everyone who isn't nearby right now");
+        render(); break;
+    }
+  });
+  app.addEventListener("submit", (e) => {
+    if (e.target.id !== "composer") return;
+    e.preventDefault();
+    const input = document.getElementById("draft");
+    if (!canSend(S.chat) || !input.value.trim()) return;
+    send(S.chat, input.value);
+    input.value = "";
+    document.getElementById("send-btn").disabled = true;
+    input.focus();
+  });
+  app.addEventListener("input", (e) => {
+    if (e.target.id === "draft") document.getElementById("send-btn").disabled = !e.target.value.trim() || !canSend(S.chat);
+    if (e.target.id === "pf-name") {
+      const v = e.target.value.replace(/\|/g, " ").slice(0, 24);
+      if (v.trim()) { S.name = v.trim(); store.set("name", S.name); app.querySelector(".profile-head h1").textContent = S.name; }
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && S.chat) { S.chat = null; render(); }
+  });
+
+  // Keep "last seen" times fresh.
+  setInterval(() => { if (S.onboarded && !S.chat && S.tab !== "you") refresh(); }, 30000);
+
+  render();
+  requestAnimationFrame(drawRadars);
+  if (S.onboarded) later(600, startMesh);
+})();
+</script>
