@@ -39,6 +39,7 @@
   --shadow-1: 0 1px 2px rgba(21, 32, 27, .06), 0 2px 10px rgba(21, 32, 27, .05);
   --shadow-2: 0 10px 30px -10px rgba(21, 32, 27, .22);
   --shadow-frame: 0 40px 100px -40px rgba(21, 32, 27, .45);
+  --c-direct: #16855C; --c-hop: #2F7BC0; --c-bridge: #C2621A;
 
   /* Type: Bricolage Grotesque for display moments, Figtree for everything you read */
   --font-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
@@ -64,6 +65,7 @@
     --offline: #56625D; --bubble-them: #1B2421; --glass: rgba(14, 20, 18, .78); --stage: #050807;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, .4); --shadow-2: 0 12px 30px -10px rgba(0, 0, 0, .6);
     --shadow-frame: 0 40px 100px -40px rgba(0, 0, 0, .9);
+    --c-direct: #26A276; --c-hop: #3D8FD9; --c-bridge: #D27A2C;
     color-scheme: dark;
   }
 }
@@ -75,6 +77,7 @@
   --offline: #56625D; --bubble-them: #1B2421; --glass: rgba(14, 20, 18, .78); --stage: #050807;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .4); --shadow-2: 0 12px 30px -10px rgba(0, 0, 0, .6);
   --shadow-frame: 0 40px 100px -40px rgba(0, 0, 0, .9);
+  --c-direct: #26A276; --c-hop: #3D8FD9; --c-bridge: #D27A2C;
   color-scheme: dark;
 }
 
@@ -126,8 +129,8 @@ svg { display: block; }
 .icon-btn:active { transform: scale(.9); }
 .icon-btn svg { width: 22px; height: 22px; }
 
-.tabbar { position: absolute; z-index: 4; left: 12px; right: 12px; bottom: 12px; height: 64px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: saturate(1.6) blur(20px); -webkit-backdrop-filter: saturate(1.6) blur(20px); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line); display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px; }
-.tab-ind { position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px) / 3); border-radius: var(--r-pill); background: var(--pine-tint); transition: transform var(--d-3) var(--spring); }
+.tabbar { position: absolute; z-index: 4; left: 10px; right: 10px; bottom: 12px; height: 64px; border-radius: var(--r-pill); background: var(--glass); backdrop-filter: saturate(1.6) blur(20px); -webkit-backdrop-filter: saturate(1.6) blur(20px); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line); display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px; }
+.tab-ind { position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px) / 5); border-radius: var(--r-pill); background: var(--pine-tint); transition: transform var(--d-3) var(--spring); }
 .tab { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: var(--t-micro); font-weight: 700; letter-spacing: .02em; color: var(--ink-3); border-radius: var(--r-pill); transition: color var(--d-2); }
 .tab svg { width: 22px; height: 22px; }
 .tab[aria-selected="true"] { color: var(--pine); }
@@ -312,8 +315,7 @@ button.set:hover { background: var(--sand); }
 @keyframes bounce { 0%, 60%, 100% { transform: none; opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
 
 /* The journey a message takes through the mesh and the bridge */
-.msg.routed { max-width: 92%; }
-.journey { list-style: none; display: flex; margin: 8px 0 2px; padding: 10px 8px 8px; border-radius: var(--r-md); background: var(--sand); width: 300px; max-width: 100%; }
+.journey { list-style: none; display: flex; margin: 8px 0 2px; padding: 10px 12px 8px; border-radius: var(--r-md); background: var(--sand); width: min(300px, 100%); }
 .journey li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; font-size: 10.5px; font-weight: 600; color: var(--ink-3); min-width: 0; text-align: center; }
 .journey li::before { content: ""; position: absolute; top: 5px; right: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0; transition: background var(--d-3); }
 .journey li:first-child::before { display: none; }
@@ -366,6 +368,99 @@ button.set:hover { background: var(--sand); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .screen.chat-screen ~ .toast, .toast.high { bottom: 96px; }
 
+
+/* ---------- identity ---------- */
+.uid { font: 600 11px/1 var(--font-mono); letter-spacing: .04em; color: var(--ink-3); }
+.id-card { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: var(--r-md); background: var(--sand); text-align: left; width: 100%; }
+.id-card .big { font: 600 15px/1.2 var(--font-mono); letter-spacing: .06em; color: var(--ink); }
+.safety { display: flex; justify-content: center; gap: 10px; font-size: 30px; padding: 6px 0; }
+.battery-chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: var(--r-pill); background: var(--sand); font-size: var(--t-cap); font-weight: 700; }
+.battery-chip.on { background: var(--pine-tint); color: var(--pine); }
+.battery-chip svg { width: 18px; height: 18px; }
+.bar .spacer { flex: 1; }
+
+/* ---------- power ---------- */
+.gauge { position: relative; height: 22px; border-radius: 8px; background: var(--pine-tint); overflow: hidden; }
+.gauge span { position: absolute; inset: 0 auto 0 0; border-radius: 8px; background: var(--pine); transition: width var(--d-3) var(--ease); }
+.hours { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hours div { padding: 14px; border-radius: var(--r-md); background: var(--sand); }
+.hours div.win { background: var(--pine-tint); }
+.hours b { display: block; font: 700 28px/1 var(--font-display); font-variant-numeric: tabular-nums; margin-top: 6px; }
+.step-done { color: var(--pine); font-weight: 700; font-size: var(--t-cap); }
+
+/* ---------- insights ---------- */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile-stat { padding: 14px; border-radius: var(--r-md); background: var(--canvas); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); }
+.tile-stat b { display: block; font: 600 26px/1.1 var(--font-body); font-variant-numeric: tabular-nums; margin-top: 4px; }
+.tile-stat .delta { font-size: var(--t-cap); color: var(--ink-2); }
+.stackbar { display: flex; gap: 2px; height: 22px; margin: 12px 0 10px; }
+.stackbar span { height: 100%; transition: flex-grow var(--d-3) var(--ease); }
+.stackbar span:first-child { border-radius: 4px 0 0 4px; } .stackbar span:last-child { border-radius: 0 4px 4px 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--t-cap); color: var(--ink-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.chart { position: relative; }
+.chart svg { width: 100%; height: auto; overflow: visible; }
+.chart .tip { position: absolute; pointer-events: none; transform: translate(-50%, -100%); padding: 6px 10px; border-radius: var(--r-xs); background: var(--ink); color: var(--canvas); font-size: var(--t-cap); white-space: nowrap; opacity: 0; transition: opacity var(--d-1); }
+.chart .tip.show { opacity: 1; }
+.dtable { width: 100%; border-collapse: collapse; font-size: var(--t-sub); font-variant-numeric: tabular-nums; }
+.dtable th, .dtable td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.dtable td:last-child, .dtable th:last-child { text-align: right; }
+.meter { flex: 1; height: 8px; border-radius: 4px; background: var(--pine-tint); position: relative; overflow: hidden; }
+.meter span { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--pine); }
+
+/* ---------- compass ---------- */
+.compass { position: relative; width: min(300px, 82%); aspect-ratio: 1; margin: 4px auto 0; max-width: 100%; }
+.compass .dial { position: absolute; inset: 0; transition: transform var(--d-3) var(--ease); }
+.compass .needle { position: absolute; inset: 0; display: grid; place-items: center; transition: transform var(--d-3) var(--spring); }
+.compass .hub { position: absolute; inset: 0; margin: auto; width: 96px; height: 96px; border-radius: 50%; background: var(--canvas); box-shadow: var(--shadow-2); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.compass .hub b { font: 700 22px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.targets { display: flex; gap: 8px; overflow-x: auto; margin: 0 calc(var(--s-4) * -1); padding: 2px var(--s-4) 6px; scrollbar-width: none; }
+.targets::-webkit-scrollbar { display: none; }
+.minimap { border-radius: var(--r-lg); overflow: hidden; background: var(--sand); }
+.minimap svg { width: 100%; height: auto; display: block; }
+.turn { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
+
+/* ---------- guide ---------- */
+.sos-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sos-btn { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: var(--r-md); text-align: left; }
+.sos-btn svg { width: 24px; height: 24px; flex: none; }
+.cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cat { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px; border-radius: var(--r-md); background: var(--canvas); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); text-align: left; min-width: 0; }
+.cat .tile { width: 36px; height: 36px; border-radius: 11px; }
+.cat[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--pine); }
+.article h1 { margin-top: 10px; }
+.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; }
+.steps li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; background: var(--pine-tint); color: var(--pine); font-weight: 700; font-size: var(--t-sub); display: grid; place-items: center; }
+.donts { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.donts li { display: flex; gap: 10px; }
+.donts li::before { content: "✕"; color: var(--rose); font-weight: 800; }
+.callout { padding: 12px 14px; border-radius: var(--r-md); background: var(--ember-tint); color: var(--ink); font-size: var(--t-sub); }
+.sos-screen { position: absolute; inset: 0; z-index: 8; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 40px 24px; text-align: center; }
+.sos-screen.flash { background: #fff; color: #000; }
+.sos-screen .morse { font: 700 44px/1 var(--font-mono); letter-spacing: .2em; }
+
+/* ---------- games ---------- */
+.board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(300px, 100%); margin: 0 auto; }
+.cell { aspect-ratio: 1; border-radius: var(--r-md); background: var(--canvas); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); font: 800 44px/1 var(--font-display); display: grid; place-items: center; transition: background var(--d-1), transform var(--d-2) var(--spring); }
+.cell:not(:disabled):hover { background: var(--pine-tint); }
+.cell.x { color: var(--pine); } .cell.o { color: var(--ember); }
+.cell.win { background: var(--pine-tint); }
+.cell.pop { animation: popIn var(--d-3) var(--spring); }
+@keyframes popIn { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.vs { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.vs .score { font: 700 30px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.answers { display: flex; flex-direction: column; gap: 10px; }
+.answer { padding: 14px 16px; border-radius: var(--r-md); background: var(--canvas); box-shadow: inset 0 0 0 1.5px var(--line); text-align: left; font-weight: 500; transition: background var(--d-1), box-shadow var(--d-1); }
+.answer:not(:disabled):hover { box-shadow: inset 0 0 0 1.5px var(--pine); }
+.answer.right { background: var(--pine-tint); box-shadow: inset 0 0 0 2px var(--pine); }
+.answer.wrong { background: var(--ember-tint); box-shadow: inset 0 0 0 2px var(--rose); }
+.gcard { scroll-snap-align: start; flex: none; width: 168px; padding: 14px; border-radius: var(--r-lg); text-align: left; display: flex; flex-direction: column; gap: 8px; color: #fff; min-height: 150px; }
+.gcard .em { font-size: 34px; }
+.idea { display: flex; gap: 12px; align-items: flex-start; }
+.idea .em { font-size: 26px; width: 40px; text-align: center; flex: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
@@ -405,6 +500,20 @@ button.set:hover { background: var(--sand); }
     terminal: svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3M13 15h4"/>'),
     copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),
     sparkle: svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'),
+    book: svg('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5ZM4 19a2 2 0 0 1 2-2h13M9 7h6"/>'),
+    leaf: svg('<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15M5 19l7-7"/>'),
+    plusBox: svg('<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/>'),
+    drop: svg('<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/>'),
+    flame: svg('<path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-3-2 2-3 4-3 7a6 6 0 0 0 6 6Z"/>'),
+    tent: svg('<path d="M3 20 12 4l9 16H3ZM12 4v16M9 20l3-6 3 6"/>'),
+    compass: svg('<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/>'),
+    flag: svg('<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>'),
+    bolt: svg('<path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"/>'),
+    alert: svg('<path d="M12 4 2.5 20h19L12 4ZM12 10v4M12 17h.01"/>'),
+    flash: svg('<path d="M8 3h8l-2 6h4L9 21l2-8H7l1-10Z"/>'),
+    battery: svg('<rect x="2" y="7" width="17" height="10" rx="2.5"/><path d="M22 11v2M5 10v4M8 10v4"/>'),
+    chart: svg('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+    game: svg('<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3M16 12h.01M18 14h.01"/>'),
     bot: svg('<rect x="4" y="8" width="16" height="12" rx="4"/><path d="M12 4v4M9 14h.01M15 14h.01"/>'),
   };
   // Message status, Signal style: dotted ring while sending, ring + check when sent, two rings when delivered.
@@ -446,11 +555,12 @@ button.set:hover { background: var(--sand); }
 
   // Simulated people. In the Android app these come from real Bluetooth / Wi-Fi discovery.
   const PEOPLE = {
-    asha:  { name: "Asha",  avatar: "🦋", dist: 42,   bearing: 60,  link: "fast Wi-Fi link", rtt: 18 },
-    ravi:  { name: "Ravi",  avatar: "🐬", dist: 380,  bearing: 200, link: "Bluetooth link", rtt: 64 },
-    meera: { name: "Meera", avatar: "🌵", dist: 920,  bearing: 310, link: "good link", rtt: 41, internet: true },
-    kabir: { name: "Kabir", avatar: "🐺", dist: 1800, bearing: 130, link: "", rtt: 0 },
-    dee:   { name: "Dee",   avatar: "🌻", remote: true },
+    asha:  { name: "Asha",  avatar: "🦋", uid: "7C21A9F04B3E5D18", dist: 42,   bearing: 60,  link: "fast Wi-Fi link", rtt: 18 },
+    ravi:  { name: "Ravi",  avatar: "🐬", uid: "2F8E61C0D93A47B5", dist: 380,  bearing: 200, link: "Bluetooth link", rtt: 64 },
+    meera: { name: "Meera", avatar: "🌵", uid: "B05D3E9A16F7C842", dist: 920,  bearing: 310, link: "good link", rtt: 41, internet: true },
+    asha2: { name: "Asha",  avatar: "🌙", uid: "E4B09D2C71F3A856", dist: 1240, bearing: 20,  link: "Bluetooth link", rtt: 72 },
+    kabir: { name: "Kabir", avatar: "🐺", uid: "91AC5F2E08D4B763", dist: 1800, bearing: 130, link: "", rtt: 0 },
+    dee:   { name: "Dee",   avatar: "🌻", uid: "5E7240BB9C1DA3F6", remote: true },
   };
   const P = {};
   for (const [id, p] of Object.entries(PEOPLE)) {
@@ -523,6 +633,8 @@ button.set:hover { background: var(--sand); }
     ravi: { rules: [[["hi", "hello", "hey"], ["Hi! 🐬 Only Bluetooth between us, a bit slower but it works"]],
                     [["where", "location"], ["Up the trail, maybe 400 m from you"]]],
             fallback: ["👍", "Cool cool", "Can you pass a message to Asha? She's out of my range"] },
+    asha2: { rules: [[["hi", "hello", "hey"], ["Hi! 🌙 Different Asha here, from the other camp. Our IDs keep us apart 😄"]]],
+             fallback: ["Nice to meet you out here!", "👍", "Signal is zero here too"] },
     meera: { rules: [[["hi", "hello", "hey"], ["Hello! 🌵 I have one bar of internet up here, so I'm bridging messages out for everyone"]],
                      [["internet", "bridge"], ["Yep, my phone carries the group's messages to the internet and back 🌐"]]],
              fallback: ["Got it 🌵", "Haha true", "Let me know if you need to reach anyone outside, I'm your bridge"] },
@@ -540,6 +652,8 @@ button.set:hover { background: var(--sand); }
   convo("sky").messages = SKY_GREETING.map((t) => ({ id: uid(), me: false, text: t, time: now() }));
   convo("sky").unread = 1;
 
+  // Live counters for the insights screen.
+  const STATS = { sent: 0, delivered: 0, direct: 0, hopped: 0, bridge: 0, relayed: 0, hourNow: 0 };
   const later = (ms, fn) => { const t = setTimeout(fn, ms); S.timers.push(t); return t; };
 
   function incoming(id, text) {
@@ -566,11 +680,12 @@ button.set:hover { background: var(--sand); }
     const c = convo(id);
     const m = { id: uid(), me: true, text, time: now(), status: "sending" };
     c.messages.push(m);
+    STATS.sent++; STATS.hourNow++;
     refresh();
 
     if (id === "sky") {
       later(350, () => { m.status = "sent"; refresh(); });
-      later(800, () => { m.status = "delivered"; refresh(); });
+      later(800, () => { m.status = "delivered"; STATS.delivered++; STATS.direct++; refresh(); });
       reply("sky", pickReply(SKY_RULES, SKY_FALLBACK, text), { wait: 1200 });
       return;
     }
@@ -578,7 +693,7 @@ button.set:hover { background: var(--sand); }
     if (p.remote) { sendViaBridge(m); return; }
     if (p.presence !== "online") { m.status = "failed"; refresh(); return; }
     later(150 + p.rtt, () => { m.status = "sent"; refresh(); });
-    later(400 + p.rtt * 3, () => { m.status = "delivered"; refresh(); });
+    later(400 + p.rtt * 3, () => { m.status = "delivered"; STATS.delivered++; STATS.direct++; refresh(); });
     if (Math.random() < 0.85) reply(id, pickReply(FRIEND[id].rules, FRIEND[id].fallback, text), { wait: 1600 });
   }
 
@@ -606,6 +721,8 @@ button.set:hover { background: var(--sand); }
       m.hop++;
       if (m.hop >= m.route.length - 1) {
         m.status = "delivered";
+        STATS.delivered++; STATS.bridge++;
+        if (m.route.length > 4) STATS.hopped++;
         log("Delivered to Dee via " + m.route.slice(1, -1).join(" → "));
         refresh();
         reply("dee", pickReply(FRIEND.dee.rules, FRIEND.dee.fallback, m.text), { wait: 1800 });
@@ -650,6 +767,8 @@ button.set:hover { background: var(--sand); }
     later(4400, () => setPresence("ravi", "online"));
     later(5600, () => setPresence("meera", "range"));
     later(7200, () => setPresence("meera", "online"));
+    later(9800, () => setPresence("asha2", "range"));
+    later(11400, () => setPresence("asha2", "online"));
     later(9000, () => { if (S.mesh && convo("asha").messages.length === 0) incoming("asha", "Hey! Saw you pop up on my radar 👋"); });
     refresh();
   }
@@ -669,18 +788,19 @@ button.set:hover { background: var(--sand); }
   // People drift a little, so distances feel alive.
   setInterval(() => {
     if (!S.mesh) return;
-    for (const id of ["asha", "ravi", "meera"]) {
+    for (const id of ["asha", "ravi", "meera", "asha2"]) {
       const p = P[id];
       if (p.presence !== "online") continue;
       p.dist = Math.max(8, p.dist * (0.97 + Math.random() * 0.06));
       p.bearing = (p.bearing + (Math.random() - 0.5) * 6 + 360) % 360;
     }
-    if (S.tab === "radar" && !S.chat && S.onboarded) { placeBlips(); updatePeopleText(); }
+    if (S.tab === "radar" && S.screen === "main" && S.onboarded) { placeBlips(); updatePeopleText(); }
   }, 4000);
 
 
   // ---------- extra UI state ----------
-  Object.assign(S, { screen: "main", query: "", filter: "all", prevTab: S.tab, seen: new Set() });
+  Object.assign(S, { screen: "main", query: "", filter: "all", prevTab: S.tab, seen: new Set(), stack: [] });
+  if (!["radar", "chats", "compass", "guide", "you"].includes(S.tab)) S.tab = "radar";
 
   // ---------- formatting ----------
   function fmtDist(m) {
@@ -732,7 +852,20 @@ button.set:hover { background: var(--sand); }
   function refresh() {
     if (!S.onboarded) return;
     if (S.screen === "chat") { renderChatParts(); return; }
-    if (S.screen === "main") render();
+    if (S.screen === "main" || S.screen === "insights" || S.screen === "person") render();
+  }
+
+  // Screen stack: open() pushes, back() pops.
+  function open(screen, params = {}) {
+    S.stack.push({ screen: S.screen, chat: S.chat, article: S.article, person: S.person });
+    Object.assign(S, { screen }, params);
+    render("push");
+  }
+  function back() {
+    clearTimeout(sosTimer);
+    const prev = S.stack.pop() || { screen: "main" };
+    Object.assign(S, prev);
+    render("fade");
   }
 
   /** anim: "fade" when switching tabs, "push" when opening a screen, none for live updates. */
@@ -743,8 +876,12 @@ button.set:hover { background: var(--sand); }
     const toastEl = app.querySelector(".toast");
 
     if (!S.onboarded) { app.innerHTML = onboardingView(); afterOnboardingRender(); return; }
+    S._anim = anim;
+    const SCREENS = { design: designView, power: powerView, insights: insightsView, article: articleView, ttt: tttView,
+      quiz: quizView, games: gamesIdeasView, person: personView };
     if (S.screen === "chat") { app.innerHTML = chatView(anim); renderChatParts(true); }
-    else if (S.screen === "guide") app.innerHTML = guideView(anim);
+    else if (S.screen === "sos") { app.innerHTML = sosView(); clearTimeout(sosTimer); startSos(); }
+    else if (SCREENS[S.screen]) app.innerHTML = SCREENS[S.screen](anim);
     else app.innerHTML = mainView(anim);
 
     if (toastEl) app.appendChild(toastEl);
@@ -799,7 +936,8 @@ button.set:hover { background: var(--sand); }
       <div class="slide">
         <span class="me-badge" id="ob-avatar">${esc(S.avatar)}</span>
         <h1 class="t-title" style="margin-top:8px">Who are you out there?</h1>
-        <p>Pick a name and a spirit. People nearby will see these.</p>
+        <p>Pick a name and a spirit. People nearby will see these, next to your unique ID.</p>
+        <span class="idline" style="background:var(--sand)">BM · ${fmtId(MY_ID)}</span>
         <div class="field" style="width:100%;margin-top:6px"><label class="t-over" for="ob-name">Your name</label>
           <input id="ob-name" maxlength="24" autocomplete="nickname" placeholder="e.g. Arjun" value="${esc(S.name)}"></div>
         <div class="picker" role="group" aria-label="Choose an avatar">${AVATARS.map((a) =>
@@ -843,13 +981,16 @@ button.set:hover { background: var(--sand); }
   const TABS = [
     { id: "radar", label: "Nearby", icon: I.radar },
     { id: "chats", label: "Chats", icon: I.chat },
+    { id: "compass", label: "Compass", icon: I.compass },
+    { id: "guide", label: "Guide", icon: I.book },
     { id: "you", label: "You", icon: I.person },
   ];
   function mainView(anim) {
-    const title = { radar: "Nearby", chats: "Chats", you: "You" }[S.tab];
-    const body = S.tab === "radar" ? radarView() : S.tab === "chats" ? chatsView() : profileView();
+    const title = { radar: "Nearby", chats: "Chats", compass: "Compass", guide: "Survival guide", you: "You" }[S.tab];
+    const body = { radar: radarView, chats: chatsView, compass: compassView, guide: guideView, you: profileView }[S.tab]();
     const actions = S.tab === "radar"
-      ? `<button class="icon-btn" data-act="tab" data-v="you" aria-label="Your profile">${avatar(S.avatar, "me", 32)}</button>` : "";
+      ? `<span class="spacer"></span><button class="battery-chip ${S.survival ? "on" : ""}" data-act="power" aria-label="Power settings, battery ${S.batteryPct}%">${I.battery}<span class="num">${S.batteryPct}%</span>${S.survival ? " · Survival" : ""}</button>
+         <button class="icon-btn" data-act="tab" data-v="you" aria-label="Your profile">${avatar(S.avatar, "me", 32)}</button>` : "";
     return `<div class="screen ${S.tab === "you" ? "grouped" : ""} ${anim === "fade" ? "fade-in" : anim === "push" ? "push-in" : ""}">
       <header class="bar"><div class="bar-title">${title}</div>${actions}</header>
       <div class="scroll" id="scroll">${body}</div>
@@ -857,7 +998,7 @@ button.set:hover { background: var(--sand); }
   }
   function tabbar() {
     const unread = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
-    const from = TABS.findIndex((t) => t.id === S.prevTab);
+    const from = Math.max(0, TABS.findIndex((t) => t.id === S.prevTab));
     return `<nav class="tabbar" role="tablist"><span class="tab-ind" style="transform:translateX(${from * 100}%)"></span>${TABS.map((t) =>
       `<button class="tab" role="tab" aria-selected="${S.tab === t.id}" data-act="tab" data-v="${t.id}">${t.icon}${t.label}${
         t.id === "chats" && unread ? `<span class="count">${unread}</span>` : ""}</button>`).join("")}</nav>`;
@@ -871,6 +1012,11 @@ button.set:hover { background: var(--sand); }
   const nearby = () => Object.values(P).filter((p) => !p.remote && p.met);
   function radarView() {
     const list = nearby().sort((a, b) => ORDER[a.presence] - ORDER[b.presence] || b.lastSeen - a.lastSeen);
+    const PF = { all: () => true, online: (p) => p.presence === "online", internet: (p) => p.internet && p.presence === "online",
+      close: (p) => p.presence === "online" && p.dist < 500, wifi: (p) => p.presence === "online" && p.link !== "Bluetooth link" };
+    const SORTS = { near: ["Nearest", (a, b) => ORDER[a.presence] - ORDER[b.presence] || a.dist - b.dist],
+      recent: ["Last seen", (a, b) => b.lastSeen - a.lastSeen], name: ["Name", (a, b) => a.name.localeCompare(b.name)] };
+    const shown = list.filter(PF[S.peopleFilter]).sort(SORTS[S.sort][1]);
     const online = list.filter((p) => p.presence === "online").length;
     const range = list.filter((p) => p.presence === "range").length;
     const bridge = bridgeOnline();
@@ -900,8 +1046,11 @@ button.set:hover { background: var(--sand); }
         <button data-act="seg" data-v="distance" aria-pressed="${S.shareLoc}">By distance</button>
       </div>
 
-      <div class="section-h"><h2 class="t-head">Around you</h2><span class="t-cap">${list.length ? list.length + " people" : ""}</span></div>
-      ${list.length ? `<div class="hscroll">${list.map(personCard).join("")}</div>`
+      <div class="section-h"><h2 class="t-head">Around you</h2><button class="btn text" data-act="sort" aria-label="Change sort order">Sort: ${SORTS[S.sort][0]} ⇅</button></div>
+      <div class="filters" role="group" aria-label="Filter people" style="margin-top:0">${[["all", "All " + list.length], ["online", "Online"], ["internet", "Has internet"], ["close", "Under 500 m"], ["wifi", "Wi-Fi link"]].map(([v, l]) =>
+        `<button class="chip" data-act="people-filter" data-v="${v}" aria-pressed="${S.peopleFilter === v}">${l}</button>`).join("")}</div>
+      ${list.length && !shown.length ? '<p class="t-sub" style="padding:12px 4px">No one matches this filter right now.</p>' : ""}
+      ${shown.length ? `<div class="hscroll">${shown.map(personCard).join("")}</div>`
         : `<div class="card" style="padding:20px;text-align:center"><div style="font-size:34px">🏕️</div>
             <div class="t-strong" style="margin-top:6px">Quiet out here</div>
             <div class="t-sub">Switch the mesh on. People nearby appear as they open BlueMob.</div></div>`}
@@ -913,11 +1062,22 @@ button.set:hover { background: var(--sand); }
           <span style="flex:1;min-width:0"><span class="t-strong" style="display:block">${bridge ? "Meera is your bridge to the world" : "You're off-grid"}</span>
             <span class="t-sub">${bridge ? "She has internet. Message Dee, 2,000 km away, and watch it travel." : "No internet nearby yet. Messages to faraway friends will wait for a bridge."}</span></span>
           <span class="chev">${I.chevron}</span></button>
+        <button class="card feature press" data-act="insights">
+          <span class="tile" style="background:var(--c-hop)">${I.chart}</span>
+          <span style="flex:1;min-width:0"><span class="t-strong" style="display:block">Mesh insights</span>
+            <span class="t-sub">Messages, routes, relays and link strength.</span></span>
+          <span class="chev">${I.chevron}</span></button>
         <button class="card feature press" data-act="open-chat" data-id="sky">
           <span class="tile" style="background:var(--sky)">${I.bot}</span>
           <span style="flex:1;min-width:0"><span class="t-strong" style="display:block">Practise with Sky</span>
             <span class="t-sub">A friendly bot that shows how off-grid chats feel.</span></span>
           <span class="chev">${I.chevron}</span></button>
+      </div>
+      <div class="section-h"><h2 class="t-head">Play together</h2><button class="btn text" data-act="games">What works offline?</button></div>
+      <div class="hscroll">
+        <button class="gcard press" style="background:linear-gradient(150deg, var(--pine), #0B3D2E)" data-act="play-ttt"><span class="em">⭕</span><b>Tic-tac-toe</b><span style="font-size:13px;opacity:.85">vs Asha · nearby</span></button>
+        <button class="gcard press" style="background:linear-gradient(150deg, #C2621A, #7A3A0E)" data-act="play-quiz"><span class="em">🧠</span><b>Survival quiz</b><span style="font-size:13px;opacity:.85">vs Ravi · 8 questions</span></button>
+        <button class="gcard press" style="background:linear-gradient(150deg, #2F7BC0, #173E5C)" data-act="games"><span class="em">🐺</span><b>More games</b><span style="font-size:13px;opacity:.85">Werewolf, chess, treasure hunt</span></button>
       </div>
       <p class="t-cap" style="text-align:center;margin-top:24px">Web preview · nearby people are simulated. The Android app finds real phones over Bluetooth and Wi-Fi.</p>`;
   }
@@ -927,7 +1087,7 @@ button.set:hover { background: var(--sand); }
       : p.presence === "range" ? "Connecting…" : "Seen " + ago(p.lastSeen);
     return `<button class="pcard press" data-act="open-chat" data-id="${p.id}">
       <span class="art" style="background:${tint(p.id)}"><span class="tag"><span class="dot" style="background:${PCOLOR[p.presence]}"></span>${label}</span>${p.avatar}</span>
-      <span class="body"><span class="t-strong ellipsis">${esc(p.name)}</span><span class="t-cap ellipsis" data-status-card="${p.id}">${sub}</span></span></button>`;
+      <span class="body"><span class="t-strong ellipsis">${nameWithId(p)}</span><span class="t-cap ellipsis" data-status-card="${p.id}">${sub}</span></span></button>`;
   }
   function updatePeopleText() {
     document.querySelectorAll("[data-status-card]").forEach((el) => {
@@ -998,7 +1158,7 @@ button.set:hover { background: var(--sand); }
       ctx.fillStyle = "#7DB7EA"; ctx.beginPath(); ctx.arc(c, c, 6.5 * dpr, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2 * dpr; ctx.stroke();
     });
-    if (!reduceMotion) sweep = (sweep + 1.6) % 360;
+    if (!reduceMotion && !S.survival) sweep = (sweep + 1.6) % 360;
     requestAnimationFrame(drawRadars);
   }
 
@@ -1016,14 +1176,15 @@ button.set:hover { background: var(--sand); }
     const q = S.query.trim().toLowerCase();
     const all = chatEntries();
     const list = all.filter((e) => (!q || e.name.toLowerCase().includes(q)) &&
-      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && e.kind === "far")));
+      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && e.kind === "far") ||
+       (S.filter === "unread" && S.convos[e.id]?.unread) || (S.filter === "online" && e.presence === "online")));
     const onlineNow = nearby().filter((p) => p.presence === "online");
     return `
       <h1 class="t-hero large-title">Chats</h1>
       <label class="search">${I.search}<input id="q" type="search" placeholder="Search" value="${esc(S.query)}" aria-label="Search chats"></label>
       ${onlineNow.length && !q ? `<div class="section-h" style="margin-top:20px"><span class="t-over">Online nearby</span></div>
         <div class="stories">${onlineNow.map((p) => `<button class="story press" data-act="open-chat" data-id="${p.id}">${avatar(p.avatar, p.id, 60, "online")}<span class="ellipsis" style="max-width:64px">${esc(p.name)}</span></button>`).join("")}</div>` : ""}
-      <div class="filters" role="group" aria-label="Filter chats">${[["all", "All"], ["nearby", "Nearby"], ["far", "Far away"]].map(([v, l]) =>
+      <div class="filters" role="group" aria-label="Filter chats">${[["all", "All"], ["unread", "Unread"], ["online", "Online"], ["nearby", "Nearby"], ["far", "Far away"]].map(([v, l]) =>
         `<button class="chip" data-act="filter" data-v="${v}" aria-pressed="${S.filter === v}">${l}</button>`).join("")}</div>
       <div class="rows">${list.map(chatRow).join("") || '<p class="t-sub" style="padding:24px 16px;text-align:center">No chats match.</p>'}</div>`;
   }
@@ -1036,7 +1197,7 @@ button.set:hover { background: var(--sand); }
       : last ? (last.me ? "You: " : "") + esc(last.text.split("\n")[0]) : esc(e.status);
     return `<button class="row press ${unread ? "unread" : ""}" data-act="open-chat" data-id="${e.id}">
       ${avatar(e.emoji, e.id, 54, e.presence)}
-      <span class="main"><span class="line1"><span class="name ellipsis">${esc(e.name)}</span>${tag}</span>
+      <span class="main"><span class="line1"><span class="name ellipsis">${P[e.id] ? nameWithId(P[e.id]) : esc(e.name)}</span>${tag}</span>
         <span class="preview ellipsis">${preview}</span></span>
       <span class="side">${last ? `<span class="time num">${stamp(last.time)}</span>` : ""}${unread ? `<span class="count">${unread}</span>` : ""}</span></button>`;
   }
@@ -1054,7 +1215,7 @@ button.set:hover { background: var(--sand); }
     return `<div class="screen chat-screen ${anim === "push" ? "push-in" : ""}">
       <header class="bar solid chat-bar">
         <button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>
-        <span class="who">${avatar(info.emoji, id, 38, info.presence)}<span style="min-width:0"><b class="ellipsis">${esc(info.name)}</b><span class="t-cap ellipsis" id="chat-sub" style="display:block"></span></span></span>
+        <button class="who" ${info.bot ? "" : `data-act="person" data-v="${id}" aria-label="About ${esc(info.name)}"`}>${avatar(info.emoji, id, 38, info.presence)}<span style="min-width:0"><b class="ellipsis">${esc(info.name)}</b><span class="t-cap ellipsis" id="chat-sub" style="display:block"></span></span></button>
         ${live ? `<button class="icon-btn" data-act="ping" id="ping-btn" aria-label="Check link speed">${I.speed}</button>` : ""}
         <button class="icon-btn" data-act="soon" data-v="Voice calls" aria-label="Voice call">${I.phone}</button>
         <button class="icon-btn" data-act="soon" data-v="Video calls" aria-label="Video call">${I.video}</button>
@@ -1100,7 +1261,7 @@ button.set:hover { background: var(--sand); }
       const showMeta = !withNext || m.route || m.status === "failed";
       const tick = m.me ? (m.status === "failed" ? '<span class="fail">Not sent · out of range</span>'
         : `<span class="${m.status === "delivered" ? "ok" : ""}" style="display:inline-flex">${TICK[m.status] || ""}</span>`) : "";
-      out.push(`<div class="msg ${m.me ? "me" : "them"} ${m.route ? "routed" : ""} ${pos} ${withPrev ? "" : "gap"} ${isNew ? "new" : ""}" data-mid="${m.id}">
+      out.push(`<div class="msg ${m.me ? "me" : "them"} ${pos} ${withPrev ? "" : "gap"} ${isNew ? "new" : ""}" data-mid="${m.id}">
         <div class="bubble">${esc(m.text)}</div>${m.me ? journeyHtml(m) : ""}
         ${showMeta ? `<div class="meta">${clock(m.time)}${tick}</div>` : ""}</div>`);
     });
@@ -1161,7 +1322,8 @@ button.set:hover { background: var(--sand); }
       <div class="me-head">
         <span class="me-badge">${esc(S.avatar)}</span>
         <h1 class="t-title" style="margin-top:10px">${esc(S.name)}</h1>
-        <button class="idline" data-act="copy-id" aria-label="Copy your BlueMob ID">3F9A 1C2B 7D4E 8A01 ${I.copy}</button>
+        <button class="idline" data-act="copy-id" aria-label="Copy your BlueMob ID">BM · ${fmtId(MY_ID)} ${I.copy}</button>
+        <span class="t-cap">Your unique ID, given automatically to this phone</span>
       </div>
 
       <div class="group-label t-over">Profile</div>
@@ -1177,11 +1339,13 @@ button.set:hover { background: var(--sand); }
           `<button class="switch" role="switch" aria-checked="${S.mesh}" aria-label="Mesh" data-act="toggle-mesh"></button>`)}
         ${set("var(--sky)", I.pin, "Share my location", "Friends see how far you are. GPS, no internet",
           `<button class="switch" role="switch" aria-checked="${S.shareLoc}" aria-label="Share my location" data-act="toggle-loc"></button>`)}
+        ${set("#3A9A5B", I.battery, "Power", S.survival ? "Survival power on · about " + hoursLeft(true) + " h left" : "Battery " + S.batteryPct + "% · make it last for days", chev, "power")}
+        ${set("var(--c-hop)", I.chart, "Mesh insights", "Messages, routes and links", chev, "insights")}
       </div>
 
       <div class="group-label t-over">BlueMob</div>
       <div class="group">
-        ${set("var(--ember)", I.palette, "Design system", "Colours, type, shape and motion", chev, "guide")}
+        ${set("var(--ember)", I.palette, "Design system", "Colours, type, shape and motion", chev, "design")}
         ${set("#7C6BD6", I.sparkle, "Replay the intro", "", chev, "replay")}
         ${set("var(--rose)", I.trash, "Forget people I've met", "Clears last-seen history", "", "forget")}
       </div>
@@ -1192,16 +1356,16 @@ button.set:hover { background: var(--sand); }
           `<span class="chev" style="transform:rotate(${S.showLog ? 90 : 0}deg);transition:transform var(--d-2)">${I.chevron}</span>`, "toggle-log")}
         ${S.showLog ? `<div class="log">${S.log.length ? S.log.map((l) => `<div>${esc(l)}</div>`).join("") : "Nothing yet"}</div>` : ""}
       </div>
-      <p class="t-cap" style="text-align:center;margin-top:24px">BlueMob web preview 0.3 · made for the open sky</p>`;
+      <p class="t-cap" style="text-align:center;margin-top:24px">BlueMob web preview 0.4 · made for the open sky</p>`;
   }
 
   // ---------- Design system (style guide) ----------
-  function guideView(anim) {
+  function designView(anim) {
     const sw = (name, token, note) => `<div class="swatch"><i style="background:var(${token})"></i><b>${name}</b><span class="t-cap">${note}</span></div>`;
     return `<div class="screen grouped ${anim === "push" ? "push-in" : ""}">
       <header class="bar solid"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><div class="bar-title" style="opacity:1;transform:none">Design system</div></header>
       <div class="scroll" id="scroll">
-        <div class="large-title" style="margin-top:12px"><span class="tag ember">PINE &amp; SAND · v0.3</span>
+        <div class="large-title" style="margin-top:12px"><span class="tag ember">PINE &amp; SAND · v0.4</span>
           <h1 class="t-hero" style="margin-top:10px">Calm like Signal, warm like Airbnb.</h1>
           <p class="t-sub" style="margin-top:8px;max-width:36ch">One accent, warm neutrals, soft depth and motion that settles like a breath. Everything below is live and follows your light or dark setting.</p></div>
 
@@ -1293,14 +1457,44 @@ button.set:hover { background: var(--sand); }
         if (S.tab === v) { app.querySelector("#scroll")?.scrollTo({ top: 0, behavior: "smooth" }); break; }
         S.prevTab = S.tab; S.tab = v; store.set("tab", v); render("fade"); S.prevTab = v; break;
       case "filter": S.filter = v; render(); break;
-      case "open-chat": S.chat = el.dataset.id; S.screen = "chat"; render("push"); break;
-      case "guide": S.screen = "guide"; render("push"); break;
-      case "back": S.chat = null; S.screen = "main"; render("fade"); break;
+      case "open-chat": open("chat", { chat: el.dataset.id }); break;
+      case "design": case "power": case "insights": case "games": open(act); break;
+      case "back": back(); break;
+      case "person": open("person", { person: v }); break;
+      case "survival": S.survival = !S.survival; store.set("survival", S.survival); applySurvival();
+        toast(S.survival ? "Survival power on: about " + hoursLeft(true) + " h left" : "Back to normal power"); render(); break;
+      case "power-step": S.steps[v] = true; store.set("powerSteps", S.steps);
+        toast(v === "saver" ? "On Android this opens Battery Saver settings" : "On Android this asks to keep BlueMob running"); render(); break;
+      case "chart-table": S.chartTable = !S.chartTable; render(); break;
+      case "people-filter": S.peopleFilter = v; render(); break;
+      case "sort": S.sort = { near: "recent", recent: "name", name: "near" }[S.sort]; render(); break;
+      case "nav-target": S.navTarget = v; render(); break;
+      case "nav-to": S.navTarget = v; S.stack = []; S.screen = "main"; S.prevTab = S.tab; S.tab = "compass"; render("fade"); S.prevTab = "compass"; break;
+      case "turn": S.heading = (S.heading + Number(v) + 360) % 360; render(); break;
+      case "save-spot": {
+        const m = me(), n = WAYPOINTS.filter((w) => w.id.startsWith("spot")).length + 1;
+        WAYPOINTS.push({ id: "spot" + n, name: "Spot " + n, emoji: "📍", x: m.x, y: m.y });
+        store.set("waypoints", WAYPOINTS); toast("Saved Spot " + n + ". It stays on your phone"); render(); break;
+      }
+      case "guide-cat": S.guideCat = S.guideCat === v ? null : v || null; render(); break;
+      case "open-article": open("article", { article: v }); break;
+      case "bookmark": S.bookmarks = S.bookmarks.includes(v) ? S.bookmarks.filter((b) => b !== v) : [...S.bookmarks, v];
+        store.set("bookmarks", S.bookmarks); toast(S.bookmarks.includes(v) ? "Saved for offline reading" : "Removed from saved"); render(); break;
+      case "sos": open("sos"); break;
+      case "sos-stop": back(); break;
+      case "play-ttt": Object.assign(G, { board: Array(9).fill(""), turn: "x", over: null, line: null, last: -1 }); open("ttt"); break;
+      case "ttt": tttPlay(Number(v)); break;
+      case "ttt-new": Object.assign(G, { board: Array(9).fill(""), turn: "x", over: null, line: null, last: -1 }); render(); break;
+      case "play-quiz": Object.assign(Q, { i: 0, you: 0, them: 0, picked: null, theirPick: null, done: false }); open("quiz"); break;
+      case "quiz": quizAnswer(Number(v)); break;
+      case "quiz-next": if (Q.i + 1 < QUIZ.length) Object.assign(Q, { i: Q.i + 1, picked: null, theirPick: null }); else Q.done = true; render(); break;
+      case "quiz-new": Object.assign(Q, { i: 0, you: 0, them: 0, picked: null, theirPick: null, done: false }); render(); break;
+      case "tab-guide": S.stack = []; S.screen = "main"; S.prevTab = S.tab; S.tab = "guide"; render("fade"); S.prevTab = "guide"; break;
       case "suggest": send("sky", v); break;
       case "soon": toast(v + (v.endsWith("s") ? " are" : " is") + " coming soon"); break;
       case "copy-id":
-        try { navigator.clipboard.writeText("3F9A1C2B7D4E8A01").then(() => toast("ID copied"), () => toast("Your ID: 3F9A 1C2B 7D4E 8A01")); }
-        catch { toast("Your ID: 3F9A 1C2B 7D4E 8A01"); }
+        try { navigator.clipboard.writeText("BM-" + MY_ID).then(() => toast("ID copied"), () => toast("Your ID: BM · " + fmtId(MY_ID))); }
+        catch { toast("Your ID: BM · " + fmtId(MY_ID)); }
         break;
       case "ping": {
         const p = P[S.chat];
@@ -1331,17 +1525,630 @@ button.set:hover { background: var(--sand); }
   app.addEventListener("input", (e) => {
     if (e.target.id === "draft") syncSend();
     if (e.target.id === "q") { S.query = e.target.value; render(); }
+    if (e.target.id === "gq") { S.gq = e.target.value; render(); }
     if (e.target.id === "pf-name") {
       const v = e.target.value.replace(/\|/g, " ").slice(0, 24);
       if (v.trim()) { S.name = v.trim(); store.set("name", S.name); app.querySelector(".me-head h1").textContent = S.name; }
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && S.screen !== "main" && S.onboarded) { S.chat = null; S.screen = "main"; render("fade"); }
+    if (e.key === "Escape" && S.screen !== "main" && S.onboarded) back();
   });
 
+
+  // =====================================================================
+  //  Features: identity, power, insights, compass, guide, SOS, games
+  // =====================================================================
+
+  // ---------- identity: every phone gets a permanent, unique ID on first launch ----------
+  const MY_ID = store.get("id", null) || (() => {
+    const bytes = new Uint8Array(8);
+    (window.crypto || {}).getRandomValues ? crypto.getRandomValues(bytes) : bytes.forEach((_, i) => (bytes[i] = Math.random() * 256));
+    const id = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+    store.set("id", id);
+    return id;
+  })();
+  const fmtId = (id) => id.match(/.{4}/g).join(" ");
+  const shortId = (id) => "#" + id.slice(0, 4);
+  // Two phones derive the same four symbols from their pair of IDs, so people can check in person
+  // that they are really talking to each other (like Signal's safety numbers).
+  const SAFETY = ["🌲", "🏔️", "🌊", "🔥", "🌙", "⭐", "🦅", "🐺", "🦋", "🌻", "🍀", "🐚", "🪨", "🌵", "🐢", "🦉"];
+  function safetyCode(a, b) {
+    const [x, y] = [a, b].sort();
+    let h = 2166136261;
+    for (const ch of x + y) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    return [0, 4, 8, 12].map((sh) => SAFETY[(h >>> sh) & 15]);
+  }
+  const dupName = (p) => Object.values(P).filter((q) => q.met && q.name === p.name).length > 1;
+  const nameWithId = (p) => esc(p.name) + (dupName(p) ? ` <span class="uid">${shortId(p.uid)}</span>` : "");
+
+  // ---------- power ----------
+  Object.assign(S, {
+    survival: store.get("survival", false),
+    batteryPct: 64,
+    steps: store.get("powerSteps", { saver: false, exempt: false }),
+    navTarget: "camp", heading: 20, guideCat: null, bookmarks: store.get("bookmarks", []), gq: "",
+    peopleFilter: "all", sort: "near", chartTable: false,
+  });
+  const hoursLeft = (survival) => Math.round((S.batteryPct / 100) * (survival ? 46 : 14));
+  function applySurvival() {
+    if (S.survival) document.documentElement.setAttribute("data-theme", "dark");
+    else if (document.documentElement.getAttribute("data-theme") === "dark" && S._forcedDark) document.documentElement.removeAttribute("data-theme");
+    S._forcedDark = S.survival;
+  }
+  applySurvival();
+
+  function powerView() {
+    const pct = S.batteryPct;
+    const step = (key, n, title, body, btn) => `<div class="set" style="align-items:flex-start">
+      <span class="tile" style="background:${S.steps[key] ? "var(--pine)" : "var(--ink-3)"}">${S.steps[key] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>' : `<b>${n}</b>`}</span>
+      <span class="main"><span class="t-strong" style="display:block">${title}</span><span class="t-cap">${body}</span></span>
+      ${S.steps[key] ? '<span class="step-done">DONE</span>' : `<button class="btn small" data-act="power-step" data-v="${key}">${btn}</button>`}</div>`;
+    return subScreen("Power", `
+      <div class="large-title" style="margin-top:8px"><span class="tag ${S.survival ? "pine" : ""}">${S.survival ? "SURVIVAL POWER ON" : "NORMAL POWER"}</span>
+        <h1 class="t-hero" style="margin-top:10px">Make the battery last</h1>
+        <p class="t-sub" style="margin-top:6px">Keep BlueMob reachable for days, while the rest of the phone sleeps.</p></div>
+      <div class="group spec">
+        <div class="spec-row"><span class="t-strong">Battery</span><span class="num t-strong">${pct}%</span></div>
+        <div class="gauge" role="meter" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Battery"><span style="width:${pct}%"></span></div>
+        <div class="hours">
+          <div class="${S.survival ? "" : "win"}"><span class="t-cap">Normal use</span><b>${hoursLeft(false)} h</b></div>
+          <div class="${S.survival ? "win" : ""}"><span class="t-cap">Survival power</span><b>${hoursLeft(true)} h</b></div>
+        </div>
+        <p class="t-cap">Estimate for a typical phone with the screen mostly off.</p>
+      </div>
+      <div class="group-label t-over">One switch</div>
+      <div class="group">
+        <div class="set"><span class="tile" style="background:var(--pine)">${I.leaf}</span>
+          <span class="main"><span class="t-strong" style="display:block">Survival power mode</span>
+          <span class="t-cap">Dark screens, slower scanning (every 30 s), location every 5 min, no animations</span></span>
+          <button class="switch" role="switch" aria-checked="${S.survival}" aria-label="Survival power mode" data-act="survival"></button></div>
+      </div>
+      <div class="group-label t-over">Whole phone, except BlueMob</div>
+      <div class="group">
+        ${step("saver", 1, "Turn on phone Battery Saver", "Opens Android's Battery Saver. It slows every other app.", "Open")}
+        ${step("exempt", 2, "Keep BlueMob running", "Lets BlueMob stay awake while Battery Saver is on, so messages still reach you.", "Allow")}
+      </div>
+      <div class="callout" style="margin-top:16px">Android doesn't allow any app to switch the whole phone into Battery Saver by itself. BlueMob takes you there in one tap and keeps itself awake, which together does the same job.</div>`);
+  }
+
+  // ---------- insights ----------
+  // Example history from a 12-hour trip, plus whatever you do in this session (added to the last hour).
+  const HOURLY = [3, 5, 2, 0, 0, 1, 4, 9, 12, 7, 6, 10];
+  const BASE = { direct: 37, hopped: 13, bridge: 6, relayed: 21, sent: 59, delivered: 56 };
+  function insightsView() {
+    const sent = BASE.sent + STATS.sent, delivered = BASE.delivered + STATS.delivered;
+    const parts = [
+      { key: "direct", label: "Direct", color: "var(--c-direct)", v: BASE.direct + STATS.direct },
+      { key: "hopped", label: "Hopped", color: "var(--c-hop)", v: BASE.hopped + STATS.hopped },
+      { key: "bridge", label: "Via bridge", color: "var(--c-bridge)", v: BASE.bridge + STATS.bridge },
+    ];
+    const total = parts.reduce((n, x) => n + x.v, 0);
+    const hourly = HOURLY.map((v, i) => (i === HOURLY.length - 1 ? v + STATS.hourNow : v));
+    const hourLabel = (i) => { const d = new Date(now() - (HOURLY.length - 1 - i) * 3600e3); return d.getHours().toString().padStart(2, "0") + ":00"; };
+    const peopleNow = nearby();
+    const online = peopleNow.filter((p) => p.presence === "online");
+    const quality = { "fast Wi-Fi link": 0.95, "good link": 0.7, "Bluetooth link": 0.42 };
+    return subScreen("Mesh insights", `
+      <div class="large-title" style="margin-top:8px"><h1 class="t-hero">Mesh insights</h1>
+        <p class="t-sub" style="margin-top:6px">Last 12 hours. Example trip data plus what you do in this preview.</p></div>
+      <div class="tiles">
+        <div class="tile-stat"><span class="t-cap">Messages sent</span><b>${sent}</b><span class="delta">${STATS.sent ? "+" + STATS.sent + " this session" : "12 h"}</span></div>
+        <div class="tile-stat"><span class="t-cap">Delivered</span><b>${Math.round((delivered / Math.max(1, sent)) * 100)}%</b><span class="delta">${delivered} of ${sent}</span></div>
+        <div class="tile-stat"><span class="t-cap">Carried for others</span><b>${BASE.relayed + STATS.relayed}</b><span class="delta">your phone as a relay</span></div>
+        <div class="tile-stat"><span class="t-cap">People online now</span><b>${online.length}</b><span class="delta">${peopleNow.length} met so far</span></div>
+      </div>
+
+      <div class="group-label t-over">How your messages travelled</div>
+      <div class="group spec">
+        <div class="spec-row"><span class="t-strong">${total} delivered messages</span><button class="btn text" data-act="chart-table">${S.chartTable ? "Show chart" : "Show table"}</button></div>
+        ${S.chartTable ? `<table class="dtable"><thead><tr><th>Route</th><th>Messages</th></tr></thead><tbody>${parts.map((x) => `<tr><td>${x.label}</td><td>${x.v}</td></tr>`).join("")}
+          ${hourly.map((v, i) => `<tr><td>${hourLabel(i)}</td><td>${v}</td></tr>`).join("")}</tbody></table>` : `
+        <div class="stackbar" role="img" aria-label="${parts.map((x) => x.label + " " + x.v).join(", ")}">${parts.map((x) => `<span style="flex-grow:${x.v};background:${x.color}" title="${x.label}: ${x.v}"></span>`).join("")}</div>
+        <div class="legend">${parts.map((x) => `<span><i style="background:${x.color}"></i>${x.label} <b>${x.v}</b> · ${Math.round((x.v / total) * 100)}%</span>`).join("")}</div>`}
+      </div>
+
+      ${S.chartTable ? "" : `<div class="group-label t-over">Messages per hour</div>
+      <div class="group spec"><div class="chart" id="hourChart">${columnChart(hourly, hourLabel)}<div class="tip" id="tip"></div></div></div>`}
+
+      <div class="group-label t-over">Link strength now</div>
+      <div class="group">${online.length ? online.map((p) => `<div class="set">${avatar(p.avatar, p.id, 36)}
+          <span class="main"><span class="t-strong" style="display:block">${nameWithId(p)}</span><span class="t-cap">${p.link} · ${p.rtt} ms</span></span>
+          <span class="meter" style="max-width:110px" role="meter" aria-label="${esc(p.name)} link strength" aria-valuenow="${Math.round(quality[p.link] * 100)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${quality[p.link] * 100}%"></span></span></div>`).join("")
+        : '<div class="set"><span class="t-sub">No one connected right now. Switch the mesh on.</span></div>'}</div>`);
+  }
+  function columnChart(vals, labelFor) {
+    const W = 340, H = 150, pad = { l: 24, r: 4, t: 10, b: 22 };
+    const max = Math.max(4, Math.ceil(Math.max(...vals) / 4) * 4);
+    const bw = (W - pad.l - pad.r) / vals.length, barW = Math.min(18, bw - 6);
+    const y = (v) => pad.t + (H - pad.t - pad.b) * (1 - v / max);
+    const grid = [0, max / 2, max].map((g) => `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(g)}" y2="${y(g)}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${pad.l - 6}" y="${y(g) + 4}" text-anchor="end" font-size="10" fill="var(--ink-3)">${g}</text>`).join("");
+    const peak = vals.indexOf(Math.max(...vals));
+    const bars = vals.map((v, i) => {
+      const x = pad.l + i * bw + (bw - barW) / 2, top = y(v), h = Math.max(0, y(0) - top), r = Math.min(4, h);
+      const path = h > 0 ? `M${x},${y(0)} V${top + r} Q${x},${top} ${x + r},${top} H${x + barW - r} Q${x + barW},${top} ${x + barW},${top + r} V${y(0)} Z` : "";
+      return `<g class="col" data-i="${i}" data-v="${v}" data-l="${labelFor(i)}"><rect x="${pad.l + i * bw}" y="${pad.t}" width="${bw}" height="${H - pad.t}" fill="transparent"/>
+        ${path ? `<path d="${path}" fill="var(--c-direct)" opacity="${i === vals.length - 1 ? 1 : .55}"/>` : ""}
+        ${i % 3 === 2 || i === vals.length - 1 ? `<text x="${x + barW / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--ink-3)">${labelFor(i).slice(0, 2)}h</text>` : ""}
+        ${i === peak ? `<text x="${x + barW / 2}" y="${top - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--ink-2)">${v}</text>` : ""}</g>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Messages per hour, last 12 hours, peak ${vals[peak]}">${grid}${bars}</svg>`;
+  }
+  app.addEventListener("pointermove", (e) => {
+    const col = e.target.closest && e.target.closest(".col");
+    const tip = document.getElementById("tip");
+    if (!tip) return;
+    if (!col) { tip.classList.remove("show"); return; }
+    const box = document.getElementById("hourChart").getBoundingClientRect(), r = col.getBoundingClientRect();
+    tip.textContent = `${col.dataset.l} · ${col.dataset.v} message${col.dataset.v === "1" ? "" : "s"}`;
+    tip.style.left = r.left - box.left + r.width / 2 + "px";
+    tip.style.top = "8px";
+    tip.classList.add("show");
+  });
+
+  // ---------- compass & offline navigation ----------
+  // Positions in metres on a local flat grid around where you started (x = east, y = north).
+  const polar = (dist, bearing) => ({ x: dist * Math.sin((bearing * Math.PI) / 180), y: dist * Math.cos((bearing * Math.PI) / 180) });
+  const TRAIL = [];
+  { // a walk from base camp to here, so "back to camp" has a path to retrace
+    let x = -420, y = -460;
+    for (let i = 0; i < 46; i++) { TRAIL.push({ x, y }); x += 9 + Math.sin(i / 4) * 6; y += 10 + Math.cos(i / 5) * 5; }
+  }
+  const me = () => TRAIL[TRAIL.length - 1];
+  const WAYPOINTS = store.get("waypoints", null) || [
+    { id: "camp", name: "Base camp", emoji: "⛺", x: -420, y: -460 },
+    { id: "water", name: "Stream", emoji: "💧", x: 260, y: 120 },
+  ];
+  function targets() {
+    const m = me();
+    const list = WAYPOINTS.map((w) => ({ ...w, kind: "place" }));
+    nearby().filter((p) => p.presence === "online").forEach((p) => {
+      const o = polar(p.dist, p.bearing);
+      list.push({ id: p.id, name: p.name, emoji: p.avatar, x: m.x + o.x, y: m.y + o.y, kind: "friend" });
+    });
+    return list.map((t) => {
+      const dx = t.x - m.x, dy = t.y - m.y;
+      return { ...t, dist: Math.hypot(dx, dy), bearing: ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360 };
+    });
+  }
+  const CARD = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const cardinal = (b) => CARD[Math.round(b / 45) % 8];
+  // You wander a little while the preview runs, leaving a breadcrumb trail.
+  setInterval(() => {
+    const m = me(), a = ((S.heading + (Math.random() - .5) * 50) * Math.PI) / 180;
+    TRAIL.push({ x: m.x + Math.sin(a) * 4, y: m.y + Math.cos(a) * 4 });
+    if (TRAIL.length > 400) TRAIL.shift();
+    if (S.mesh && Math.random() < .25) STATS.relayed++;
+    if (S.onboarded && S.screen === "main" && S.tab === "compass") render();
+  }, 5000);
+
+  function compassView() {
+    const ts = targets();
+    const t = ts.find((x) => x.id === S.navTarget) || ts[0];
+    const rel = ((t.bearing - S.heading) % 360 + 360) % 360;
+    const mins = Math.max(1, Math.round(t.dist / 75)); // ~4.5 km/h walking
+    const ticks = Array.from({ length: 72 }, (_, i) => {
+      const a = i * 5, long = a % 30 === 0;
+      return `<line x1="150" y1="${long ? 14 : 18}" x2="150" y2="26" stroke="${a === 0 ? "var(--rose)" : "var(--ink-3)"}" stroke-width="${long ? 2 : 1}" transform="rotate(${a} 150 150)"/>`;
+    }).join("");
+    const letters = [["N", 0], ["E", 90], ["S", 180], ["W", 270]].map(([l, a]) =>
+      `<text x="150" y="48" text-anchor="middle" font-size="16" font-weight="800" fill="${l === "N" ? "var(--rose)" : "var(--ink-2)"}" transform="rotate(${a} 150 150)">${l}</text>`).join("");
+    return `
+      <div class="large-title"><div class="t-sub">Works with no signal · GPS + compass</div><h1 class="t-hero">Compass</h1></div>
+      <div class="targets">${ts.map((x) => `<button class="chip" data-act="nav-target" data-v="${x.id}" aria-pressed="${x.id === t.id}">${x.emoji} ${esc(x.name)}</button>`).join("")}</div>
+      <div class="compass" aria-label="Compass. ${esc(t.name)} is ${fmtDist(t.dist)} to the ${cardinal(t.bearing)}">
+        <svg class="dial" viewBox="0 0 300 300" style="transform:rotate(${-S.heading}deg)" aria-hidden="true">
+          <circle cx="150" cy="150" r="146" fill="var(--canvas)" stroke="var(--line)" stroke-width="2"/>${ticks}${letters}
+        </svg>
+        <div class="needle" style="transform:rotate(${rel}deg)" aria-hidden="true">
+          <svg viewBox="0 0 300 300" width="100%" height="100%"><path d="M150 40 L170 104 L150 94 L130 104 Z" fill="var(--pine)"/></svg>
+        </div>
+        <div class="hub"><span style="font-size:22px">${t.emoji}</span><b>${fmtDist(t.dist)}</b><span class="t-cap">${cardinal(t.bearing)} · ${Math.round(t.bearing)}°</span></div>
+      </div>
+      <div class="turn">
+        <button class="btn small secondary" data-act="turn" data-v="-30" aria-label="Turn left">↺ Turn left</button>
+        <button class="btn small secondary" data-act="turn" data-v="30" aria-label="Turn right">Turn right ↻</button>
+      </div>
+      <p class="t-sub" style="text-align:center;margin-top:10px">${rel < 15 || rel > 345 ? "Straight ahead" : rel < 180 ? "Turn right " + Math.round(rel) + "°" : "Turn left " + Math.round(360 - rel) + "°"} · about ${mins} min walk</p>
+
+      <div class="section-h"><h2 class="t-head">Your trail</h2><button class="btn text" data-act="save-spot">+ Save this spot</button></div>
+      <div class="minimap">${miniMap(ts, t)}</div>
+
+      <div class="section-h"><h2 class="t-head">How it works offline</h2></div>
+      <div class="group">
+        ${[["var(--pine)", I.pin, "GPS needs no internet", "Your phone hears satellites directly. Works in airplane mode."],
+           ["var(--sky)", I.radar, "Compass from the phone's sensor", "The magnetometer gives your heading. No data needed."],
+           ["var(--ember)", I.mesh, "Friends' positions over the mesh", "Nearby phones share where they are, so you can walk to each other."],
+           ["#7C6BD6", I.globe, "Maps: download before you go", "Save an area's map (OpenStreetMap) at home. Then maps and routes work offline."]]
+          .map(([c, ic, a, b]) => `<div class="set"><span class="tile" style="background:${c}">${ic}</span><span class="main"><span class="t-strong" style="display:block">${a}</span><span class="t-cap">${b}</span></span></div>`).join("")}
+      </div>
+      <p class="t-cap" style="text-align:center;margin-top:20px">Web preview: your heading and walk are simulated. Use Turn left / right to rotate.</p>`;
+  }
+  function miniMap(ts, target) {
+    const pts = [...TRAIL, ...ts];
+    const minX = Math.min(...pts.map((p) => p.x)) - 60, maxX = Math.max(...pts.map((p) => p.x)) + 60;
+    const minY = Math.min(...pts.map((p) => p.y)) - 60, maxY = Math.max(...pts.map((p) => p.y)) + 60;
+    const W = 340, H = 220, s = Math.min(W / (maxX - minX), H / (maxY - minY));
+    const ox = (W - (maxX - minX) * s) / 2, oy = (H - (maxY - minY) * s) / 2;
+    const X = (x) => ox + (x - minX) * s, Y = (y) => H - (oy + (y - minY) * s);
+    const m = me();
+    const scaleM = 200, scalePx = scaleM * s;
+    const trail = TRAIL.map((p) => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(" ");
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of your trail and places, north up">
+      <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="var(--line)" stroke-width="1"/></pattern></defs>
+      <rect width="${W}" height="${H}" fill="url(#grid)"/>
+      <line x1="${X(m.x)}" y1="${Y(m.y)}" x2="${X(target.x)}" y2="${Y(target.y)}" stroke="var(--pine)" stroke-width="2" stroke-dasharray="4 5"/>
+      <polyline points="${trail}" fill="none" stroke="var(--ember)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+      ${ts.map((t) => `<g><circle cx="${X(t.x)}" cy="${Y(t.y)}" r="${t.id === target.id ? 15 : 12}" fill="var(--canvas)" stroke="${t.id === target.id ? "var(--pine)" : "var(--line)"}" stroke-width="2"/>
+        <text x="${X(t.x)}" y="${Y(t.y) + 5}" text-anchor="middle" font-size="${t.id === target.id ? 15 : 12}">${t.emoji}</text></g>`).join("")}
+      <g transform="translate(${X(m.x)} ${Y(m.y)}) rotate(${S.heading})"><path d="M0 -20 L9 2 L-9 2 Z" fill="var(--sky)" opacity=".35"/></g>
+      <circle cx="${X(m.x)}" cy="${Y(m.y)}" r="7" fill="var(--sky)" stroke="var(--canvas)" stroke-width="2.5"/>
+      <text x="${W - 12}" y="20" text-anchor="end" font-size="12" font-weight="800" fill="var(--rose)">N ↑</text>
+      <line x1="12" y1="${H - 14}" x2="${12 + scalePx}" y2="${H - 14}" stroke="var(--ink-2)" stroke-width="2"/>
+      <text x="12" y="${H - 20}" font-size="10" fill="var(--ink-2)">${scaleM} m</text>
+    </svg>`;
+  }
+
+  // ---------- survival guide (written for BlueMob; general guidance, not medical advice) ----------
+  const CATS = [
+    { id: "aid", name: "First aid", color: "var(--rose)", icon: I.plusBox },
+    { id: "water", name: "Water", color: "var(--sky)", icon: I.drop },
+    { id: "fire", name: "Fire", color: "var(--ember)", icon: I.flame },
+    { id: "shelter", name: "Shelter", color: "var(--pine)", icon: I.tent },
+    { id: "nav", name: "Navigation", color: "#7C6BD6", icon: I.compass },
+    { id: "signal", name: "Signals", color: "#C2621A", icon: I.flag },
+    { id: "weather", name: "Weather", color: "#3D8FD9", icon: I.bolt },
+    { id: "disaster", name: "Disasters", color: "#8A5A44", icon: I.alert },
+    { id: "basics", name: "Basics", color: "#3A4A44", icon: I.leaf },
+  ];
+  const A = (id, cat, title, mins, intro, steps, donts = [], note = "") => ({ id, cat, title, mins, intro, steps, donts, note });
+  const ARTICLES = [
+    A("cpr", "aid", "CPR for an adult", 3, "Use when someone is unresponsive and not breathing normally.", [
+      "Check the area is safe. Tap their shoulders and shout. Look for normal breathing for no more than 10 seconds.",
+      "Send someone to call emergency services and find a defibrillator (AED), or use BlueMob to reach someone with signal.",
+      "Kneel beside them. Put the heel of one hand in the centre of the chest, other hand on top, arms straight.",
+      "Push hard and fast: 5 to 6 cm deep, 100 to 120 pushes a minute. Let the chest rise fully between pushes.",
+      "If you are trained, give 2 rescue breaths after every 30 pushes. If not, keep pushing without stopping.",
+      "Keep going until help takes over, an AED tells you to stop, or they start breathing normally."],
+      ["Don't stop to check for a pulse unless they start breathing.", "Don't give up early. Swap with someone every 2 minutes if you can."]),
+    A("bleed", "aid", "Severe bleeding", 2, "Fast action matters most. Pressure stops most bleeding.", [
+      "Protect yourself with gloves or a plastic bag if you can.",
+      "Press firmly on the wound with a clean cloth or your hand. Keep pressing.",
+      "If blood soaks through, add more cloth on top. Keep the first layer in place.",
+      "Wrap a bandage tightly over the pad to hold pressure.",
+      "For life-threatening bleeding from an arm or leg that won't stop, tie a tourniquet 5 to 7 cm above the wound, not on a joint. Tighten until bleeding stops and note the time.",
+      "Keep them warm and lying down. Get medical help."],
+      ["Don't remove soaked dressings.", "Don't loosen a tourniquet once it is on."]),
+    A("burns", "aid", "Burns", 2, "Cool the burn quickly and for long enough.", [
+      "Move away from the heat source.",
+      "Cool the burn under cool running water for 20 minutes.",
+      "Remove rings, watches or clothing near the burn, unless stuck to the skin.",
+      "Cover loosely with cling film or a clean, non-fluffy cloth.",
+      "Get medical help for burns larger than their hand, or on the face, hands, feet or groin, and for chemical or electrical burns."],
+      ["No ice, butter, oil or toothpaste.", "Don't burst blisters."]),
+    A("choke", "aid", "Choking adult", 2, "If they can cough, encourage them to keep coughing.", [
+      "If they can't cough, speak or breathe, stand behind them and lean them forward.",
+      "Give up to 5 firm back blows between the shoulder blades with the heel of your hand.",
+      "If that fails, give up to 5 abdominal thrusts: fist above the belly button, pull sharply in and up.",
+      "Repeat 5 back blows and 5 thrusts until the object comes out.",
+      "If they become unresponsive, start CPR and get help."]),
+    A("hypo", "aid", "Hypothermia (too cold)", 2, "Signs: strong shivering, confusion, slurred speech, clumsiness, drowsiness.", [
+      "Get them out of wind and wet, into shelter.",
+      "Replace wet clothes with dry ones. Insulate them from the ground.",
+      "Warm the body core first (chest, neck, groin) with blankets, a sleeping bag or skin-to-skin contact.",
+      "If they are alert and can swallow, give warm, sweet drinks.",
+      "Handle them gently and get medical help."],
+      ["No alcohol.", "Don't rub their arms and legs.", "Don't put them in a hot bath."]),
+    A("heat", "aid", "Heat stroke", 2, "An emergency. Signs: hot skin, confusion, fast pulse, sometimes no sweating.", [
+      "Move them to shade and get help.",
+      "Cool them fast: wet their skin and fan them.",
+      "Put cold packs or wet cloths on the neck, armpits and groin.",
+      "If they are awake, give small sips of water.",
+      "Keep cooling until help arrives or they feel normal."]),
+    A("snake", "aid", "Snake bite", 2, "Most bites are not fatal. Calm and stillness help.", [
+      "Move away from the snake. Keep the person calm and still.",
+      "Keep the bitten limb still and remove rings, watches and tight clothing.",
+      "Note the time and what the snake looked like. Don't try to catch it.",
+      "Get to medical help as soon as possible. Carry them if you can."],
+      ["Don't cut the wound or try to suck out venom.", "Don't use ice or a tight tourniquet."]),
+    A("fracture", "aid", "Broken bones and sprains", 2, "Support the injury in the position you found it.", [
+      "Keep the injured part still. Don't try to straighten it.",
+      "Splint it with padding, using sticks or a rolled mat, covering the joint above and below.",
+      "Check the skin beyond the injury stays warm and pink.",
+      "For sprains: rest, a cold pack wrapped in cloth for 20 minutes, light compression, and raise it.",
+      "Get medical help for suspected breaks."]),
+    A("find-water", "water", "Finding water", 2, "You can last about 3 days without water. Find it early.", [
+      "Walk downhill: valleys and low ground often hold streams.",
+      "Look for green plants, insects and animal tracks. Birds often fly to water at dawn and dusk.",
+      "Collect rain with any sheet or container.",
+      "At dawn, wipe dew off grass with a cloth and wring it out.",
+      "Treat all water before drinking."],
+      ["Don't drink seawater or urine.", "Avoid still, smelly water if anything better exists."]),
+    A("purify", "water", "Making water safe", 2, "Boiling is the most reliable method.", [
+      "If water is cloudy, let it settle, then pour it through a cloth.",
+      "Bring it to a rolling boil for 1 minute (3 minutes above 2,000 m).",
+      "Or use purification tablets, following the packet instructions.",
+      "No fuel? Fill clear plastic bottles and leave them in full sun for 6 hours (2 days if cloudy).",
+      "Store treated water in clean, covered containers."]),
+    A("fire", "fire", "Lighting a fire safely", 3, "A fire needs three things: heat, fuel and air.", [
+      "Pick a spot out of the wind, away from trees and tents. Clear 3 m of ground down to soil.",
+      "Gather everything first: tinder (dry grass, bark), kindling (pencil-thick sticks) and fuel (wrist-thick wood).",
+      "Make a loose tinder nest. Lean kindling over it like a tent, leaving gaps for air.",
+      "Light the tinder from the windward side and blow gently at the base.",
+      "Add bigger wood slowly as the flames grow.",
+      "To put it out: drown it, stir it, and drown again until it's cold to the touch."],
+      ["Never leave a fire alone.", "Don't use petrol to start a fire."]),
+    A("shelter", "shelter", "Emergency shelter", 3, "In bad weather, cold can harm you in hours. Shelter comes before food.", [
+      "Choose dry, flat ground out of the wind. Avoid dry riverbeds and dead trees overhead.",
+      "Insulate yourself from the ground first: you lose most heat there. Use branches, leaves or a mat.",
+      "Keep it small, so your body heat warms it.",
+      "Lean-to: prop a long branch against a tree and layer sticks, then leaves, on the windward side.",
+      "Stay dry. Wet clothes lose most of their warmth."]),
+    A("north", "nav", "Find north without a compass", 3, "Simple ways to find your direction.", [
+      "Shadow stick: put a stick upright and mark the tip of its shadow. Wait 15 minutes and mark again. A line from the first mark to the second points roughly east.",
+      "The sun rises in the east and sets in the west. At midday it is due south in the northern hemisphere, due north in the southern.",
+      "At night (north): find the Big Dipper. Its two end stars point to Polaris, the North Star.",
+      "At night (south): extend the long axis of the Southern Cross about 4.5 times to find roughly south."]),
+    A("lost", "nav", "If you are lost", 2, "Remember STOP: Stop, Think, Observe, Plan.", [
+      "Stop moving. Sit down, drink water and calm down.",
+      "Think about how you got here and the last place you were sure of.",
+      "Observe: landmarks, the sun, streams, your trail on the BlueMob compass.",
+      "Plan: if people know your route, stay put and make yourself visible. Searchers find people who stay still.",
+      "Use BlueMob to reach anyone nearby, and save your battery with Survival power."]),
+    A("signals", "signal", "Signalling for rescue", 2, "Three of anything means 'help'.", [
+      "Three fires, three whistle blasts or three flashes in a triangle or row signal distress.",
+      "SOS in Morse code: three short, three long, three short ( ··· ––– ··· ). BlueMob's SOS light flashes it for you.",
+      "Make ground signals big (3 m or more) and in contrast with the ground: V means 'need help', X means 'need medical help'.",
+      "Flash a mirror or phone screen at aircraft or distant people.",
+      "Wear or spread bright clothing in open ground."]),
+    A("lightning", "weather", "Lightning safety", 2, "If you hear thunder, you are close enough to be struck.", [
+      "30-30 rule: if thunder follows the flash within 30 seconds, take shelter. Wait 30 minutes after the last thunder.",
+      "Go to a building or a hard-topped vehicle if you can.",
+      "Outdoors: leave summits, ridges, open fields and water. Keep away from lone trees and metal fences.",
+      "If caught in the open, crouch low on the balls of your feet, feet together, head tucked.",
+      "In a group, spread out at least 15 m apart."]),
+    A("quake", "disaster", "Earthquake", 2, "Drop, Cover, Hold on.", [
+      "Drop to your hands and knees.",
+      "Cover your head and neck under a sturdy table, or next to an inside wall.",
+      "Hold on until the shaking stops.",
+      "If outside, move to open ground away from buildings, trees and power lines.",
+      "After: expect aftershocks, check for gas smells, and avoid lifts and damaged buildings."]),
+    A("flood", "disaster", "Floods", 2, "Moving water is far more powerful than it looks.", [
+      "Move to higher ground straight away.",
+      "Never walk, swim or drive through flood water. 15 cm of moving water can knock you down, 30 cm can sweep a car away.",
+      "Stay away from rivers, streams and drains.",
+      "If trapped in a building, go to the highest floor, not a closed attic.",
+      "Use BlueMob to tell others where you are."]),
+    A("threes", "basics", "The rule of threes", 1, "What to deal with first. Roughly, you can survive:", [
+      "3 minutes without air.",
+      "3 hours without shelter in harsh weather.",
+      "3 days without water.",
+      "3 weeks without food.",
+      "So: breathing and bleeding first, then shelter and warmth, then water, then food."],
+      ["Don't eat plants or mushrooms you can't identify with certainty."]),
+  ];
+  const catOf = (id) => CATS.find((c) => c.id === id);
+
+  function guideView() {
+    const q = S.gq.trim().toLowerCase();
+    const saved = S.guideCat === "saved";
+    const list = ARTICLES.filter((a) => (saved ? S.bookmarks.includes(a.id) : !S.guideCat || a.cat === S.guideCat) &&
+      (!q || (a.title + " " + a.intro + " " + a.steps.join(" ")).toLowerCase().includes(q)));
+    return `
+      <div class="large-title"><div class="t-sub">${ARTICLES.length} guides · stored on your phone</div><h1 class="t-hero">Survival guide</h1></div>
+      <div class="sos-strip">
+        <button class="sos-btn press" style="background:var(--rose);color:#fff" data-act="sos">${I.flash}<span><b style="display:block">SOS light</b><span style="font-size:12px;opacity:.9">Flash ··· ––– ···</span></span></button>
+        <button class="sos-btn press" style="background:var(--ember-tint);color:var(--ink)" data-act="open-article" data-v="lost">${I.compass}<span><b style="display:block">I'm lost</b><span class="t-cap">Stop, think, plan</span></span></button>
+      </div>
+      <label class="search" style="margin-top:14px">${I.search}<input id="gq" type="search" placeholder="Search bleeding, water, fire…" value="${esc(S.gq)}" aria-label="Search the survival guide"></label>
+      <div class="filters" role="group" aria-label="Topics">
+        <button class="chip" data-act="guide-cat" data-v="" aria-pressed="${!S.guideCat}">All</button>
+        <button class="chip" data-act="guide-cat" data-v="saved" aria-pressed="${saved}">★ Saved ${S.bookmarks.length ? S.bookmarks.length : ""}</button>
+      </div>
+      ${q || saved ? "" : `<div class="cats">${CATS.map((c) => `<button class="cat press" data-act="guide-cat" data-v="${c.id}" aria-pressed="${S.guideCat === c.id}">
+        <span class="tile" style="background:${c.color}">${c.icon}</span><span class="t-strong ellipsis" style="max-width:100%;font-size:14px">${c.name}</span></button>`).join("")}</div>`}
+      <div class="section-h"><h2 class="t-head">${saved ? "Saved" : S.guideCat ? catOf(S.guideCat).name : q ? "Results" : "All guides"}</h2><span class="t-cap">${list.length}</span></div>
+      <div class="rows">${list.map((a) => `<button class="row press" data-act="open-article" data-v="${a.id}">
+          <span class="tile" style="background:${catOf(a.cat).color};width:44px;height:44px;border-radius:13px">${catOf(a.cat).icon}</span>
+          <span class="main"><span class="name ellipsis">${a.title}</span><span class="preview ellipsis">${a.intro}</span></span>
+          <span class="side"><span class="time">${a.mins} min</span>${S.bookmarks.includes(a.id) ? '<span style="color:var(--ember)">★</span>' : ""}</span></button>`).join("")
+        || '<p class="t-sub" style="padding:24px 16px;text-align:center">Nothing found. Try a simpler word.</p>'}</div>
+      <p class="t-cap" style="text-align:center;margin-top:20px">General guidance, not a substitute for trained medical help. Reach emergency services whenever you can.</p>`;
+  }
+  function articleView() {
+    const a = ARTICLES.find((x) => x.id === S.article);
+    const c = catOf(a.cat), saved = S.bookmarks.includes(a.id);
+    return subScreen(a.title, `
+      <article class="article">
+        <span class="tag" style="background:${c.color};color:#fff">${c.name.toUpperCase()}</span>
+        <h1 class="t-title">${a.title}</h1>
+        <p class="t-sub" style="margin-top:8px">${a.intro}</p>
+        <div class="group spec" style="margin-top:16px"><ol class="steps">${a.steps.map((s) => `<li><span>${s}</span></li>`).join("")}</ol></div>
+        ${a.donts.length ? `<div class="group-label t-over">Avoid</div><div class="group spec"><ul class="donts">${a.donts.map((d) => `<li><span>${d}</span></li>`).join("")}</ul></div>` : ""}
+        <div class="callout" style="margin-top:16px">General guidance, not medical advice. Reach emergency services when you can. BlueMob can carry an SOS message to anyone nearby.</div>
+      </article>`, `<button class="icon-btn" data-act="bookmark" data-v="${a.id}" aria-label="${saved ? "Remove from saved" : "Save"}" aria-pressed="${saved}" style="color:${saved ? "var(--ember)" : "inherit"};font-size:22px">${saved ? "★" : "☆"}</button>`);
+  }
+
+  // ---------- SOS light: flashes ··· ––– ··· on the screen ----------
+  let sosTimer = null;
+  function startSos() {
+    const dot = 300, pattern = [];
+    const sym = (on) => { pattern.push([true, on]); pattern.push([false, dot]); };
+    [1, 1, 1].forEach(() => sym(dot));
+    pattern[pattern.length - 1][1] = dot * 3;
+    [1, 1, 1].forEach(() => sym(dot * 3));
+    pattern[pattern.length - 1][1] = dot * 3;
+    [1, 1, 1].forEach(() => sym(dot));
+    pattern[pattern.length - 1][1] = dot * 7;
+    let i = 0;
+    const step = () => {
+      const el = app.querySelector(".sos-screen");
+      if (!el) return;
+      const [on, ms] = pattern[i % pattern.length];
+      el.classList.toggle("flash", on);
+      i++;
+      sosTimer = setTimeout(step, ms);
+    };
+    step();
+  }
+  function sosView() {
+    return `<div class="sos-screen" role="dialog" aria-label="SOS light">
+      <div><div class="t-over" style="color:inherit;opacity:.7">SOS LIGHT</div><div class="morse" style="margin-top:18px">··· ––– ···</div></div>
+      <p style="max-width:28ch;opacity:.85">Point the screen toward rescuers. Turn brightness up. The pattern repeats until you stop it.</p>
+      <button class="btn" style="background:var(--rose);color:#fff;height:56px;padding:0 40px" data-act="sos-stop">Stop</button></div>`;
+  }
+
+  // ---------- games ----------
+  // Tic-tac-toe with someone nearby. Each move is a tiny message over the mesh.
+  const G = { board: Array(9).fill(""), turn: "x", over: null, line: null, you: 0, them: 0, opp: "asha", last: -1 };
+  const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  const winner = (b) => { for (const l of LINES) if (b[l[0]] && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) return { who: b[l[0]], line: l }; return b.every(Boolean) ? { who: "draw", line: [] } : null; };
+  function aiMove(b) {
+    const free = b.map((v, i) => (v ? null : i)).filter((i) => i !== null);
+    const tryWin = (mark) => free.find((i) => { const c = b.slice(); c[i] = mark; return winner(c)?.who === mark; });
+    let m = tryWin("o"); if (m !== undefined) return m;
+    m = tryWin("x"); if (m !== undefined && Math.random() < .85) return m;
+    if (!b[4]) return 4;
+    const corners = [0, 2, 6, 8].filter((i) => !b[i]);
+    return corners.length && Math.random() < .7 ? corners[Math.floor(Math.random() * corners.length)] : free[Math.floor(Math.random() * free.length)];
+  }
+  function finishCheck() {
+    const w = winner(G.board);
+    if (!w) return false;
+    G.over = w.who; G.line = w.line;
+    if (w.who === "x") G.you++; else if (w.who === "o") G.them++;
+    return true;
+  }
+  function tttView() {
+    const opp = P[G.opp];
+    const status = G.over ? (G.over === "x" ? "You win! 🎉" : G.over === "o" ? opp.name + " wins" : "It's a draw")
+      : G.turn === "x" ? "Your move" : opp.name + " is thinking…";
+    return subScreen("Tic-tac-toe", `
+      <div class="vs" style="margin:16px 0 8px">
+        <div style="text-align:center">${avatar(S.avatar, "me", 52)}<div class="t-cap" style="margin-top:4px">You · X</div></div>
+        <div class="score num">${G.you} – ${G.them}</div>
+        <div style="text-align:center">${avatar(opp.avatar, opp.id, 52, opp.presence)}<div class="t-cap" style="margin-top:4px">${esc(opp.name)} · O</div></div>
+      </div>
+      <p class="t-head" style="text-align:center;margin:10px 0 16px" aria-live="polite">${status}</p>
+      <div class="board" role="grid" aria-label="Board">${G.board.map((v, i) => `<button class="cell ${v} ${G.line && G.line.includes(i) ? "win" : ""} ${i === G.last ? "pop" : ""}"
+        data-act="ttt" data-v="${i}" ${v || G.over || G.turn !== "x" ? "disabled" : ""} aria-label="Square ${i + 1}${v ? ", " + v.toUpperCase() : ""}">${v ? v.toUpperCase() : ""}</button>`).join("")}</div>
+      <div style="display:flex;justify-content:center;margin-top:20px">${G.over ? '<button class="btn" data-act="ttt-new">Play again</button>' : ""}</div>
+      <p class="t-cap" style="text-align:center;margin-top:16px">Each move is a 40-byte message, light enough for a Bluetooth link.<br>Web preview: ${esc(opp.name)} is simulated.</p>`);
+  }
+  function tttPlay(i) {
+    if (G.board[i] || G.over || G.turn !== "x") return;
+    G.board[i] = "x"; G.last = i; STATS.sent++; STATS.hourNow++;
+    if (finishCheck()) { render(); return; }
+    G.turn = "o"; render();
+    later(700 + Math.random() * 600, () => {
+      if (S.screen !== "ttt") return;
+      const m = aiMove(G.board);
+      G.board[m] = "o"; G.last = m; G.turn = "x";
+      finishCheck(); render();
+    });
+  }
+
+  // Survival quiz, played against someone nearby. Questions come from the guide.
+  const QUIZ = [
+    ["How long should you cool a burn under running water?", ["2 minutes", "5 minutes", "20 minutes", "1 hour"], 2, "burns"],
+    ["Three of anything (fires, whistles, flashes) means…", ["All clear", "Help / distress", "Come here", "Danger, stay away"], 1, "signals"],
+    ["Boil water for at least how long at low altitude?", ["10 seconds", "1 minute", "10 minutes", "Until it smells clean"], 1, "purify"],
+    ["Chest compressions in adult CPR should be about…", ["1 to 2 cm deep", "5 to 6 cm deep", "10 cm deep", "As soft as possible"], 1, "cpr"],
+    ["The 30-30 rule is about…", ["Water", "Lightning", "Fire", "Food"], 1, "lightning"],
+    ["What do you do first in an earthquake?", ["Run outside", "Stand in a lift", "Drop, cover, hold on", "Open the windows"], 2, "quake"],
+    ["What does 'S' in STOP stand for when you're lost?", ["Search", "Sprint", "Stop", "Shout"], 2, "lost"],
+    ["Most body heat in a shelter is lost to…", ["The sky", "The ground", "The wind only", "Your clothes"], 1, "shelter"],
+  ];
+  const Q = { i: 0, you: 0, them: 0, picked: null, theirPick: null, opp: "ravi", done: false };
+  function quizView() {
+    const opp = P[Q.opp];
+    if (Q.done) return subScreen("Survival quiz", `
+      <div style="text-align:center;margin-top:30px"><div style="font-size:54px">${Q.you > Q.them ? "🏆" : Q.you === Q.them ? "🤝" : "🌱"}</div>
+      <h1 class="t-title" style="margin-top:10px">${Q.you > Q.them ? "You won!" : Q.you === Q.them ? "A draw" : esc(opp.name) + " won this time"}</h1>
+      <p class="t-sub" style="margin-top:6px">You ${Q.you} · ${esc(opp.name)} ${Q.them} · out of ${QUIZ.length}</p>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:20px"><button class="btn" data-act="quiz-new">Play again</button><button class="btn secondary" data-act="tab-guide">Read the guide</button></div></div>`);
+    const [q, opts, right, art] = QUIZ[Q.i];
+    const answered = Q.picked !== null;
+    return subScreen("Survival quiz", `
+      <div class="vs" style="margin:12px 0">
+        <div style="text-align:center">${avatar(S.avatar, "me", 44)}<div class="t-cap">You</div></div>
+        <div class="score num">${Q.you} – ${Q.them}</div>
+        <div style="text-align:center">${avatar(opp.avatar, opp.id, 44, opp.presence)}<div class="t-cap">${esc(opp.name)}</div></div>
+      </div>
+      <div class="t-over" style="text-align:center">Question ${Q.i + 1} of ${QUIZ.length}</div>
+      <h2 class="t-head" style="text-align:center;margin:10px 0 18px">${q}</h2>
+      <div class="answers">${opts.map((o, i) => `<button class="answer ${answered && i === right ? "right" : answered && i === Q.picked ? "wrong" : ""}" data-act="quiz" data-v="${i}" ${answered ? "disabled" : ""}>
+        ${o}${answered && i === Q.theirPick ? ` <span class="t-cap">· ${esc(opp.name)}</span>` : ""}</button>`).join("")}</div>
+      ${answered ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+        <button class="btn text" data-act="open-article" data-v="${art}">Why? Read the guide</button>
+        <button class="btn" data-act="quiz-next">${Q.i + 1 < QUIZ.length ? "Next" : "See result"}</button></div>` : ""}`);
+  }
+  function quizAnswer(i) {
+    if (Q.picked !== null) return;
+    const right = QUIZ[Q.i][2];
+    Q.picked = i;
+    Q.theirPick = Math.random() < .7 ? right : (right + 1 + Math.floor(Math.random() * 3)) % 4;
+    if (i === right) Q.you++;
+    if (Q.theirPick === right) Q.them++;
+    render();
+  }
+
+  function gamesIdeasView() {
+    const idea = (em, t, b, tag) => `<div class="set idea"><span class="em">${em}</span><span class="main"><span class="t-strong">${t}</span> ${tag}<span class="t-cap" style="display:block">${b}</span></span></div>`;
+    const good = '<span class="tag pine">BLUETOOTH OK</span>', wifi = '<span class="tag sky">NEEDS WI-FI LINK</span>', gps = '<span class="tag ember">USES GPS</span>';
+    return subScreen("Games offline", `
+      <div class="large-title" style="margin-top:8px"><h1 class="t-hero">Which games work offline?</h1>
+        <p class="t-sub" style="margin-top:6px">Turn-based games send tiny messages, so they work even over slow Bluetooth and through several hops. Fast action games need a direct Wi-Fi link.</p></div>
+      <div class="group-label t-over">Great over the mesh</div>
+      <div class="group">
+        ${idea("⭕", "Tic-tac-toe, Connect 4", "Two players, a few bytes per move.", good)}
+        ${idea("♟️", "Chess, checkers, Ludo", "Turn-based board games, even across hops.", good)}
+        ${idea("🧠", "Survival quiz", "Learn the guide by playing. Works for a whole group.", good)}
+        ${idea("🐺", "Werewolf / Mafia", "Group storytelling game, roles sent secretly to each phone.", good)}
+        ${idea("🔤", "Word chain, 20 questions", "Pass-and-reply word games.", good)}
+      </div>
+      <div class="group-label t-over">Outdoor, using location</div>
+      <div class="group">
+        ${idea("🗺️", "Treasure hunt", "Hide a waypoint; others follow the compass to find it.", gps)}
+        ${idea("🏳️", "Capture the flag", "Teams see each other on the radar, not the other team.", gps)}
+      </div>
+      <div class="group-label t-over">Needs a close Wi-Fi link</div>
+      <div class="group">
+        ${idea("🎨", "Draw and guess", "Live drawing streams more data.", wifi)}
+        ${idea("🏎️", "Real-time racing or shooters", "Need low delay, so only phones right next to each other.", wifi)}
+      </div>`);
+  }
+
+  // ---------- person: who someone is, by their unique ID ----------
+  function personView() {
+    const p = P[S.person];
+    const code = safetyCode(MY_ID, p.uid);
+    return subScreen(p.name, `
+      <div class="intro" style="padding-top:8px">${avatar(p.avatar, p.id, 96, p.presence)}
+        <h1 class="t-title" style="margin-top:10px">${esc(p.name)}</h1><span class="t-sub">${statusLine(p)}</span></div>
+      <div class="group-label t-over">BlueMob ID</div>
+      <div class="group" style="padding:14px"><div class="id-card"><span class="t-cap">Given automatically to their phone. No two phones share one.</span>
+        <span class="big">BM · ${fmtId(p.uid)}</span></div>
+        ${dupName(p) ? `<p class="t-cap" style="margin-top:10px">Two people nearby are called ${esc(p.name)}. Their IDs tell them apart: this is ${shortId(p.uid)}.</p>` : ""}</div>
+      <div class="group-label t-over">Verify in person</div>
+      <div class="group spec" style="text-align:center"><div class="safety" aria-label="Safety symbols">${code.join("")}</div>
+        <p class="t-cap">If ${esc(p.name)}'s screen shows the same four symbols for you, you're really talking to each other.</p></div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:18px">
+        ${p.remote || p.presence === "online" ? `<button class="btn" data-act="open-chat" data-id="${p.id}">${I.chat} Message</button>` : ""}
+        ${p.presence === "online" ? `<button class="btn secondary" data-act="nav-to" data-v="${p.id}">${I.compass} Walk to</button>` : ""}
+      </div>`);
+  }
+
+  // ---------- shared sub-screen frame (pushed screens with a back button) ----------
+  function subScreen(title, body, actions = "") {
+    return `<div class="screen grouped ${S._anim === "push" ? "push-in" : ""}">
+      <header class="bar solid"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="bar-title" style="opacity:1;transform:none">${esc(title)}</div>${actions}</header>
+      <div class="scroll" id="scroll">${body}</div></div>`;
+  }
   // Keep "last seen" times fresh.
-  setInterval(() => { if (S.onboarded && S.screen === "main" && S.tab !== "you") refresh(); }, 30000);
+  setInterval(() => { if (S.onboarded && S.screen === "main" && (S.tab === "radar" || S.tab === "chats")) refresh(); }, 30000);
 
   render("fade");
   requestAnimationFrame(drawRadars);
