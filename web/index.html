@@ -315,7 +315,8 @@ button.set:hover { background: var(--sand); }
 @keyframes bounce { 0%, 60%, 100% { transform: none; opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
 
 /* The journey a message takes through the mesh and the bridge */
-.journey { list-style: none; display: flex; margin: 8px 0 2px; padding: 10px 12px 8px; border-radius: var(--r-md); background: var(--sand); width: min(300px, 100%); }
+.msg.routed { max-width: 92%; }
+.journey { list-style: none; display: flex; margin: 8px 0 2px; padding: 10px 8px 8px; border-radius: var(--r-md); background: var(--sand); width: 300px; max-width: 100%; }
 .journey li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; font-size: 10.5px; font-weight: 600; color: var(--ink-3); min-width: 0; text-align: center; }
 .journey li::before { content: ""; position: absolute; top: 5px; right: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0; transition: background var(--d-3); }
 .journey li:first-child::before { display: none; }
@@ -461,6 +462,58 @@ button.set:hover { background: var(--sand); }
 .idea { display: flex; gap: 12px; align-items: flex-start; }
 .idea .em { font-size: 26px; width: 40px; text-align: center; flex: none; }
 
+
+/* ---------- round 2 ---------- */
+.bot-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.bot-actions .chip { height: 32px; font-size: 13px; }
+.msg.tappable { cursor: pointer; }
+.route-strip { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; background: var(--sand); border-bottom: 1px solid var(--line); font-size: var(--t-cap); color: var(--ink-2); text-align: left; position: absolute; top: 56px; left: 0; right: 0; z-index: 2; }
+.route-strip b { color: var(--ink); font-weight: 600; }
+.route-strip .chev { margin-left: auto; }
+.messages.with-strip { padding-top: 104px; }
+.parties { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; margin-top: 8px; }
+.party { display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: var(--r-md); background: var(--canvas); min-width: 0; }
+.party b { font-size: 16px; }
+.party .uid { overflow-wrap: anywhere; line-height: 1.3; }
+.parties .arrow { color: var(--pine); width: 22px; }
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.timeline li { display: flex; gap: 12px; position: relative; padding-bottom: 16px; }
+.timeline li:last-child { padding-bottom: 0; }
+.timeline li::before { content: ""; position: absolute; left: 6px; top: 16px; bottom: 0; width: 2px; background: var(--line); }
+.timeline li:last-child::before { display: none; }
+.timeline li.done::before { background: var(--pine); }
+.timeline i { width: 14px; height: 14px; margin-top: 3px; border-radius: 50%; flex: none; background: var(--canvas); box-shadow: inset 0 0 0 2px var(--line); position: relative; z-index: 1; }
+.timeline li.done i { background: var(--pine); box-shadow: none; }
+.timeline li.wait i { background: var(--ember); box-shadow: 0 0 0 4px var(--ember-tint); }
+.sos-hero { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 0 8px; text-align: center; }
+.sos-big { width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #F0727A, var(--rose) 60%, #A8323A); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 12px rgba(217,79,85,.14), 0 0 0 26px rgba(217,79,85,.07), var(--shadow-2); transition: transform var(--d-2) var(--spring); }
+.sos-big b { font: 800 46px/1 var(--font-display); letter-spacing: .04em; }
+.sos-big span { font-size: var(--t-sub); opacity: .9; margin-top: 6px; }
+.sos-big:active { transform: scale(.95); }
+.sos-big.armed { animation: armed 0.9s infinite; }
+@keyframes armed { 50% { box-shadow: 0 0 0 18px rgba(217,79,85,.28), 0 0 0 36px rgba(217,79,85,.1), var(--shadow-2); } }
+.pay-options { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 2px 54px; }
+.pay-options p { flex-basis: 100%; }
+.games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.game-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: var(--r-lg); background: var(--canvas); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); text-align: left; min-height: 128px; min-width: 0; }
+.game-tile .em { font-size: 30px; margin-bottom: 4px; }
+.game-tile .tag { margin-top: auto; }
+.invite { position: absolute; z-index: 6; left: 12px; right: 12px; top: 12px; padding: 14px; border-radius: var(--r-lg); background: var(--canvas); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line); animation: dropIn var(--d-3) var(--spring); }
+@keyframes dropIn { from { transform: translateY(-120%); } to { transform: none; } }
+.invite-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.c4 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 10px; border-radius: var(--r-lg); background: var(--c-hop); width: min(340px, 100%); margin: 0 auto; }
+.c4-cell { aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; }
+.c4-cell i { width: 100%; height: 100%; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 3px 6px rgba(0,0,0,.25); }
+.c4-cell.x i { background: var(--mint); } .c4-cell.o i { background: var(--ember); }
+.c4-cell.win i { box-shadow: 0 0 0 3px #fff, inset 0 3px 6px rgba(0,0,0,.2); }
+.c4-cell.drop i { animation: dropDisc var(--d-3) var(--ease); }
+@keyframes dropDisc { from { transform: translateY(-160%); } to { transform: none; } }
+.chain { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; padding: 14px; border-radius: var(--r-lg); background: var(--canvas); min-height: 64px; }
+.chain .link { padding: 6px 12px; border-radius: var(--r-pill); background: var(--ember-tint); font-weight: 600; }
+.chain .link.mine { background: var(--pine-tint); color: var(--pine); }
+.heat { height: 14px; border-radius: 7px; background: var(--sky-tint); overflow: hidden; }
+.heat span { display: block; height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--sky), var(--ember), var(--rose)); transition: width var(--d-3) var(--ease); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
@@ -501,6 +554,7 @@ button.set:hover { background: var(--sand); }
     copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),
     sparkle: svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'),
     book: svg('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5ZM4 19a2 2 0 0 1 2-2h13M9 7h6"/>'),
+    wallet: svg('<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2M7 6l9-3 1 3"/>'),
     leaf: svg('<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15M5 19l7-7"/>'),
     plusBox: svg('<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/>'),
     drop: svg('<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/>'),
@@ -559,7 +613,7 @@ button.set:hover { background: var(--sand); }
     ravi:  { name: "Ravi",  avatar: "🐬", uid: "2F8E61C0D93A47B5", dist: 380,  bearing: 200, link: "Bluetooth link", rtt: 64 },
     meera: { name: "Meera", avatar: "🌵", uid: "B05D3E9A16F7C842", dist: 920,  bearing: 310, link: "good link", rtt: 41, internet: true },
     asha2: { name: "Asha",  avatar: "🌙", uid: "E4B09D2C71F3A856", dist: 1240, bearing: 20,  link: "Bluetooth link", rtt: 72 },
-    kabir: { name: "Kabir", avatar: "🐺", uid: "91AC5F2E08D4B763", dist: 1800, bearing: 130, link: "", rtt: 0 },
+    kabir: { name: "Kabir", avatar: "🐺", uid: "91AC5F2E08D4B763", dist: 1800, bearing: 130, link: "", rtt: 0, home: "Pune, about 1,000 km away" },
     dee:   { name: "Dee",   avatar: "🌻", uid: "5E7240BB9C1DA3F6", remote: true },
   };
   const P = {};
@@ -578,6 +632,7 @@ button.set:hover { background: var(--sand); }
     "I live right here on your phone, so we can chat even with zero signal. Try saying hi, or tap one of the suggestions below.",
   ];
   const SKY_SUGGEST = ["Hi 👋", "How does BlueMob work?", "What can I do here?", "Tell me a joke"];
+  const SKY_CHIPS = ["How do I make water safe?", "What do I do for a burn?", "I'm lost", "How do I find north?", "My friend got stung", "Tell me a joke"];
   const SKY_RULES = [
     [["hello", "hi", "hey", "hii", "namaste", "hola", "yo"], [
       "Hi! 😊 Great to hear from you. This is exactly how it feels when a friend nearby messages you, no towers needed.",
@@ -609,9 +664,8 @@ button.set:hover { background: var(--sand); }
     [["sad", "lonely", "alone", "bored"], ["You're not alone, I'm here 🤗. And once someone nearby opens BlueMob, they'll pop up on your Radar."]],
   ];
   const SKY_FALLBACK = [
-    "Interesting! 🤔 I'm just a simple bot, so I don't know everything. Try asking how BlueMob works.",
-    "Got it! 👍 With a real friend nearby, this message would already be on their screen.",
-    "Hmm, I'm still learning 🌱. Ask me about the radar, calls, or privacy.",
+    "I'm best at survival questions. Try \"How do I make water safe?\", \"What do I do for a burn?\" or \"How do I find north?\" 🌿",
+    "Got it! 👍 Ask me anything about first aid, water, fire, shelter or finding your way. My answers come from the survival guide on your phone.",
   ];
   let turn = 0;
   const matches = (text, key) => key.length <= 3
@@ -633,6 +687,10 @@ button.set:hover { background: var(--sand); }
     ravi: { rules: [[["hi", "hello", "hey"], ["Hi! 🐬 Only Bluetooth between us, a bit slower but it works"]],
                     [["where", "location"], ["Up the trail, maybe 400 m from you"]]],
             fallback: ["👍", "Cool cool", "Can you pass a message to Asha? She's out of my range"] },
+    kabir: { rules: [[["hi", "hello", "hey"], ["Kabir here! 🐺 I'm back home in Pune, 1,000 km away, and your message still found me. No numbers needed 😄"]],
+                     [["trip", "photos", "pics"], ["Best trip ever. Let's plan the next one!"]]],
+             fallback: ["Got it! Reached me at home 🏠", "Haha, miss the mountains already", "Talk soon 👋"] },
+    experts: { rules: [], fallback: ["Thanks. A volunteer from the expert network has your question and will reply here. If it's urgent, send an SOS from the Guide tab."] },
     asha2: { rules: [[["hi", "hello", "hey"], ["Hi! 🌙 Different Asha here, from the other camp. Our IDs keep us apart 😄"]]],
              fallback: ["Nice to meet you out here!", "👍", "Signal is zero here too"] },
     meera: { rules: [[["hi", "hello", "hey"], ["Hello! 🌵 I have one bar of internet up here, so I'm bridging messages out for everyone"]],
@@ -656,76 +714,87 @@ button.set:hover { background: var(--sand); }
   const STATS = { sent: 0, delivered: 0, direct: 0, hopped: 0, bridge: 0, relayed: 0, hourNow: 0 };
   const later = (ms, fn) => { const t = setTimeout(fn, ms); S.timers.push(t); return t; };
 
-  function incoming(id, text) {
+  function incoming(id, text, actions) {
     const c = convo(id);
-    c.messages.push({ id: uid(), me: false, text, time: now() });
+    c.messages.push({ id: uid(), me: false, text, time: now(), actions });
     if (S.chat !== id) c.unread++;
     refresh();
   }
 
-  function reply(id, text, opts = {}) {
+  /** msg is a string or { text, actions }. Shows typing first, like a real person. */
+  function reply(id, msg, opts = {}) {
+    const { text, actions } = typeof msg === "string" ? { text: msg } : msg;
     const c = convo(id);
     later(opts.wait ?? 500, () => {
       c.typing = true; refresh();
-      later(Math.min(700 + text.length * 18, 2800), () => {
+      later(Math.min(700 + text.length * 14, 2800), () => {
         c.typing = false;
-        incoming(id, text);
+        incoming(id, text, actions);
       });
     });
   }
+  const friendReply = (id, text) => (FRIEND[id] ? pickReply(FRIEND[id].rules, FRIEND[id].fallback, text) : null);
 
-  function send(id, text) {
+  function send(id, text, opts = {}) {
     text = text.trim();
     if (!text) return;
     const c = convo(id);
-    const m = { id: uid(), me: true, text, time: now(), status: "sending" };
+    const m = { id: uid(), me: true, text, time: now(), status: "sending", to: id, onDelivered: opts.onDelivered };
     c.messages.push(m);
     STATS.sent++; STATS.hourNow++;
     refresh();
 
     if (id === "sky") {
+      Object.assign(m, { route: ["You", "Sky"], via: "On this phone", hop: 0, hopTimes: [now()] });
       later(350, () => { m.status = "sent"; refresh(); });
-      later(800, () => { m.status = "delivered"; STATS.delivered++; STATS.direct++; refresh(); });
-      reply("sky", pickReply(SKY_RULES, SKY_FALLBACK, text), { wait: 1200 });
+      later(800, () => { m.status = "delivered"; m.hop = 1; m.hopTimes.push(now()); STATS.delivered++; STATS.direct++; refresh(); });
+      reply("sky", skyReply(text), { wait: 1200 });
       return;
     }
     const p = P[id];
-    if (p.remote) { sendViaBridge(m); return; }
-    if (p.presence !== "online") { m.status = "failed"; refresh(); return; }
+    // Anyone not right here is reached through the internet, by their ID, once someone nearby has internet.
+    if (p.remote || p.presence !== "online") { sendViaBridge(m, id); return m; }
+    Object.assign(m, { route: ["You", p.name], via: p.link, hop: 0, hopTimes: [now()] });
     later(150 + p.rtt, () => { m.status = "sent"; refresh(); });
-    later(400 + p.rtt * 3, () => { m.status = "delivered"; STATS.delivered++; STATS.direct++; refresh(); });
-    if (Math.random() < 0.85) reply(id, pickReply(FRIEND[id].rules, FRIEND[id].fallback, text), { wait: 1600 });
+    later(400 + p.rtt * 3, () => { m.status = "delivered"; m.hop = 1; m.hopTimes.push(now()); STATS.delivered++; STATS.direct++; refresh(); });
+    const r = friendReply(id, text);
+    if (r && Math.random() < 0.85) reply(id, r, { wait: 1600 });
+    return m;
   }
 
-  // A → B → C (has internet) → internet → D: the gateway idea, played out step by step.
+  // A → B → C (has internet) → internet → D: the gateway idea, played out hop by hop.
   const bridgeOnline = () => S.mesh && P.meera.presence === "online";
-  function routeFor() {
+  function routeFor(p) {
     const hops = ["You"];
     if (P.ravi.presence === "online") hops.push("Ravi");
-    hops.push("Meera 🌐", "Internet", "Dee");
+    hops.push("Meera 🌐", "Internet");
+    if (p.sms) hops.push("SMS");
+    hops.push(p.name);
     return hops;
   }
-  function sendViaBridge(m) {
+  function sendViaBridge(m, id) {
+    const p = P[id];
     if (!bridgeOnline()) {
       m.status = "queued";
-      convo("dee").queue.push(m);
-      log("No one with internet nearby yet. Message to Dee is waiting.");
+      convo(id).queue.push(m);
+      log("No one with internet nearby yet. Message to " + p.name + " is waiting.");
       refresh();
       return;
     }
-    m.route = routeFor();
-    m.hop = 0;
-    m.status = "sent";
+    Object.assign(m, { route: routeFor(p), hop: 0, status: "sent", hopTimes: [now()], via: p.sms ? "Text message (SMS) through a bridge" : "Internet through a bridge" });
     refresh();
     const step = () => {
       m.hop++;
+      m.hopTimes.push(now());
       if (m.hop >= m.route.length - 1) {
         m.status = "delivered";
         STATS.delivered++; STATS.bridge++;
-        if (m.route.length > 4) STATS.hopped++;
-        log("Delivered to Dee via " + m.route.slice(1, -1).join(" → "));
+        if (m.route.includes("Ravi")) STATS.hopped++;
+        log("Delivered to " + p.name + " via " + m.route.slice(1, -1).join(" → "));
         refresh();
-        reply("dee", pickReply(FRIEND.dee.rules, FRIEND.dee.fallback, m.text), { wait: 1800 });
+        if (m.onDelivered) m.onDelivered();
+        const r = friendReply(id, m.text);
+        if (r) reply(id, r, { wait: 1800 });
         return;
       }
       refresh();
@@ -734,8 +803,11 @@ button.set:hover { background: var(--sand); }
     later(700, step);
   }
   function flushBridgeQueue() {
-    const q = convo("dee").queue.splice(0);
-    q.forEach((m, i) => later(600 + i * 400, () => sendViaBridge(m)));
+    let i = 0;
+    for (const [id, c] of Object.entries(S.convos)) {
+      c.queue.splice(0).forEach((m) => later(600 + i++ * 450, () => sendViaBridge(m, id)));
+    }
+    flushSos();
   }
 
   // ---------- mesh simulation ----------
@@ -769,6 +841,7 @@ button.set:hover { background: var(--sand); }
     later(7200, () => setPresence("meera", "online"));
     later(9800, () => setPresence("asha2", "range"));
     later(11400, () => setPresence("asha2", "online"));
+    later(16000, () => maybeInvite());
     later(9000, () => { if (S.mesh && convo("asha").messages.length === 0) incoming("asha", "Hey! Saw you pop up on my radar 👋"); });
     refresh();
   }
@@ -822,10 +895,12 @@ button.set:hover { background: var(--sand); }
   const ORDER = { online: 0, range: 1, offline: 2, remote: 3 };
 
   function statusLine(p) {
+    if (p.sms) return esc(p.phone) + " · text message " + (bridgeOnline() ? "via Meera's internet" : "when a bridge appears");
+    if (p.id === "experts") return "Volunteer medics and rangers · " + (bridgeOnline() ? "via Meera's internet" : "when a bridge appears");
     if (p.remote) return bridgeOnline() ? "2,000 km away · via Meera's internet" : "2,000 km away · waiting for a bridge";
     if (p.presence === "online") return ["Online", S.shareLoc ? fmtDist(p.dist) + " away" : null, p.link].filter(Boolean).join(" · ");
     if (p.presence === "range") return "In range · connecting…";
-    return "Seen " + ago(p.lastSeen) + (S.shareLoc ? " · was " + fmtDist(p.dist) + " away" : "");
+    return "Seen " + ago(p.lastSeen) + (p.home ? " · now in " + p.home.split(",")[0] : S.shareLoc ? " · was " + fmtDist(p.dist) + " away" : "") + " · reach by ID";
   }
 
   // Avatar: emoji on a soft tint. Online people get a ring, others a small status badge.
@@ -852,7 +927,7 @@ button.set:hover { background: var(--sand); }
   function refresh() {
     if (!S.onboarded) return;
     if (S.screen === "chat") { renderChatParts(); return; }
-    if (S.screen === "main" || S.screen === "insights" || S.screen === "person") render();
+    if (["main", "insights", "person", "soshub", "info", "lobby", "money"].includes(S.screen)) render();
   }
 
   // Screen stack: open() pushes, back() pops.
@@ -878,7 +953,8 @@ button.set:hover { background: var(--sand); }
     if (!S.onboarded) { app.innerHTML = onboardingView(); afterOnboardingRender(); return; }
     S._anim = anim;
     const SCREENS = { design: designView, power: powerView, insights: insightsView, article: articleView, ttt: tttView,
-      quiz: quizView, games: gamesIdeasView, person: personView };
+      quiz: quizView, games: gamesIdeasView, person: personView, soshub: sosHubView, contacts: contactsView, info: messageInfoView,
+      money: moneyView, play: gamesHubView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
     if (S.screen === "chat") { app.innerHTML = chatView(anim); renderChatParts(true); }
     else if (S.screen === "sos") { app.innerHTML = sosView(); clearTimeout(sosTimer); startSos(); }
     else if (SCREENS[S.screen]) app.innerHTML = SCREENS[S.screen](anim);
@@ -994,7 +1070,7 @@ button.set:hover { background: var(--sand); }
     return `<div class="screen ${S.tab === "you" ? "grouped" : ""} ${anim === "fade" ? "fade-in" : anim === "push" ? "push-in" : ""}">
       <header class="bar"><div class="bar-title">${title}</div>${actions}</header>
       <div class="scroll" id="scroll">${body}</div>
-      ${tabbar()}</div>`;
+      ${tabbar()}${inviteBanner()}</div>`;
   }
   function tabbar() {
     const unread = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
@@ -1062,6 +1138,11 @@ button.set:hover { background: var(--sand); }
           <span style="flex:1;min-width:0"><span class="t-strong" style="display:block">${bridge ? "Meera is your bridge to the world" : "You're off-grid"}</span>
             <span class="t-sub">${bridge ? "She has internet. Message Dee, 2,000 km away, and watch it travel." : "No internet nearby yet. Messages to faraway friends will wait for a bridge."}</span></span>
           <span class="chev">${I.chevron}</span></button>
+        <button class="card feature press" data-act="money">
+          <span class="tile" style="background:#3A9A5B">${I.wallet}</span>
+          <span style="flex:1;min-width:0"><span class="t-strong" style="display:block">Trip money</span>
+            <span class="t-sub">Split costs offline, settle with UPI later.</span></span>
+          <span class="chev">${I.chevron}</span></button>
         <button class="card feature press" data-act="insights">
           <span class="tile" style="background:var(--c-hop)">${I.chart}</span>
           <span style="flex:1;min-width:0"><span class="t-strong" style="display:block">Mesh insights</span>
@@ -1073,11 +1154,11 @@ button.set:hover { background: var(--sand); }
             <span class="t-sub">A friendly bot that shows how off-grid chats feel.</span></span>
           <span class="chev">${I.chevron}</span></button>
       </div>
-      <div class="section-h"><h2 class="t-head">Play together</h2><button class="btn text" data-act="games">What works offline?</button></div>
+      <div class="section-h"><h2 class="t-head">Play together</h2><button class="btn text" data-act="play">All 12 games</button></div>
       <div class="hscroll">
-        <button class="gcard press" style="background:linear-gradient(150deg, var(--pine), #0B3D2E)" data-act="play-ttt"><span class="em">⭕</span><b>Tic-tac-toe</b><span style="font-size:13px;opacity:.85">vs Asha · nearby</span></button>
-        <button class="gcard press" style="background:linear-gradient(150deg, #C2621A, #7A3A0E)" data-act="play-quiz"><span class="em">🧠</span><b>Survival quiz</b><span style="font-size:13px;opacity:.85">vs Ravi · 8 questions</span></button>
-        <button class="gcard press" style="background:linear-gradient(150deg, #2F7BC0, #173E5C)" data-act="games"><span class="em">🐺</span><b>More games</b><span style="font-size:13px;opacity:.85">Werewolf, chess, treasure hunt</span></button>
+        <button class="gcard press" style="background:linear-gradient(150deg, var(--pine), #0B3D2E)" data-act="lobby" data-v="ttt"><span class="em">⭕</span><b>Tic-tac-toe</b><span style="font-size:13px;opacity:.85">Ask people nearby</span></button>
+        <button class="gcard press" style="background:linear-gradient(150deg, #C2621A, #7A3A0E)" data-act="lobby" data-v="c4"><span class="em">🔴</span><b>Connect 4</b><span style="font-size:13px;opacity:.85">Ask people nearby</span></button>
+        <button class="gcard press" style="background:linear-gradient(150deg, #2F7BC0, #173E5C)" data-act="play"><span class="em">🎲</span><b>All games</b><span style="font-size:13px;opacity:.85">Quiz, word chain, treasure hunt and more</span></button>
       </div>
       <p class="t-cap" style="text-align:center;margin-top:24px">Web preview · nearby people are simulated. The Android app finds real phones over Bluetooth and Wi-Fi.</p>`;
   }
@@ -1166,8 +1247,9 @@ button.set:hover { background: var(--sand); }
   function chatEntries() {
     const entries = [
       { id: "sky", name: SKY.name, emoji: SKY.avatar, presence: "online", kind: "bot", status: "Your practice buddy" },
-      { id: "dee", name: P.dee.name, emoji: P.dee.avatar, presence: "remote", kind: "far", status: statusLine(P.dee) },
-      ...nearby().map((p) => ({ id: p.id, name: p.name, emoji: p.avatar, presence: p.presence, kind: "near", status: statusLine(p) })),
+      ...["dee", "experts", ...S.contacts.map((c) => c.id)].map((id) => ({ id, name: P[id].name, emoji: P[id].avatar, presence: "remote",
+        kind: P[id].sms ? "sms" : id === "experts" ? "expert" : "far", status: statusLine(P[id]) })),
+      ...nearby().map((p) => ({ id: p.id, name: p.name, emoji: p.avatar, presence: p.presence, kind: p.presence === "offline" ? "far" : "near", status: statusLine(p) })),
     ];
     const lastTime = (e) => S.convos[e.id]?.messages.at(-1)?.time ?? 0;
     return entries.sort((a, b) => (a.id === "sky" ? -1 : b.id === "sky" ? 1 : 0) || lastTime(b) - lastTime(a) || ORDER[a.presence] - ORDER[b.presence]);
@@ -1176,7 +1258,7 @@ button.set:hover { background: var(--sand); }
     const q = S.query.trim().toLowerCase();
     const all = chatEntries();
     const list = all.filter((e) => (!q || e.name.toLowerCase().includes(q)) &&
-      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && e.kind === "far") ||
+      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && ["far", "sms", "expert"].includes(e.kind)) ||
        (S.filter === "unread" && S.convos[e.id]?.unread) || (S.filter === "online" && e.presence === "online")));
     const onlineNow = nearby().filter((p) => p.presence === "online");
     return `
@@ -1192,7 +1274,8 @@ button.set:hover { background: var(--sand); }
     const c = S.convos[e.id];
     const last = c?.messages.at(-1);
     const unread = c?.unread || 0;
-    const tag = e.kind === "bot" ? '<span class="tag sky">BOT</span>' : e.kind === "far" ? '<span class="tag ember">VIA BRIDGE</span>' : "";
+    const tag = { bot: '<span class="tag sky">BOT</span>', far: '<span class="tag ember">VIA BRIDGE</span>', sms: '<span class="tag ember">SMS</span>',
+      expert: '<span class="tag pine">EXPERTS</span>' }[e.kind] || "";
     const preview = c?.typing ? '<span class="typing-text">typing…</span>'
       : last ? (last.me ? "You: " : "") + esc(last.text.split("\n")[0]) : esc(e.status);
     return `<button class="row press ${unread ? "unread" : ""}" data-act="open-chat" data-id="${e.id}">
@@ -1206,12 +1289,13 @@ button.set:hover { background: var(--sand); }
   function chatInfo(id) {
     if (id === "sky") return { name: SKY.name, emoji: SKY.avatar, presence: "online", bot: true };
     const p = P[id];
-    return { name: p.name, emoji: p.avatar, presence: p.presence, remote: p.remote };
+    return { name: p.name, emoji: p.avatar, presence: p.presence, remote: p.remote, far: p.remote || p.presence === "offline", sms: p.sms };
   }
-  function canSend(id) { return id === "sky" || P[id].remote || P[id].presence === "online"; }
+  // You can always write: people out of range are reached through the internet once a bridge is nearby.
+  function canSend(id) { return true; }
   function chatView(anim) {
     const id = S.chat, info = chatInfo(id);
-    const live = !info.bot && !info.remote;
+    const live = !info.bot && !info.far;
     return `<div class="screen chat-screen ${anim === "push" ? "push-in" : ""}">
       <header class="bar solid chat-bar">
         <button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>
@@ -1220,7 +1304,8 @@ button.set:hover { background: var(--sand); }
         <button class="icon-btn" data-act="soon" data-v="Voice calls" aria-label="Voice call">${I.phone}</button>
         <button class="icon-btn" data-act="soon" data-v="Video calls" aria-label="Video call">${I.video}</button>
       </header>
-      <div class="messages" id="messages"></div>
+      ${info.bot ? "" : `<button class="route-strip" id="route-strip" data-act="route-strip"></button>`}
+      <div class="messages ${info.bot ? "" : "with-strip"}" id="messages"></div>
       <div class="suggest" id="chips"></div>
       <div class="composer-wrap">
         <div class="composer-note" id="note" hidden></div>
@@ -1235,18 +1320,23 @@ button.set:hover { background: var(--sand); }
       </div></div>`;
   }
   function introHtml(id, info) {
-    const sub = info.bot ? "Practice bot · lives on your phone, works with zero signal"
+    const p = P[id];
+    const sub = info.bot ? "Ask me survival questions. My answers come from the guide on your phone, so I work with zero signal."
+      : id === "experts" ? "Volunteer medics, rangers and rescuers. Your questions go out as soon as someone nearby has internet, and you're notified when they reply."
+      : info.sms ? `${esc(p.phone)} · They don't need BlueMob. Your message reaches them as a normal text once someone nearby has internet.`
       : info.remote ? "2,000 km away. Messages travel through a nearby friend who has internet."
-      : "Met nearby over " + (P[id].link || "Bluetooth") + ". Messages go phone to phone.";
-    const tag = info.bot ? '<span class="tag sky">PRACTICE CHAT</span>' : info.remote ? '<span class="tag ember">VIA BRIDGE</span>' : '<span class="tag pine">DIRECT</span>';
+      : p.presence === "offline" ? `You met on the trip. ${p.home ? "Now in " + esc(p.home) + ". " : ""}You can still talk, by BlueMob ID, with no phone numbers shared.`
+      : "Met nearby over " + (p.link || "Bluetooth") + ". Messages go phone to phone.";
+    const tag = info.bot ? '<span class="tag sky">SURVIVAL BUDDY</span>' : info.sms ? '<span class="tag ember">BY TEXT MESSAGE</span>'
+      : info.far ? '<span class="tag ember">VIA BRIDGE</span>' : '<span class="tag pine">DIRECT</span>';
     return `<div class="intro">${avatar(info.emoji, id, 80)}<h2 class="t-title" style="margin-top:8px">${esc(info.name)}</h2>${tag}<p class="t-sub" style="margin-top:4px">${sub}</p></div>`;
   }
   function journeyHtml(m) {
     if (m.status === "queued") return '<div class="journey-note">Waiting for someone nearby with internet…</div>';
-    if (!m.route) return "";
+    if (!m.route || m.route.length < 3) return "";
     const done = m.status === "delivered";
     const steps = m.route.map((h, i) => `<li class="${done || i < m.hop ? "done" : i === m.hop ? "now" : ""}"><i></i><span class="ellipsis" style="max-width:100%">${esc(h.replace(" 🌐", ""))}</span></li>`).join("");
-    const note = done ? "Delivered through Meera's internet" : m.hop === 0 ? "Leaving your phone…" : "Passing through " + m.route[m.hop].replace(" 🌐", "") + "…";
+    const note = done ? "Delivered through Meera's internet · tap for details" : m.hop === 0 ? "Leaving your phone…" : "Passing through " + m.route[m.hop].replace(" 🌐", "") + "…";
     return `<ol class="journey" aria-label="Route">${steps}</ol><div class="journey-note">${note}</div>`;
   }
   function messagesHtml(id, info, c) {
@@ -1261,8 +1351,9 @@ button.set:hover { background: var(--sand); }
       const showMeta = !withNext || m.route || m.status === "failed";
       const tick = m.me ? (m.status === "failed" ? '<span class="fail">Not sent · out of range</span>'
         : `<span class="${m.status === "delivered" ? "ok" : ""}" style="display:inline-flex">${TICK[m.status] || ""}</span>`) : "";
-      out.push(`<div class="msg ${m.me ? "me" : "them"} ${pos} ${withPrev ? "" : "gap"} ${isNew ? "new" : ""}" data-mid="${m.id}">
+      out.push(`<div class="msg ${m.me ? "me tappable" : "them"} ${m.route && m.route.length > 2 ? "routed" : ""} ${pos} ${withPrev ? "" : "gap"} ${isNew ? "new" : ""}" data-mid="${m.id}" ${m.me ? `data-act="msg-info" data-v="${m.id}"` : ""}>
         <div class="bubble">${esc(m.text)}</div>${m.me ? journeyHtml(m) : ""}
+        ${m.actions ? `<div class="bot-actions">${m.actions.map((a) => `<button class="chip" data-act="${a.act}" data-v="${a.v || ""}">${esc(a.label)}</button>`).join("")}</div>` : ""}
         ${showMeta ? `<div class="meta">${clock(m.time)}${tick}</div>` : ""}</div>`);
     });
     if (c.typing) out.push('<div class="typing" aria-label="typing"><i></i><i></i><i></i></div>');
@@ -1275,24 +1366,32 @@ button.set:hover { background: var(--sand); }
     if (!sub) return;
     if (first) S.convos[id].messages.forEach((m) => S.seen.add(m.id));
     sub.innerHTML = c.typing ? '<span class="typing-text">typing…</span>'
-      : info.bot ? "Practice bot · always here"
-      : info.remote ? statusLine(P.dee)
+      : info.bot ? "Survival buddy · answers from your guide"
+      : info.far ? statusLine(P[id])
       : info.presence === "online" ? '<span style="color:var(--pine)">Online nearby</span>'
       : info.presence === "range" ? "In range · connecting…" : "Seen " + ago(P[id].lastSeen);
     const ping = document.getElementById("ping-btn");
     if (ping) ping.hidden = info.presence !== "online";
 
+    const strip = document.getElementById("route-strip");
+    if (strip) {
+      const lastMine = c.messages.filter((m) => m.me).at(-1);
+      const route = lastMine && lastMine.route;
+      strip.innerHTML = lastMine
+        ? `<span>Last message: <b>${route ? route.map(esc).join(" → ") : "You → " + esc(info.name)}</b> · ${lastMine.status === "delivered" ? "delivered " + clock(lastMine.hopTimes.at(-1)) : lastMine.status === "queued" ? "waiting for a bridge" : "on its way"}</span><span class="chev">${I.chevron}</span>`
+        : `<span><b>${esc(S.name)} ${shortId(MY_ID)}</b> → <b>${esc(info.name)} ${P[id].sms ? esc(P[id].phone) : shortId(P[id].uid)}</b> · ${info.far ? "through a bridge to the internet" : "direct, phone to phone"}</span>`;
+      strip.dataset.v = lastMine ? lastMine.id : "";
+    }
     const box = document.getElementById("messages");
     const nearBottom = first || box.scrollHeight - box.scrollTop - box.clientHeight < 120;
     box.innerHTML = messagesHtml(id, info, c);
     if (nearBottom) box.scrollTo({ top: box.scrollHeight, behavior: first ? "auto" : "smooth" });
 
     document.getElementById("chips").innerHTML = info.bot && !c.typing
-      ? SKY_SUGGEST.map((s) => `<button class="chip" data-act="suggest" data-v="${esc(s)}">${esc(s)}</button>`).join("") : "";
+      ? SKY_CHIPS.map((s) => `<button class="chip" data-act="suggest" data-v="${esc(s)}">${esc(s)}</button>`).join("") : "";
     const ok = canSend(id);
     const note = document.getElementById("note");
-    const noteText = !ok ? info.name + " is out of range. Soon messages will hop through others to reach them."
-      : info.remote && !bridgeOnline() ? "No internet nearby yet. Messages wait, then go out when someone with internet joins." : "";
+    const noteText = info.far && !bridgeOnline() ? "No one nearby has internet yet. Your message waits safely and goes out the moment a bridge appears." : "";
     note.textContent = noteText; note.hidden = !noteText;
     const draft = document.getElementById("draft");
     draft.disabled = !ok;
@@ -1341,6 +1440,15 @@ button.set:hover { background: var(--sand); }
           `<button class="switch" role="switch" aria-checked="${S.shareLoc}" aria-label="Share my location" data-act="toggle-loc"></button>`)}
         ${set("#3A9A5B", I.battery, "Power", S.survival ? "Survival power on · about " + hoursLeft(true) + " h left" : "Battery " + S.batteryPct + "% · make it last for days", chev, "power")}
         ${set("var(--c-hop)", I.chart, "Mesh insights", "Messages, routes and links", chev, "insights")}
+      </div>
+
+      <div class="group-label t-over">Safety and people</div>
+      <div class="group">
+        ${set("var(--rose)", I.alert, "SOS", S.sos ? "Active since " + clock(S.sos.time) : "Alert people nearby and text your SOS contacts", chev, "sos")}
+        ${set("var(--sky)", I.phone, "Loved ones", S.contacts.length + " saved · message by phone number", chev, "contacts")}
+        ${set("#3A9A5B", I.wallet, "Trip money", "Split costs, settle with UPI later", chev, "money")}
+        ${set("#7C6BD6", I.game, "Game invites", S.muteInvites ? "Muted" : "People nearby can invite you",
+          `<button class="switch" role="switch" aria-checked="${!S.muteInvites}" aria-label="Game invites" data-act="mute-invites"></button>`)}
       </div>
 
       <div class="group-label t-over">BlueMob</div>
@@ -1458,7 +1566,45 @@ button.set:hover { background: var(--sand); }
         S.prevTab = S.tab; S.tab = v; store.set("tab", v); render("fade"); S.prevTab = v; break;
       case "filter": S.filter = v; render(); break;
       case "open-chat": open("chat", { chat: el.dataset.id }); break;
-      case "design": case "power": case "insights": case "games": open(act); break;
+      case "design": case "power": case "insights": case "games": case "contacts": case "money": case "play": open(act); break;
+      case "sos": S.sosArmed = false; open("soshub"); break;
+      case "sos-light": open("sos"); break;
+      case "sos-send":
+        if (!S.sosArmed) { S.sosArmed = true; render(); later(4000, () => { if (S.sosArmed) { S.sosArmed = false; if (S.screen === "soshub") render(); } }); }
+        else { S.sosArmed = false; sendSos(); toast("SOS sent to everyone nearby"); }
+        break;
+      case "sos-safe":
+        S.sos.contacts.forEach((sc) => send(sc.id, "I'm safe now. Thank you. " + S.name));
+        S.sos.near.forEach((id) => send(id, "I'm safe now, thank you! 🙏"));
+        S.sos = null; toast("Told everyone you're safe"); render(); break;
+      case "ask-expert": askExpert(); break;
+      case "msg-info": open("info", { info: { chat: S.chat, mid: v } }); break;
+      case "route-strip": if (el.dataset.v) open("info", { info: { chat: S.chat, mid: el.dataset.v } }); else open("person", { person: S.chat }); break;
+      case "contact-sos": { const c = S.contacts.find((x) => x.id === v); c.sos = !c.sos; saveContacts(); render(); break; }
+      case "contact-del": S.contacts = S.contacts.filter((x) => x.id !== v); saveContacts(); toast("Removed"); render(); break;
+      case "pay-open": S.payOpen = S.payOpen === v ? null : v; render(); break;
+      case "pay-upi": toast("On Android this opens your UPI app with " + RUPEE(-Object.fromEntries(balances())[v]) + " to " + P[v].name + " filled in"); S.payOpen = null; render(); break;
+      case "pay-cash": S.settled[v] = (S.settled[v] || 0) + Object.fromEntries(balances())[v]; store.set("settled", S.settled); S.payOpen = null;
+        send(v, "💸 Paid you in cash. Marked as settled in Trip money."); toast("Marked as paid. " + P[v].name + " is notified"); render(); break;
+      case "pay-request": send(v, "💸 Payment request: " + RUPEE(Object.fromEntries(balances())[v]) + " for the trip. Pay me through UPI when you're online, or in cash."); toast("Request sent to " + P[v].name); break;
+      case "ex-toggle": S.exSplit = (S.exSplit || []).includes(v) ? S.exSplit.filter((x) => x !== v) : [...(S.exSplit || []), v]; render(); break;
+      case "lobby": openLobby(v); break;
+      case "lobby-switch": openLobby(v, el.dataset.p); break;
+      case "lobby-start": { const R = S.lobby.responses; startGame(S.lobby.game, Object.keys(R).find((id) => R[id].state === "joined")); break; }
+      case "mute-invites": S.muteInvites = !S.muteInvites; store.set("muteInvites", S.muteInvites); if (S.muteInvites) S.invite = null;
+        toast(S.muteInvites ? "Game invites muted" : "Game invites on"); render(); break;
+      case "invite-join": { const iv = S.invite; S.invite = null; startGame(iv.game, iv.from); break; }
+      case "invite-other": S.invite.choosing = true; render(); break;
+      case "invite-suggest": { const iv = S.invite; S.invite = null; toast(`Asked ${P[iv.from].name}: “How about ${gameOf(v).name}?”`); render();
+        later(1500, () => { toast(P[iv.from].name + " said yes!"); later(600, () => { if (S.screen === "main") openLobby(v, iv.from); }); }); break; }
+      case "invite-mute": S.invite = null; S.muteInvites = true; store.set("muteInvites", true); toast("Game invites muted. Turn them back on in You"); render(); break;
+      case "c4": c4Play(Number(v)); break;
+      case "c4-new": Object.assign(C4, { b: Array(42).fill(""), turn: "x", over: null, line: [], last: -1 }); render(); break;
+      case "words-giveup": W.over = W.opp; W.msg = "You gave up. Good game!"; render(); break;
+      case "words-new": Object.assign(W, { words: [], over: null, msg: "", turn: "me" }); render(); break;
+      case "hunt-turn": H.heading = (H.heading + Number(v) + 360) % 360; render(); break;
+      case "hunt-walk": huntWalk(); break;
+      case "hunt-new": huntNew(H.opp); render(); break;
       case "back": back(); break;
       case "person": open("person", { person: v }); break;
       case "survival": S.survival = !S.survival; store.set("survival", S.survival); applySurvival();
@@ -1512,6 +1658,23 @@ button.set:hover { background: var(--sand); }
     }
   });
   app.addEventListener("submit", (e) => {
+    if (e.target.id === "contact-form") {
+      e.preventDefault();
+      const name = document.getElementById("ct-name").value.trim(), phone = document.getElementById("ct-phone").value.trim();
+      if (!name || phone.replace(/\D/g, "").length < 6) { toast("Add a name and a full phone number"); return; }
+      const c = { id: "c-" + uid(), name, phone, sos: document.getElementById("ct-sos").checked };
+      S.contacts.push(c); contactToPerson(c); saveContacts(); toast(name + " added"); render(); return;
+    }
+    if (e.target.id === "expense-form") {
+      e.preventDefault();
+      const amt = Number(document.getElementById("ex-amt").value.replace(/[^\d.]/g, "")), note = document.getElementById("ex-note").value.trim() || "Shared cost";
+      const split = ["me", ...(S.exSplit || [])];
+      if (!amt || split.length < 2) { toast(!amt ? "Enter an amount" : "Pick at least one person to split with"); return; }
+      S.ledger.push({ id: uid(), payer: "me", amount: amt, note, split, time: now() }); store.set("ledger", S.ledger);
+      S.exSplit.forEach((id) => send(id, `🧾 I paid ${RUPEE(amt)} for ${note}. Your share is ${RUPEE(amt / split.length)}. It's in Trip money.`));
+      S.exSplit = []; toast("Added and shared with " + (split.length - 1) + " people"); render(); return;
+    }
+    if (e.target.id === "word-form") { e.preventDefault(); wordsPlay(document.getElementById("word-in").value); return; }
     if (e.target.id !== "composer") return;
     e.preventDefault();
     const input = document.getElementById("draft");
@@ -1938,7 +2101,7 @@ button.set:hover { background: var(--sand); }
     return `
       <div class="large-title"><div class="t-sub">${ARTICLES.length} guides · stored on your phone</div><h1 class="t-hero">Survival guide</h1></div>
       <div class="sos-strip">
-        <button class="sos-btn press" style="background:var(--rose);color:#fff" data-act="sos">${I.flash}<span><b style="display:block">SOS light</b><span style="font-size:12px;opacity:.9">Flash ··· ––– ···</span></span></button>
+        <button class="sos-btn press" style="background:var(--rose);color:#fff" data-act="sos">${I.alert}<span><b style="display:block">SOS</b><span style="font-size:12px;opacity:.9">Nearby now · family by bridge</span></span></button>
         <button class="sos-btn press" style="background:var(--ember-tint);color:var(--ink)" data-act="open-article" data-v="lost">${I.compass}<span><b style="display:block">I'm lost</b><span class="t-cap">Stop, think, plan</span></span></button>
       </div>
       <label class="search" style="margin-top:14px">${I.search}<input id="gq" type="search" placeholder="Search bleeding, water, fire…" value="${esc(S.gq)}" aria-label="Search the survival guide"></label>
@@ -2134,8 +2297,11 @@ button.set:hover { background: var(--sand); }
       <div class="group-label t-over">Verify in person</div>
       <div class="group spec" style="text-align:center"><div class="safety" aria-label="Safety symbols">${code.join("")}</div>
         <p class="t-cap">If ${esc(p.name)}'s screen shows the same four symbols for you, you're really talking to each other.</p></div>
+      <div class="group-label t-over">Stay in touch</div>
+      <div class="group spec"><p class="t-sub">${p.presence === "online" ? "You're connected directly right now." : `You met ${esc(p.name)} on this trip${p.home ? ", and they're now in " + esc(p.home) : ""}.`}
+        You can keep talking anywhere, by BlueMob ID. No phone numbers are shared. When either of you has no signal, messages wait for a bridge.</p></div>
       <div style="display:flex;gap:10px;justify-content:center;margin-top:18px">
-        ${p.remote || p.presence === "online" ? `<button class="btn" data-act="open-chat" data-id="${p.id}">${I.chat} Message</button>` : ""}
+        <button class="btn" data-act="open-chat" data-id="${p.id}">${I.chat} Message</button>
         ${p.presence === "online" ? `<button class="btn secondary" data-act="nav-to" data-v="${p.id}">${I.compass} Walk to</button>` : ""}
       </div>`);
   }
@@ -2146,6 +2312,500 @@ button.set:hover { background: var(--sand); }
       <header class="bar solid"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>
         <div class="bar-title" style="opacity:1;transform:none">${esc(title)}</div>${actions}</header>
       <div class="scroll" id="scroll">${body}</div></div>`;
+  }
+
+  // =====================================================================
+  //  Round 2: Sky answers from the guide, experts, SOS contacts, loved ones,
+  //  message routes, trip money, game lobby + more games
+  // =====================================================================
+
+  // ---------- reach anyone by ID, even after the trip ----------
+  P.experts = { id: "experts", name: "Expert network", avatar: "🩺", uid: "E0C4A71B3D9F2265", remote: true, presence: "remote", met: true,
+    about: "Volunteer medics, rangers and rescuers" };
+
+  // Loved ones and SOS contacts are phone numbers. They don't need BlueMob: they get a normal text (SMS).
+  S.contacts = store.get("contacts", [{ id: "c-mom", name: "Mom", phone: "+91 98765 43210", sos: true, example: true }]);
+  function contactToPerson(c) {
+    P[c.id] = { id: c.id, name: c.name, avatar: "💌", uid: c.phone.replace(/\D/g, "").padEnd(16, "0").slice(0, 16), remote: true, sms: true,
+      phone: c.phone, presence: "remote", met: true };
+    FRIEND[c.id] = { rules: [[["sos", "help", "emergency"], ["(SMS reply) We got your SOS and called the rescue team. Stay where you are, we love you ❤️"]]],
+      fallback: ["(SMS reply) Thank god you're okay! ❤️ Call when you can.", "(SMS reply) Got it. Stay warm and safe 🙏"] };
+  }
+  S.contacts.forEach(contactToPerson);
+  const saveContacts = () => store.set("contacts", S.contacts.map(({ id, name, phone, sos, example }) => ({ id, name, phone, sos, example })));
+
+  // ---------- Sky answers survival questions from the built-in guide ----------
+  const SKY_KEYS = {
+    cpr: ["cpr", "unconscious", "not breathing", "stopped breathing", "heart attack", "cardiac", "collapsed", "resuscitat", "no pulse"],
+    bleed: ["bleed", "blood", "deep cut", "wound", "tourniquet", "gash"],
+    burns: ["burn", "scald"],
+    choke: ["chok", "can't breathe food", "swallowed"],
+    hypo: ["hypotherm", "freezing", "shiver", "too cold", "very cold", "frostbite"],
+    heat: ["heat stroke", "heatstroke", "sunstroke", "overheat", "too hot", "heat exhaustion"],
+    snake: ["snake", "venom", "bitten"],
+    fracture: ["broken", "fracture", "sprain", "bone", "ankle", "twisted", "splint"],
+    "find-water": ["find water", "no water", "thirst", "dehydrat", "where to get water", "out of water"],
+    purify: ["purif", "boil water", "clean water", "safe water", "dirty water", "drink water", "drinking water", "safe to drink"],
+    fire: ["fire", "campfire", "matches", "lighter", "tinder"],
+    shelter: ["shelter", "sleep outside", "sleep in the open", "stay dry", "build a hut"],
+    north: ["north", "direction", "which way", "without a compass", "navigate", "stars"],
+    lost: ["lost", "can't find my way", "cant find my way", "stranded", "where am i"],
+    signals: ["rescue", "signal", "helicopter", "whistle", "get found", "be found", "attract attention"],
+    lightning: ["lightning", "thunder", "storm"],
+    quake: ["earthquake", "quake", "tremor"],
+    flood: ["flood", "river rising", "water rising"],
+    threes: ["priorit", "first thing", "how long can", "survive without", "hungry", "food"],
+  };
+  const URGENT = /\b(hurt|pain|sick|injur|emergency|bitten|stung|sting|allerg|fever|poison|vomit|faint|seizure|pregnan|unwell|dizzy|bee|scorpion|spider)/;
+  function skyReply(text) {
+    const t = text.toLowerCase();
+    S.lastQ = text;
+    let best = null, score = 0;
+    for (const [id, keys] of Object.entries(SKY_KEYS)) {
+      const sc = keys.reduce((n, k) => n + (t.includes(k) ? k.length : 0), 0);
+      if (sc > score) { score = sc; best = id; }
+    }
+    if (best) {
+      const a = ARTICLES.find((x) => x.id === best);
+      const steps = a.steps.slice(0, 4).map((s, i) => `${i + 1}. ${s}`).join("\n");
+      const more = a.steps.length > 4 ? `\n…plus ${a.steps.length - 4} more step${a.steps.length - 4 > 1 ? "s" : ""} in the guide.` : "";
+      const avoid = a.donts.length ? `\n\nAvoid: ${a.donts.join(" ")}` : "";
+      const actions = [{ label: "Open full guide", act: "open-article", v: a.id }];
+      if (a.cat === "aid") actions.push({ label: "🆘 SOS", act: "sos" });
+      actions.push({ label: "Ask an expert", act: "ask-expert" });
+      return { text: `From your survival guide: ${a.title}\n${a.intro}\n\n${steps}${more}${avoid}`, actions };
+    }
+    const unknownHelp = {
+      text: "I don't have a guide for that on your phone. Here's what I can do:\n\n" +
+        "• Ask an expert: I'll send your question to volunteer medics and rangers as soon as someone nearby has internet (a bridge). You'll be notified when they reply.\n" +
+        "• SOS: reaches everyone nearby right away, and texts your SOS contacts as soon as a bridge appears.\n" +
+        "• Message your loved ones: it goes out the moment a bridge is available.",
+      actions: [{ label: "Ask an expert", act: "ask-expert" }, { label: "🆘 SOS", act: "sos" }, { label: "Message loved ones", act: "contacts" }, { label: "Browse the guide", act: "tab-guide" }],
+    };
+    if (URGENT.test(t)) return unknownHelp;
+    if (SKY_RULES.some(([keys]) => keys.some((k) => matches(t, k)))) return pickReply(SKY_RULES, SKY_FALLBACK, text);
+    if (/\?|\b(how|what|why|where|when|can i|should i|is it)\b/.test(t)) return unknownHelp;
+    return pickReply(SKY_RULES, SKY_FALLBACK, text);
+  }
+  function askExpert() {
+    const q = (S.lastQ || "").trim();
+    open("chat", { chat: "experts" });
+    if (q) later(250, () => send("experts", "Question from the field: " + q));
+  }
+
+  // ---------- SOS: nearby now, marked contacts as soon as a bridge appears ----------
+  S.sos = null;
+  S.sosArmed = false;
+  function flushSos() { refresh(); }
+  function sosText() {
+    return `SOS from ${S.name} (BlueMob ${shortId(MY_ID)}). I need help. Last position 30.0869 N, 78.2676 E, near base camp. Battery ${S.batteryPct}%. Sent with BlueMob.`;
+  }
+  function sendSos() {
+    const near = nearby().filter((p) => p.presence === "online");
+    const text = sosText();
+    S.sos = { time: now(), near: near.map((p) => p.id), contacts: S.contacts.filter((c) => c.sos).map((c) => ({ id: c.id, status: "waiting", time: null })) };
+    log("SOS sent to " + near.length + " people nearby");
+    S.sos.contacts.forEach((sc) => { sc.msg = send(sc.id, text, { onDelivered: () => { sc.status = "sent"; sc.time = now(); refresh(); } }); });
+    // People nearby answer first: they are the fastest help.
+    near.slice(0, 1).forEach((p) => later(2500, () => incoming(p.id, `🆘 I got your SOS! I'm ${fmtDist(p.dist)} from you and coming now. Stay where you are.`)));
+    render();
+  }
+  function sosHubView() {
+    const s = S.sos;
+    const contacts = S.contacts.filter((c) => c.sos);
+    const statusRow = (icon, color, title, sub) => `<div class="set"><span class="tile" style="background:${color}">${icon}</span>
+      <span class="main"><span class="t-strong" style="display:block">${title}</span><span class="t-cap">${sub}</span></span></div>`;
+    const body = !s ? `
+      <div class="sos-hero">
+        <button class="sos-big ${S.sosArmed ? "armed" : ""}" data-act="sos-send" aria-label="${S.sosArmed ? "Tap again to send SOS" : "Send SOS"}">
+          <b>SOS</b><span>${S.sosArmed ? "Tap again to send" : "Tap to send"}</span></button>
+        <p class="t-sub" style="max-width:32ch">Goes to everyone nearby right away, and texts your SOS contacts as soon as someone nearby has internet.</p>
+      </div>
+      <div class="group-label t-over">What will be sent</div>
+      <div class="group spec"><p style="font-size:15px">${esc(sosText())}</p></div>`
+      : `
+      <div class="large-title" style="margin-top:8px"><span class="tag" style="background:var(--rose);color:#fff">SOS ACTIVE · ${clock(s.time)}</span>
+        <h1 class="t-hero" style="margin-top:10px">Help is being called</h1></div>
+      <div class="group">
+        ${statusRow(I.mesh, "var(--pine)", `Delivered to ${s.near.length} people nearby`, s.near.length ? s.near.map((id) => nameWithId(P[id])).join(", ") + " · straight away, over the mesh" : "No one connected right now. It will go out as people appear.")}
+        ${s.contacts.map((sc) => { const c = P[sc.id]; return statusRow(I.phone, sc.status === "sent" ? "var(--pine)" : "var(--ember)",
+          `${esc(c.name)} · ${esc(c.phone)}`, sc.status === "sent" ? `Texted at ${clock(sc.time)} through Meera's internet`
+            : sc.msg && sc.msg.status === "sent" ? "On its way through Meera's internet…"
+            : "Waiting for a bridge. Sends automatically when someone nearby has internet."); }).join("")}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:18px"><button class="btn" data-act="sos-safe">I'm safe now</button></div>`;
+    return subScreen("SOS", `${body}
+      <div class="group-label t-over">More</div>
+      <div class="group">
+        <button class="set" data-act="sos-light"><span class="tile" style="background:var(--rose)">${I.flash}</span><span class="main"><span class="t-strong" style="display:block">SOS light</span><span class="t-cap">Flash ··· ––– ··· on the screen for rescuers</span></span><span class="chev">${I.chevron}</span></button>
+        <button class="set" data-act="contacts"><span class="tile" style="background:var(--sky)">${I.phone}</span><span class="main"><span class="t-strong" style="display:block">SOS contacts</span><span class="t-cap">${contacts.length ? contacts.map((c) => esc(c.name)).join(", ") : "None yet. Add a number"}</span></span><span class="chev">${I.chevron}</span></button>
+      </div>`);
+  }
+
+  // ---------- loved ones & SOS contacts (phone numbers) ----------
+  function contactsView() {
+    return subScreen("Loved ones", `
+      <div class="large-title" style="margin-top:8px"><h1 class="t-hero">Loved ones</h1>
+        <p class="t-sub" style="margin-top:6px">Message anyone by phone number. They don't need BlueMob: your message reaches them as a normal text the moment someone nearby has internet.</p></div>
+      <div class="group">${S.contacts.length ? S.contacts.map((c) => `<div class="set">
+          <span class="avatar" style="width:40px;height:40px"><span class="face" style="background:${tint(c.id)};font-size:20px">💌</span></span>
+          <span class="main"><span class="t-strong" style="display:block">${esc(c.name)} ${c.example ? '<span class="tag">EXAMPLE</span>' : ""}</span><span class="t-cap num">${esc(c.phone)}</span></span>
+          <button class="chip" data-act="contact-sos" data-v="${c.id}" aria-pressed="${!!c.sos}" aria-label="Use for SOS">SOS</button>
+          <button class="icon-btn" data-act="open-chat" data-id="${c.id}" aria-label="Message ${esc(c.name)}">${I.chat}</button>
+          <button class="icon-btn" data-act="contact-del" data-v="${c.id}" aria-label="Remove ${esc(c.name)}">${I.trash}</button></div>`).join("")
+        : '<div class="set"><span class="t-sub">No one yet. Add someone below.</span></div>'}</div>
+      <div class="group-label t-over">Add someone</div>
+      <form class="group spec" id="contact-form">
+        <div class="field"><label class="t-over" for="ct-name">Name</label><input id="ct-name" maxlength="30" placeholder="e.g. Papa" autocomplete="name"></div>
+        <div class="field"><label class="t-over" for="ct-phone">Phone number</label><input id="ct-phone" inputmode="tel" maxlength="20" placeholder="+91 …" autocomplete="tel"></div>
+        <label class="row" style="padding:0;gap:10px;cursor:pointer"><input type="checkbox" id="ct-sos" checked style="width:20px;height:20px;accent-color:var(--pine)"> <span>Text them when I send an SOS</span></label>
+        <button class="btn" type="submit">Add</button>
+      </form>
+      <p class="t-cap" style="text-align:center;margin-top:16px">Numbers stay on your phone. They're only used when you send a message or an SOS.</p>`);
+  }
+
+  // ---------- message info: from whom, to whom, and every hop in between ----------
+  const HOP_TEXT = {
+    Ravi: "Hopped to Ravi's phone over Bluetooth",
+    "Meera 🌐": "Reached Meera's phone, which has internet (the bridge)",
+    Internet: "Crossed the internet to the BlueMob relay",
+    SMS: "Turned into a normal text message (SMS)",
+  };
+  function messageInfoView() {
+    const c = convo(S.info.chat), m = c.messages.find((x) => x.id === S.info.mid);
+    const to = S.info.chat === "sky" ? { name: "Sky", uid: null } : P[S.info.chat];
+    const route = m.route || ["You", to.name];
+    const rows = route.map((h, i) => {
+      const t = m.hopTimes && m.hopTimes[i];
+      const done = t != null;
+      const label = i === 0 ? "Left your phone" : i === route.length - 1 ? `Delivered to ${esc(to.name)}` : HOP_TEXT[h] || "Passed through " + esc(h);
+      return `<li class="${done ? "done" : m.status === "queued" && i === 0 ? "wait" : ""}"><i></i><span class="main"><span class="t-strong" style="display:block">${label}</span>
+        <span class="t-cap num">${done ? new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : m.status === "queued" && i === 0 ? "Waiting for someone nearby with internet" : "Not yet"}</span></span></li>`;
+    }).join("");
+    const who = (title, name, id, sub) => `<div class="party"><span class="t-over">${title}</span><b>${name}</b><span class="uid">${id}</span>${sub ? `<span class="t-cap">${sub}</span>` : ""}</div>`;
+    return subScreen("Message info", `
+      <div class="parties">
+        ${who("From", esc(S.name), "BM · " + fmtId(MY_ID), "This phone")}
+        <span class="arrow">${I.send}</span>
+        ${who("To", esc(to.name), to.sms ? esc(to.phone) : to.uid ? "BM · " + fmtId(to.uid) : "On this phone", to.sms ? "By text message" : to.remote || to.presence === "offline" ? "Far away, by ID" : "Nearby")}
+      </div>
+      <div class="msg me" style="max-width:100%;align-items:flex-end;margin:16px 0"><div class="bubble">${esc(m.text)}</div></div>
+      <div class="group-label t-over">Journey</div>
+      <div class="group spec"><ol class="timeline">${rows}</ol></div>
+      <div class="group-label t-over">Details</div>
+      <div class="group">
+        <div class="set"><span class="main"><span class="t-cap">Written</span><span class="t-strong num" style="display:block">${clock(m.time)}</span></span></div>
+        <div class="set"><span class="main"><span class="t-cap">Travelled by</span><span class="t-strong" style="display:block">${esc(m.via || (m.status === "queued" ? "Waiting for a bridge" : "Direct link"))}</span></span></div>
+        <div class="set"><span class="main"><span class="t-cap">Hops</span><span class="t-strong num" style="display:block">${Math.max(0, route.length - 2)} phone${route.length - 2 === 1 ? "" : "s"} in between</span></span></div>
+        <div class="set"><span class="main"><span class="t-cap">Privacy</span><span class="t-strong" style="display:block">Planned: end-to-end encryption, so phones that carry it can't read it</span></span></div>
+      </div>`);
+  }
+
+  // ---------- trip money: who owes whom, settled later through UPI ----------
+  const RUPEE = (n) => "₹" + Math.round(n).toLocaleString("en-IN");
+  S.ledger = store.get("ledger", [
+    { id: "e1", payer: "asha", amount: 900, note: "Dinner at the dhaba", split: ["me", "asha", "ravi"], time: now() - 5 * 3600e3, example: true },
+    { id: "e2", payer: "me", amount: 600, note: "Fuel", split: ["me", "ravi"], time: now() - 3 * 3600e3, example: true },
+    { id: "e3", payer: "meera", amount: 450, note: "Firewood and tea", split: ["me", "meera", "asha"], time: now() - 3600e3, example: true },
+  ]);
+  S.settled = store.get("settled", {});
+  S.payOpen = null;
+  const nameOf = (id) => (id === "me" ? "You" : P[id] ? P[id].name : id);
+  function balances() {
+    const b = {};
+    for (const e of S.ledger) {
+      const share = e.amount / e.split.length;
+      if (e.payer === "me") e.split.filter((x) => x !== "me").forEach((x) => (b[x] = (b[x] || 0) + share));
+      else if (e.split.includes("me")) b[e.payer] = (b[e.payer] || 0) - share;
+    }
+    for (const [id, v] of Object.entries(S.settled)) if (b[id] != null) b[id] -= v;
+    return Object.entries(b).filter(([, v]) => Math.abs(v) >= 1);
+  }
+  function moneyView() {
+    const bal = balances();
+    const owe = bal.filter(([, v]) => v < 0).reduce((n, [, v]) => n - v, 0);
+    const owed = bal.filter(([, v]) => v > 0).reduce((n, [, v]) => n + v, 0);
+    const online = nearby().filter((p) => p.presence === "online");
+    return subScreen("Trip money", `
+      <div class="large-title" style="margin-top:8px"><h1 class="t-hero">Trip money</h1>
+        <p class="t-sub" style="margin-top:6px">Split costs with no signal. Settle up through UPI when you're back online.</p></div>
+      <div class="tiles">
+        <div class="tile-stat"><span class="t-cap">You owe</span><b style="color:var(--ember)">${RUPEE(owe)}</b></div>
+        <div class="tile-stat"><span class="t-cap">You're owed</span><b style="color:var(--pine)">${RUPEE(owed)}</b></div>
+      </div>
+      <div class="group-label t-over">Settle up</div>
+      <div class="group">${bal.length ? bal.map(([id, v]) => {
+        const p = P[id];
+        const iOwe = v < 0;
+        return `<div class="set" style="flex-wrap:wrap">${avatar(p.avatar, id, 40, p.presence)}
+          <span class="main"><span class="t-strong" style="display:block">${nameWithId(p)}</span><span class="t-cap">${iOwe ? "You owe " + RUPEE(-v) : "Owes you " + RUPEE(v)}</span></span>
+          <button class="btn small ${iOwe ? "" : "secondary"}" data-act="${iOwe ? "pay-open" : "pay-request"}" data-v="${id}">${iOwe ? "Pay " + RUPEE(-v) : "Request"}</button>
+          ${S.payOpen === id ? `<div class="pay-options">
+            <button class="btn small" data-act="pay-upi" data-v="${id}">Pay with UPI app</button>
+            <button class="btn small secondary" data-act="pay-cash" data-v="${id}">Paid in cash</button>
+            <p class="t-cap">UPI needs your phone's own internet. With no signal, use UPI Lite X tap-to-pay in your bank app, or pay cash and mark it here.</p></div>` : ""}</div>`;
+      }).join("") : '<div class="set"><span class="t-sub">All settled up 🎉</span></div>'}</div>
+
+      <div class="group-label t-over">Add an expense</div>
+      <form class="group spec" id="expense-form">
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">
+          <div class="field"><label class="t-over" for="ex-amt">Amount ₹</label><input id="ex-amt" inputmode="numeric" placeholder="300"></div>
+          <div class="field"><label class="t-over" for="ex-note">For</label><input id="ex-note" maxlength="40" placeholder="Snacks"></div>
+        </div>
+        <div><span class="t-over">Split equally with</span><div class="filters" style="margin:8px 0 0;padding:0">${online.length ? online.map((p) =>
+          `<button type="button" class="chip" data-act="ex-toggle" data-v="${p.id}" aria-pressed="${(S.exSplit || []).includes(p.id)}">${p.avatar} ${nameWithId(p)}</button>`).join("") : '<span class="t-cap">Switch on the mesh to split with people nearby.</span>'}</div></div>
+        <button class="btn" type="submit">Add and tell them</button>
+      </form>
+
+      <div class="group-label t-over">Expenses</div>
+      <div class="group">${S.ledger.slice().reverse().map((e) => `<div class="set">
+        <span class="main"><span class="t-strong" style="display:block">${esc(e.note)} ${e.example ? '<span class="tag">EXAMPLE</span>' : ""}</span>
+        <span class="t-cap">${nameOf(e.payer)} paid · split ${e.split.length} ways · ${RUPEE(e.amount / e.split.length)} each</span></span>
+        <span class="t-strong num">${RUPEE(e.amount)}</span></div>`).join("")}</div>
+
+      <div class="group-label t-over">How payments work without internet</div>
+      <div class="group">
+        ${[["var(--pine)", I.mesh, "A shared record, not a wallet", "BlueMob never holds money. It keeps a record of who paid what, shared with the people involved."],
+           ["var(--sky)", I.phone, "Pay through your UPI app", "When you're online, one tap opens GPay, PhonePe or BHIM with the amount and person filled in."],
+           ["var(--ember)", I.flash, "No signal? Tap to pay", "UPI Lite X in bank apps can pay phone-to-phone over NFC, fully offline, for small amounts."],
+           ["#7C6BD6", I.globe, "Requests travel by bridge", "Ask someone far away to pay you. The request reaches them as soon as anyone nearby has internet."]]
+          .map(([c, ic, a, b]) => `<div class="set"><span class="tile" style="background:${c}">${ic}</span><span class="main"><span class="t-strong" style="display:block">${a}</span><span class="t-cap">${b}</span></span></div>`).join("")}
+      </div>`);
+  }
+
+  // ---------- games: catalogue, lobby, invites ----------
+  const GAMES = [
+    { id: "ttt", name: "Tic-tac-toe", em: "⭕", players: "2 players", play: true, grad: "linear-gradient(150deg,#11694E,#0B3D2E)" },
+    { id: "c4", name: "Connect 4", em: "🔴", players: "2 players", play: true, grad: "linear-gradient(150deg,#C2621A,#7A3A0E)" },
+    { id: "quiz", name: "Survival quiz", em: "🧠", players: "2+ players", play: true, grad: "linear-gradient(150deg,#2F7BC0,#173E5C)" },
+    { id: "words", name: "Word chain", em: "🔤", players: "2+ players", play: true, grad: "linear-gradient(150deg,#7C6BD6,#43348F)" },
+    { id: "hunt", name: "Treasure hunt", em: "🗺️", players: "2+ · outdoors", play: true, grad: "linear-gradient(150deg,#8A5A44,#4A2C1F)" },
+    { id: "chess", name: "Chess", em: "♟️", players: "2 players" },
+    { id: "checkers", name: "Checkers", em: "⚫", players: "2 players" },
+    { id: "ludo", name: "Ludo", em: "🎲", players: "2–4 players" },
+    { id: "wolf", name: "Werewolf", em: "🐺", players: "5+ players" },
+    { id: "twenty", name: "20 questions", em: "❓", players: "2+ players" },
+    { id: "draw", name: "Draw and guess", em: "🎨", players: "3+ · Wi-Fi link" },
+    { id: "flag", name: "Capture the flag", em: "🏳️", players: "Teams · outdoors" },
+  ];
+  const gameOf = (id) => GAMES.find((g) => g.id === id);
+  S.muteInvites = store.get("muteInvites", false);
+  S.lobby = null;
+  S.invite = null;
+  // How simulated nearby people answer an invite.
+  function inviteAnswer(pid, game) {
+    if (pid === "asha2") return { state: "muted" };
+    if (pid === "meera") return { state: "busy", say: "Busy bridging everyone's messages. Maybe later!" };
+    if (pid === "asha") return ["quiz", "words", "twenty"].includes(game) ? { state: "suggest", suggest: "c4", say: "Not this one. Connect 4?" } : { state: "joined" };
+    if (pid === "ravi") return ["quiz", "words", "twenty", "wolf", "chess"].includes(game) ? { state: "joined" } : { state: "suggest", suggest: "quiz", say: "Not this. Survival quiz?" };
+    return { state: "joined" };
+  }
+  function openLobby(game, preJoined) {
+    const people = nearby().filter((p) => p.presence === "online");
+    S.lobby = { game, responses: Object.fromEntries(people.map((p) => [p.id, { state: "asking" }])) };
+    if (preJoined) S.lobby.responses[preJoined] = { state: "joined" };
+    people.forEach((p, i) => {
+      if (p.id === preJoined) return;
+      later(900 + i * 700, () => {
+        if (!S.lobby || S.lobby.game !== game) return;
+        S.lobby.responses[p.id] = inviteAnswer(p.id, game);
+        if (S.screen === "lobby") render();
+      });
+    });
+    S.screen === "lobby" ? render() : open("lobby");
+  }
+  function gamesHubView() {
+    return subScreen("Play", `
+      <div class="large-title" style="margin-top:8px"><h1 class="t-hero">Play together</h1>
+        <p class="t-sub" style="margin-top:6px">Pick a game and BlueMob asks people nearby if they'd like to join. They can say yes, suggest another game, or mute invites.</p></div>
+      <div class="games-grid">${GAMES.map((g) => `<button class="game-tile press" data-act="lobby" data-v="${g.id}" style="${g.play ? `background:${g.grad};color:#fff` : ""}">
+        <span class="em">${g.em}</span><b>${g.name}</b><span class="t-cap" style="color:inherit;opacity:.8">${g.players}</span>
+        ${g.play ? "" : '<span class="tag">ANDROID APP</span>'}</button>`).join("")}</div>
+      <div class="group" style="margin-top:20px"><div class="set"><span class="tile" style="background:var(--ink-3)">${I.game}</span>
+        <span class="main"><span class="t-strong" style="display:block">Game invites from others</span><span class="t-cap">${S.muteInvites ? "Muted. Nobody can invite you." : "On. You'll see a banner when someone nearby invites you."}</span></span>
+        <button class="switch" role="switch" aria-checked="${!S.muteInvites}" aria-label="Game invites" data-act="mute-invites"></button></div></div>
+      <button class="btn text" style="margin:12px auto 0;display:flex" data-act="games">Which games work offline, and why?</button>`);
+  }
+  function lobbyView() {
+    const g = gameOf(S.lobby.game);
+    const R = S.lobby.responses;
+    const ids = Object.keys(R);
+    const joined = ids.filter((id) => R[id].state === "joined");
+    const pill = (r) => ({
+      asking: '<span class="tag">ASKING…</span>', joined: '<span class="tag pine">JOINED</span>', busy: '<span class="tag ember">BUSY</span>',
+      muted: '<span class="tag">MUTED INVITES</span>', suggest: '<span class="tag sky">SUGGESTS ANOTHER</span>' }[r.state]);
+    return subScreen(g.name, `
+      <div class="intro" style="padding-top:6px"><span style="font-size:56px">${g.em}</span><h1 class="t-title">${g.name}</h1><span class="t-sub">${g.players}</span></div>
+      <div class="group-label t-over">Asked ${ids.length} people nearby</div>
+      <div class="group">${ids.length ? ids.map((id) => { const p = P[id], r = R[id]; return `<div class="set">${avatar(p.avatar, id, 40, p.presence)}
+          <span class="main"><span class="t-strong" style="display:block">${nameWithId(p)}</span>
+          <span class="t-cap">${r.say ? "“" + esc(r.say) + "”" : r.state === "muted" ? "Has game invites turned off" : r.state === "asking" ? "Invite sent over the mesh…" : "Ready to play"}</span></span>
+          ${r.state === "suggest" ? `<button class="btn small secondary" data-act="lobby-switch" data-v="${r.suggest}" data-p="${id}">Play ${gameOf(r.suggest).name}</button>` : pill(r)}</div>`; }).join("")
+        : '<div class="set"><span class="t-sub">No one online nearby. Switch the mesh on and wait for people to appear.</span></div>'}</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:20px">
+        ${g.play ? `<button class="btn" data-act="lobby-start" ${joined.length ? "" : "disabled"}>${joined.length ? "Start with " + joined.map((id) => esc(P[id].name)).join(", ") : "Waiting for someone to join…"}</button>`
+          : '<p class="t-sub" style="text-align:center;max-width:32ch">This game is coming in the Android app. Try one of the coloured games for now.</p>'}
+      </div>`);
+  }
+  function startGame(game, opp) {
+    S.lobby = null;
+    // Leave the lobby behind, so "back" from the game returns to where the invite started.
+    if (S.screen === "lobby") Object.assign(S, S.stack.pop() || { screen: "main" });
+    if (game === "ttt") { Object.assign(G, { board: Array(9).fill(""), turn: "x", over: null, line: null, last: -1, opp }); open("ttt"); }
+    if (game === "quiz") { Object.assign(Q, { i: 0, you: 0, them: 0, picked: null, theirPick: null, done: false, opp }); open("quiz"); }
+    if (game === "c4") { Object.assign(C4, { b: Array(42).fill(""), turn: "x", over: null, line: [], last: -1, opp }); open("c4"); }
+    if (game === "words") { Object.assign(W, { words: [], over: null, opp, msg: "" }); open("words"); }
+    if (game === "hunt") { huntNew(opp); open("hunt"); }
+  }
+  // Someone nearby invites you, unless invites are muted.
+  function maybeInvite() {
+    if (S.muteInvites || S.invite || !S.mesh || P.ravi.presence !== "online" || !S.onboarded) return;
+    S.invite = { from: "ravi", game: "quiz", choosing: false };
+    refresh();
+  }
+  function inviteBanner() {
+    const iv = S.invite;
+    if (!iv || S.screen !== "main") return "";
+    const p = P[iv.from], g = gameOf(iv.game);
+    return `<div class="invite" role="alert">
+      <div class="row" style="padding:0;gap:12px">${avatar(p.avatar, p.id, 40, p.presence)}
+        <span class="main"><span class="t-strong" style="display:block">${esc(p.name)} invites you to ${g.em} ${g.name}</span><span class="t-cap">${fmtDist(p.dist)} away · nearby</span></span></div>
+      ${iv.choosing ? `<div class="filters" style="margin:10px 0 0;padding:0">${GAMES.filter((x) => x.play && x.id !== iv.game).map((x) =>
+          `<button class="chip" data-act="invite-suggest" data-v="${x.id}">${x.em} ${x.name}</button>`).join("")}</div>`
+        : `<div class="invite-actions"><button class="btn small" data-act="invite-join">Join</button>
+          <button class="btn small secondary" data-act="invite-other">Not this one</button>
+          <button class="btn small secondary" data-act="invite-mute">Mute invites</button></div>`}
+    </div>`;
+  }
+
+  // Connect 4
+  const C4 = { b: Array(42).fill(""), turn: "x", over: null, line: [], you: 0, them: 0, opp: "asha", last: -1 };
+  const c4At = (b, r, c) => (r < 0 || r > 5 || c < 0 || c > 6 ? null : b[r * 7 + c]);
+  function c4Drop(b, col, mark) { for (let r = 5; r >= 0; r--) if (!b[r * 7 + col]) { b[r * 7 + col] = mark; return r * 7 + col; } return -1; }
+  function c4Win(b) {
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 7; c++) {
+      const m = b[r * 7 + c]; if (!m) continue;
+      for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+        const cells = [0, 1, 2, 3].map((k) => [r + dr * k, c + dc * k]);
+        if (cells.every(([rr, cc]) => c4At(b, rr, cc) === m)) return { who: m, line: cells.map(([rr, cc]) => rr * 7 + cc) };
+      }
+    }
+    return b.every(Boolean) ? { who: "draw", line: [] } : null;
+  }
+  function c4Ai(b) {
+    const cols = [3, 2, 4, 1, 5, 0, 6].filter((c) => !b[c]);
+    for (const mark of ["o", "x"]) for (const c of cols) { const t = b.slice(); c4Drop(t, c, mark); if (c4Win(t)?.who === mark) return c; }
+    const safe = cols.filter((c) => { const t = b.slice(); c4Drop(t, c, "o"); return !cols.some((c2) => { const u = t.slice(); return c4Drop(u, c2, "x") >= 0 && c4Win(u)?.who === "x"; }); });
+    const pool = safe.length ? safe : cols;
+    return Math.random() < .6 ? pool[0] : pool[Math.floor(Math.random() * pool.length)];
+  }
+  function c4View() {
+    const opp = P[C4.opp];
+    const status = C4.over ? (C4.over === "x" ? "You win! 🎉" : C4.over === "o" ? opp.name + " wins" : "It's a draw") : C4.turn === "x" ? "Your move: tap a column" : opp.name + " is thinking…";
+    return subScreen("Connect 4", `
+      ${vsHeader(opp, C4.you, C4.them, "Green", "Orange")}
+      <p class="t-head" style="text-align:center;margin:8px 0 14px" aria-live="polite">${status}</p>
+      <div class="c4" role="grid" aria-label="Connect 4 board">${C4.b.map((v, i) => `<button class="c4-cell ${v} ${C4.line.includes(i) ? "win" : ""} ${i === C4.last ? "drop" : ""}"
+        data-act="c4" data-v="${i % 7}" ${C4.over || C4.turn !== "x" || C4.b[i % 7] ? "disabled" : ""} aria-label="Column ${(i % 7) + 1}"><i></i></button>`).join("")}</div>
+      <div style="display:flex;justify-content:center;margin-top:18px">${C4.over ? '<button class="btn" data-act="c4-new">Play again</button>' : ""}</div>
+      <p class="t-cap" style="text-align:center;margin-top:14px">Web preview: ${esc(opp.name)} is simulated.</p>`);
+  }
+  function c4Play(col) {
+    if (C4.over || C4.turn !== "x") return;
+    const at = c4Drop(C4.b, col, "x"); if (at < 0) return;
+    C4.last = at; STATS.sent++; STATS.hourNow++;
+    const w = c4Win(C4.b);
+    if (w) { C4.over = w.who; C4.line = w.line; if (w.who === "x") C4.you++; render(); return; }
+    C4.turn = "o"; render();
+    later(800 + Math.random() * 600, () => {
+      if (S.screen !== "c4" || C4.over) return;
+      C4.last = c4Drop(C4.b, c4Ai(C4.b), "o"); C4.turn = "x";
+      const w2 = c4Win(C4.b);
+      if (w2) { C4.over = w2.who; C4.line = w2.line; if (w2.who === "o") C4.them++; }
+      render();
+    });
+  }
+  function vsHeader(opp, a, b, la = "", lb = "") {
+    return `<div class="vs" style="margin:14px 0 4px">
+      <div style="text-align:center">${avatar(S.avatar, "me", 48)}<div class="t-cap" style="margin-top:4px">You${la ? " · " + la : ""}</div></div>
+      <div class="score num">${a} – ${b}</div>
+      <div style="text-align:center">${avatar(opp.avatar, opp.id, 48, opp.presence)}<div class="t-cap" style="margin-top:4px">${esc(opp.name)}${lb ? " · " + lb : ""}</div></div></div>`;
+  }
+
+  // Word chain: each word starts with the last letter of the one before. Nature words only.
+  const NATURE = ("acorn alder algae alpine amber ant antelope apple ash aspen aster aurora avalanche badger bamboo bark basil bay beach bear beaver bee beech beetle berry birch bison blossom boulder bramble brook buffalo bush butterfly cactus camel canyon cardinal cave cedar cheetah cherry chestnut cliff cloud clover cobra coconut condor coral cougar coyote crane creek crocodile crow cypress daisy deer delta desert dew dolphin dove dragonfly dune eagle earth eel egret elephant elk elm ember estuary falcon fern ferret field finch fir firefly fjord flamingo flower fog forest fox frog frost gale gazelle gecko geyser ginger giraffe glacier goat goose gorge grass grove gull hail hare hawk hazel heather hedgehog heron hill hippo holly honey horizon hornet ibex ibis iceberg iguana iris island ivy jackal jaguar jasmine jay jungle juniper kangaroo kelp kestrel kingfisher kite kiwi koala lagoon lake larch lark laurel lava leaf lemon leopard lichen lily lime lion lizard llama lotus lynx magnolia mango mangrove maple marsh meadow mist mole monsoon moose moss moth mountain mushroom nectar nest nettle newt nightingale oak oasis ocean octopus olive orchid osprey otter owl palm panda panther parrot peak pebble pelican pine plateau plum pond poplar poppy prairie puffin python quail quartz rabbit rain rainbow raven reed reef river robin rock rose sage salmon sand savanna seal sequoia shark shell shore sky sloth snail snow sparrow spruce squirrel stone stork stream sun swan swamp thistle thunder tide tiger toad tortoise tree tulip tundra turtle valley violet volcano vulture walnut walrus wasp waterfall wave whale wheat willow wind wolf woodpecker wren yak yew zebra").split(" ");
+  const W = { words: [], over: null, opp: "ravi", msg: "" };
+  function wordsView() {
+    const opp = P[W.opp];
+    const last = W.words.at(-1);
+    const need = last ? last.w.slice(-1).toUpperCase() : null;
+    return subScreen("Word chain", `
+      ${vsHeader(opp, W.words.filter((x) => x.by === "me").length, W.words.filter((x) => x.by !== "me").length)}
+      <p class="t-sub" style="text-align:center;margin:6px 0 14px">Nature words only. Each word starts with the last letter of the one before.</p>
+      <div class="chain">${W.words.length ? W.words.map((x) => `<span class="link ${x.by === "me" ? "mine" : ""}">${esc(x.w)}</span>`).join('<span class="t-cap">→</span>') : '<span class="t-sub">You start. Any nature word.</span>'}</div>
+      ${W.over ? `<div style="text-align:center;margin-top:18px"><h2 class="t-title">${W.over === "me" ? "You win! 🎉" : esc(opp.name) + " wins"}</h2>
+          <p class="t-sub" style="margin-top:4px">${esc(W.msg)}</p><button class="btn" style="margin-top:14px" data-act="words-new">Play again</button></div>`
+        : W.turn === "them" ? `<p class="t-head" style="text-align:center;margin-top:18px">${esc(opp.name)} is thinking…</p>`
+        : `<form class="composer" id="word-form" style="margin-top:18px">
+            <div class="field-pill"><input id="word-in" autocomplete="off" placeholder="${need ? "A word starting with " + need : "e.g. river"}" aria-label="Your word"></div>
+            <button class="send" type="submit" aria-label="Play word">${I.send}</button></form>
+          ${W.msg ? `<p class="t-cap" style="text-align:center;margin-top:8px;color:var(--rose)">${esc(W.msg)}</p>` : ""}
+          <div style="text-align:center;margin-top:10px"><button class="btn text" data-act="words-giveup">I give up</button></div>`}`);
+  }
+  function wordsPlay(raw) {
+    const w = raw.trim().toLowerCase();
+    const last = W.words.at(-1);
+    if (!/^[a-z]{2,}$/.test(w)) { W.msg = "One word, letters only."; render(); return; }
+    if (last && w[0] !== last.w.slice(-1)) { W.msg = `It has to start with "${last.w.slice(-1).toUpperCase()}".`; render(); return; }
+    if (W.words.some((x) => x.w === w)) { W.msg = "That word was already used."; render(); return; }
+    if (!NATURE.includes(w)) { W.msg = `"${w}" isn't in the nature word list. Try another.`; render(); return; }
+    W.msg = ""; W.words.push({ w, by: "me" }); W.turn = "them"; STATS.sent++; STATS.hourNow++; render();
+    later(1100 + Math.random() * 900, () => {
+      if (S.screen !== "words" || W.over) return;
+      const used = new Set(W.words.map((x) => x.w));
+      const options = NATURE.filter((x) => x[0] === w.slice(-1) && !used.has(x));
+      if (!options.length || (W.words.length > 8 && Math.random() < .25)) {
+        W.over = "me"; W.msg = `${P[W.opp].name} couldn't think of a word starting with "${w.slice(-1).toUpperCase()}".`;
+      } else W.words.push({ w: options[Math.floor(Math.random() * options.length)], by: W.opp });
+      W.turn = "me"; render();
+    });
+  }
+
+  // Treasure hunt: someone hid a spot nearby; follow "warmer / colder" using the compass.
+  const H = {};
+  function huntNew(opp) {
+    const d = 120 + Math.random() * 100, b = Math.random() * 360;
+    Object.assign(H, { opp, tx: d * Math.sin((b * Math.PI) / 180), ty: d * Math.cos((b * Math.PI) / 180), x: 0, y: 0, heading: 0, prev: d, hint: "Start walking. I'll tell you if you're getting warmer.", found: false, steps: 0 });
+  }
+  const huntDist = () => Math.hypot(H.tx - H.x, H.ty - H.y);
+  function huntView() {
+    const opp = P[H.opp] || P.asha;
+    const d = huntDist();
+    const heat = Math.max(0, Math.min(1, 1 - d / 240));
+    const band = d < 15 ? "Found it!" : d < 40 ? "Very close" : d < 90 ? "Getting close" : d < 160 ? "Warm-ish" : "Far";
+    return subScreen("Treasure hunt", `
+      <div class="intro" style="padding-top:6px"><span style="font-size:52px">${H.found ? "🎁" : "🗺️"}</span>
+        <h1 class="t-title">${H.found ? "You found it! 🎉" : esc(opp.name) + " hid a treasure"}</h1>
+        <span class="t-sub">${H.found ? `In ${H.steps} moves. ${esc(opp.name)} has been notified.` : "Somewhere within about 250 m. Walk and listen for warmer or colder."}</span></div>
+      <div class="group spec">
+        <div class="spec-row"><span class="t-strong">${band}</span><span class="t-cap">${H.found ? "" : "Heading " + Math.round(H.heading) + "° " + cardinal(H.heading)}</span></div>
+        <div class="heat" role="meter" aria-label="How close you are" aria-valuenow="${Math.round(heat * 100)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.max(4, heat * 100)}%"></span></div>
+        <p class="t-head" style="text-align:center" aria-live="polite">${esc(H.hint)}</p>
+      </div>
+      ${H.found ? '<div style="display:flex;justify-content:center;margin-top:18px"><button class="btn" data-act="hunt-new">Hunt again</button></div>' : `
+      <div class="turn" style="margin-top:18px">
+        <button class="btn small secondary" data-act="hunt-turn" data-v="-45">↺ Turn</button>
+        <button class="btn" data-act="hunt-walk">Walk 20 m</button>
+        <button class="btn small secondary" data-act="hunt-turn" data-v="45">Turn ↻</button></div>`}
+      <p class="t-cap" style="text-align:center;margin-top:16px">Outdoors, the real compass and GPS drive this game. Web preview: your walking is simulated.</p>`);
+  }
+  function huntWalk() {
+    const a = (H.heading * Math.PI) / 180;
+    H.x += 20 * Math.sin(a); H.y += 20 * Math.cos(a); H.steps++;
+    const d = huntDist();
+    if (d < 15) { H.found = true; H.hint = "Treasure found!"; STATS.sent++; }
+    else H.hint = d < H.prev - 2 ? (d < 50 ? "Hot! 🔥 Almost there" : "Warmer 🌤️") : d > H.prev + 2 ? "Colder 🧊 Try turning" : "About the same";
+    H.prev = d; render();
   }
   // Keep "last seen" times fresh.
   setInterval(() => { if (S.onboarded && S.screen === "main" && (S.tab === "radar" || S.tab === "chats")) refresh(); }, 30000);
