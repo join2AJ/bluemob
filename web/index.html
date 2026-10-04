@@ -440,7 +440,7 @@ button.set:hover { background: var(--sand); }
 .callout { padding: 12px 14px; border-radius: var(--r-md); background: var(--ember-tint); color: var(--ink); font-size: var(--t-sub); }
 .sos-screen { position: absolute; inset: 0; z-index: 8; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 40px 24px; text-align: center; }
 .sos-screen.flash { background: #fff; color: #000; }
-.sos-screen .morse { font: 700 44px/1 var(--font-mono); letter-spacing: .2em; }
+.sos-screen .morse { font: 700 34px/1 var(--font-mono); letter-spacing: .12em; white-space: nowrap; }
 
 /* ---------- games ---------- */
 .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(300px, 100%); margin: 0 auto; }
@@ -498,7 +498,7 @@ button.set:hover { background: var(--sand); }
 .game-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: var(--r-lg); background: var(--canvas); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line); text-align: left; min-height: 128px; min-width: 0; }
 .game-tile .em { font-size: 30px; margin-bottom: 4px; }
 .game-tile .tag { margin-top: auto; }
-.invite { position: absolute; z-index: 6; left: 12px; right: 12px; top: 12px; padding: 14px; border-radius: var(--r-lg); background: var(--canvas); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line); animation: dropIn var(--d-3) var(--spring); }
+.invite { position: absolute; z-index: 6; left: 12px; right: 12px; top: 60px; padding: 14px; border-radius: var(--r-lg); background: var(--canvas); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line); animation: dropIn var(--d-3) var(--spring); }
 @keyframes dropIn { from { transform: translateY(-120%); } to { transform: none; } }
 .invite-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .c4 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 10px; border-radius: var(--r-lg); background: var(--c-hop); width: min(340px, 100%); margin: 0 auto; }
@@ -514,6 +514,31 @@ button.set:hover { background: var(--sand); }
 .heat { height: 14px; border-radius: 7px; background: var(--sky-tint); overflow: hidden; }
 .heat span { display: block; height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--sky), var(--ember), var(--rose)); transition: width var(--d-3) var(--ease); }
 
+/* ---------- round 3 ---------- */
+.sos-pill { height: 32px; padding: 0 14px; border-radius: var(--r-pill); background: var(--rose); color: #fff; font: 800 13px/1 var(--font-body); letter-spacing: .08em; box-shadow: 0 4px 14px -4px rgba(217,79,85,.6); transition: transform var(--d-1) var(--ease); }
+.sos-pill:active { transform: scale(.94); }
+.status-card { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: var(--r-lg); background: var(--canvas); }
+.status-card .big-tick { color: var(--ink-3); display: grid; place-items: center; width: 40px; }
+.status-card.ok .big-tick { color: var(--pine); }
+.status-card .big-tick svg { width: 30px; height: 30px; }
+.note-field { width: 100%; padding: 12px 14px; border-radius: var(--r-md); border: 0; background: var(--sand); color: var(--ink); font: inherit; resize: none; box-shadow: inset 0 0 0 1.5px transparent; }
+.note-field:focus { outline: none; box-shadow: inset 0 0 0 1.5px var(--rose); }
+.sig-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 22px; }
+.sig-mode { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border-radius: var(--r-md); background: rgba(127,127,127,.18); color: inherit; font-size: 22px; }
+.sig-mode span { font-size: 12px; font-weight: 600; }
+.sig-mode[aria-pressed="true"] { background: var(--rose); color: #fff; }
+.torch { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 44px; opacity: .35; transition: opacity 80ms, filter 80ms; }
+.torch span { font-size: 12px; font-weight: 600; }
+.torch.on { opacity: 1; filter: drop-shadow(0 0 24px #FFE9A8) drop-shadow(0 0 8px #fff); }
+.sos-ring { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--rose); animation: sosring 1.2s infinite; }
+@keyframes sosring { from { transform: scale(.9); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+.sos-alert { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--canvas); animation: fadeIn var(--d-2) var(--ease); }
+.sos-alert-head { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 18px; background: var(--rose); }
+.sos-alert-head .pulse { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: beacon 1s infinite; box-shadow: 0 0 0 0 rgba(255,255,255,.8); }
+.sos-alert-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 28px 24px 12px; }
+.sos-quote { margin: 14px 0 6px; padding: 14px 16px; border-radius: var(--r-md); background: var(--sand); font-size: 18px; font-weight: 500; max-width: 32ch; }
+.sos-alert-actions { display: flex; flex-direction: column; gap: 10px; padding: 12px 20px 24px; }
+.sos-alert-actions .btn:first-child { background: var(--rose); color: #fff; height: 56px; font-size: 17px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
@@ -554,6 +579,8 @@ button.set:hover { background: var(--sand); }
     copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),
     sparkle: svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'),
     book: svg('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5ZM4 19a2 2 0 0 1 2-2h13M9 7h6"/>'),
+    eye: svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>'),
+    check: svg('<path d="m5 12 5 5 9-10"/>'),
     wallet: svg('<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2M7 6l9-3 1 3"/>'),
     leaf: svg('<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15M5 19l7-7"/>'),
     plusBox: svg('<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/>'),
@@ -575,6 +602,8 @@ button.set:hover { background: var(--sand); }
     sending: '<svg viewBox="0 0 16 16" aria-label="Sending"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2.4"/></svg>',
     sent: '<svg viewBox="0 0 16 16" aria-label="Sent"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m5.4 8.2 1.8 1.8 3.5-3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     delivered: '<svg viewBox="0 0 22 16" style="width:21px" aria-label="Delivered"><circle cx="7" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="14" cy="8" r="6.75" fill="var(--canvas)"/><circle cx="14" cy="8" r="6" fill="currentColor"/><path d="m11.4 8.2 1.8 1.8 3.5-3.6" fill="none" stroke="var(--canvas)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    read: '<svg viewBox="0 0 22 16" style="width:21px" aria-label="Read"><circle cx="7" cy="8" r="6" fill="currentColor"/><circle cx="14" cy="8" r="6.75" fill="var(--canvas)"/><circle cx="14" cy="8" r="6" fill="currentColor"/><path d="m11.4 8.2 1.8 1.8 3.5-3.6" fill="none" stroke="var(--canvas)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    pending: '<svg viewBox="0 0 16 16" aria-label="Waiting"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3l2 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     queued: '<svg viewBox="0 0 16 16" aria-label="Waiting"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3l2 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
   };
 
@@ -613,6 +642,7 @@ button.set:hover { background: var(--sand); }
     ravi:  { name: "Ravi",  avatar: "🐬", uid: "2F8E61C0D93A47B5", dist: 380,  bearing: 200, link: "Bluetooth link", rtt: 64 },
     meera: { name: "Meera", avatar: "🌵", uid: "B05D3E9A16F7C842", dist: 920,  bearing: 310, link: "good link", rtt: 41, internet: true },
     asha2: { name: "Asha",  avatar: "🌙", uid: "E4B09D2C71F3A856", dist: 1240, bearing: 20,  link: "Bluetooth link", rtt: 72 },
+    tara:  { name: "Tara",  avatar: "🦉", uid: "3D6F0A82C5E1B947", dist: 640,  bearing: 285, link: "Bluetooth link", rtt: 58 },
     kabir: { name: "Kabir", avatar: "🐺", uid: "91AC5F2E08D4B763", dist: 1800, bearing: 130, link: "", rtt: 0, home: "Pune, about 1,000 km away" },
     dee:   { name: "Dee",   avatar: "🌻", uid: "5E7240BB9C1DA3F6", remote: true },
   };
@@ -622,6 +652,7 @@ button.set:hover { background: var(--sand); }
   }
   // Kabir was met on an earlier trip; Dee is a friend far away, reachable only through the internet.
   Object.assign(P.kabir, { met: true, lastSeen: now() - 2 * 3600e3 });
+  Object.assign(P.tara, { met: true, lastSeen: now() - 5 * 3600e3 });
   Object.assign(P.dee, { met: true, presence: "remote" });
 
   const SKY = { id: "sky", name: "Sky", avatar: "🌤️" };
@@ -687,6 +718,8 @@ button.set:hover { background: var(--sand); }
     ravi: { rules: [[["hi", "hello", "hey"], ["Hi! 🐬 Only Bluetooth between us, a bit slower but it works"]],
                     [["where", "location"], ["Up the trail, maybe 400 m from you"]]],
             fallback: ["👍", "Cool cool", "Can you pass a message to Asha? She's out of my range"] },
+    tara: { rules: [[["hi", "hello", "hey"], ["Hi! 🦉 Just walked back into range and your message popped up. No signal up there at all"]]],
+            fallback: ["Got it now! I was out of range on the ridge 😅", "Back at camp, see you soon"] },
     kabir: { rules: [[["hi", "hello", "hey"], ["Kabir here! 🐺 I'm back home in Pune, 1,000 km away, and your message still found me. No numbers needed 😄"]],
                      [["trip", "photos", "pics"], ["Best trip ever. Let's plan the next one!"]]],
              fallback: ["Got it! Reached me at home 🏠", "Haha, miss the mountains already", "Talk soon 👋"] },
@@ -735,34 +768,103 @@ button.set:hover { background: var(--sand); }
   }
   const friendReply = (id, text) => (FRIEND[id] ? pickReply(FRIEND[id].rules, FRIEND[id].fallback, text) : null);
 
+  // =====================================================================
+  //  Delivery engine: store-and-forward over two paths, exactly-once delivery
+  // ---------------------------------------------------------------------
+  //  Every message has one unique ID. It can travel two ways:
+  //   • direct:   Bluetooth / Wi-Fi, the moment the person is in range
+  //   • internet: through a bridge (someone nearby with internet) to the relay,
+  //               which hands it over once the person is reachable online
+  //  The first path to deliver wins. The delivery receipt cancels the other path,
+  //  the relay deletes its stored copy, and if a copy still arrives the receiver
+  //  recognises the ID and discards it. So a message is shown exactly once.
+  // =====================================================================
+  const hasInternet = (p) => p.remote || !!p.home;   // far-away people are online where they are
+  const PATH_LABEL = { direct: "Bluetooth / Wi-Fi", internet: "Internet" };
+
   function send(id, text, opts = {}) {
     text = text.trim();
     if (!text) return;
     const c = convo(id);
-    const m = { id: uid(), me: true, text, time: now(), status: "sending", to: id, onDelivered: opts.onDelivered };
+    const m = { id: "m-" + uid() + uid().slice(0, 4), me: true, text, time: now(), status: "sending", to: id,
+      onDelivered: opts.onDelivered, receipts: [], paths: {}, events: [] };
     c.messages.push(m);
     STATS.sent++; STATS.hourNow++;
     refresh();
 
     if (id === "sky") {
-      Object.assign(m, { route: ["You", "Sky"], via: "On this phone", hop: 0, hopTimes: [now()] });
+      Object.assign(m, { route: ["You", "Sky"], hop: 0, hopTimes: [now()], paths: { direct: { state: "trying" } } });
       later(350, () => { m.status = "sent"; refresh(); });
-      later(800, () => { m.status = "delivered"; m.hop = 1; m.hopTimes.push(now()); STATS.delivered++; STATS.direct++; refresh(); });
+      later(800, () => { m.hop = 1; m.hopTimes.push(now()); delivered(m, id, "direct", "On this phone"); });
       reply("sky", skyReply(text), { wait: 1200 });
-      return;
+      return m;
     }
     const p = P[id];
-    // Anyone not right here is reached through the internet, by their ID, once someone nearby has internet.
-    if (p.remote || p.presence !== "online") { sendViaBridge(m, id); return m; }
-    Object.assign(m, { route: ["You", p.name], via: p.link, hop: 0, hopTimes: [now()] });
-    later(150 + p.rtt, () => { m.status = "sent"; refresh(); });
-    later(400 + p.rtt * 3, () => { m.status = "delivered"; m.hop = 1; m.hopTimes.push(now()); STATS.delivered++; STATS.direct++; refresh(); });
-    const r = friendReply(id, text);
-    if (r && Math.random() < 0.85) reply(id, r, { wait: 1600 });
+    if (!p.remote) m.paths.direct = { state: p.presence === "online" ? "trying" : "waiting" };
+    m.paths.internet = { state: "waiting" };
+    note(m, "Written on your phone · ID " + m.id);
+    if (p.presence === "online" && !p.remote) {
+      m.paths.internet.state = "not-needed";
+      deliverDirect(m, id);
+    } else {
+      m.status = "pending";
+      note(m, p.remote ? "Waiting for a bridge to the internet" : `${p.name} isn't in range. Waiting for whichever comes first: ${p.name} in range, or a bridge`);
+      if (bridgeOnline()) sendViaBridge(m, id); else { convo(id).queue.push(m); refresh(); }
+    }
     return m;
   }
+  function note(m, text) { m.events.push({ time: now(), text }); }
 
-  // A → B → C (has internet) → internet → D: the gateway idea, played out hop by hop.
+  function deliverDirect(m, id) {
+    const p = P[id];
+    m.paths.direct.state = "trying";
+    Object.assign(m, { route: ["You", p.name], hop: 0, hopTimes: [now()] });
+    note(m, `${p.name} is in range. Sending directly over ${p.link}`);
+    later(150 + p.rtt, () => { if (m.status === "sending" || m.status === "pending") m.status = "sent"; refresh(); });
+    later(400 + p.rtt * 3, () => { m.hop = 1; m.hopTimes.push(now()); delivered(m, id, "direct", p.link); });
+  }
+
+  /** Called when a copy reaches the person. Only the first copy counts. */
+  function delivered(m, id, path, how) {
+    const p = P[id];
+    if (m.deliveredVia) {
+      m.paths[path].state = "discarded";
+      STATS.dupes = (STATS.dupes || 0) + 1;
+      note(m, `A second copy arrived by ${PATH_LABEL[path]}. ${p ? p.name + "'s" : "Their"} phone recognised the ID and discarded it`);
+      log("Duplicate of a message to " + (p ? p.name : id) + " discarded by ID");
+      refresh();
+      return;
+    }
+    m.deliveredVia = path;
+    m.paths[path].state = "delivered";
+    m.paths[path].time = now();
+    m.status = "delivered";
+    STATS.delivered++;
+    if (path === "direct") STATS.direct++; else { STATS.bridge++; if (m.route && m.route.includes("Ravi")) STATS.hopped++; }
+    const back = path === "direct" ? how : "the internet and the bridge";
+    m.receipts.push({ kind: "delivered", time: now(), via: back });
+    note(m, `Delivered by ${path === "direct" ? how : p && p.sms ? "text message" : "internet"}. Delivery receipt came back over ${back}`);
+    // The receipt stops the other path.
+    const other = path === "direct" ? "internet" : "direct";
+    const o = m.paths[other];
+    if (o) {
+      if (o.state === "waiting") { o.state = "cancelled"; note(m, `${PATH_LABEL[other]} copy cancelled before it was sent`); }
+      else if (o.state === "relay") { o.state = "cancelled"; note(m, "The relay deleted its stored copy after the delivery receipt"); }
+      else if (o.state === "moving") note(m, `An internet copy is still travelling. If it arrives, it will be discarded`);
+    }
+    convo(id).queue = convo(id).queue.filter((x) => x !== m);
+    if (m.onDelivered) m.onDelivered();
+    refresh();
+    // Read receipt: SMS has none; people read it a little later.
+    if (id !== "sky" && !(p && p.sms)) later(1800 + Math.random() * 2500, () => {
+      m.status = "read"; m.receipts.push({ kind: "read", time: now(), via: back }); note(m, "Read receipt received"); refresh();
+    });
+    if (id === "sky") later(600, () => { m.status = "read"; m.receipts.push({ kind: "read", time: now(), via: "this phone" }); refresh(); });
+    const r = id !== "sky" && friendReply(id, m.text);
+    if (r && Math.random() < 0.9) reply(id, r, { wait: 2200 });
+  }
+
+  // A → B → C (has internet) → internet → relay → D, played out hop by hop.
   const bridgeOnline = () => S.mesh && P.meera.presence === "online";
   function routeFor(p) {
     const hops = ["You"];
@@ -774,29 +876,28 @@ button.set:hover { background: var(--sand); }
   }
   function sendViaBridge(m, id) {
     const p = P[id];
-    if (!bridgeOnline()) {
-      m.status = "queued";
-      convo(id).queue.push(m);
-      log("No one with internet nearby yet. Message to " + p.name + " is waiting.");
-      refresh();
-      return;
-    }
-    Object.assign(m, { route: routeFor(p), hop: 0, status: "sent", hopTimes: [now()], via: p.sms ? "Text message (SMS) through a bridge" : "Internet through a bridge" });
+    if (m.deliveredVia) { if (m.paths.internet.state === "waiting") m.paths.internet.state = "cancelled"; return; }
+    if (!bridgeOnline()) { if (!convo(id).queue.includes(m)) convo(id).queue.push(m); m.paths.internet.state = "waiting"; refresh(); return; }
+    m.paths.internet.state = "moving";
+    if (m.status === "sending" || m.status === "pending") m.status = "sent";
+    // Keep the direct route on screen if it already won; otherwise show the internet route.
+    if (!m.route || m.route.length < 3) Object.assign(m, { route: routeFor(p), hop: 0, hopTimes: [now()] });
+    note(m, "A bridge is nearby (Meera has internet). Internet copy on its way");
     refresh();
     const step = () => {
       m.hop++;
       m.hopTimes.push(now());
-      if (m.hop >= m.route.length - 1) {
-        m.status = "delivered";
-        STATS.delivered++; STATS.bridge++;
-        if (m.route.includes("Ravi")) STATS.hopped++;
-        log("Delivered to " + p.name + " via " + m.route.slice(1, -1).join(" → "));
+      const arrived = m.route[m.hop] === "Internet";
+      if (arrived && !hasInternet(p)) {
+        // The person has no internet either: the relay keeps it until they can be reached.
+        if (m.deliveredVia) { m.paths.internet.state = "cancelled"; note(m, "Reached the relay after delivery. The relay dropped it"); refresh(); return; }
+        m.paths.internet.state = "relay";
+        m.status = "pending";
+        note(m, `Stored safely at the relay. ${p.name} has no internet either, so it waits there`);
         refresh();
-        if (m.onDelivered) m.onDelivered();
-        const r = friendReply(id, m.text);
-        if (r) reply(id, r, { wait: 1800 });
         return;
       }
+      if (m.hop >= m.route.length - 1) { delivered(m, id, "internet", p.sms ? "text message" : "internet"); return; }
       refresh();
       later(900, step);
     };
@@ -808,6 +909,13 @@ button.set:hover { background: var(--sand); }
       c.queue.splice(0).forEach((m) => later(600 + i++ * 450, () => sendViaBridge(m, id)));
     }
     flushSos();
+  }
+  /** Someone came into range: hand over everything waiting for them, directly. */
+  function flushDirect(id) {
+    const c = S.convos[id];
+    if (!c) return;
+    c.messages.filter((m) => m.me && !m.deliveredVia && m.paths && m.paths.direct && m.paths.direct.state === "waiting")
+      .forEach((m, i) => later(500 + i * 300, () => { if (!m.deliveredVia) deliverDirect(m, id); }));
   }
 
   // ---------- mesh simulation ----------
@@ -823,6 +931,7 @@ button.set:hover { background: var(--sand); }
     p.lastSeen = now();
     if (presence === "online") {
       log("Connected to " + p.name + " (" + p.link + ")");
+      flushDirect(id);
       if (id === "meera") { log("Meera has internet: she can bridge messages out"); flushBridgeQueue(); }
     } else if (presence === "range") {
       log("Found " + p.name);
@@ -842,6 +951,9 @@ button.set:hover { background: var(--sand); }
     later(9800, () => setPresence("asha2", "range"));
     later(11400, () => setPresence("asha2", "online"));
     later(16000, () => maybeInvite());
+    later(48000, () => { if (!P.ravi.sos) receiveSos("ravi", "Twisted my ankle near the stream. Can't walk. Please bring a torch"); });
+    later(30000, () => setPresence("tara", "range"));
+    later(31500, () => setPresence("tara", "online"));
     later(9000, () => { if (S.mesh && convo("asha").messages.length === 0) incoming("asha", "Hey! Saw you pop up on my radar 👋"); });
     refresh();
   }
@@ -861,7 +973,7 @@ button.set:hover { background: var(--sand); }
   // People drift a little, so distances feel alive.
   setInterval(() => {
     if (!S.mesh) return;
-    for (const id of ["asha", "ravi", "meera", "asha2"]) {
+    for (const id of ["asha", "ravi", "meera", "asha2", "tara"]) {
       const p = P[id];
       if (p.presence !== "online") continue;
       p.dist = Math.max(8, p.dist * (0.97 + Math.random() * 0.06));
@@ -960,6 +1072,7 @@ button.set:hover { background: var(--sand); }
     else if (SCREENS[S.screen]) app.innerHTML = SCREENS[S.screen](anim);
     else app.innerHTML = mainView(anim);
 
+    if (S.alertOpen) app.insertAdjacentHTML("beforeend", sosAlertView());
     if (toastEl) app.appendChild(toastEl);
     const sc = app.querySelector("#scroll");
     if (sc) { sc.scrollTop = keepScroll; syncBar(sc); }
@@ -1064,9 +1177,9 @@ button.set:hover { background: var(--sand); }
   function mainView(anim) {
     const title = { radar: "Nearby", chats: "Chats", compass: "Compass", guide: "Survival guide", you: "You" }[S.tab];
     const body = { radar: radarView, chats: chatsView, compass: compassView, guide: guideView, you: profileView }[S.tab]();
-    const actions = S.tab === "radar"
-      ? `<span class="spacer"></span><button class="battery-chip ${S.survival ? "on" : ""}" data-act="power" aria-label="Power settings, battery ${S.batteryPct}%">${I.battery}<span class="num">${S.batteryPct}%</span>${S.survival ? " · Survival" : ""}</button>
-         <button class="icon-btn" data-act="tab" data-v="you" aria-label="Your profile">${avatar(S.avatar, "me", 32)}</button>` : "";
+    const sosPill = `<button class="sos-pill" data-act="sos" aria-label="SOS: ask for help">SOS</button>`;
+    const actions = S.tab !== "radar" ? `<span class="spacer"></span>${sosPill}` : `<span class="spacer"></span>${sosPill}<button class="battery-chip ${S.survival ? "on" : ""}" data-act="power" aria-label="Power settings, battery ${S.batteryPct}%">${I.battery}<span class="num">${S.batteryPct}%</span>${S.survival ? " · Survival" : ""}</button>
+         <button class="icon-btn" data-act="tab" data-v="you" aria-label="Your profile">${avatar(S.avatar, "me", 32)}</button>`;
     return `<div class="screen ${S.tab === "you" ? "grouped" : ""} ${anim === "fade" ? "fade-in" : anim === "push" ? "push-in" : ""}">
       <header class="bar"><div class="bar-title">${title}</div>${actions}</header>
       <div class="scroll" id="scroll">${body}</div>
@@ -1108,7 +1221,7 @@ button.set:hover { background: var(--sand); }
           const { x, y } = blipPos(p);
           return `<button class="blip" data-act="open-chat" data-id="${p.id}" data-blip="${p.id}" aria-label="${esc(p.name)}, ${statusLine(p)}"
             style="left:${x}%;top:${y}%;opacity:${p.presence === "offline" ? .45 : 1};--glow:${p.presence === "online" ? "rgba(95,211,163,.55)" : "transparent"}">
-            <span class="face" style="background:${tint(p.id)}">${p.avatar}</span><span class="badge" style="background:${PCOLOR[p.presence]}"></span></button>`;
+            <span class="face" style="background:${tint(p.id)}">${p.avatar}</span><span class="badge" style="background:${p.sos ? "var(--rose)" : PCOLOR[p.presence]}"></span>${p.sos ? '<span class="sos-ring"></span>' : ""}</button>`;
         }).join("")}</div>
         <div class="night-foot">
           <div class="stat-line num"><div><b>${online}</b><span>online</span></div><div><b>${range}</b><span>in range</span></div><div><b>${list.length}</b><span>met</span></div></div>
@@ -1167,7 +1280,7 @@ button.set:hover { background: var(--sand); }
     const sub = p.presence === "online" ? (S.shareLoc ? fmtDist(p.dist) + " · " : "") + p.link
       : p.presence === "range" ? "Connecting…" : "Seen " + ago(p.lastSeen);
     return `<button class="pcard press" data-act="open-chat" data-id="${p.id}">
-      <span class="art" style="background:${tint(p.id)}"><span class="tag"><span class="dot" style="background:${PCOLOR[p.presence]}"></span>${label}</span>${p.avatar}</span>
+      <span class="art" style="background:${tint(p.id)}"><span class="tag"><span class="dot" style="background:${p.sos ? "var(--rose)" : PCOLOR[p.presence]}"></span>${p.sos ? "SOS" : label}</span>${p.avatar}</span>
       <span class="body"><span class="t-strong ellipsis">${nameWithId(p)}</span><span class="t-cap ellipsis" data-status-card="${p.id}">${sub}</span></span></button>`;
   }
   function updatePeopleText() {
@@ -1299,7 +1412,7 @@ button.set:hover { background: var(--sand); }
     return `<div class="screen chat-screen ${anim === "push" ? "push-in" : ""}">
       <header class="bar solid chat-bar">
         <button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>
-        <button class="who" ${info.bot ? "" : `data-act="person" data-v="${id}" aria-label="About ${esc(info.name)}"`}>${avatar(info.emoji, id, 38, info.presence)}<span style="min-width:0"><b class="ellipsis">${esc(info.name)}</b><span class="t-cap ellipsis" id="chat-sub" style="display:block"></span></span></button>
+        <button class="who" ${info.bot ? "" : `data-act="person" data-v="${id}" aria-label="About ${esc(info.name)}"`}><span id="chat-av">${avatar(info.emoji, id, 38, info.presence)}</span><span style="min-width:0"><b class="ellipsis">${esc(info.name)}</b><span class="t-cap ellipsis" id="chat-sub" style="display:block"></span></span></button>
         ${live ? `<button class="icon-btn" data-act="ping" id="ping-btn" aria-label="Check link speed">${I.speed}</button>` : ""}
         <button class="icon-btn" data-act="soon" data-v="Voice calls" aria-label="Voice call">${I.phone}</button>
         <button class="icon-btn" data-act="soon" data-v="Video calls" aria-label="Video call">${I.video}</button>
@@ -1332,8 +1445,8 @@ button.set:hover { background: var(--sand); }
     return `<div class="intro">${avatar(info.emoji, id, 80)}<h2 class="t-title" style="margin-top:8px">${esc(info.name)}</h2>${tag}<p class="t-sub" style="margin-top:4px">${sub}</p></div>`;
   }
   function journeyHtml(m) {
-    if (m.status === "queued") return '<div class="journey-note">Waiting for someone nearby with internet…</div>';
-    if (!m.route || m.route.length < 3) return "";
+    const pn = pendingNote(m);
+    if (m.status === "pending" || !m.route || m.route.length < 3) return pn ? `<div class="journey-note">${pn}</div>` : "";
     const done = m.status === "delivered";
     const steps = m.route.map((h, i) => `<li class="${done || i < m.hop ? "done" : i === m.hop ? "now" : ""}"><i></i><span class="ellipsis" style="max-width:100%">${esc(h.replace(" 🌐", ""))}</span></li>`).join("");
     const note = done ? "Delivered through Meera's internet · tap for details" : m.hop === 0 ? "Leaving your phone…" : "Passing through " + m.route[m.hop].replace(" 🌐", "") + "…";
@@ -1350,7 +1463,7 @@ button.set:hover { background: var(--sand); }
       S.seen.add(m.id);
       const showMeta = !withNext || m.route || m.status === "failed";
       const tick = m.me ? (m.status === "failed" ? '<span class="fail">Not sent · out of range</span>'
-        : `<span class="${m.status === "delivered" ? "ok" : ""}" style="display:inline-flex">${TICK[m.status] || ""}</span>`) : "";
+        : `<span class="${m.status === "delivered" || m.status === "read" ? "ok" : ""}" style="display:inline-flex">${TICK[m.status] || ""}</span>`) : "";
       out.push(`<div class="msg ${m.me ? "me tappable" : "them"} ${m.route && m.route.length > 2 ? "routed" : ""} ${pos} ${withPrev ? "" : "gap"} ${isNew ? "new" : ""}" data-mid="${m.id}" ${m.me ? `data-act="msg-info" data-v="${m.id}"` : ""}>
         <div class="bubble">${esc(m.text)}</div>${m.me ? journeyHtml(m) : ""}
         ${m.actions ? `<div class="bot-actions">${m.actions.map((a) => `<button class="chip" data-act="${a.act}" data-v="${a.v || ""}">${esc(a.label)}</button>`).join("")}</div>` : ""}
@@ -1370,6 +1483,8 @@ button.set:hover { background: var(--sand); }
       : info.far ? statusLine(P[id])
       : info.presence === "online" ? '<span style="color:var(--pine)">Online nearby</span>'
       : info.presence === "range" ? "In range · connecting…" : "Seen " + ago(P[id].lastSeen);
+    const av = document.getElementById("chat-av");
+    if (av) av.innerHTML = avatar(info.emoji, id, 38, info.presence);
     const ping = document.getElementById("ping-btn");
     if (ping) ping.hidden = info.presence !== "online";
 
@@ -1378,7 +1493,7 @@ button.set:hover { background: var(--sand); }
       const lastMine = c.messages.filter((m) => m.me).at(-1);
       const route = lastMine && lastMine.route;
       strip.innerHTML = lastMine
-        ? `<span>Last message: <b>${route ? route.map(esc).join(" → ") : "You → " + esc(info.name)}</b> · ${lastMine.status === "delivered" ? "delivered " + clock(lastMine.hopTimes.at(-1)) : lastMine.status === "queued" ? "waiting for a bridge" : "on its way"}</span><span class="chev">${I.chevron}</span>`
+        ? `<span>Last message: <b>${route ? route.map(esc).join(" → ") : "You → " + esc(info.name)}</b> · ${lastMine.status === "read" ? "read " + clock(lastMine.receipts.at(-1).time) : lastMine.status === "delivered" ? "delivered " + clock(lastMine.receipts[0].time) : lastMine.status === "pending" ? "waiting: in range or bridge, whichever comes first" : "on its way"}</span><span class="chev">${I.chevron}</span>`
         : `<span><b>${esc(S.name)} ${shortId(MY_ID)}</b> → <b>${esc(info.name)} ${P[id].sms ? esc(P[id].phone) : shortId(P[id].uid)}</b> · ${info.far ? "through a bridge to the internet" : "direct, phone to phone"}</span>`;
       strip.dataset.v = lastMine ? lastMine.id : "";
     }
@@ -1568,7 +1683,15 @@ button.set:hover { background: var(--sand); }
       case "open-chat": open("chat", { chat: el.dataset.id }); break;
       case "design": case "power": case "insights": case "games": case "contacts": case "money": case "play": open(act); break;
       case "sos": S.sosArmed = false; open("soshub"); break;
-      case "sos-light": open("sos"); break;
+      case "sos-light": S.signalMode = S.signalDefault; open("sos"); break;
+      case "signal-mode": S.signalMode = v; clearTimeout(sosTimer); render(); break;
+      case "signal-default": S.signalDefault = v; S.signalMode = v; store.set("signalDefault", v); toast(SIGNAL_MODES.find((x) => x.id === v).label + " is now your default SOS signal"); if (S.screen === "sos") { clearTimeout(sosTimer); } render(); break;
+      case "sos-reason": S.sosNote = S.sosNote.includes(v) ? S.sosNote.replace(v, "").replace(/^[,\s]+|[,\s]+$/g, "").replace(/,\s*,/g, ",") : (S.sosNote ? S.sosNote + ", " : "") + v; render(); break;
+      case "sos-test": back(); later(300, () => { if (P.ravi.presence !== "online") { toast("Switch the mesh on first, so someone nearby can send one"); return; } receiveSos("ravi", "Twisted my ankle near the stream. Can't walk. Please bring a torch"); }); break;
+      case "sos-coming": S.alertOpen = false; send(v, "I'm coming! Stay where you are. I'll be there soon 🙏"); toast("Told " + P[v].name + " you're coming"); render(); break;
+      case "sos-way": S.alertOpen = false; S.navTarget = v; S.stack = []; S.screen = "main"; S.prevTab = S.tab; S.tab = "compass"; render("fade"); S.prevTab = "compass"; break;
+      case "sos-howto": S.alertOpen = false; open("article", { article: "help-sos" }); break;
+      case "sos-dismiss": S.alertOpen = false; render(); break;
       case "sos-send":
         if (!S.sosArmed) { S.sosArmed = true; render(); later(4000, () => { if (S.sosArmed) { S.sosArmed = false; if (S.screen === "soshub") render(); } }); }
         else { S.sosArmed = false; sendSos(); toast("SOS sent to everyone nearby"); }
@@ -1689,6 +1812,7 @@ button.set:hover { background: var(--sand); }
     if (e.target.id === "draft") syncSend();
     if (e.target.id === "q") { S.query = e.target.value; render(); }
     if (e.target.id === "gq") { S.gq = e.target.value; render(); }
+    if (e.target.id === "sos-note") { S.sosNote = e.target.value.slice(0, 160); const pv = document.getElementById("sos-preview"); if (pv) pv.textContent = sosText(); }
     if (e.target.id === "pf-name") {
       const v = e.target.value.replace(/\|/g, " ").slice(0, 24);
       if (v.trim()) { S.name = v.trim(); store.set("name", S.name); app.querySelector(".me-head h1").textContent = S.name; }
@@ -2065,6 +2189,17 @@ button.set:hover { background: var(--sand); }
       "Make ground signals big (3 m or more) and in contrast with the ground: V means 'need help', X means 'need medical help'.",
       "Flash a mirror or phone screen at aircraft or distant people.",
       "Wear or spread bright clothing in open ground."]),
+    A("help-sos", "signal", "Someone sent an SOS: how to help", 3, "You may be the fastest help they have. Stay safe yourself first.", [
+      "Reply at once so they know someone is coming. BlueMob's \"I'm coming\" button does this.",
+      "BlueMob passes their SOS on to anyone with internet automatically. Keep the mesh on so it can.",
+      "Check it's safe for you to go: weather, light, terrain. Don't become a second person who needs rescue.",
+      "Tell someone near you where you're going, and go in pairs if you can.",
+      "Take water, a warm layer, a light, and a first-aid kit if you have one.",
+      "Follow the compass to them. BlueMob shows their direction and distance.",
+      "When you reach them: check for danger, then whether they respond and are breathing. Use the first-aid guides.",
+      "Keep them warm and still. Don't move someone who may have a neck or back injury unless they are in danger.",
+      "Stay with them and send updates to the group until help arrives."],
+      ["Don't rush in alone at night or in a storm.", "Don't give them food or drink if they may need surgery or are barely conscious."]),
     A("lightning", "weather", "Lightning safety", 2, "If you hear thunder, you are close enough to be struck.", [
       "30-30 rule: if thunder follows the flash within 30 seconds, take shelter. Wait 30 minutes after the last thunder.",
       "Go to a building or a hard-topped vehicle if you can.",
@@ -2133,32 +2268,67 @@ button.set:hover { background: var(--sand); }
       </article>`, `<button class="icon-btn" data-act="bookmark" data-v="${a.id}" aria-label="${saved ? "Remove from saved" : "Save"}" aria-pressed="${saved}" style="color:${saved ? "var(--ember)" : "inherit"};font-size:22px">${saved ? "★" : "☆"}</button>`);
   }
 
-  // ---------- SOS light: flashes ··· ––– ··· on the screen ----------
-  let sosTimer = null;
-  function startSos() {
+  // ---------- SOS signal: screen, flashlight, sound, or all, in the ··· ––– ··· rhythm ----------
+  const SIGNAL_MODES = [
+    { id: "screen", label: "Screen", em: "📱", tip: "Flashes the whole screen white" },
+    { id: "torch", label: "Flashlight", em: "🔦", tip: "Blinks the camera flash. Brightest, best at night" },
+    { id: "sound", label: "Sound", em: "📢", tip: "Loud whistle-pitch beeps. Carries in fog and forest" },
+    { id: "all", label: "All", em: "🚨", tip: "Screen, flashlight and sound together" },
+  ];
+  S.signalDefault = store.get("signalDefault", "screen");
+  S.signalMode = S.signalDefault;
+  let sosTimer = null, audioCtx = null;
+  function beep(ms) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "square"; o.frequency.value = 2800; // close to a rescue whistle
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + ms / 1000);
+      o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + ms / 1000 + 0.02);
+    } catch { /* sound not available */ }
+  }
+  function sosPattern() {
     const dot = 300, pattern = [];
     const sym = (on) => { pattern.push([true, on]); pattern.push([false, dot]); };
-    [1, 1, 1].forEach(() => sym(dot));
-    pattern[pattern.length - 1][1] = dot * 3;
-    [1, 1, 1].forEach(() => sym(dot * 3));
-    pattern[pattern.length - 1][1] = dot * 3;
-    [1, 1, 1].forEach(() => sym(dot));
-    pattern[pattern.length - 1][1] = dot * 7;
+    [1, 1, 1].forEach(() => sym(dot)); pattern[pattern.length - 1][1] = dot * 3;
+    [1, 1, 1].forEach(() => sym(dot * 3)); pattern[pattern.length - 1][1] = dot * 3;
+    [1, 1, 1].forEach(() => sym(dot)); pattern[pattern.length - 1][1] = dot * 7;
+    return pattern;
+  }
+  function startSos() {
+    const pattern = sosPattern();
+    const mode = S.signalMode;
+    const screen = mode === "screen" || mode === "all", torch = mode === "torch" || mode === "all", sound = mode === "sound" || mode === "all";
     let i = 0;
     const step = () => {
       const el = app.querySelector(".sos-screen");
       if (!el) return;
       const [on, ms] = pattern[i % pattern.length];
-      el.classList.toggle("flash", on);
+      el.classList.toggle("flash", on && screen);
+      el.querySelector(".torch")?.classList.toggle("on", on && torch);
+      if (on && sound) beep(ms);
       i++;
       sosTimer = setTimeout(step, ms);
     };
     step();
   }
   function sosView() {
-    return `<div class="sos-screen" role="dialog" aria-label="SOS light">
-      <div><div class="t-over" style="color:inherit;opacity:.7">SOS LIGHT</div><div class="morse" style="margin-top:18px">··· ––– ···</div></div>
-      <p style="max-width:28ch;opacity:.85">Point the screen toward rescuers. Turn brightness up. The pattern repeats until you stop it.</p>
+    const m = SIGNAL_MODES.find((x) => x.id === S.signalMode);
+    return `<div class="sos-screen" role="dialog" aria-label="SOS signal">
+      <div style="width:100%"><div class="t-over" style="color:inherit;opacity:.7">SOS SIGNAL · ${m.label.toUpperCase()}</div>
+        <div class="morse" style="margin-top:14px">··· ––– ···</div>
+        <div class="sig-modes" role="group" aria-label="Signal type">${SIGNAL_MODES.map((x) =>
+          `<button class="sig-mode" data-act="signal-mode" data-v="${x.id}" aria-pressed="${x.id === S.signalMode}">${x.em}<span>${x.label}</span></button>`).join("")}</div>
+      </div>
+      ${S.signalMode === "torch" || S.signalMode === "all" ? `<div class="torch" aria-hidden="true">🔦<span>Flashlight</span></div>` : ""}
+      <div>
+        <p style="max-width:30ch;opacity:.85;margin:0 auto">${m.tip}. ${S.signalMode === "screen" ? "Turn brightness up and point the screen at rescuers." : "Repeats until you stop it."}</p>
+        ${S.signalMode !== S.signalDefault ? `<button class="btn text" style="color:inherit;margin-top:8px" data-act="signal-default" data-v="${S.signalMode}">Make ${m.label} my default</button>`
+          : '<p class="t-cap" style="color:inherit;opacity:.6;margin-top:8px">This is your default</p>'}
+        <p class="t-cap" style="color:inherit;opacity:.55;margin-top:6px">Web preview: the flashlight is shown on screen. On Android it blinks the real flash.</p>
+      </div>
       <button class="btn" style="background:var(--rose);color:#fff;height:56px;padding:0 40px" data-act="sos-stop">Stop</button></div>`;
   }
 
@@ -2348,6 +2518,7 @@ button.set:hover { background: var(--sand); }
     purify: ["purif", "boil water", "clean water", "safe water", "dirty water", "drink water", "drinking water", "safe to drink"],
     fire: ["fire", "campfire", "matches", "lighter", "tinder"],
     shelter: ["shelter", "sleep outside", "sleep in the open", "stay dry", "build a hut"],
+    "help-sos": ["someone sent an sos", "someone sent sos", "received an sos", "got an sos", "sos from", "help someone", "someone needs help", "friend needs help"],
     north: ["north", "direction", "which way", "without a compass", "navigate", "stars"],
     lost: ["lost", "can't find my way", "cant find my way", "stranded", "where am i"],
     signals: ["rescue", "signal", "helicopter", "whistle", "get found", "be found", "attract attention"],
@@ -2398,7 +2569,8 @@ button.set:hover { background: var(--sand); }
   S.sosArmed = false;
   function flushSos() { refresh(); }
   function sosText() {
-    return `SOS from ${S.name} (BlueMob ${shortId(MY_ID)}). I need help. Last position 30.0869 N, 78.2676 E, near base camp. Battery ${S.batteryPct}%. Sent with BlueMob.`;
+    const note = S.sosNote.trim();
+    return `SOS from ${S.name} (BlueMob ${shortId(MY_ID)}). I need help.${note ? " " + note + "." : ""} Last position 30.0869 N, 78.2676 E, near base camp. Battery ${S.batteryPct}%. Sent with BlueMob.`;
   }
   function sendSos() {
     const near = nearby().filter((p) => p.presence === "online");
@@ -2421,8 +2593,14 @@ button.set:hover { background: var(--sand); }
           <b>SOS</b><span>${S.sosArmed ? "Tap again to send" : "Tap to send"}</span></button>
         <p class="t-sub" style="max-width:32ch">Goes to everyone nearby right away, and texts your SOS contacts as soon as someone nearby has internet.</p>
       </div>
+      <div class="group-label t-over">What's happening? (optional)</div>
+      <div class="group spec">
+        <div class="filters" style="margin:0;padding:0">${SOS_REASONS.map((r) => `<button class="chip" data-act="sos-reason" data-v="${r}" aria-pressed="${S.sosNote.includes(r)}">${r}</button>`).join("")}</div>
+        <textarea id="sos-note" class="note-field" rows="2" maxlength="160" placeholder="e.g. Twisted ankle near the stream, can't walk">${esc(S.sosNote)}</textarea>
+        <p class="t-cap">You can send without a note. Every second counts.</p>
+      </div>
       <div class="group-label t-over">What will be sent</div>
-      <div class="group spec"><p style="font-size:15px">${esc(sosText())}</p></div>`
+      <div class="group spec"><p style="font-size:15px" id="sos-preview">${esc(sosText())}</p></div>`
       : `
       <div class="large-title" style="margin-top:8px"><span class="tag" style="background:var(--rose);color:#fff">SOS ACTIVE · ${clock(s.time)}</span>
         <h1 class="t-hero" style="margin-top:10px">Help is being called</h1></div>
@@ -2437,8 +2615,12 @@ button.set:hover { background: var(--sand); }
     return subScreen("SOS", `${body}
       <div class="group-label t-over">More</div>
       <div class="group">
-        <button class="set" data-act="sos-light"><span class="tile" style="background:var(--rose)">${I.flash}</span><span class="main"><span class="t-strong" style="display:block">SOS light</span><span class="t-cap">Flash ··· ––– ··· on the screen for rescuers</span></span><span class="chev">${I.chevron}</span></button>
+        <button class="set" data-act="sos-light"><span class="tile" style="background:var(--rose)">${I.flash}</span><span class="main"><span class="t-strong" style="display:block">SOS signal</span><span class="t-cap">Screen, flashlight, sound or all · ··· ––– ···</span></span><span class="chev">${I.chevron}</span></button>
+        <div class="set" style="flex-wrap:wrap"><span class="tile" style="background:var(--ember)">${I.bolt}</span><span class="main"><span class="t-strong" style="display:block">Default signal</span><span class="t-cap">Used when you open the SOS signal</span></span>
+          <div class="filters" style="flex-basis:100%;margin:8px 0 0 48px;padding:0">${SIGNAL_MODES.map((x) => `<button class="chip" data-act="signal-default" data-v="${x.id}" aria-pressed="${S.signalDefault === x.id}">${x.em} ${x.label}</button>`).join("")}</div></div>
         <button class="set" data-act="contacts"><span class="tile" style="background:var(--sky)">${I.phone}</span><span class="main"><span class="t-strong" style="display:block">SOS contacts</span><span class="t-cap">${contacts.length ? contacts.map((c) => esc(c.name)).join(", ") : "None yet. Add a number"}</span></span><span class="chev">${I.chevron}</span></button>
+        <button class="set" data-act="open-article" data-v="help-sos"><span class="tile" style="background:var(--pine)">${I.book}</span><span class="main"><span class="t-strong" style="display:block">If you receive an SOS</span><span class="t-cap">How to help someone safely</span></span><span class="chev">${I.chevron}</span></button>
+        <button class="set" data-act="sos-test"><span class="tile" style="background:var(--ink-3)">${I.alert}</span><span class="main"><span class="t-strong" style="display:block">Preview: receive an SOS</span><span class="t-cap">See what happens when someone nearby asks for help</span></span><span class="chev">${I.chevron}</span></button>
       </div>`);
   }
 
@@ -2462,43 +2644,6 @@ button.set:hover { background: var(--sand); }
         <button class="btn" type="submit">Add</button>
       </form>
       <p class="t-cap" style="text-align:center;margin-top:16px">Numbers stay on your phone. They're only used when you send a message or an SOS.</p>`);
-  }
-
-  // ---------- message info: from whom, to whom, and every hop in between ----------
-  const HOP_TEXT = {
-    Ravi: "Hopped to Ravi's phone over Bluetooth",
-    "Meera 🌐": "Reached Meera's phone, which has internet (the bridge)",
-    Internet: "Crossed the internet to the BlueMob relay",
-    SMS: "Turned into a normal text message (SMS)",
-  };
-  function messageInfoView() {
-    const c = convo(S.info.chat), m = c.messages.find((x) => x.id === S.info.mid);
-    const to = S.info.chat === "sky" ? { name: "Sky", uid: null } : P[S.info.chat];
-    const route = m.route || ["You", to.name];
-    const rows = route.map((h, i) => {
-      const t = m.hopTimes && m.hopTimes[i];
-      const done = t != null;
-      const label = i === 0 ? "Left your phone" : i === route.length - 1 ? `Delivered to ${esc(to.name)}` : HOP_TEXT[h] || "Passed through " + esc(h);
-      return `<li class="${done ? "done" : m.status === "queued" && i === 0 ? "wait" : ""}"><i></i><span class="main"><span class="t-strong" style="display:block">${label}</span>
-        <span class="t-cap num">${done ? new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : m.status === "queued" && i === 0 ? "Waiting for someone nearby with internet" : "Not yet"}</span></span></li>`;
-    }).join("");
-    const who = (title, name, id, sub) => `<div class="party"><span class="t-over">${title}</span><b>${name}</b><span class="uid">${id}</span>${sub ? `<span class="t-cap">${sub}</span>` : ""}</div>`;
-    return subScreen("Message info", `
-      <div class="parties">
-        ${who("From", esc(S.name), "BM · " + fmtId(MY_ID), "This phone")}
-        <span class="arrow">${I.send}</span>
-        ${who("To", esc(to.name), to.sms ? esc(to.phone) : to.uid ? "BM · " + fmtId(to.uid) : "On this phone", to.sms ? "By text message" : to.remote || to.presence === "offline" ? "Far away, by ID" : "Nearby")}
-      </div>
-      <div class="msg me" style="max-width:100%;align-items:flex-end;margin:16px 0"><div class="bubble">${esc(m.text)}</div></div>
-      <div class="group-label t-over">Journey</div>
-      <div class="group spec"><ol class="timeline">${rows}</ol></div>
-      <div class="group-label t-over">Details</div>
-      <div class="group">
-        <div class="set"><span class="main"><span class="t-cap">Written</span><span class="t-strong num" style="display:block">${clock(m.time)}</span></span></div>
-        <div class="set"><span class="main"><span class="t-cap">Travelled by</span><span class="t-strong" style="display:block">${esc(m.via || (m.status === "queued" ? "Waiting for a bridge" : "Direct link"))}</span></span></div>
-        <div class="set"><span class="main"><span class="t-cap">Hops</span><span class="t-strong num" style="display:block">${Math.max(0, route.length - 2)} phone${route.length - 2 === 1 ? "" : "s"} in between</span></span></div>
-        <div class="set"><span class="main"><span class="t-cap">Privacy</span><span class="t-strong" style="display:block">Planned: end-to-end encryption, so phones that carry it can't read it</span></span></div>
-      </div>`);
   }
 
   // ---------- trip money: who owes whom, settled later through UPI ----------
@@ -2806,6 +2951,139 @@ button.set:hover { background: var(--sand); }
     if (d < 15) { H.found = true; H.hint = "Treasure found!"; STATS.sent++; }
     else H.hint = d < H.prev - 2 ? (d < 50 ? "Hot! 🔥 Almost there" : "Warmer 🌤️") : d > H.prev + 2 ? "Colder 🧊 Try turning" : "About the same";
     H.prev = d; render();
+  }
+
+  // =====================================================================
+  //  Round 3: receipts & delivery paths, SOS note, incoming SOS alert
+  // =====================================================================
+
+  // ---------- what the two delivery paths are doing, in plain words ----------
+  function pathText(m, path) {
+    const p = P[m.to], o = m.paths[path], name = p ? p.name : "them";
+    if (!o) return path === "direct" ? `Not possible: ${esc(name)} is far away` : "Not used";
+    const t = o.time ? " · " + clock(o.time) : "";
+    return {
+      direct: { waiting: `Waiting for ${esc(name)} to come in range`, trying: "Sending now", delivered: "Delivered" + t,
+        cancelled: "Not needed: delivered another way", discarded: "Arrived second. Discarded by message ID" },
+      internet: { waiting: bridgeOnline() ? "Starting…" : "Waiting for someone nearby with internet (a bridge)", moving: "Travelling through Meera's internet",
+        relay: `Stored at the relay until ${esc(name)} can be reached`, delivered: "Delivered" + t, cancelled: "Cancelled: delivered another way",
+        discarded: "Arrived second. Discarded by message ID", "not-needed": "Not needed: delivered directly" },
+    }[path][o.state] || o.state;
+  }
+  const pathDone = (s) => s === "delivered";
+  const pathOff = (s) => ["cancelled", "discarded", "not-needed"].includes(s);
+
+  /** One line under a message that is still waiting, or that won the race. */
+  function pendingNote(m) {
+    const p = P[m.to];
+    if (!p || !m.paths) return "";
+    const d = m.paths.direct, n = m.paths.internet;
+    if (m.status === "pending") {
+      if (n && n.state === "relay") return `⏳ Stored at the relay. Also goes by Bluetooth the moment ${esc(p.name)} is in range`;
+      if (d && d.state === "waiting") return `⏳ Will go the first way possible: Bluetooth when ${esc(p.name)} is in range, or internet through a bridge`;
+      return "⏳ Waiting for a bridge to the internet";
+    }
+    if (m.deliveredVia === "direct" && n && (n.state === "cancelled" || n.state === "discarded")) return "Delivered directly · internet copy " + (n.state === "cancelled" ? "cancelled" : "discarded");
+    if (m.deliveredVia === "internet" && d && (d.state === "cancelled" || d.state === "discarded")) return "Delivered by internet · direct copy " + (d.state === "cancelled" ? "cancelled" : "discarded");
+    return "";
+  }
+
+  // ---------- message info ----------
+  const HOP_TEXT2 = {
+    Ravi: "Hopped to Ravi's phone over Bluetooth",
+    "Meera 🌐": "Reached Meera's phone, which has internet (the bridge)",
+    Internet: "Crossed the internet to the BlueMob relay",
+    SMS: "Turned into a normal text message (SMS)",
+  };
+  const secs = (t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  function messageInfoView() {
+    const c = convo(S.info.chat), m = c.messages.find((x) => x.id === S.info.mid);
+    const to = S.info.chat === "sky" ? { name: "Sky", uid: null } : P[S.info.chat];
+    const route = m.route || ["You", to.name];
+    const statusWord = { read: "Read", delivered: "Delivered", pending: "Waiting to be delivered", sent: "On its way", sending: "Sending" }[m.status] || m.status;
+    const viaWord = m.deliveredVia === "direct" ? (m.receipts[0]?.via || "Bluetooth / Wi-Fi") : m.deliveredVia === "internet" ? (to.sms ? "Text message through a bridge" : "Internet through a bridge") : "";
+    const who = (title, name, id, sub) => `<div class="party"><span class="t-over">${title}</span><b>${name}</b><span class="uid">${id}</span>${sub ? `<span class="t-cap">${sub}</span>` : ""}</div>`;
+    const pathRow = (path, icon, color) => {
+      const st = m.paths[path] ? m.paths[path].state : "none";
+      return `<div class="set"><span class="tile" style="background:${pathDone(st) ? "var(--pine)" : pathOff(st) || st === "none" ? "var(--ink-3)" : color}">${icon}</span>
+        <span class="main"><span class="t-strong" style="display:block">${PATH_LABEL[path]}${m.deliveredVia === path ? ' <span class="tag pine">USED</span>' : ""}</span>
+        <span class="t-cap">${pathText(m, path)}</span></span></div>`;
+    };
+    const timeline = route.map((h, i) => {
+      const t = m.hopTimes && m.hopTimes[i];
+      const label = i === 0 ? "Left your phone" : i === route.length - 1 ? `Delivered to ${esc(to.name)}` : HOP_TEXT2[h] || "Passed through " + esc(h);
+      return `<li class="${t != null ? "done" : ""}"><i></i><span class="main"><span class="t-strong" style="display:block">${label}</span>
+        <span class="t-cap num">${t != null ? secs(t) : m.status === "pending" && i === route.length - 1 ? "Waiting" : "Not yet"}</span></span></li>`;
+    }).join("");
+    return subScreen("Message info", `
+      <div class="parties">
+        ${who("From", esc(S.name), "BM · " + fmtId(MY_ID), "This phone")}
+        <span class="arrow">${I.send}</span>
+        ${who("To", esc(to.name), to.sms ? esc(to.phone) : to.uid ? "BM · " + fmtId(to.uid) : "On this phone", to.sms ? "By text message" : to.remote || to.presence === "offline" ? "Out of range" : "Nearby")}
+      </div>
+      <div class="msg me" style="max-width:100%;align-items:flex-end;margin:16px 0"><div class="bubble">${esc(m.text)}</div></div>
+
+      <div class="status-card ${m.status === "read" || m.status === "delivered" ? "ok" : "wait"}">
+        <span class="big-tick">${TICK[m.status] || ""}</span>
+        <span><b style="display:block;font-size:18px">${statusWord}</b><span class="t-cap">${viaWord ? "by " + esc(viaWord) : pendingNote(m).replace("⏳ ", "") || "Sending"}</span></span>
+      </div>
+
+      <div class="group-label t-over">Receipts</div>
+      <div class="group">${m.receipts.length ? m.receipts.map((r) => `<div class="set"><span class="tile" style="background:var(--pine)">${r.kind === "read" ? I.eye : I.check}</span>
+          <span class="main"><span class="t-strong" style="display:block">${r.kind === "read" ? "Read" : "Delivered"} · ${secs(r.time)}</span><span class="t-cap">Receipt came back over ${esc(r.via)}</span></span></div>`).join("")
+        : `<div class="set"><span class="main"><span class="t-sub">No receipt yet. You'll get one the moment it's delivered${to.sms ? "" : ", and another when it's read"}.</span></span></div>`}
+        ${to.sms ? '<div class="set"><span class="main"><span class="t-cap">Text messages give a delivery receipt from the phone network, but no read receipt.</span></span></div>' : ""}</div>
+
+      <div class="group-label t-over">Delivery paths · first one wins</div>
+      <div class="group">${pathRow("direct", I.mesh, "var(--sky)")}${pathRow("internet", I.globe, "var(--ember)")}</div>
+
+      <div class="group-label t-over">Journey</div>
+      <div class="group spec"><ol class="timeline">${timeline}</ol></div>
+
+      <div class="group-label t-over">History</div>
+      <div class="group spec"><ol class="timeline">${(m.events || []).map((e) => `<li class="done"><i></i><span class="main"><span style="display:block">${esc(e.text)}</span><span class="t-cap num">${secs(e.time)}</span></span></li>`).join("")}</ol></div>
+
+      <div class="group-label t-over">Duplicate protection</div>
+      <div class="group spec"><p class="t-sub">This message's ID is <span class="uid" style="font-size:12px">${m.id}</span>. Every copy carries it. ${esc(to.name)}'s phone keeps the IDs it has seen and discards any second copy, and the relay deletes its stored copy once a delivery receipt arrives. So it's shown exactly once, however many ways it travels.</p></div>`);
+  }
+
+  // ---------- SOS note (optional) ----------
+  S.sosNote = "";
+  const SOS_REASONS = ["Injured", "Lost", "Medical", "Need water", "Stuck", "Cold", "Animal"];
+
+  // ---------- receiving an SOS ----------
+  S.alert = null;
+  S.alertOpen = false;
+  function receiveSos(fromId, text) {
+    const p = P[fromId];
+    if (!p || p.presence !== "online") return;
+    p.sos = { time: now(), text, battery: 21 };
+    S.alert = { from: fromId };
+    S.alertOpen = true;
+    convo(fromId).messages.push({ id: "m-" + uid(), me: false, text: "🆘 SOS: " + text, time: now() });
+    if (S.chat !== fromId) convo(fromId).unread++;
+    log("SOS received from " + p.name + ". Passed on to the bridge automatically");
+    [0, 450, 900].forEach((d) => setTimeout(() => beep(260), d));
+    render();
+  }
+  function sosAlertView() {
+    if (!S.alertOpen || !S.alert) return "";
+    const p = P[S.alert.from], s = p.sos;
+    return `<div class="sos-alert" role="alertdialog" aria-label="SOS from ${esc(p.name)}">
+      <div class="sos-alert-head"><span class="pulse"></span><span class="t-over" style="color:#fff">SOS RECEIVED · ${clock(s.time)}</span></div>
+      <div class="sos-alert-body">
+        ${avatar(p.avatar, p.id, 84)}
+        <h1 class="t-title" style="margin-top:10px">${nameWithId(p)} needs help</h1>
+        <p class="t-sub">${fmtDist(p.dist)} away to the ${cardinal(p.bearing)} · their battery ${s.battery}%</p>
+        <div class="sos-quote">“${esc(s.text)}”</div>
+        <p class="t-cap">Already passed on to anyone with internet, automatically.</p>
+      </div>
+      <div class="sos-alert-actions">
+        <button class="btn" data-act="sos-coming" data-v="${p.id}">I'm coming</button>
+        <button class="btn secondary" data-act="sos-way" data-v="${p.id}">${I.compass} Show me the way</button>
+        <button class="btn secondary" data-act="sos-howto">${I.book} How to help</button>
+        <button class="btn text" data-act="sos-dismiss">Close</button>
+      </div></div>`;
   }
   // Keep "last seen" times fresh.
   setInterval(() => { if (S.onboarded && S.screen === "main" && (S.tab === "radar" || S.tab === "chats")) refresh(); }, 30000);
