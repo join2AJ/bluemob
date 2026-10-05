@@ -33,6 +33,7 @@ import com.bluemob.app.system.Radios
 import com.bluemob.app.trail.LostMode
 import com.bluemob.app.trail.TrailRecorder
 import com.bluemob.app.util.Connectivity
+import com.bluemob.app.util.CrashLog
 import com.bluemob.app.util.formatId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +44,11 @@ import kotlinx.coroutines.launch
 
 /** Holds app-wide singletons so the mesh survives screen rotation and activity restarts. */
 class BlueMobApp : Application() {
-    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    /** App-wide work. An error in one task is recorded instead of closing the whole app. */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
+        android.util.Log.e("BlueMob", "Background task failed", e)
+        CrashLog.saveNonFatal(this, e)
+    })
 
     lateinit var identity: Identity private set
     lateinit var contacts: ContactsStore private set
@@ -73,8 +78,30 @@ class BlueMobApp : Application() {
     @Volatile var inForeground = false
         private set
 
+    /** Set if BlueMob couldn't start; the activity shows it instead of closing. */
+    var startupError: Throwable? = null
+        private set
+
     override fun onCreate() {
         super.onCreate()
+        CrashLog.install(this)
+        // The last launch died while starting (for example inside native code): show what happened instead of
+        // dying again. "Try again" on that screen clears this and starts normally.
+        CrashLog.unfinishedStep(this)?.let { step ->
+            startupError = IllegalStateException("BlueMob stopped while starting last time, during: $step")
+            if (CrashLog.read(this) == null) CrashLog.save(this, startupError!!, "previous launch")
+            return
+        }
+        try {
+            start()
+        } catch (t: Throwable) {
+            startupError = t
+            CrashLog.save(this, t, "startup")
+        }
+    }
+
+    private fun start() {
+        CrashLog.step(this, "setting up notifications")
         notifier = Notifier(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             private var started = 0
@@ -86,9 +113,16 @@ class BlueMobApp : Application() {
             override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
             override fun onActivityDestroyed(a: Activity) = Unit
         })
+        CrashLog.step(this, "unlocking your identity (Android Keystore)")
         identity = Identity(this)
+        CrashLog.step(this, "unlocking encrypted contacts")
         contacts = ContactsStore(this)
-        val db = BlueMobDatabase.create(this)
+        // Robolectric (the app-startup test) can't load SQLCipher's native library; real phones always encrypt.
+        CrashLog.step(this, "opening the encrypted database (SQLCipher)")
+        val db = BlueMobDatabase.create(this, encrypted = android.os.Build.FINGERPRINT != "robolectric")
+        // Open it now, inside this protected start-up, so any problem (key, native library, upgrade) is caught here.
+        db.openHelper.writableDatabase
+        CrashLog.step(this, "starting the mesh")
         keyBook = loadKeyBook()
         mesh = NearbyMeshTransport(this, identity, contacts, keyBook, RoomRelayStore(db.relay(), appScope))
         location = LocationTracker(this)
@@ -97,6 +131,7 @@ class BlueMobApp : Application() {
         signals = SignalController(this)
         heading = HeadingSensor(this)
         radios = Radios(this)
+        CrashLog.step(this, "starting the audit trail, SOS and relay")
         audit = AuditLog(db.audit(), appScope, identity.keys, SecurePrefs.open(this, "audit"))
         witness = AuditWitness(identity.keys, SecurePrefs.open(this, "witness")) { contacts.contacts.value[it]?.name ?: "someone" }
         // Every phone we meet gets a signed note of our newest audit entry, and hands back the one it kept.
@@ -135,6 +170,7 @@ class BlueMobApp : Application() {
         )
         appScope.launch { sos.alert.collect { a -> if (a != null && !inForeground && a.id != SosManager.PREVIEW_ID) notifier.sos(a) } }
         appScope.launch { rescue.notices.collect { n -> if (!inForeground) notifier.rescue(n.room, n.text) } }
+        CrashLog.step(this, "showing the first screen")
         // The mesh keeps running in the background (with its notification) whenever it's on.
         appScope.launch {
             combine(mesh.running, settings.background) { on, bg -> on && bg }.collect { keep ->

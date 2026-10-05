@@ -95,6 +95,7 @@ fun ProfileScreen(
     onMyRating: () -> Unit = {},
     myStars: Double = com.bluemob.app.trust.Trust.START,
     myRatingCount: Int = 0,
+    lastError: String? = null,
     onSosContacts: () -> Unit = {},
     onAudit: () -> Unit = {},
     onGames: () -> Unit = {},
@@ -219,6 +220,11 @@ fun ProfileScreen(
         item { GroupLabel("For testers") }
         item {
             Group {
+                if (lastError != null) {
+                    var errCopied by remember { mutableStateOf(false) }
+                    SettingRow(Icons.Outlined.Terminal, Extra.rose, "Last background error", if (errCopied) "Copied ✓ Send it to the BlueMob team" else lastError.lines().getOrNull(3)?.take(80) ?: "Tap to copy",
+                        onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(lastError)); errCopied = true })
+                }
                 SettingRow(Icons.Outlined.Terminal, Color(0xFF3A4A44), "Mesh activity log", "What the mesh is doing, step by step", onClick = { showLog = !showLog }) {
                     Icon(Icons.Outlined.ChevronRight, null, tint = Extra.ink3, modifier = Modifier.rotate(if (showLog) 90f else 0f))
                 }

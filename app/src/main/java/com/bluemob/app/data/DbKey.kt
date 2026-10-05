@@ -13,14 +13,17 @@ import java.security.SecureRandom
  */
 object DbKey {
     private const val PREFS = "db_key"
-    private val box by lazy { KeystoreBox("bluemob_db") }
+    private fun box(context: Context) = KeystoreBox("bluemob_db", context.getSharedPreferences("keystore_fallback", Context.MODE_PRIVATE))
 
     /** The passphrase given to SQLCipher: the key as hex text, so the converter below and Room agree exactly. */
     fun passphrase(context: Context): ByteArray = rawKey(context).joinToString("") { "%02x".format(it) }.toByteArray()
 
     private fun rawKey(context: Context): ByteArray {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val box = box(context)
         prefs.getString("sealed", null)?.let(Crypto::decode)?.let(box::open)?.let { return it }
+        // If a sealed key exists but can't be opened, the database can't be read: say so instead of silently starting over.
+        check(prefs.getString("sealed", null) == null) { "The database key can't be unlocked on this phone (Keystore changed)" }
         val key = ByteArray(32).also(SecureRandom()::nextBytes)
         prefs.edit().putString("sealed", Crypto.encode(box.seal(key))).commit()
         return key

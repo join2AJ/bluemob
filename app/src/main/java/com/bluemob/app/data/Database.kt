@@ -237,12 +237,15 @@ abstract class BlueMobDatabase : RoomDatabase() {
 
     companion object {
         /** Opens the database encrypted with SQLCipher (AES-256). An older plain database is encrypted first. */
-        fun create(context: Context): BlueMobDatabase {
-            System.loadLibrary("sqlcipher")
-            val pass = DbKey.passphrase(context)
-            DbKey.encryptInPlace(context, NAME, pass)
-            return Room.databaseBuilder(context, BlueMobDatabase::class.java, NAME)
-                .openHelperFactory(net.zetetic.database.sqlcipher.SupportOpenHelperFactory(pass))
+        fun create(context: Context, encrypted: Boolean = true, name: String = NAME): BlueMobDatabase {
+            val builder = Room.databaseBuilder(context, BlueMobDatabase::class.java, name)
+            if (encrypted) {
+                System.loadLibrary("sqlcipher")
+                val pass = DbKey.passphrase(context)
+                DbKey.encryptInPlace(context, name, pass)
+                builder.openHelperFactory(net.zetetic.database.sqlcipher.SupportOpenHelperFactory(pass))
+            }
+            return builder
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)

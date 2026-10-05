@@ -22,6 +22,8 @@ import androidx.core.content.ContextCompat
 import com.bluemob.app.permissions.MeshPermissions
 import com.bluemob.app.system.Radio
 import com.bluemob.app.ui.AppViewModel
+import com.bluemob.app.ui.CrashScreen
+import com.bluemob.app.util.CrashLog
 import com.bluemob.app.ui.BlueMobRoot
 import com.bluemob.app.ui.SystemActions
 import com.bluemob.app.ui.SystemStatus
@@ -53,6 +55,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // If BlueMob couldn't start, explain and show the error instead of closing.
+        (application as BlueMobApp).startupError?.let { error ->
+            val report = CrashLog.read(this) ?: error.stackTraceToString()
+            setContent { BlueMobTheme { CrashScreen(true, report, onShare = { shareReport(report) }, onContinue = {}, onRetry = { CrashLog.clear(this); restart() }, onReset = ::resetApp) } }
+            return
+        }
+        val lastCrash = mutableStateOf(CrashLog.read(this))
         val actions = SystemActions(
             requestMeshPermissions = { meshPermissionLauncher.launch(MeshPermissions.required + notificationPermission()) },
             openLocationSettings = { startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) },
@@ -79,14 +88,17 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             BlueMobTheme {
-                BlueMobRoot(vm = viewModel, system = systemStatus.value, actions = actions)
+                val report = lastCrash.value
+                if (report != null) CrashScreen(false, report, onShare = { shareReport(report) },
+                    onContinue = { CrashLog.clear(this); lastCrash.value = null }, onRetry = {}, onReset = {})
+                else BlueMobRoot(vm = viewModel, system = systemStatus.value, actions = actions)
             }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleRoute(intent)
+        if (started) handleRoute(intent)
     }
 
     /** A notification asked to open a chat or rescue group. */
@@ -95,11 +107,29 @@ class MainActivity : ComponentActivity() {
         intent?.removeExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)
     }
 
+    private fun shareReport(report: String) {
+        runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, report), "Share the error")) }
+    }
+
+    private fun restart() {
+        startActivity(Intent.makeRestartActivityTask(componentName))
+        Runtime.getRuntime().exit(0)
+    }
+
+    /** Last resort from the startup error screen: clears all of BlueMob's data (Android closes the app). */
+    private fun resetApp() {
+        getSystemService(android.app.ActivityManager::class.java)?.clearApplicationUserData()
+    }
+
     private fun notificationPermission(): Array<String> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else emptyArray()
 
+    private val started get() = (application as BlueMobApp).startupError == null
+
     override fun onResume() {
         super.onResume()
+        if (!started) return
+        CrashLog.started(this) // got all the way to a screen: start-up finished
         refreshStatus()
         viewModel.refreshRadios()
     }

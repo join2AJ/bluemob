@@ -87,10 +87,13 @@ class SecurePrefs private constructor(private val backing: SharedPreferences, pr
     }
 
     companion object {
-        private val box by lazy { KeystoreBox("bluemob_prefs") }
+        @Volatile private var box: KeystoreBox? = null
+        private fun box(context: Context) = box ?: synchronized(this) {
+            box ?: KeystoreBox("bluemob_prefs", context.getSharedPreferences("keystore_fallback", Context.MODE_PRIVATE)).also { box = it }
+        }
 
         fun open(context: Context, name: String): SharedPreferences {
-            val secure = SecurePrefs(context.getSharedPreferences("$name.enc", Context.MODE_PRIVATE), box)
+            val secure = SecurePrefs(context.getSharedPreferences("$name.enc", Context.MODE_PRIVATE), box(context))
             // Move data from older, unencrypted versions, then delete the plain file.
             val plain = context.getSharedPreferences(name, Context.MODE_PRIVATE)
             val old = plain.all
@@ -113,6 +116,6 @@ class SecurePrefs private constructor(private val backing: SharedPreferences, pr
         /** True if a file on disk still holds readable text, for the self-check in the security screen. */
         fun plainFilesLeft(context: Context): List<String> =
             File(context.applicationInfo.dataDir, "shared_prefs").listFiles().orEmpty().map { it.name }
-                .filter { !it.endsWith(".enc.xml") && it.endsWith(".xml") && it != "db_key.xml" && !it.startsWith("WebView") && !it.startsWith("com.google") }
+                .filter { !it.endsWith(".enc.xml") && it.endsWith(".xml") && it != "db_key.xml" && it != "keystore_fallback.xml" && !it.startsWith("WebView") && !it.startsWith("com.google") }
     }
 }

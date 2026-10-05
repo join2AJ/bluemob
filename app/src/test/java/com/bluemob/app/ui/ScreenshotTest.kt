@@ -234,6 +234,10 @@ class ScreenshotTest {
     @Test fun bridge() = shot {
         com.bluemob.app.ui.system.BridgeScreen(com.bluemob.app.bridge.BridgeStatus(true, true, now - 40_000, null, 12, 9, 0), "https://relay.bluemob.example", {}, {})
     }
+    @Test fun crashScreen() = shot(tall = true) {
+        CrashScreen(true, "BlueMob 0.6.1 · Android 14 (API 34) · samsung SM-A546E · arm64-v8a\nWhile: opening the encrypted database (SQLCipher)\n\n" +
+            "java.lang.IllegalStateException: example error\n\tat com.bluemob.app.data.BlueMobDatabase.create(Database.kt:212)", {}, {}, {}, {})
+    }
     @Test fun games() = shot { GamesScreen({}, {}) }
     @Test fun ticTacToe() = shot { TicTacToeScreen {} }
     @Test fun profile() = shot(tall = true) {

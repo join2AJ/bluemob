@@ -203,6 +203,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val bridgeUrl = settings.bridgeUrl
     fun setBridgeUrl(url: String) { settings.setBridgeUrl(url); blueMob.bridge.reconfigure() }
 
+    fun lastError(): String? = com.bluemob.app.util.CrashLog.lastNonFatal(getApplication())
+
     val background = settings.background
     fun setBackground(on: Boolean) = settings.setBackground(on)
 
