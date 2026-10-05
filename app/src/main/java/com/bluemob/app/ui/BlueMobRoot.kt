@@ -76,6 +76,7 @@ import com.bluemob.app.ui.games.ConnectFourScreen
 import com.bluemob.app.ui.games.GamesScreen
 import com.bluemob.app.ui.games.TicTacToeScreen
 import com.bluemob.app.ui.profile.AuditScreen
+import com.bluemob.app.ui.profile.PersonScreen
 import com.bluemob.app.rescue.RescueNotice
 import com.bluemob.app.ui.rescue.RescueActions
 import com.bluemob.app.ui.rescue.RescueScreen
@@ -85,6 +86,7 @@ import kotlinx.coroutines.delay
 import com.bluemob.app.ui.sos.SosContactsScreen
 import com.bluemob.app.ui.sos.SosHubState
 import com.bluemob.app.ui.system.ConnectionsScreen
+import com.bluemob.app.ui.system.BridgeScreen
 import com.bluemob.app.ui.sos.SosHubScreen
 import com.bluemob.app.ui.sos.SosSignalScreen
 import com.bluemob.app.ui.theme.Extra
@@ -167,6 +169,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val lostOn by vm.lostOn.collectAsStateWithLifecycle()
     var sosReached by rememberSaveable { mutableStateOf(-1) }
     val rescues by vm.rescues.collectAsStateWithLifecycle()
+    val trustScores by vm.trustScores.collectAsStateWithLifecycle()
     var notice by remember { mutableStateOf<RescueNotice?>(null) }
     LaunchedEffect(Unit) { vm.rescueNotices.collect { n -> notice = n } }
     val pendingRoute by vm.pendingRoute.collectAsStateWithLifecycle()
@@ -228,6 +231,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onName = vm::setName, onAvatar = vm::setAvatar, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onToggleLocation = toggleLocation, onBatterySaver = actions.openBatterySaver, onKeepRunning = actions.askKeepRunning,
                             onSos = { push("sos") }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
+                            onBridge = { push("bridge") }, onMyRating = { push("person:" + vm.nodeId) },
+                            myStars = (trustScores[vm.nodeId] ?: vm.scoreFor(vm.nodeId)).stars, myRatingCount = trustScores[vm.nodeId]?.ratings ?: 0,
                             onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
                             onGames = { push("games") }, sosContactCount = sosContacts.size,
                             background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
@@ -239,7 +244,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     ChatScreen(
                         nodeId = id, person = people.firstOrNull { it.nodeId == id }, messages = conversations[id].orEmpty(), typing = id in typing,
                         meshEvents = vm.meshEvents, myName = name, myId = vm.nodeId, onBack = ::pop, onSend = { vm.send(id, it) },
-                        onPing = { vm.ping(id) }, onInfo = { push("info:$it") }, onPerson = {}, onAction = onSkyAction,
+                        onPing = { vm.ping(id) }, onInfo = { push("info:$it") }, onPerson = { if (id != SkyBot.NODE_ID) push("person:$id") }, onAction = onSkyAction,
                     )
                 }
                 route.startsWith("info:") -> {
@@ -266,18 +271,36 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route.startsWith("rescue:") -> {
                     val room = rescues.firstOrNull { it.id == route.removePrefix("rescue:") }
                     if (room == null) LaunchedEffect(Unit) { delay(1_500); pop() }
-                    else RescueScreen(room, vm.nodeId, hereFix, headings, RescueActions(
+                    else RescueScreen(room, vm.nodeId, hereFix, headings, rated = remember(trustScores, room.id) {
+                        (room.helpers.map { it.nodeId } + room.victimId).flatMap { s -> vm.myRatingsOf(s).filter { it.ctx == room.id }.map { "$s|${it.kind.code}" } }.toSet()
+                    }, actions = RescueActions(
                         onBack = ::pop, onJoin = { vm.joinRescue(room.id) }, onSend = { vm.sendRescue(room.id, it) },
                         onArrived = { vm.arrivedRescue(room.id) }, onLeave = { vm.leaveRescue(room.id) },
                         onNavigate = { compassTarget = room.victimId; goTab(Tab.COMPASS) }, onGuide = { push("article:$it") },
                         onSignal = { push("signal") }, onSafe = { vm.cancelSos(); sosReached = -1 },
+                        onRate = { who, kind -> vm.rate(who, kind, room.id, "") },
                     ))
                 }
                 route == "sos-contacts" -> SosContactsScreen(sosContacts, ::pop, onAdd = vm::addSosContact, onRemove = vm::removeSosContact)
                 route == "connections" -> ConnectionsScreen(radios, online, ::pop, onSwitch = actions.switchRadio)
                 route == "audit" -> {
                     val audit by vm.audit.collectAsStateWithLifecycle()
-                    AuditScreen(audit.first, audit.second, ::pop)
+                    val witnesses by vm.witnesses.collectAsStateWithLifecycle()
+                    AuditScreen(audit.first, audit.second, ::pop, witnesses, vm.auditPublicKey, remember(audit.first.size) { vm.securityStatus() })
+                }
+                route.startsWith("person:") -> {
+                    val id = route.removePrefix("person:")
+                    val scores by vm.trustScores.collectAsStateWithLifecycle()
+                    val p = people.firstOrNull { it.nodeId == id }
+                    val isMe = id == vm.nodeId
+                    PersonScreen(id, if (isMe) name else p?.name ?: "Someone", if (isMe) avatar else p?.avatar, scores[id] ?: vm.scoreFor(id), isMe,
+                        remember(scores) { vm.myRatingsOf(id) }, rescues.firstOrNull { it.victimId == id }?.id, ::pop,
+                        onMessage = { pop(); push("chat:$id") }, onRate = { kind, ctx, remark -> vm.rate(id, kind, ctx, remark) })
+                }
+                route == "bridge" -> {
+                    val st by vm.bridgeStatus.collectAsStateWithLifecycle()
+                    val url by vm.bridgeUrl.collectAsStateWithLifecycle()
+                    BridgeScreen(st, url, ::pop, onSave = vm::setBridgeUrl)
                 }
                 route == "games" -> GamesScreen(::pop) { push("game:$it") }
                 route == "game:ttt" -> TicTacToeScreen(::pop)
@@ -295,6 +318,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 onHowTo = { vm.dismissSosAlert(); push("article:help-sos") },
                 onClose = vm::dismissSosAlert,
                 coming = rescues.firstOrNull { it.id == sos.id }?.coming?.map { it.name }.orEmpty(),
+                trust = if (preview) null else (trustScores[sos.fromNodeId] ?: vm.scoreFor(sos.fromNodeId)),
+                onProfile = { vm.dismissSosAlert(); push("person:" + sos.fromNodeId) },
             )
         }
 

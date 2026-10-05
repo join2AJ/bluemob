@@ -58,7 +58,6 @@ import com.bluemob.app.ui.theme.Palette
 import com.bluemob.app.ui.theme.Space
 import com.bluemob.app.util.Geo
 import com.bluemob.app.util.TimeText
-import com.bluemob.app.util.shortId
 import java.util.Calendar
 import kotlin.math.abs
 import kotlin.math.log10
@@ -223,8 +222,10 @@ private fun PersonCard(p: Person, onClick: () -> Unit) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    if (p.sharesName) Text(" " + shortId(p.nodeId), style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
                 }
+                com.bluemob.app.ui.components.StarChip(p.stars, p.ratingCount, Modifier.padding(vertical = 2.dp))
+                Text("BM " + com.bluemob.app.util.formatId(p.nodeId).take(9), style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                    color = Extra.ink3, maxLines = 1)
                 Text(statusLine(p), style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }

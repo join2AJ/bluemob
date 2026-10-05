@@ -34,9 +34,13 @@ sealed interface MeshEvent {
         val hops: Int = 1,
         /** The sender's name, as they wrote it. Lets us show people we've never met. */
         val name: String? = null,
+        /** Arrived through the BlueMob relay over the internet. */
+        val viaInternet: Boolean = false,
     ) : MeshEvent
     /** A receipt for one of our messages: [read] is false for "delivered", true for "read". */
-    data class Receipt(val fromNodeId: String, val messageId: String, val read: Boolean, val hops: Int = 1) : MeshEvent
+    data class Receipt(val fromNodeId: String, val messageId: String, val read: Boolean, val hops: Int = 1, val viaInternet: Boolean = false) : MeshEvent
+    /** A new way to reach people opened up (e.g. internet came back): retry what's waiting. */
+    data object RouteAvailable : MeshEvent
     /** A link to [nodeId] just opened: anything waiting for them can go now. */
     data class PeerConnected(val nodeId: String) : MeshEvent
     data class PingResult(val nodeId: String, val roundTripMs: Long) : MeshEvent
@@ -45,6 +49,8 @@ sealed interface MeshEvent {
     data class RoomReceived(val msg: RoomPayload) : MeshEvent
     /** We just learned [nodeId]'s public key, so messages waiting for it can go. */
     data class KeyLearned(val nodeId: String) : MeshEvent
+    /** A packet type handled outside the transport (audit witness notes, ratings). */
+    data class Extra(val fromNodeId: String, val type: String, val json: org.json.JSONObject) : MeshEvent
 }
 
 /**

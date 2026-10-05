@@ -28,7 +28,7 @@ data class SosContact(val id: String, val name: String, val phone: String)
 
 /** Small preferences that aren't part of the identity: SOS signal, saved spots, saved guides. */
 class AppSettings(context: Context) {
-    private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    private val prefs = com.bluemob.app.crypto.SecurePrefs.open(context, "settings")
 
     private val _signal = MutableStateFlow(
         runCatching { SignalMode.valueOf(prefs.getString("signal", null) ?: "") }.getOrDefault(SignalMode.SCREEN)
@@ -75,6 +75,19 @@ class AppSettings(context: Context) {
         prefs.edit().putBoolean("background", on).apply()
         _background.value = on
     }
+
+    private val _bridgeUrl = MutableStateFlow(prefs.getString("bridge_url", "") ?: "")
+    /** The BlueMob relay this phone uses when it has internet (see server/README.md). Empty = not set up. */
+    val bridgeUrl: StateFlow<String> = _bridgeUrl.asStateFlow()
+
+    fun setBridgeUrl(url: String) {
+        val clean = url.trim().trimEnd('/')
+        prefs.edit().putString("bridge_url", clean).apply()
+        _bridgeUrl.value = clean
+    }
+
+    val bridgeCursor: Long get() = prefs.getLong("bridge_cursor", 0)
+    fun setBridgeCursor(v: Long) = prefs.edit().putLong("bridge_cursor", v).apply()
 
     private val _trailOn = MutableStateFlow(prefs.getBoolean("trail", false))
     /** Opt-in: recording the trail keeps GPS on. */

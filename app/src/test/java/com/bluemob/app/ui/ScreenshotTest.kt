@@ -50,6 +50,7 @@ import com.bluemob.app.ui.rescue.RescueScreen
 import com.bluemob.app.ui.games.GamesScreen
 import com.bluemob.app.ui.games.TicTacToeScreen
 import com.bluemob.app.ui.profile.AuditScreen
+import com.bluemob.app.ui.profile.PersonScreen
 import com.bluemob.app.ui.sos.SosContactsScreen
 import com.bluemob.app.ui.sos.SosHubState
 import com.bluemob.app.ui.system.ConnectionsScreen
@@ -184,7 +185,9 @@ class ScreenshotTest {
             "MESSAGE" to "Message m-1f2e written to Asha: \"On my way!\"", "RECEIPT" to "Delivery receipt for m-1f2e from Asha over Wi-Fi",
             "POSITION" to "Base camp set at 30.0830 N, 78.2640 E", "SOS" to "SOS sent to 2 phones nearby: \"Twisted ankle\". " + noGps.describe(now),
         ).mapIndexed { i, (k, t) -> AuditChain.next(prev, now - (6 - i) * 60_000L, k, t).also { prev = it } }
-        AuditScreen(entries.asReversed(), null, {})
+        AuditScreen(entries.asReversed(), com.bluemob.app.audit.AuditVerification(entries.size), {},
+            listOf(com.bluemob.app.audit.Witness("a1c2", "Asha", 5, true, now - 600_000), com.bluemob.app.audit.Witness("b7e4", "Ravi", 4, true, now - 3_600_000)),
+            "MFkw…", SecurityStatus(true, emptyList()))
     }
     private fun rescueRoom(mine: Boolean): RescueRoom {
         var t = now - 9 * 60_000L
@@ -212,6 +215,24 @@ class ScreenshotTest {
     @Test fun newChat() = shot(tall = true) {
         NewChatScreen("3f9a1c2b7d4e8a01", people + people[0].copy(nodeId = "9c1f00aa77b2e410", name = "Kabir", avatar = "🐺", presence = Presence.OFFLINE, lastSeen = 0, location = null),
             {}, { _, _ -> }, {}, {})
+    }
+    private val raviScore = com.bluemob.app.trust.Trust.score("b7e4", listOf(
+        com.bluemob.app.trust.Rating("a1c2", "Asha", "b7e4", com.bluemob.app.trust.RatingKind.THANKS, "s0", "Brought water and stayed with me till dawn", now - 3 * 86_400_000L),
+        com.bluemob.app.trust.Rating("c3d9", "Meera", "b7e4", com.bluemob.app.trust.RatingKind.GENUINE_SOS, "s1", "Really twisted his ankle, we carried him down", now - 86_400_000L),
+        com.bluemob.app.trust.Rating("e4b0", "Asha", "b7e4", com.bluemob.app.trust.RatingKind.FAKE_SOS, "s2", "Nobody was there, they laughed about it", now - 3_600_000L),
+    ), now)
+    @Test fun person() = shot(tall = true) {
+        PersonScreen("b7e4c3d900aa1122", "Ravi", "🐬", raviScore, false, emptyList(), "sos1", {}, {}, { _, _, _ -> })
+    }
+    @Test fun sosAlertWarning() = shot(tall = true) {
+        SosAlert(SosSignal("x", "b7e4", "Ravi", "Snake bite near the stream", noGps.lat, noGps.lon, 21, now, 1, pos = noGps), people[1], me.lat, me.lon, {}, {}, {}, {},
+            trust = raviScore)
+    }
+    @Test fun rescueEnded() = shot(tall = true) {
+        RescueScreen(rescueRoom(false).copy(ended = true), "me", me, flowOf(200f), RescueActions(), rated = emptySet())
+    }
+    @Test fun bridge() = shot {
+        com.bluemob.app.ui.system.BridgeScreen(com.bluemob.app.bridge.BridgeStatus(true, true, now - 40_000, null, 12, 9, 0), "https://relay.bluemob.example", {}, {})
     }
     @Test fun games() = shot { GamesScreen({}, {}) }
     @Test fun ticTacToe() = shot { TicTacToeScreen {} }

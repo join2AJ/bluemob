@@ -89,6 +89,8 @@ class RescueActions(
     /** For the person in need: flash and beep so helpers can find them. */
     val onSignal: () -> Unit = {},
     val onSafe: () -> Unit = {},
+    /** Rate someone in this rescue: (their ID, what). */
+    val onRate: (String, com.bluemob.app.trust.RatingKind) -> Unit = { _, _ -> },
 )
 
 private val HELPER_REPLIES = listOf("On my way 🏃", "Stay where you are", "Can you hear my whistle?", "Shine your light", "I see you!", "Need more people")
@@ -99,7 +101,7 @@ private val VICTIM_REPLIES = listOf("I can hear you!", "I can see your light", "
  * The person in need sees who's coming and how far away they are.
  */
 @Composable
-fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<Float>, actions: RescueActions) {
+fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<Float>, actions: RescueActions, rated: Set<String> = emptySet()) {
     val heading by remember(headings) { headings }.collectAsStateWithLifecycle(initialValue = 0f)
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
@@ -129,6 +131,7 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
         }
 
         LazyColumn(Modifier.weight(1f), state = list, contentPadding = PaddingValues(16.dp)) {
+            if (room.ended) item { RateRescue(room, myId, rated, actions) }
             item {
                 if (room.mine) VictimCard(room, actions) else TargetCard(room, me, heading, guideId, actions)
             }
@@ -342,6 +345,40 @@ private fun Arrow(relative: Float?, modifier: Modifier) {
                 close()
             }
             drawPath(p, if (relative == null) ink3 else pine)
+        }
+    }
+}
+
+/** After a rescue: helpers say whether the SOS was real; the person who was helped thanks the people who came. */
+@Composable
+private fun RateRescue(room: RescueRoom, myId: String, rated: Set<String>, actions: RescueActions) {
+    Surface(shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            if (room.mine) {
+                Text("Thank the people who came", style = MaterialTheme.typography.titleMedium)
+                Text("Each thank-you adds to their stars, so others know they can be trusted.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                room.helpers.filter { it.status != HelperStatus.LEFT }.forEach { h ->
+                    val done = "${h.nodeId}|thanks" in rated
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(h.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        if (done) Text("Thanked ✓", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        else Button(onClick = { actions.onRate(h.nodeId, com.bluemob.app.trust.RatingKind.THANKS) }) { Text("👏 Thank") }
+                    }
+                }
+            } else if (room.iAmIn || room.helpers.any { it.nodeId == myId }) {
+                val real = "${room.victimId}|genuine_sos" in rated
+                val fake = "${room.victimId}|fake_sos" in rated
+                Text("Was this SOS real?", style = MaterialTheme.typography.titleMedium)
+                Text("Your answer goes into ${room.victimName}'s stars, so people can tell a genuine SOS from a prank next time.",
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { actions.onRate(room.victimId, com.bluemob.app.trust.RatingKind.GENUINE_SOS) }, enabled = !real) { Text(if (real) "Real ✓" else "✅ It was real") }
+                    OutlinedButton(onClick = { actions.onRate(room.victimId, com.bluemob.app.trust.RatingKind.FAKE_SOS) }, enabled = !fake) { Text(if (fake) "Fake ✓" else "⚠ Fake") }
+                }
+                if (!room.mine) TextButton(onClick = { actions.onRate(room.victimId, com.bluemob.app.trust.RatingKind.THANKS) }) { Text("Or just say thanks to ${room.victimName}") }
+            } else {
+                Text("${room.victimName} is safe now.", style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }

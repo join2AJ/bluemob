@@ -17,6 +17,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.SettingsInputAntenna
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -89,6 +91,10 @@ fun ProfileScreen(
     onForgetPeople: () -> Unit,
     onClearMessages: () -> Unit,
     onConnections: () -> Unit = {},
+    onBridge: () -> Unit = {},
+    onMyRating: () -> Unit = {},
+    myStars: Double = com.bluemob.app.trust.Trust.START,
+    myRatingCount: Int = 0,
     onSosContacts: () -> Unit = {},
     onAudit: () -> Unit = {},
     onGames: () -> Unit = {},
@@ -152,6 +158,8 @@ fun ProfileScreen(
                     if (background) "SOS and messages reach you with the screen off" else "Off: SOS and messages only arrive while BlueMob is open", divider = true) {
                     Switch(background, onBackground)
                 }
+                SettingRow(Icons.Outlined.Public, Extra.sky, "Internet bridge", "Keep talking when you're far apart, through the BlueMob relay",
+                    divider = true, onClick = onBridge) { chevron() }
                 SettingRow(Icons.Outlined.SettingsInputAntenna, Extra.ember, "Bluetooth, Wi-Fi, GPS, internet", "See what's on and switch it, in one place",
                     divider = true, onClick = onConnections) { chevron() }
             }
@@ -173,6 +181,15 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS", "Default signal: ${signalDefault.emoji} ${signalDefault.label}", onClick = onSos) { chevron() }
                 SettingRow(Icons.Outlined.Contacts, Extra.sky, "SOS contacts",
                     if (sosContactCount == 0) "None yet. Add family to text when you send an SOS" else "$sosContactCount saved", divider = true, onClick = onSosContacts) { chevron() }
+            }
+        }
+
+        item { GroupLabel("Your standing") }
+        item {
+            Group {
+                SettingRow(Icons.Outlined.StarOutline, com.bluemob.app.ui.components.StarGold, "Your rating",
+                    if (myRatingCount == 0) "4 stars to start. Help people and they can thank you" else "%.1f out of 5 · %d rating%s".format(myStars, myRatingCount, if (myRatingCount == 1) "" else "s"),
+                    onClick = onMyRating) { com.bluemob.app.ui.components.StarRow(myStars, 14.dp) }
             }
         }
 

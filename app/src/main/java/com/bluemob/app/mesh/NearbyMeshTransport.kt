@@ -87,6 +87,12 @@ class NearbyMeshTransport(
     /** Gets chat messages and receipts to anyone, through other phones if needed. The message store talks to this. */
     val router = MeshRouter(this, identity.keys, keyBook, relayStore, myName = { identity.displayName.value }, log = ::log)
 
+    /** Extra packets to send to a phone that just connected (e.g. audit witness notes). Set by the app. */
+    var onConnectedPackets: (String) -> List<JSONObject> = { emptyList() }
+
+    /** Packet types handed to the app as [MeshEvent.Extra] instead of being handled here. */
+    var extraTypes: Set<String> = emptySet()
+
     /** Nearby's per-connection token: the other phone signs it in its hello to prove it owns its ID. */
     private val authTokens = mutableMapOf<String, ByteArray>()
 
@@ -239,6 +245,12 @@ class NearbyMeshTransport(
         Envelope.seal(TYPE_ROOM, body, identity.keys).also { if (m.fromNodeId == identity.nodeId) roomPackets[m.id] = it }
     }
 
+    /** Sends a signed rating to everyone connected; each phone passes it on (up to 5 hops). */
+    fun broadcastRate(json: JSONObject, seenKey: String) {
+        seenSos += TYPE_RATE + seenKey
+        connectedEndpoints().forEach { sendTo(it, json) }
+    }
+
     /** Human words for the link to someone, e.g. "Bluetooth" or "Wi-Fi". */
     override fun neighbors(): List<String> = connectedNodes()
     override fun send(nodeId: String, packet: JSONObject) { connectedEndpointFor(nodeId)?.let { sendTo(it, packet) } }
@@ -363,6 +375,7 @@ class NearbyMeshTransport(
                 myLocation?.let { sendTo(endpointId, locationJson(it)) }
                 activeSos?.let { sendTo(endpointId, it) }
                 activeLost?.let { sendTo(endpointId, it) }
+                onConnectedPackets(peer.nodeId).forEach { sendTo(endpointId, it) }
                 router.onNeighborConnected(peer.nodeId)
                 _events.tryEmit(MeshEvent.PeerConnected(peer.nodeId))
             } else {
@@ -422,6 +435,9 @@ class NearbyMeshTransport(
                     }
                 }
                 MeshRouter.RMSG, MeshRouter.RRCPT, MeshRouter.KEYQ, MeshRouter.KEYA -> router.onPacket(peer.nodeId, json)
+                TYPE_RATE -> relaySigned(endpointId, json) { o -> listOf(o.body.optString("subject"), o.body.optString("kind"), o.body.optString("ctx"), o.body.optLong("at")).joinToString("|") }
+                    ?.let { _events.tryEmit(MeshEvent.Extra(peer.nodeId, TYPE_RATE, json)) }
+                in extraTypes -> _events.tryEmit(MeshEvent.Extra(peer.nodeId, json.optString("t"), json))
                 TYPE_SOS -> handleSos(endpointId, json)
                 TYPE_LOST -> handleLost(endpointId, json)
                 TYPE_ROOM -> handleRoom(endpointId, json)
@@ -536,6 +552,7 @@ class NearbyMeshTransport(
         private const val TYPE_SOS = "sos"
         private const val TYPE_LOST = "lost"
         private const val TYPE_ROOM = "room"
+        const val TYPE_RATE = "rate"
         const val SOS_MAX_HOPS = 5
         private const val TYPE_PING = "ping"
         private const val TYPE_PONG = "pong"

@@ -299,7 +299,7 @@
       : p.presence === "range" ? "Connecting…" : "Seen " + ago(p.lastSeen);
     return `<button class="pcard press" data-act="open-chat" data-id="${p.id}">
       <span class="art" style="background:${tint(p.id)}"><span class="tag"><span class="dot" style="background:${p.sos ? "var(--rose)" : PCOLOR[p.presence]}"></span>${p.sos ? "SOS" : label}</span>${p.avatar}</span>
-      <span class="body"><span class="t-strong ellipsis">${nameWithId(p)}</span><span class="t-cap ellipsis" data-status-card="${p.id}">${sub}</span></span></button>`;
+      <span class="body"><span class="t-strong ellipsis">${nameWithId(p)}</span>${starChip(p.id)}<span class="t-cap ellipsis" data-status-card="${p.id}">${sub}</span></span></button>`;
   }
   function updatePeopleText() {
     document.querySelectorAll("[data-status-card]").forEach((el) => {
@@ -734,7 +734,8 @@
       case "rescue-quick": rescueSend(v); break;
       case "rescue-here": { const r = S.rescues[S.rescue], me = r.helpers.find((h) => h.id === "me"); me.status = "arrived"; me.dist = 5;
         rescuePost(r, "me", "arrived", "I'm here"); audit("sos", "Arrived at the rescue for " + whoName(r.victim));
-        later(1500, () => rescuePost(r, r.victim, "text", "I see you! Thank you so much 💚")); break; }
+        later(1500, () => rescuePost(r, r.victim, "text", "I see you! Thank you so much 💚"));
+        later(6000, () => { if (!r.ended) { rescuePost(r, r.victim, "ended", `${whoName(r.victim)} is safe now. Thank you for coming! 🙏`); r.ended = true; renderKeepDraft(); } }); break; }
       case "rescue-leave": { const r = S.rescues[S.rescue], me = r.helpers.find((h) => h.id === "me"); me.status = "left";
         rescuePost(r, "me", "left", "I can't come after all"); audit("sos", "Left the rescue for " + whoName(r.victim)); break; }
       case "sos-way": S.alertOpen = false; S.navTarget = v; S.stack = []; S.screen = "main"; S.prevTab = S.tab; S.tab = "compass"; render("fade"); S.prevTab = "compass"; break;
@@ -779,7 +780,9 @@
       case "hunt-walk": huntWalk(); break;
       case "hunt-new": huntNew(H.opp); render(); break;
       case "back": back(); break;
-      case "person": open("person", { person: v }); break;
+      case "person": S.rating = null; open("person", { person: v }); break;
+      case "rate-open": S.rating = S.rating === v ? null : v; render(); break;
+      case "rate-quick": { const [who, kind, ctx] = v.split("|"); rate(who, kind, ctx, ""); render(); break; }
       case "survival": S.survival = !S.survival; store.set("survival", S.survival); applySurvival();
         toast(S.survival ? "Survival power on: about " + hoursLeft(true) + " h left" : "Back to normal power"); render(); break;
       case "power-step": S.steps[v] = true; store.set("powerSteps", S.steps);
@@ -847,6 +850,7 @@
       S.exSplit.forEach((id) => send(id, `🧾 I paid ${RUPEE(amt)} for ${note}. Your share is ${RUPEE(amt / split.length)}. It's in Trip money.`));
       S.exSplit = []; toast("Added and shared with " + (split.length - 1) + " people"); render(); return;
     }
+    if (e.target.id === "rate-form") { e.preventDefault(); const [k, ctx] = e.target.dataset.v.split("|"); rate(S.person, k, ctx, document.getElementById("rate-remark").value); S.rating = null; render(); return; }
     if (e.target.id === "byid-form") { e.preventDefault(); startById(document.getElementById("byid-id").value, document.getElementById("byid-name").value); return; }
     if (e.target.id === "rescue-form") { e.preventDefault(); const i = document.getElementById("rescue-draft"); rescueSend(i.value); return; }
     if (e.target.id === "word-form") { e.preventDefault(); wordsPlay(document.getElementById("word-in").value); return; }

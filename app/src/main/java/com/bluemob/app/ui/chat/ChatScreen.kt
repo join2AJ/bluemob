@@ -118,7 +118,10 @@ fun ChatScreen(
                         Avatar(emoji, name, nodeId, 38.dp, presence, sos = person?.sos == true)
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Text(name, style = MaterialTheme.typography.titleMedium)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(name, style = MaterialTheme.typography.titleMedium)
+                                if (!isBot && person != null) com.bluemob.app.ui.components.StarChip(person.stars, person.ratingCount, Modifier.padding(start = 6.dp))
+                            }
                             Text(
                                 when {
                                     typing -> "typing…"
@@ -193,6 +196,8 @@ private fun Intro(isBot: Boolean, nodeId: String, name: String, emoji: String?, 
         Avatar(emoji, name, nodeId, 80.dp)
         Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
         if (isBot) Tag("On this phone · offline", Extra.skyTint, Extra.sky) else Tag("Direct · by BlueMob ID", Extra.pineTint, MaterialTheme.colorScheme.primary)
+        if (!isBot) Text("BM " + com.bluemob.app.util.formatId(nodeId), style = MaterialTheme.typography.labelMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+            color = Extra.ink3, modifier = Modifier.padding(top = 6.dp))
         Text(
             if (isBot) "Built into BlueMob, on your phone. No internet, no server: what you ask stays here. I know the app, the survival guide, and what's happening around you."
             else "Write any time, wherever ${person?.name ?: "they"} is. In range, it goes straight over Bluetooth or Wi-Fi. If not, phones nearby carry it " +

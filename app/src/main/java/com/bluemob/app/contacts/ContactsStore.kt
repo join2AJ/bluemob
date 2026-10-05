@@ -23,7 +23,7 @@ data class GeoPoint(val lat: Double, val lon: Double, val accuracyM: Float, val 
  * said they were, so the dashboard can show "last seen 2 h ago" after they leave.
  */
 class ContactsStore(context: Context) {
-    private val prefs = context.getSharedPreferences("contacts", Context.MODE_PRIVATE)
+    private val prefs = com.bluemob.app.crypto.SecurePrefs.open(context, "contacts")
 
     private val _contacts = MutableStateFlow(load())
     /** Every packet touches a contact, so writes are batched: at most one save a second. */

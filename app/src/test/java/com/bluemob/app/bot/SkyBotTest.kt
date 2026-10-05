@@ -47,6 +47,8 @@ class SkyBotTest {
         "What to do in free time" to "free time",
         "I'm bored" to "free time",
         "can I message someone by their unique number?" to "BlueMob ID",
+        "how do stars work" to "5 stars",
+        "what if someone sends a fake sos" to "5 stars",
     )
 
     @Test

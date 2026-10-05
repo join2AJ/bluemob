@@ -14,13 +14,15 @@ android {
         applicationId = "com.bluemob.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Shrinks and obfuscates the code, so the app is much harder to reverse-engineer.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -55,6 +57,8 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+    implementation(libs.sqlcipher)
+    implementation(libs.androidx.sqlite)
     testImplementation("org.json:json:20240303")
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

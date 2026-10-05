@@ -98,6 +98,8 @@ data class AuditEntry(
     val text: String,
     val prev: String,
     val hash: String,
+    /** ECDSA signature of [hash] by this phone's key. Empty for entries written before signing existed. */
+    @androidx.room.ColumnInfo(defaultValue = "''") val sig: String = "",
 )
 
 /**
@@ -195,22 +197,60 @@ interface RelayDao {
     suspend fun remove(key: String)
 }
 
-@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class], version = 4, exportSchema = false)
+/** A signed star rating one person gave another (see trust/Trust.kt). [packet] is the signed original, to pass on. */
+@Entity(tableName = "ratings", indices = [Index("subject")])
+data class RatingRow(
+    @PrimaryKey val key: String,
+    val subject: String,
+    val rater: String,
+    val raterName: String,
+    val kind: String,
+    val ctx: String,
+    val remark: String,
+    val at: Long,
+    val packet: String,
+)
+
+@Dao
+interface RatingDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun put(row: RatingRow)
+
+    @Query("SELECT * FROM ratings WHERE `key` = :key")
+    suspend fun get(key: String): RatingRow?
+
+    @Query("SELECT * FROM ratings ORDER BY at")
+    fun observeAll(): Flow<List<RatingRow>>
+
+    @Query("SELECT * FROM ratings ORDER BY at DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<RatingRow>
+}
+
+@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class], version = 5, exportSchema = false)
 abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun messages(): MessageDao
     abstract fun audit(): AuditDao
     abstract fun trail(): TrailDao
     abstract fun rescue(): RescueDao
     abstract fun relay(): RelayDao
+    abstract fun ratings(): RatingDao
 
     companion object {
-        fun create(context: Context): BlueMobDatabase =
-            Room.databaseBuilder(context, BlueMobDatabase::class.java, "bluemob.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+        /** Opens the database encrypted with SQLCipher (AES-256). An older plain database is encrypted first. */
+        fun create(context: Context): BlueMobDatabase {
+            System.loadLibrary("sqlcipher")
+            val pass = DbKey.passphrase(context)
+            DbKey.encryptInPlace(context, NAME, pass)
+            return Room.databaseBuilder(context, BlueMobDatabase::class.java, NAME)
+                .openHelperFactory(net.zetetic.database.sqlcipher.SupportOpenHelperFactory(pass))
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)
                 })
                 .build()
+        }
+
+        const val NAME = "bluemob.db"
 
         /** Adds the audit trail and the trail of positions, keeping every message. */
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -237,6 +277,16 @@ abstract class BlueMobDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `relay` (`key` TEXT NOT NULL, `toNode` TEXT NOT NULL, `origin` TEXT NOT NULL, `packet` TEXT NOT NULL, " +
                     "`copies` INTEGER NOT NULL, `givenTo` TEXT NOT NULL, `expiresAt` INTEGER NOT NULL, `receivedAt` INTEGER NOT NULL, PRIMARY KEY(`key`))")
+            }
+        }
+
+        /** Audit entries get signatures, and star ratings get a table. ALTER TABLE doesn't touch existing rows, so the read-only triggers stay intact. */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `audit` ADD COLUMN `sig` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `ratings` (`key` TEXT NOT NULL, `subject` TEXT NOT NULL, `rater` TEXT NOT NULL, `raterName` TEXT NOT NULL, " +
+                    "`kind` TEXT NOT NULL, `ctx` TEXT NOT NULL, `remark` TEXT NOT NULL, `at` INTEGER NOT NULL, `packet` TEXT NOT NULL, PRIMARY KEY(`key`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_ratings_subject` ON `ratings` (`subject`)")
             }
         }
 

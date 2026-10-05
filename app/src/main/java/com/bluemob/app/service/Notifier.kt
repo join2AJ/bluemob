@@ -71,6 +71,10 @@ class Notifier(private val context: Context) {
         .setContentIntent(open("chat:$fromId", fromId.hashCode()))
         .build())
 
+    fun rating(text: String) = post(4242, NotificationCompat.Builder(context, CH_MSG)
+        .setSmallIcon(R.drawable.ic_stat_bluemob).setContentTitle("Your rating").setContentText(text).setAutoCancel(true)
+        .setContentIntent(open("person:me", 4242)).build())
+
     fun rescue(room: String, text: String) = post(room.hashCode() + 7, NotificationCompat.Builder(context, CH_RESCUE)
         .setSmallIcon(R.drawable.ic_stat_bluemob)
         .setContentTitle("Rescue group").setContentText(text)

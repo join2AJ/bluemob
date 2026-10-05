@@ -653,6 +653,7 @@
     return subScreen(p.name, `
       <div class="intro" style="padding-top:8px">${avatar(p.avatar, p.id, 96, p.presence)}
         <h1 class="t-title" style="margin-top:10px">${esc(p.name)}</h1><span class="t-sub">${statusLine(p)}</span></div>
+      ${trustSection(p)}
       <div class="group-label t-over">BlueMob ID</div>
       <div class="group" style="padding:14px"><div class="id-card"><span class="t-cap">Given automatically to their phone. No two phones share one.</span>
         <span class="big">BM · ${fmtId(p.uid)}</span></div>

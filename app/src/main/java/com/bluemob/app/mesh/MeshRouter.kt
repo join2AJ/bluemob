@@ -17,6 +17,15 @@ interface Wire {
     fun nameOf(nodeId: String): String
 }
 
+/** The internet as one more way to reach people (the BlueMob relay). See [com.bluemob.app.bridge.BridgeClient]. */
+interface InternetPath {
+    fun up(): Boolean
+    /** Queue a packet to upload to the relay. */
+    fun enqueue(key: String, packet: String)
+    /** Ask the relay for this ID's public key. */
+    fun lookupKey(id: String)
+}
+
 /** A message or receipt this phone carries for others. [copies] is how many more phones it may hand copies to. */
 data class CarriedItem(
     val key: String,
@@ -66,7 +75,7 @@ class MeshRouter(
     private val _events = MutableSharedFlow<MeshEvent>(extraBufferCapacity = 256)
     override val events: SharedFlow<MeshEvent> = _events.asSharedFlow()
 
-    private class Outgoing(val packet: String, var copies: Int, val givenTo: MutableSet<String> = mutableSetOf(), var directEpoch: Long = -1)
+    private class Outgoing(val key: String, val packet: String, var copies: Int, val givenTo: MutableSet<String> = mutableSetOf(), var directEpoch: Long = -1, var uploaded: Boolean = false)
     private val outgoing = mutableMapOf<String, Outgoing>()
     private val connectedEpoch = mutableMapOf<String, Long>()
     private var epoch = 0L
@@ -89,7 +98,7 @@ class MeshRouter(
             val sealed = Crypto.seal(shared, JSONObject().put("text", text).toString().toByteArray(), messageId.toByteArray())
             val body = JSONObject().put("id", messageId).put("to", toNodeId).put("at", sentAt).put("x", sentAt + TTL_MS)
                 .put("name", myName()).put("c", sealed)
-            Outgoing(Envelope.seal(RMSG, body, keys).toString(), COPIES).also { outgoing[messageId] = it }
+            Outgoing("$RMSG:$messageId", Envelope.seal(RMSG, body, keys).toString(), COPIES).also { outgoing[messageId] = it }
         }
         return offer(out, toNodeId)
     }
@@ -97,7 +106,7 @@ class MeshRouter(
     override fun sendReceipt(toNodeId: String, messageId: String, read: Boolean): Boolean {
         val t = now()
         val body = JSONObject().put("mid", messageId).put("to", toNodeId).put("k", if (read) "r" else "d").put("at", t).put("x", t + TTL_MS)
-        val out = Outgoing(Envelope.seal(RRCPT, body, keys).toString(), RECEIPT_COPIES)
+        val out = Outgoing("$RRCPT:$messageId${if (read) "r" else "d"}", Envelope.seal(RRCPT, body, keys).toString(), RECEIPT_COPIES)
         return offer(out, toNodeId) !is Handoff.Held
     }
 
@@ -120,7 +129,14 @@ class MeshRouter(
             out.givenTo += n
             given += n
         }
-        return if (given.isEmpty()) Handoff.Held else Handoff.Carried(given.map(wire::nameOf))
+        val names = given.map(wire::nameOf).toMutableList()
+        // Far away? If this phone has internet, the relay carries it too. Whichever arrives first wins.
+        if (!out.uploaded && internet?.up() == true) {
+            internet?.enqueue(out.key, JSONObject(out.packet).put("c", 1).toString())
+            out.uploaded = true
+            names += INTERNET_NAME
+        }
+        return if (names.isEmpty()) Handoff.Held else Handoff.Carried(names)
     }
 
     /** A phone came into range: hand it anything it should carry or receive. */
@@ -185,10 +201,30 @@ class MeshRouter(
             given += n
         }
         if (copies != item.copies) store.put(item.copy(copies = copies, givenTo = given))
+        if (item.key !in uploadedCarried && internet?.up() == true) {
+            internet?.enqueue(item.key, item.packet)
+            uploadedCarried += item.key
+        }
     }
+
+    /** Set when this phone can reach the BlueMob relay. */
+    var internet: InternetPath? = null
+    private val uploadedCarried = mutableSetOf<String>()
+
+    /** A packet downloaded from the relay. */
+    fun onInternetPacket(json: JSONObject) = onPacket(INTERNET_NAME, json)
+
+    /** The relay gave us a key we asked for. */
+    fun onKeyFound(id: String) {
+        if (askedForKey.remove(id) != null) _events.tryEmit(MeshEvent.KeyLearned(id))
+    }
+
+    /** Internet just became available: anything waiting can go now. */
+    fun onInternetUp() { _events.tryEmit(MeshEvent.RouteAvailable) }
 
     private fun deliver(o: Envelope.Opened) {
         val b = o.body
+        val viaInternet = o.raw.optInt("net") == 1
         val hops = o.hops + 1
         when (o.type) {
             RMSG -> {
@@ -198,9 +234,9 @@ class MeshRouter(
                 val plain = Crypto.open(shared, b.optString("c"), id.toByteArray()) ?: return log("Couldn't decrypt a message from ${o.from.take(4)}")
                 val text = runCatching { JSONObject(String(plain)).optString("text") }.getOrNull()?.take(MAX_TEXT) ?: return
                 if (text.isEmpty() || id.isEmpty()) return
-                _events.tryEmit(MeshEvent.MessageReceived(o.from, id, text, b.optLong("at"), hops, b.optString("name").take(24).ifBlank { null }))
+                _events.tryEmit(MeshEvent.MessageReceived(o.from, id, text, b.optLong("at"), hops, b.optString("name").take(24).ifBlank { null }, viaInternet))
             }
-            RRCPT -> _events.tryEmit(MeshEvent.Receipt(o.from, b.optString("mid"), b.optString("k") == "r", hops))
+            RRCPT -> _events.tryEmit(MeshEvent.Receipt(o.from, b.optString("mid"), b.optString("k") == "r", hops, viaInternet))
         }
     }
 
@@ -208,6 +244,7 @@ class MeshRouter(
         val last = askedForKey[id]
         if (!force && last != null && now() - last < 15_000) return
         askedForKey[id] = now()
+        internet?.takeIf { it.up() }?.lookupKey(id)
         val q = JSONObject().put("t", KEYQ).put("q", id).put("r", UUID.randomUUID().toString().take(12)).put("h", 0)
         seen[KEYQ + q.optString("r")] = true
         wire.neighbors().forEach { wire.send(it, q) }
@@ -248,6 +285,7 @@ class MeshRouter(
     }
 
     companion object {
+        const val INTERNET_NAME = "the internet"
         const val RMSG = "rmsg"
         const val RRCPT = "rrcpt"
         const val KEYQ = "keyq"

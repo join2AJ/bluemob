@@ -377,6 +377,9 @@ fun SosAlert(
     sos: SosSignal, person: Person?, myLat: Double?, myLon: Double?, onComing: () -> Unit, onWay: () -> Unit, onHowTo: () -> Unit, onClose: () -> Unit,
     /** Names of people who already said they're coming. */
     coming: List<String> = emptyList(),
+    /** The sender's standing, to help judge whether the SOS is genuine. */
+    trust: com.bluemob.app.trust.TrustScore? = null,
+    onProfile: () -> Unit = {},
 ) {
     val distance = if (myLat != null && myLon != null && sos.lat != null && sos.lon != null) {
         val me = com.bluemob.app.contacts.GeoPoint(myLat, myLon, 0f, 0)
@@ -404,6 +407,16 @@ fun SosAlert(
                 Column(Modifier.padding(top = 14.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.skyTint).padding(14.dp)) {
                     Text(if (pos.gps) "WHERE THEY ARE · GPS" else "WHERE THEY ARE · ESTIMATE", style = MaterialTheme.typography.labelSmall, color = Extra.sky)
                     Text(pos.describe(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                }
+            }
+            trust?.let { t ->
+                Row(Modifier.padding(top = 10.dp).clip(MaterialTheme.shapes.small).clickable(onClick = onProfile).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    com.bluemob.app.ui.components.StarRow(t.stars, 16.dp)
+                    Text(if (t.isNew) "  New on BlueMob" else "  ${t.label} · ${t.ratings} rating${if (t.ratings == 1) "" else "s"}", style = MaterialTheme.typography.labelLarge, color = Extra.ink2)
+                }
+                t.sosWarning?.let { w ->
+                    Text("⚠ $w. Still go if you can: check from a safe distance.", style = MaterialTheme.typography.bodySmall, color = Extra.rose, textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 6.dp).clip(MaterialTheme.shapes.small).background(Extra.emberTint).padding(10.dp))
                 }
             }
             if (coming.isNotEmpty()) Text("Already coming: ${coming.joinToString(", ")}", style = MaterialTheme.typography.titleSmall,

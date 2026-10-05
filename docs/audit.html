@@ -90,14 +90,28 @@ footer { color: var(--ink-3); font-size: 13px; border-top: 1px solid var(--line)
   <span class="over">Engineering audit · Android app and web preview</span>
   <h1>BlueMob Engineering Audit</h1>
   <p class="lead">A senior full-stack review of the offline mesh app: what's solid, what was risky, what I fixed in 0.5, and what to build next so BlueMob holds up when someone's life depends on it.</p>
-  <div class="meta"><span>Audited <b>0.4.1</b> → shipped <b>0.5.0</b></span><span>Date <b>5 Oct 2026</b></span><span>Branch <b class="mono">ccr-359d137e-830q4m</b></span></div>
-  <div class="tally"><span><b>10</b> findings fixed in 0.5</span><span><b>17</b> open, prioritised below</span><span><b>76</b> automated tests passing</span><span><b>0</b> lint errors</span></div>
+  <div class="meta"><span>Audited <b>0.4.1</b> → shipped <b>0.5.0</b> and <b>0.6.0</b></span><span>Date <b>5 Oct 2026</b></span><span>Branch <b class="mono">ccr-359d137e-830q4m</b></span></div>
+  <div class="tally"><span><b>10</b> findings fixed in 0.5</span><span><b>4</b> security upgrades in 0.6</span><span><b>15</b> open, prioritised below</span><span><b>133</b> automated tests passing</span><span><b>0</b> lint errors</span></div>
 </header>
 
 <section>
   <h2>The short version</h2>
   <p>The product idea and the delivery engine are strong. Messages have unique IDs, are stored before sending, are deduplicated on arrival and have real receipts. That is the hard part, and it's done well. The weak spots were the ones every first version of a mesh app has. Anyone could claim to be anyone. Nothing worked with the screen off. Messages only reached people in direct range.</p>
   <p>All three are fixed in 0.5. You can now message anyone by their BlueMob ID, even someone you've never met. The message travels phone to phone, end-to-end encrypted. The biggest remaining risks are real-world ones: battery drain, behaviour on many different phone models, and no crash reporting yet. The next step is a field test with real phones, not more features.</p>
+</section>
+
+<section>
+  <h2>Added in 0.6</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>ID</th><th>Request</th><th>Status</th><th>What was built</th></tr></thead>
+    <tbody>
+      <tr><td>N1</td><td><b>Everything stored on the phone is encrypted.</b></td><td><span class="chip fixed">Done</span></td><td>The database uses SQLCipher (AES-256) with a random key sealed by Android Keystore. Every settings file is encrypted, names included. Older plain data is converted on first launch. Android backup and phone-to-phone transfer are blocked. Release builds are shrunk and obfuscated with R8; none of the app's class names remain.<span class="where">crypto/SecurePrefs.kt · crypto/KeystoreBox.kt · data/DbKey.kt</span></td></tr>
+      <tr><td>N2</td><td><b>An audit trail that can't be secretly edited.</b></td><td><span class="chip fixed">Done</span></td><td>Each entry is now also signed by the phone's private key, so recomputing hashes can't fake it. A protected checkpoint catches deletions from the end. Phones you meet keep a signed copy of your newest entry and hand it back later, as outside witnesses. The screen shows all five checks live.<span class="where">audit/AuditLog.kt · audit/AuditWitness.kt</span></td></tr>
+      <tr><td>N3</td><td><b>Meet over Bluetooth, keep talking from 1,000 km away.</b></td><td><span class="chip fixed">Done</span></td><td>An internet relay with no dependencies, plus a sync client on every phone. A phone with internet uploads what it sends or carries, and downloads messages for itself and the phones around it. The relay only holds signed, encrypted packets. Tested end to end against the real server.<span class="where">server/relay.js · bridge/BridgeClient.kt · bridge/InternetBridge.kt</span></td></tr>
+      <tr><td>N4</td><td><b>Star ratings, remarks, and telling real SOS from fake.</b></td><td><span class="chip fixed">Done</span></td><td>0 to 5 stars, starting at 4. Thanks add stars; bad language and fake SOS reports take them away. Each SOS alert shows the sender's stars and any fake-SOS reports. Ratings are signed and spread over the mesh and the relay. One person counts at most twice per kind, and strangers count half.<span class="where">trust/Trust.kt · trust/TrustManager.kt · ui/profile/PersonScreen.kt</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><b>Limits.</b> No app can promise that "no one can ever read" its files. Encryption at rest protects against copied files, lost phones, backups and reverse-engineering the app. It can't protect a phone that's unlocked and fully compromised while BlueMob runs. Ratings can be gamed by someone who makes many fake identities. Counting strangers at half weight, and capping each rater, limits that; tying ratings to people actually met (O18) is the next step. The relay still needs to be deployed. Until a phone has its address, messages travel phone to phone only.</div>
 </section>
 
 <section>
@@ -178,7 +192,8 @@ footer { color: var(--ink-3); font-size: 13px; border-top: 1px solid var(--line)
     <div class="item"><span class="id">O1</span><div><span class="head"><b>Field test with 5 to 10 real phones</b><span class="chip crit">Critical</span></span><p>Emulators can't use Bluetooth with each other, so the mesh has only been tested with simulated phones. Measure time to first connection, link stability while walking, delivery rate over 1, 2 and 3 hops, and battery per hour across at least three phone brands. Add a "Diagnostics" export (log plus counters) to make this easy.</p></div></div>
     <div class="item"><span class="id">O2</span><div><span class="head"><b>Battery duty cycling</b><span class="chip high">High</span></span><p>Advertising and scanning nonstop is the biggest battery cost. Add a low-power mode: scan for 20 seconds every 2 minutes when no one is around, stop scanning when enough phones are connected, and switch to it automatically under Battery Saver. An active SOS always overrides it.</p></div></div>
     <div class="item"><span class="id">O3</span><div><span class="head"><b>Crash and freeze reporting</b><span class="chip high">High</span></span><p>There is none today, so failures in the field are invisible. Add opt-in crash reporting (Crashlytics or Sentry). Queue reports on the phone until it has internet.</p></div></div>
-    <div class="item"><span class="id">O4</span><div><span class="head"><b>SOS spam controls</b><span class="chip high">High</span></span><p>SOS is now signed, so a fake one can be traced to a sender, but nothing stops one phone repeating it. Add per-sender rate limits, "Mute this sender" on the alert, and a block list.</p></div></div>
+    <div class="item"><span class="id">O4</span><div><span class="head"><b>SOS spam controls</b><span class="chip med">Medium</span></span><p>Partly addressed in 0.6: an SOS alert now shows the sender's stars and any fake-SOS reports. Still to do: per-sender rate limits, "Mute this sender" on the alert, and a block list.</p></div></div>
+    <div class="item"><span class="id">O18</span><div><span class="head"><b>Ratings tied to real meetings</b><span class="chip med">Medium</span></span><p>Make a rating count fully only if the rater can prove they met the person: a signed proof exchanged when two phones connect, or membership in the rescue group. That makes ratings from fake identities worthless.</p></div></div>
     <div class="item"><span class="id">O5</span><div><span class="head"><b>Late joiners can't see a rescue group</b><span class="chip med">Medium</span></span><p>A phone that never heard the SOS itself hides its group. Phones should re-share an active SOS (still signed by the person in need) with anyone who connects, for a few hours. Also store other people's signed group messages, so they can be passed on after a restart.</p></div></div>
     <div class="item"><span class="id">O6</span><div><span class="head"><b>Forward secrecy</b><span class="chip med">Medium</span></span><p>Each pair of phones uses one fixed encryption key. If a phone's private key is ever stolen, messages captured earlier could be read. Move 1:1 chats to the Signal protocol (prekeys plus Double Ratchet, for example libsignal).</p></div></div>
     <div class="item"><span class="id">O7</span><div><span class="head"><b>Room schema export and migration tests</b><span class="chip med">Medium</span></span><p>Turn on <code>exportSchema</code>, commit the schemas, and add MigrationTestHelper tests on a device, so no update can ever wipe someone's messages.</p></div></div>
@@ -186,7 +201,7 @@ footer { color: var(--ink-3); font-size: 13px; border-top: 1px solid var(--line)
 
   <h3>Next · 1 to 3 months</h3>
   <div class="horizon">
-    <div class="item"><span class="id">O8</span><div><span class="head"><b>The internet bridge</b><span class="chip high">High</span></span><p>The relay that carries messages beyond the mesh. Its design is in the next section.</p></div></div>
+    <div class="item"><span class="id">O8</span><div><span class="head"><b>Deploy and scale the relay</b><span class="chip high">High</span></span><p>Built in 0.6 (server/relay.js). Next: deploy it with HTTPS, move storage from the file to Postgres or Firestore as traffic grows, add monitoring, and handle the SMS gateway for loved ones.</p></div></div>
     <div class="item"><span class="id">O9</span><div><span class="head"><b>Background reliability across brands</b><span class="chip high">High</span></span><p>Xiaomi, Oppo, Vivo, Realme and Samsung kill background apps aggressively. Add per-brand setup guides (auto-start, battery exceptions) inside Connections, and check the foreground service on each brand during O1.</p></div></div>
     <div class="item"><span class="id">O10</span><div><span class="head"><b>Languages</b><span class="chip med">Medium</span></span><p>All text is hard-coded in English. Move strings into resources and add Hindi first, then regional languages. The survival guide content needs a professional medical translation and review, not machine translation.</p></div></div>
     <div class="item"><span class="id">O11</span><div><span class="head"><b>Accessibility</b><span class="chip med">Medium</span></span><p>Add TalkBack descriptions to the radar, compass and trail map. Check layouts at 200% font size. Add a hardware SOS shortcut (for example, press power five times) for when the screen can't be used.</p></div></div>
@@ -234,5 +249,5 @@ footer { color: var(--ink-3); font-size: 13px; border-top: 1px solid var(--line)
   <div class="note">Everything in 0.5 is tested with simulated phones, not yet between real phones. All phones must update to 0.5: it uses a new, signed protocol and won't link with 0.4. Each phone's BlueMob ID changes once to the new key-based ID, and chats with old IDs won't continue. Delivery to people out of range depends on people moving between groups, so it is not instant and not guaranteed. A rooted phone can still read its own stored data.</div>
 </section>
 
-<footer>BlueMob engineering audit · prepared with the 0.5.0 release on branch ccr-359d137e-830q4m. Repository copy: docs/audit.html.</footer>
+<footer>BlueMob engineering audit · updated with the 0.6.0 release on branch ccr-359d137e-830q4m. Repository copy: docs/audit.html.</footer>
 </main>

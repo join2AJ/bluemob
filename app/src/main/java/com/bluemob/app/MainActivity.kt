@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
 
     /** A notification asked to open a chat or rescue group. */
     private fun handleRoute(intent: Intent?) {
-        intent?.getStringExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)?.let { viewModel.pendingRoute.value = it }
+        intent?.getStringExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)?.let { viewModel.pendingRoute.value = it.replace("person:me", "person:" + viewModel.nodeId) }
         intent?.removeExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)
     }
 

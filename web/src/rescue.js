@@ -137,15 +137,22 @@
       : `<div class="rmsg ${m.from === "me" ? "me" : m.from === r.victim ? "victim" : ""}">${m.from === "me" ? "" : `<span class="who">${esc(whoName(m.from))}${m.from === r.victim ? " · needs help" : ""}</span>`}
           <div class="bubble">${esc(m.text)}</div><span class="when">${ago(m.time)}</span></div>`).join("");
     const bottom = r.ended ? `<p class="t-sub" style="text-align:center;padding:16px">${mine ? "You're" : esc(v.name) + " is"} safe. This rescue has ended. Thank you, everyone 💚</p>`
-      : !inRoom(r) ? `<div style="padding:12px 14px"><p class="t-cap">Join to tell ${esc(v.name)} you're coming. Your position is shared with this group.</p>
+      : !inRoom(r) && !r.ended ? `<div style="padding:12px 14px"><p class="t-cap">Join to tell ${esc(v.name)} you're coming. Your position is shared with this group.</p>
           <button class="btn" style="width:100%;margin-top:8px;background:var(--rose)" data-act="rescue-join">I'm coming</button></div>`
       : `<div class="filters" style="margin:0;padding:8px 12px">${(mine ? VICTIM_REPLIES : HELPER_REPLIES).map((t) => `<button class="chip" data-act="rescue-quick" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div>
          <form class="composer" id="rescue-form" style="padding:0 10px 12px"><div class="field-pill"><input id="rescue-draft" autocomplete="off" placeholder="Message the group" aria-label="Message the group"></div>
          <button class="send" type="submit" aria-label="Send">${I.send}</button></form>`;
+    const rated = (who, kind) => RATINGS.some((x) => x.rater === "me" && x.subject === who && x.kind === kind && x.ctx === r.id);
+    const rateCard = !r.ended ? "" : mine ? `<div class="rescue-card" style="background:var(--sky-tint);border:0"><b>Thank the people who came</b><p class="t-cap">Each thank-you adds to their stars, so others know they can be trusted.</p>
+        ${coming(r).map((h) => `<div class="row" style="padding:8px 0 0"><span style="flex:1;font-weight:600">${esc(whoName(h.id))}</span>${rated(h.id, "thanks") ? '<span class="t-cap" style="color:var(--pine)">Thanked ✓</span>' : `<button class="btn" data-act="rate-quick" data-v="${h.id}|thanks|${r.id}">👏 Thank</button>`}</div>`).join("")}</div>`
+      : inRoom(r) || r.helpers.some((h) => h.id === "me") ? `<div class="rescue-card" style="background:var(--sky-tint);border:0"><b>Was this SOS real?</b><p class="t-cap">Your answer goes into ${esc(v.name)}'s stars, so people can tell a genuine SOS from a prank next time.</p>
+        <div class="row" style="gap:8px;padding:10px 0 0"><button class="btn" ${rated(r.victim, "genuine_sos") ? "disabled" : ""} data-act="rate-quick" data-v="${r.victim}|genuine_sos|${r.id}">${rated(r.victim, "genuine_sos") ? "Real ✓" : "✅ It was real"}</button>
+        <button class="btn secondary" ${rated(r.victim, "fake_sos") ? "disabled" : ""} data-act="rate-quick" data-v="${r.victim}|fake_sos|${r.id}">${rated(r.victim, "fake_sos") ? "Fake ✓" : "⚠ Fake"}</button></div></div>` : "";
     return `<div class="screen grouped ${S._anim === "push" ? "push-in" : ""}" style="display:flex;flex-direction:column">
       <header class="bar solid"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>
         <div class="bar-title" style="opacity:1;transform:none;line-height:1.15">${mine ? "Your rescue" : "Helping " + esc(v.name)}<br><span class="t-cap" style="font-weight:400">${people.length} in this group · ${people.map(esc).join(", ")}</span></div>${tag}</header>
       <div class="scroll" id="scroll" style="flex:1">
+        ${rateCard}
         ${top}
         <div class="group-label t-over">${mine ? "Who's coming" : "Who's helping"}</div>
         <div class="group">${r.helpers.length ? r.helpers.map(helperRow).join("") : `<div class="set"><span class="t-sub">${mine ? "No one has answered yet. Your SOS keeps going out to every phone that comes into range." : "No one yet. Be the first."}</span></div>`}</div>

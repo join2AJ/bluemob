@@ -560,6 +560,15 @@ button.set:hover { background: var(--sand); }
 .byid-card { display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 14px 16px 0; padding: 14px; border-radius: 20px; background: var(--pine-tint); color: var(--ink); font-size: 16px; }
 .id-card { background: var(--pine); color: #fff; border-radius: 20px; padding: 18px; margin-top: 8px; }
 .id-big { font: 700 22px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 4px; letter-spacing: .02em; }
+.stars { position: relative; display: inline-block; color: var(--line); letter-spacing: 1px; line-height: 1; }
+.stars::before { content: "★★★★★"; position: absolute; inset: 0; width: var(--p); overflow: hidden; color: #E0A526; white-space: nowrap; }
+.star-chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: rgba(224,165,38,.16); color: var(--ink); margin: 2px 0; }
+.trust-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; margin-top: 4px; }
+.trust-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.trust-line { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--ink-2); font-size: 14px; font-weight: 600; }
+.trust-warn { margin-top: 8px; padding: 10px; border-radius: 12px; background: var(--ember-tint); color: var(--rose); font-size: 13px; max-width: 34ch; }
+.rate-form { flex-basis: 100%; display: flex; gap: 8px; margin-top: 8px; }
+.rate-form input { flex: 1; min-width: 0; height: 42px; border-radius: 12px; border: 0; background: var(--sand); padding: 0 12px; font: inherit; color: var(--ink); }
 </style>
 
 <div class="stage">

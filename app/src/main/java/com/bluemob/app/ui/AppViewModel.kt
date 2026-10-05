@@ -12,7 +12,7 @@ import com.bluemob.app.mesh.LinkQuality
 import com.bluemob.app.mesh.PeerState
 import com.bluemob.app.settings.SignalMode
 import com.bluemob.app.settings.Spot
-import com.bluemob.app.audit.AuditChain
+import com.bluemob.app.audit.AuditVerification
 import com.bluemob.app.data.AuditEntry
 import com.bluemob.app.trail.PositionEstimate
 import com.bluemob.app.util.Geo
@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.stateIn
 import java.util.UUID
 
 enum class Presence { ONLINE, IN_RANGE, OFFLINE }
+
+data class SecurityStatus(val databaseEncrypted: Boolean, val plainSettingsFiles: List<String>)
 
 /** One person, as the screens show them. */
 data class Person(
@@ -45,6 +47,9 @@ data class Person(
     val sos: Boolean,
     /** Set while they're in lost mode: their latest position estimate. */
     val lost: PositionEstimate? = null,
+    /** 0 to 5 stars from other people's ratings (4.0 for someone new). */
+    val stars: Double = com.bluemob.app.trust.Trust.START,
+    val ratingCount: Int = 0,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -86,10 +91,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val stepCounterAvailable get() = trail.stepCounterAvailable
     fun hasStepPermission() = trail.hasStepPermission()
 
-    /** The audit trail, newest first, with the seq of the first broken entry (null = intact). */
-    val audit: StateFlow<Pair<List<AuditEntry>, Long?>> = blueMob.audit.entries
-        .map { list -> list.asReversed() to AuditChain.firstBroken(list) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList<AuditEntry>() to null)
+    /** The audit trail, newest first, with the result of checking every hash, signature and the checkpoint. */
+    val audit: StateFlow<Pair<List<AuditEntry>, AuditVerification>> = blueMob.audit.entries
+        .map { list -> list.asReversed() to blueMob.audit.verify(list) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList<AuditEntry>() to AuditVerification(0))
+    val witnesses = blueMob.witness.witnesses
+    val auditPublicKey: String get() = blueMob.identity.keys.publicB64
+
+    /** What's encrypted on this phone, checked live, for the security screen. */
+    fun securityStatus(): SecurityStatus = SecurityStatus(
+        databaseEncrypted = !com.bluemob.app.data.DbKey.isPlain(getApplication<android.app.Application>().getDatabasePath(com.bluemob.app.data.BlueMobDatabase.NAME)),
+        plainSettingsFiles = com.bluemob.app.crypto.SecurePrefs.plainFilesLeft(getApplication()),
+    )
     fun headings(): Flow<Float> = blueMob.heading.headings()
 
     /** Ticks every 30 s so "last seen 5 min ago" stays fresh. */
@@ -101,8 +114,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val people: StateFlow<List<Person>> = combine(
-        mesh.peers, blueMob.contacts.contacts, myLocation, clock, combine(sosManager.received, lostMode.received) { a, b -> a to b },
-    ) { peers, contacts, me, now, (sos, lost) ->
+        mesh.peers, blueMob.contacts.contacts, myLocation, clock, combine(sosManager.received, lostMode.received, blueMob.trust.scores) { a, b, c -> Triple(a, b, c) },
+    ) { peers, contacts, me, now, (sos, lost, scores) ->
         val names = contacts.values.groupingBy { it.name }.eachCount()
         contacts.values.map { c ->
             val link = peers.values.filter { it.nodeId == c.nodeId }.maxByOrNull { it.state.ordinal }
@@ -124,6 +137,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 sharesName = (names[c.name] ?: 0) > 1,
                 sos = sos.containsKey(c.nodeId),
                 lost = lostPos,
+                stars = scores[c.nodeId]?.stars ?: com.bluemob.app.trust.Trust.START,
+                ratingCount = scores[c.nodeId]?.ratings ?: 0,
             )
         }.sortedWith(compareBy<Person> { it.presence.ordinal }.thenByDescending { it.lastSeen })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -176,6 +191,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         blueMob.contacts.addById(id, name.ifBlank { "BM " + com.bluemob.app.util.formatId(id).take(9) })
     }
     val carrying: Int get() = mesh.router.carrying
+
+    val trustScores = blueMob.trust.scores
+    val trustAboutMe = blueMob.trust.aboutMe
+    fun scoreFor(id: String) = blueMob.trust.scoreFor(id)
+    fun rate(subject: String, kind: com.bluemob.app.trust.RatingKind, ctx: String, remark: String) = blueMob.trust.rate(subject, kind, ctx, remark)
+    /** Ratings this phone gave, so screens can show "You appreciated them". */
+    fun myRatingsOf(subject: String) = blueMob.trust.ratings.value.filter { it.rater == nodeId && it.subject == subject }
+
+    val bridgeStatus = blueMob.bridge.status
+    val bridgeUrl = settings.bridgeUrl
+    fun setBridgeUrl(url: String) { settings.setBridgeUrl(url); blueMob.bridge.reconfigure() }
 
     val background = settings.background
     fun setBackground(on: Boolean) = settings.setBackground(on)

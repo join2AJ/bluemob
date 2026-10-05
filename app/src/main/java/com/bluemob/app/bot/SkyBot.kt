@@ -117,6 +117,11 @@ object SkyBot {
                 "Chats → \"Message anyone by BlueMob ID\". If they're not in range, your message is handed, encrypted, to phones around you, " +
                 "which carry it and pass it on until it reaches them. The ticks show when it arrives.",
             listOf(tab("chats", "Open Chats"))),
+        Help(listOf("stars", "star rating", "rating", "rated", "fake sos", "prank", "report", "bad language", "abuse", "genuine", "trust"),
+            "Everyone has a rating out of 5 stars. You start at 4. When you help someone and they thank you, you gain stars, up to 5.\n\n" +
+                "Bad language reported by others, or an SOS reported as fake, takes stars away. When an SOS arrives you see the sender's stars, " +
+                "and a warning if people reported an earlier one as fake. Ratings are signed, so they can't be faked, and one person can only move them a little.",
+            listOf(tab("you", "See your rating"))),
         Help(listOf("split", "money", "upi", "expense", "owe", "game", "play"),
             "Trip money and games are coming in the next BlueMob update. You can try them now in the web preview."),
         Help(listOf("how does bluemob", "how bluemob works", "how it works", "how does it work", "how does this work", "how does the app", "mesh network", "without towers"),

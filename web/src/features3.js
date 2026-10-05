@@ -124,6 +124,8 @@
         <p class="t-sub">${fmtDist(p.dist)} away to the ${cardinal(p.bearing)} · their battery ${s.battery}%</p>
         <div class="sos-quote">“${esc(s.text)}”</div>
         ${(() => { const r = rescueOf(p.id); return r && coming(r).length ? `<p class="t-strong" style="color:var(--pine);margin-top:10px">Already coming: ${coming(r).map((h) => esc(whoName(h.id))).join(", ")}</p>` : ""; })()}
+        ${(() => { const t = scoreOf(p.id); return `<button class="trust-line" data-act="person" data-v="${p.id}">${starsHtml(t, 15)} <span>${t.n ? starsLabel(t) + " · " + t.n + " ratings" : "New on BlueMob"}</span></button>` +
+          (t.fake ? `<p class="trust-warn">⚠ ${t.fake === 1 ? "1 person" : t.fake + " people"} reported an earlier SOS from ${esc(p.name)} as fake. Still go if you can: check from a safe distance.</p>` : ""); })()}
         <p class="t-cap">Already passed on to anyone with internet, automatically.</p>
       </div>
       <div class="sos-alert-actions">

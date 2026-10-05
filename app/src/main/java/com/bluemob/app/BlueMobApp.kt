@@ -7,6 +7,10 @@ import com.bluemob.app.service.MeshService
 import com.bluemob.app.service.Notifier
 import com.bluemob.app.audit.AuditKind
 import com.bluemob.app.audit.AuditLog
+import com.bluemob.app.audit.AuditWitness
+import com.bluemob.app.bridge.InternetBridge
+import com.bluemob.app.trust.TrustManager
+import com.bluemob.app.crypto.SecurePrefs
 import com.bluemob.app.bot.SkyBot
 import com.bluemob.app.bot.SkyFacts
 import com.bluemob.app.chat.MessageRepository
@@ -58,6 +62,12 @@ class BlueMobApp : Application() {
     lateinit var rescue: RescueManager private set
     lateinit var keyBook: KeyBook private set
     lateinit var notifier: Notifier private set
+    lateinit var witness: AuditWitness private set
+    lateinit var bridge: InternetBridge private set
+    lateinit var trust: TrustManager private set
+    private var ratingPackets: List<org.json.JSONObject> = emptyList()
+    private var auditEntries: List<com.bluemob.app.data.AuditEntry> = emptyList()
+    private var auditHead: com.bluemob.app.data.AuditEntry? = null
 
     /** True while any BlueMob screen is visible. Notifications are only shown when it isn't. */
     @Volatile var inForeground = false
@@ -87,12 +97,37 @@ class BlueMobApp : Application() {
         signals = SignalController(this)
         heading = HeadingSensor(this)
         radios = Radios(this)
-        audit = AuditLog(db.audit(), appScope)
+        audit = AuditLog(db.audit(), appScope, identity.keys, SecurePrefs.open(this, "audit"))
+        witness = AuditWitness(identity.keys, SecurePrefs.open(this, "witness")) { contacts.contacts.value[it]?.name ?: "someone" }
+        // Every phone we meet gets a signed note of our newest audit entry, and hands back the one it kept.
+        mesh.extraTypes = mesh.extraTypes + setOf(AuditWitness.TYPE_HEAD, AuditWitness.TYPE_ECHO)
+        mesh.onConnectedPackets = { node -> listOfNotNull(witness.headNote(auditHead), witness.echoFor(node)) }
+        appScope.launch { audit.entries.collect { auditEntries = it; auditHead = it.lastOrNull() } }
+        appScope.launch {
+            mesh.events.collect { e ->
+                if (e !is MeshEvent.Extra) return@collect
+                when (e.type) {
+                    AuditWitness.TYPE_HEAD -> witness.onHead(e.fromNodeId, e.json)
+                    AuditWitness.TYPE_ECHO -> witness.onEcho(e.fromNodeId, e.json, auditEntries)
+                }
+            }
+        }
         audit.add(AuditKind.APP, "BlueMob started · ID BM ${formatId(identity.nodeId)}")
         identity.previousNodeId?.let { audit.add(AuditKind.APP, "BlueMob ID changed from BM ${formatId(it)} to a key-based ID that can't be copied") }
         trail = TrailRecorder(this, location, heading, db.trail(), settings, audit, appScope) { identity.shareLocation.value }
         lost = LostMode(mesh, identity, trail, audit, appScope)
         sos = SosManager(this, mesh, identity, trail, signals, audit, appScope)
+        bridge = InternetBridge(settings, identity, keyBook, mesh, connectivity, audit, appScope)
+        trust = TrustManager(db.ratings(), identity, mesh, bridge.client, contacts, audit, appScope)
+        // Ratings travel as people meet: each phone gives the ones it holds to every phone it connects to.
+        appScope.launch { trust.ratings.collect { ratingPackets = trust.packetsToShare() } }
+        mesh.onConnectedPackets = { node -> listOfNotNull(witness.headNote(auditHead), witness.echoFor(node)) + ratingPackets }
+        appScope.launch {
+            trust.aboutMe.collect { r ->
+                if (!inForeground) notifier.rating("${r.raterName}: ${r.kind.label}" + if (r.remark.isNotBlank()) " · “${r.remark}”" else "")
+            }
+        }
+        bridge.client.ratingSubjects = { mesh.connectedNodes() + sos.received.value.keys + contacts.contacts.value.keys.take(20) }
         rescue = RescueManager(mesh, identity, db.rescue(), trail, location, sos, audit, appScope)
         messages = MessageRepository(db.messages(), mesh.router, appScope, sky = { text -> SkyBot.reply(text, skyFacts()) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
@@ -136,7 +171,7 @@ class BlueMobApp : Application() {
 
     /** Public keys we've learned, saved so we can message people later without asking the mesh again. */
     private fun loadKeyBook(): KeyBook {
-        val prefs = getSharedPreferences("keys", MODE_PRIVATE)
+        val prefs = com.bluemob.app.crypto.SecurePrefs.open(this, "keys")
         val initial = runCatching { org.json.JSONObject(prefs.getString("book", "{}")!!).let { o -> o.keys().asSequence().associateWith { o.getString(it) } } }.getOrDefault(emptyMap())
         var latest = initial
         val save = com.bluemob.app.util.Debounced(2_000) { prefs.edit().putString("book", org.json.JSONObject(latest).toString()).apply() }

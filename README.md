@@ -33,6 +33,26 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.6: encrypted storage, internet bridge, star ratings
+
+- **Everything on the phone is encrypted.** The database (messages, rescue groups, trail, audit trail, ratings) uses
+  SQLCipher (AES-256); its key is sealed by Android Keystore. All settings files (identity, contacts, SOS numbers, keys)
+  are encrypted, names included (`crypto/SecurePrefs.kt`). Older plain data is converted on first launch. Backups and
+  phone-to-phone transfer are blocked, and release builds are shrunk and obfuscated with R8.
+- **Audit trail, hardened** (`audit/`): every entry is also signed with the phone's private key, a protected checkpoint
+  catches deletions from the end, and phones you meet keep a signed copy of your newest entry and hand it back later
+  (witnesses). The audit screen shows each check, plus whether storage is encrypted.
+- **Internet bridge** (`bridge/`, `server/`): people who met over Bluetooth keep talking from anywhere. A phone with
+  internet uploads messages it sends or carries to the BlueMob relay, and downloads messages for itself and the phones
+  around it. Find someone you've never met by ID: the relay knows public keys. The relay only sees signed, encrypted
+  packets. Set its address in You → Internet bridge; deploy it with `server/README.md`.
+- **Star ratings** (`trust/`): everyone has 0 to 5 stars, starting at 4. Being thanked for help adds stars; bad
+  language flags and fake SOS reports take them away; a confirmed real SOS adds a little. Remarks show on each profile.
+  An SOS alert shows the sender's stars and warns if someone reported an earlier SOS from them as fake. After a rescue,
+  helpers say whether the SOS was real, and the person helped can thank who came. Ratings are signed, spread over the
+  mesh and the relay, and one person can only move someone's stars a little.
+- **Visible IDs**: every card on Nearby shows the person's BlueMob ID and stars; chats show the full ID.
+
 ## Android 0.5: security, reach and reliability
 
 All phones need 0.5: it speaks a new protocol (`BM2`) and won't link with older versions. IDs change once (see below).
@@ -123,7 +143,9 @@ exactly-once after a re-send, read receipts), 35 Sky questions, trail maths and 
 removals are caught), the game opponents (the unbeatable one is checked against every possible game), geo maths, and
 rescue groups (joining, moving, arriving, leaving, late SOS), the router on a simulated network of moving phones
 (carried delivery, key lookup, tampering and forgery rejected, copy limits, expiry), one end-to-end test of message store +
-router across three phones, and screenshots of 26 screens.
+router across three phones, and the internet bridge against the real relay server (two phones in different cities, finding someone by ID, tampered
+packets refused), star scoring (caps, fading, no self-rating), audit signatures (a forger who recomputes every hash is
+still caught, deletions from the end are caught), and screenshots of 30 screens. Relay tests: `node --test server/relay.test.js`.
 The web preview has its own Sky test: `node web/tests/sky_answers.test.js`.
 
 **On one phone:** go through the intro, ask Sky questions, read the guide, try the SOS signal (flashlight and sound),

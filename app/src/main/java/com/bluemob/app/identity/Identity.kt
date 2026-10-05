@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * stored encrypted with a key that lives in Android's Keystore and never leaves it.
  */
 class Identity(context: Context) {
-    private val prefs = context.getSharedPreferences("identity", Context.MODE_PRIVATE)
+    private val prefs = com.bluemob.app.crypto.SecurePrefs.open(context, "identity")
 
     val keys: DeviceKeys = DeviceKeys(loadOrCreateKeys())
     val nodeId: String = keys.nodeId

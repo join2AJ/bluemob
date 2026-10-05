@@ -10,6 +10,7 @@ import com.bluemob.app.data.PathState
 import com.bluemob.app.data.SeenId
 import com.bluemob.app.mesh.Handoff
 import com.bluemob.app.mesh.MeshEvent
+import com.bluemob.app.mesh.MeshRouter
 import com.bluemob.app.mesh.MessageLink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -119,7 +120,7 @@ class MessageRepository(
     private suspend fun handle(event: MeshEvent) {
         when (event) {
             // Any new phone in range might be them, or someone who can carry messages toward them.
-            is MeshEvent.PeerConnected, is MeshEvent.KeyLearned -> deliverAll()
+            is MeshEvent.PeerConnected, is MeshEvent.KeyLearned, MeshEvent.RouteAvailable -> deliverAll()
             is MeshEvent.MessageReceived -> receive(event)
             is MeshEvent.Receipt -> receipt(event)
             else -> Unit
@@ -135,8 +136,16 @@ class MessageRepository(
                     val note = if (m.attempts == 0) "Sent over ${h.link}" else "Sent again over ${h.link} (attempt ${m.attempts + 1}): no receipt came back last time"
                     dao.update(m.copy(status = MessageStatus.SENT, directState = PathState.TRYING, attempts = m.attempts + 1, history = m.history + event(now, note)))
                 }
-                is Handoff.Carried -> dao.update(m.copy(status = MessageStatus.SENT, directState = PathState.TRYING,
-                    history = m.history + event(now, "Handed to ${h.via.joinToString(" and ")} to carry toward them. It's encrypted: carriers can't read it")))
+                is Handoff.Carried -> {
+                    val people = h.via.filter { it != MeshRouter.INTERNET_NAME }
+                    val notes = buildList {
+                        if (people.isNotEmpty()) add("Handed to ${people.joinToString(" and ")} to carry toward them. It's encrypted: carriers can't read it")
+                        if (MeshRouter.INTERNET_NAME in h.via) add("Sent to the BlueMob relay over the internet. It waits there, encrypted, until they connect")
+                    }
+                    dao.update(m.copy(status = MessageStatus.SENT, directState = PathState.TRYING,
+                        internetState = if (MeshRouter.INTERNET_NAME in h.via) PathState.TRYING else m.internetState,
+                        history = m.history + notes.joinToString("") { event(now, it) }))
+                }
                 Handoff.NeedsKey -> if (!m.history.contains(KEY_NOTE)) dao.update(m.copy(history = m.history + event(now, KEY_NOTE)))
                 Handoff.Held -> Unit
             }
@@ -161,7 +170,8 @@ class MessageRepository(
                 id = e.messageId, peer = e.fromNodeId, fromMe = false, text = e.text, createdAt = e.sentAt,
                 status = if (open) MessageStatus.READ else MessageStatus.RECEIVED,
                 readAt = if (open) now else null, readReceiptSent = readNow,
-                history = event(now, if (e.hops <= 1) "Received over ${mesh.linkName(e.fromNodeId)}"
+                history = event(now, if (e.viaInternet) "Received over the internet, through the BlueMob relay. End-to-end encrypted"
+                    else if (e.hops <= 1) "Received over ${mesh.linkName(e.fromNodeId)}"
                     else "Received over the mesh: passed on by ${e.hops - 1} phone${if (e.hops > 2) "s" else ""}. End-to-end encrypted"),
             )
         )
@@ -171,10 +181,13 @@ class MessageRepository(
         val m = dao.get(e.messageId) ?: return
         if (!m.fromMe || m.peer != e.fromNodeId) return
         val now = System.currentTimeMillis()
-        val link = m.deliveredVia ?: if (e.hops <= 1) mesh.linkName(e.fromNodeId) else "the mesh (${e.hops - 1} phone${if (e.hops > 2) "s" else ""} carried it)"
+        val link = m.deliveredVia ?: if (e.viaInternet) "the internet (BlueMob relay)" else if (e.hops <= 1) mesh.linkName(e.fromNodeId) else "the mesh (${e.hops - 1} phone${if (e.hops > 2) "s" else ""} carried it)"
         val delivered = m.copy(
-            deliveredAt = m.deliveredAt ?: now, deliveredVia = link, directState = PathState.DELIVERED,
-            internetState = if (m.internetState == PathState.WAITING) PathState.CANCELLED else m.internetState,
+            deliveredAt = m.deliveredAt ?: now, deliveredVia = link,
+            // The path that delivered first is marked; the other one is no longer needed.
+            directState = if (m.deliveredAt == null && e.viaInternet) (if (m.directState == PathState.DELIVERED) m.directState else PathState.CANCELLED) else if (m.deliveredAt == null) PathState.DELIVERED else m.directState,
+            internetState = if (m.deliveredAt == null && e.viaInternet) PathState.DELIVERED
+                else if (m.internetState == PathState.WAITING || m.internetState == PathState.TRYING) PathState.CANCELLED else m.internetState,
         )
         when {
             e.read && m.status != MessageStatus.READ -> {
