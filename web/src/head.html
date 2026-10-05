@@ -542,6 +542,21 @@ button.set:hover { background: var(--sand); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+.rescue-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg, 20px); padding: 16px; margin-top: 8px; }
+.rescue-card.good { background: var(--pine-tint); border-color: transparent; }
+.rescue-card.wait { background: var(--ember-tint); border-color: transparent; }
+.rescue-card .where { background: var(--sky-tint); border-radius: 14px; padding: 12px; margin-top: 12px; font-size: 15px; }
+.rescue-arrow { width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; color: var(--pine); font-size: 26px; flex: none; }
+.rescue-arrow svg { width: 30px; height: 30px; }
+.sysline { text-align: center; font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 8px 0; }
+.rchat { display: flex; flex-direction: column; gap: 4px; }
+.rmsg { display: flex; flex-direction: column; align-items: flex-start; max-width: 82%; }
+.rmsg.me { align-self: flex-end; align-items: flex-end; }
+.rmsg.me .bubble { background: var(--pine); color: var(--on-pine); }
+.rmsg.victim .bubble { background: color-mix(in srgb, var(--rose) 14%, transparent); }
+.rmsg .who { font-size: 12px; font-weight: 600; color: var(--ink-3); margin: 0 0 2px 12px; }
+.rmsg.victim .who { color: var(--rose); }
+.rmsg .when { font-size: 11px; color: var(--ink-3); margin: 2px 12px 0; }
 </style>
 
 <div class="stage">

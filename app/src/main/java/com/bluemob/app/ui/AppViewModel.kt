@@ -170,6 +170,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
     fun refreshRadios() = blueMob.radios.refresh()
+
+    val rescues = blueMob.rescue.rooms
+    val rescueNotices = blueMob.rescue.notices
+    fun joinRescue(id: String) = blueMob.rescue.join(id)
+    fun sendRescue(id: String, text: String) = blueMob.rescue.send(id, text)
+    fun arrivedRescue(id: String) = blueMob.rescue.arrived(id)
+    fun leaveRescue(id: String) = blueMob.rescue.leave(id)
     fun cancelSos() = sosManager.cancel()
     fun dismissSosAlert() = sosManager.dismissAlert()
     fun setSignalDefault(mode: SignalMode) = settings.setSignalDefault(mode)

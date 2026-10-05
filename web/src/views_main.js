@@ -56,6 +56,7 @@
     if (!S.onboarded) return;
     if (S.screen === "chat") { renderChatParts(); return; }
     if (["main", "insights", "person", "soshub", "info", "lobby", "money"].includes(S.screen)) render();
+    if (S.screen === "rescue") renderKeepDraft();
   }
 
   // Screen stack: open() pushes, back() pops.
@@ -82,7 +83,7 @@
     S._anim = anim;
     const SCREENS = { design: designView, power: powerView, insights: insightsView, article: articleView, ttt: tttView,
       quiz: quizView, games: gamesIdeasView, person: personView, soshub: sosHubView, contacts: contactsView, info: messageInfoView,
-      money: moneyView, play: gamesHubView, audit: auditView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
+      money: moneyView, play: gamesHubView, audit: auditView, rescue: rescueView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
     if (S.screen === "chat") { app.innerHTML = chatView(anim); renderChatParts(true); }
     else if (S.screen === "sos") { app.innerHTML = sosView(); clearTimeout(sosTimer); startSos(); }
     else if (SCREENS[S.screen]) app.innerHTML = SCREENS[S.screen](anim);
@@ -395,6 +396,7 @@
       <label class="search">${I.search}<input id="q" type="search" placeholder="Search" value="${esc(S.query)}" aria-label="Search chats"></label>
       ${onlineNow.length && !q ? `<div class="section-h" style="margin-top:20px"><span class="t-over">Online nearby</span></div>
         <div class="stories">${onlineNow.map((p) => `<button class="story press" data-act="open-chat" data-id="${p.id}">${avatar(p.avatar, p.id, 60, "online")}<span class="ellipsis" style="max-width:64px">${esc(p.name)}</span></button>`).join("")}</div>` : ""}
+      ${q ? "" : rescueGroupsHtml()}
       <div class="filters" role="group" aria-label="Filter chats">${[["all", "All"], ["unread", "Unread"], ["online", "Online"], ["nearby", "Nearby"], ["far", "Far away"]].map(([v, l]) =>
         `<button class="chip" data-act="filter" data-v="${v}" aria-pressed="${S.filter === v}">${l}</button>`).join("")}</div>
       <div class="rows">${list.map(chatRow).join("") || '<p class="t-sub" style="padding:24px 16px;text-align:center">No chats match.</p>'}</div>`;
@@ -717,7 +719,15 @@
       case "signal-default": S.signalDefault = v; S.signalMode = v; store.set("signalDefault", v); toast(SIGNAL_MODES.find((x) => x.id === v).label + " is now your default SOS signal"); if (S.screen === "sos") { clearTimeout(sosTimer); } render(); break;
       case "sos-reason": S.sosNote = S.sosNote.includes(v) ? S.sosNote.replace(v, "").replace(/^[,\s]+|[,\s]+$/g, "").replace(/,\s*,/g, ",") : (S.sosNote ? S.sosNote + ", " : "") + v; render(); break;
       case "sos-test": back(); later(300, () => { if (P.ravi.presence !== "online") { toast("Switch the mesh on first, so someone nearby can send one"); return; } receiveSos("ravi", "Twisted my ankle near the stream. Can't walk. Please bring a torch"); }); break;
-      case "sos-coming": S.alertOpen = false; send(v, "I'm coming! Stay where you are. I'll be there soon 🙏"); toast("Told " + P[v].name + " you're coming"); render(); break;
+      case "sos-coming": S.alertOpen = false; joinRescueFor(v); break;
+      case "open-rescue": open("rescue", { rescue: v }); break;
+      case "rescue-join": { const r = S.rescues[S.rescue]; rescueJoin(r, "me", P[r.victim].dist); render(); break; }
+      case "rescue-quick": rescueSend(v); break;
+      case "rescue-here": { const r = S.rescues[S.rescue], me = r.helpers.find((h) => h.id === "me"); me.status = "arrived"; me.dist = 5;
+        rescuePost(r, "me", "arrived", "I'm here"); audit("sos", "Arrived at the rescue for " + whoName(r.victim));
+        later(1500, () => rescuePost(r, r.victim, "text", "I see you! Thank you so much 💚")); break; }
+      case "rescue-leave": { const r = S.rescues[S.rescue], me = r.helpers.find((h) => h.id === "me"); me.status = "left";
+        rescuePost(r, "me", "left", "I can't come after all"); audit("sos", "Left the rescue for " + whoName(r.victim)); break; }
       case "sos-way": S.alertOpen = false; S.navTarget = v; S.stack = []; S.screen = "main"; S.prevTab = S.tab; S.tab = "compass"; render("fade"); S.prevTab = "compass"; break;
       case "sos-howto": S.alertOpen = false; open("article", { article: "help-sos" }); break;
       case "sos-dismiss": S.alertOpen = false; render(); break;
@@ -728,6 +738,7 @@
       case "sos-safe":
         S.sos.contacts.forEach((sc) => send(sc.id, "I'm safe now. Thank you. " + S.name));
         S.sos.near.forEach((id) => send(id, "I'm safe now, thank you! 🙏"));
+        endOwnRescue();
         S.sos = null; toast("Told everyone you're safe"); render(); break;
       case "ask-expert": askExpert(); break;
       case "msg-info": open("info", { info: { chat: S.chat, mid: v } }); break;
@@ -827,6 +838,7 @@
       S.exSplit.forEach((id) => send(id, `🧾 I paid ${RUPEE(amt)} for ${note}. Your share is ${RUPEE(amt / split.length)}. It's in Trip money.`));
       S.exSplit = []; toast("Added and shared with " + (split.length - 1) + " people"); render(); return;
     }
+    if (e.target.id === "rescue-form") { e.preventDefault(); const i = document.getElementById("rescue-draft"); rescueSend(i.value); return; }
     if (e.target.id === "word-form") { e.preventDefault(); wordsPlay(document.getElementById("word-in").value); return; }
     if (e.target.id !== "composer") return;
     e.preventDefault();

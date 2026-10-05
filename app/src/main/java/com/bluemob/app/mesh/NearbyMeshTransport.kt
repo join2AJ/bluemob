@@ -7,7 +7,8 @@ import com.bluemob.app.contacts.Contact
 import com.bluemob.app.contacts.ContactsStore
 import com.bluemob.app.contacts.GeoPoint
 import com.bluemob.app.identity.Identity
-import com.bluemob.app.trail.PositionEstimate
+import com.bluemob.app.trail.PosCodec.parsePos
+import com.bluemob.app.trail.PosCodec.posJson
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
@@ -55,6 +56,7 @@ import org.json.JSONObject
  * - `rcpt`: a delivery (`k = d`) or read (`k = r`) receipt for a message ID
  * - `sos`: an SOS, passed on by every phone that hears it (up to [SOS_MAX_HOPS] hops)
  * - `lost`: a lost person's position estimate, passed on the same way
+ * - `room`: a message in an SOS rescue group (join, chat, position, arrived, left, ended), passed on the same way
  * - `ping` / `pong`: round-trip time test
  */
 class NearbyMeshTransport(
@@ -210,6 +212,26 @@ class NearbyMeshTransport(
         return targets.size
     }
 
+    /** Sends a rescue-group message to everyone connected; each phone passes it on. */
+    fun broadcastRoom(m: RoomPayload): Int {
+        seenSos += m.id
+        val json = roomJson(m)
+        val targets = connectedEndpoints()
+        targets.forEach { send(it, json) }
+        return targets.size
+    }
+
+    /** Sends a rescue-group message to one phone, e.g. one that just connected and may have missed it. */
+    fun sendRoom(nodeId: String, m: RoomPayload): Boolean {
+        val endpointId = connectedEndpointFor(nodeId) ?: return false
+        send(endpointId, roomJson(m))
+        return true
+    }
+
+    private fun roomJson(m: RoomPayload) = JSONObject().put("t", TYPE_ROOM).put("id", m.id).put("room", m.room).put("from", m.fromNodeId)
+        .put("name", m.fromName).put("k", m.kind).put("text", m.text).put("at", m.at).put("hops", m.hops)
+        .also { j -> m.pos?.let { j.put("pos", posJson(it)) } }
+
     /** Human words for the link to someone, e.g. "Bluetooth" or "Wi-Fi". */
     override fun linkName(nodeId: String): String {
         val peer = _peers.value.values.firstOrNull { it.nodeId == nodeId && it.state == PeerState.CONNECTED }
@@ -229,24 +251,6 @@ class NearbyMeshTransport(
         .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("bat", s.battery ?: -1)
         .put("at", s.at).put("hops", s.hops).put("cancel", s.cancelled)
         .also { j -> s.pos?.let { j.put("pos", posJson(it)) } }
-
-    private fun posJson(p: PositionEstimate) = JSONObject()
-        .put("lat", p.lat).put("lon", p.lon).put("gps", p.gps).put("flat", p.fixLat).put("flon", p.fixLon).put("fat", p.fixAt)
-        .put("facc", p.fixAccuracyM.toDouble()).put("walk", p.walkedM ?: -1.0).put("brg", p.travelBearingDeg ?: -1.0)
-        .put("hdg", p.headingDeg?.toDouble() ?: -1.0).put("unc", p.uncertaintyM).put("at", p.at)
-
-    private fun parsePos(j: JSONObject?): PositionEstimate? {
-        if (j == null) return null
-        val lat = j.optDouble("lat")
-        val lon = j.optDouble("lon")
-        if (lat.isNaN() || lon.isNaN()) return null
-        return PositionEstimate(
-            lat, lon, j.optBoolean("gps"), j.optDouble("flat", lat), j.optDouble("flon", lon), j.optLong("fat"),
-            j.optDouble("facc", 0.0).toFloat(), j.optDouble("walk", -1.0).takeIf { it >= 0 },
-            j.optDouble("brg", -1.0).takeIf { it >= 0 }, j.optDouble("hdg", -1.0).takeIf { it >= 0 }?.toFloat(),
-            j.optDouble("unc", 0.0), j.optLong("at"),
-        )
-    }
 
     /** Shares our position with everyone connected; pass null to stop sharing. */
     fun updateMyLocation(location: GeoPoint?) {
@@ -409,6 +413,7 @@ class NearbyMeshTransport(
                 }
                 TYPE_SOS -> handleSos(endpointId, json)
                 TYPE_LOST -> handleLost(endpointId, json)
+                TYPE_ROOM -> handleRoom(endpointId, json)
                 TYPE_PING -> {
                     log("Ping from ${peer.name}")
                     send(endpointId, JSONObject().put("t", TYPE_PONG).put("id", json.optString("id")))
@@ -459,6 +464,21 @@ class NearbyMeshTransport(
         }
     }
 
+    /** Rescue-group messages travel like an SOS: accept once, then pass on. */
+    private fun handleRoom(fromEndpoint: String, json: JSONObject) {
+        val id = json.optString("id")
+        val room = json.optString("room")
+        if (id.isEmpty() || room.isEmpty() || !seenSos.add(id)) return
+        val hops = json.optInt("hops", 0) + 1
+        val m = RoomPayload(id, room, json.optString("from"), json.optString("name"), json.optString("k"), json.optString("text"),
+            json.optLong("at"), parsePos(json.optJSONObject("pos")), hops)
+        if (m.fromNodeId != identity.nodeId) _events.tryEmit(MeshEvent.RoomReceived(m))
+        if (hops < SOS_MAX_HOPS) {
+            val forward = JSONObject(json.toString()).put("hops", hops)
+            connectedEndpoints().filter { it != fromEndpoint }.forEach { send(it, forward) }
+        }
+    }
+
     private fun setState(endpointId: String, state: PeerState) {
         _peers.update { peers ->
             val peer = peers[endpointId] ?: return@update peers
@@ -488,6 +508,7 @@ class NearbyMeshTransport(
         private const val TYPE_RCPT = "rcpt"
         private const val TYPE_SOS = "sos"
         private const val TYPE_LOST = "lost"
+        private const val TYPE_ROOM = "room"
         const val SOS_MAX_HOPS = 5
         private const val TYPE_PING = "ping"
         private const val TYPE_PONG = "pong"

@@ -34,6 +34,14 @@ through Meera, who has internet.
 
 ## Android 0.4: what's new
 
+- **Rescue groups** (`rescue/`, `ui/rescue`): tapping **I'm coming** on an SOS joins that SOS's group and opens the
+  rescue screen. Helpers see how far away the person is, which way to go (arrow + Navigate), where they are (GPS or
+  estimate), their note and battery, a matching guide, and a "before you set off" checklist. Everyone in the group
+  (the person in need and every helper) sees who's coming, how far each is and when they last updated, and shares one
+  chat with quick replies. Helpers and the person share their position every 45 s; "I'm here" and "I can't come" update
+  the group; "I'm safe" ends it. Group messages travel the mesh like an SOS (passed on, up to 5 hops) and are re-sent
+  to phones that connect later. Groups also appear at the top of Chats, and new activity shows a banner.
+
 - **Trail and lost mode** (`trail/`, `ui/compass/TrailViews.kt`): opt-in, because it keeps GPS on. Draws your trail on a
   north-up map (solid = GPS, dashed = estimated), keeps the last GPS fix and your base camp, and tells you whether you're
   walking straight, curving left or right, weaving, or walking in a circle. When GPS drops out, the step counter and compass
@@ -92,7 +100,7 @@ debug key, so uninstall the old version before installing a new one.
 **Automated** (`./gradlew testDebugUnitTest`): the delivery engine with two simulated phones (waits until in range,
 exactly-once after a re-send, read receipts), 35 Sky questions, trail maths and dead reckoning, the audit chain (edits and
 removals are caught), the game opponents (the unbeatable one is checked against every possible game), geo maths, and
-screenshots of 23 screens.
+rescue groups (joining, moving, arriving, leaving, late SOS), and screenshots of 25 screens.
 The web preview has its own Sky test: `node web/tests/sky_answers.test.js`.
 
 **On one phone:** go through the intro, ask Sky questions, read the guide, try the SOS signal (flashlight and sound),
@@ -107,8 +115,10 @@ and the compass (outdoors for GPS).
 5. **Store-and-forward:** turn the mesh off on phone B, send B a message from phone A (it shows the clock),
    then turn B's mesh back on. The message arrives, and A's tick goes to delivered, then read when B opens the chat.
 6. **SOS:** send an SOS from one phone. The other opens the alert. With three phones in a line, the middle one passes it on.
-7. **Lost mode:** on phone A, Compass → **I'm lost**. Phone B shows "A is lost" with A's position. Walk somewhere with
+7. **Rescue group:** with three phones, send an SOS from A. On B tap **I'm coming**, then on C too. All three see each
+   other in the group, with distances, and can chat. Tap "I'm safe" on A to end it.
+8. **Lost mode:** on phone A, Compass → **I'm lost**. Phone B shows "A is lost" with A's position. Walk somewhere with
    A; in airplane mode indoors (no GPS) A's estimate keeps moving with its steps.
-8. Turn on **Share my location** on both phones to see distance on the radar and walk to each other with the compass.
+9. Turn on **Share my location** on both phones to see distance on the radar and walk to each other with the compass.
 
 If something fails, send a screenshot of **You → Mesh activity log**.

@@ -75,7 +75,12 @@ import com.bluemob.app.ui.games.ConnectFourScreen
 import com.bluemob.app.ui.games.GamesScreen
 import com.bluemob.app.ui.games.TicTacToeScreen
 import com.bluemob.app.ui.profile.AuditScreen
+import com.bluemob.app.rescue.RescueNotice
+import com.bluemob.app.ui.rescue.RescueActions
+import com.bluemob.app.ui.rescue.RescueScreen
 import com.bluemob.app.ui.sos.SosAlert
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import com.bluemob.app.ui.sos.SosContactsScreen
 import com.bluemob.app.ui.sos.SosHubState
 import com.bluemob.app.ui.system.ConnectionsScreen
@@ -159,6 +164,10 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val estimate by vm.estimate.collectAsStateWithLifecycle()
     val lostOn by vm.lostOn.collectAsStateWithLifecycle()
     var sosReached by rememberSaveable { mutableStateOf(-1) }
+    val rescues by vm.rescues.collectAsStateWithLifecycle()
+    var notice by remember { mutableStateOf<RescueNotice?>(null) }
+    LaunchedEffect(Unit) { vm.rescueNotices.collect { n -> notice = n } }
+    LaunchedEffect(notice) { if (notice != null) { delay(6_000); notice = null } }
     val hereFix = myFix ?: estimate?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
     val askSteps = { if (vm.stepCounterAvailable && !vm.hasStepPermission()) actions.requestSteps() }
 
@@ -197,7 +206,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onConnections = { push("connections") }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push("games") },
                             onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
                         )
-                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding) { push("chat:$it") }
+                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { push("rescue:$it") }) { push("chat:$it") }
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
@@ -244,7 +253,18 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     onSend = { sosReached = vm.sendSos(it) }, onSafe = { vm.cancelSos(); sosReached = -1 }, onSignal = { push("signal") },
                     onDefaultSignal = vm::setSignalDefault, onHowToHelp = { push("article:help-sos") }, onContacts = { push("sos-contacts") },
                     onText = actions.textSos, onPreviewAlert = vm::previewSosAlert,
+                    rescue = rescues.firstOrNull { it.mine && it.id == mySos?.id }, onOpenRescue = { mySos?.let { push("rescue:" + it.id) } },
                 )
+                route.startsWith("rescue:") -> {
+                    val room = rescues.firstOrNull { it.id == route.removePrefix("rescue:") }
+                    if (room == null) LaunchedEffect(Unit) { delay(1_500); pop() }
+                    else RescueScreen(room, vm.nodeId, hereFix, headings, RescueActions(
+                        onBack = ::pop, onJoin = { vm.joinRescue(room.id) }, onSend = { vm.sendRescue(room.id, it) },
+                        onArrived = { vm.arrivedRescue(room.id) }, onLeave = { vm.leaveRescue(room.id) },
+                        onNavigate = { compassTarget = room.victimId; goTab(Tab.COMPASS) }, onGuide = { push("article:$it") },
+                        onSignal = { push("signal") }, onSafe = { vm.cancelSos(); sosReached = -1 },
+                    ))
+                }
                 route == "sos-contacts" -> SosContactsScreen(sosContacts, ::pop, onAdd = vm::addSosContact, onRemove = vm::removeSosContact)
                 route == "connections" -> ConnectionsScreen(radios, online, ::pop, onSwitch = actions.switchRadio)
                 route == "audit" -> {
@@ -262,11 +282,28 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             val preview = sos.id == SosManager.PREVIEW_ID
             SosAlert(
                 sos, people.firstOrNull { it.nodeId == sos.fromNodeId }, hereFix?.lat, hereFix?.lon,
-                onComing = { if (!preview) vm.send(sos.fromNodeId, "I'm coming! Stay where you are 🙏"); vm.dismissSosAlert() },
+                onComing = { vm.dismissSosAlert(); if (!preview) { vm.joinRescue(sos.id); push("rescue:" + sos.id) } },
                 onWay = { if (!preview) compassTarget = sos.fromNodeId; vm.dismissSosAlert(); if (!preview) goTab(Tab.COMPASS) },
                 onHowTo = { vm.dismissSosAlert(); push("article:help-sos") },
                 onClose = vm::dismissSosAlert,
+                coming = rescues.firstOrNull { it.id == sos.id }?.coming?.map { it.name }.orEmpty(),
             )
+        }
+
+        notice?.takeIf { top != "rescue:" + it.room }?.let { n ->
+            Surface(
+                onClick = { notice = null; push("rescue:" + n.room) }, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp,
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp).fillMaxWidth(),
+            ) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🆘", fontSize = 22.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Rescue group", style = MaterialTheme.typography.labelSmall, color = Extra.rose)
+                        Text(n.text, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                    }
+                    Text("Open", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
         }
     }
 }

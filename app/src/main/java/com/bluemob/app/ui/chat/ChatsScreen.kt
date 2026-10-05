@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bluemob.app.bot.SkyBot
 import com.bluemob.app.data.MessageEntity
 import com.bluemob.app.data.MessageStatus
@@ -65,6 +66,8 @@ fun ChatsScreen(
     conversations: Map<String, List<MessageEntity>>,
     typing: Set<String>,
     contentPadding: PaddingValues,
+    rescues: List<com.bluemob.app.rescue.RescueRoom> = emptyList(),
+    onOpenRescue: (String) -> Unit = {},
     onOpen: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -97,6 +100,27 @@ fun ChatsScreen(
                     if (query.isEmpty()) Text("Search", color = Extra.ink3, style = MaterialTheme.typography.bodyLarge)
                     BasicTextField(query, { query = it }, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+        val groups = rescues.filter { it.iAmIn || !it.ended }
+        if (groups.isNotEmpty() && query.isBlank()) {
+            item { Text("RESCUE GROUPS", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
+            groups.forEach { r ->
+                item(key = "rescue-" + r.id) {
+                    val last = r.chat.lastOrNull()
+                    Row(Modifier.fillMaxWidth().clickable { onOpenRescue(r.id) }.padding(horizontal = Space.lg, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(52.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (r.ended) Extra.sand2 else Extra.rose), contentAlignment = Alignment.Center) {
+                            Text("🆘", fontSize = 22.sp)
+                        }
+                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                            Text(if (r.mine) "Your rescue" else "Help ${r.victimName}", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                (if (r.ended) "Ended · " else "${r.coming.size} coming · ") + (last?.let { "${it.fromName}: ${it.text}" } ?: r.note.ifBlank { "SOS" }),
+                                style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
             }
         }

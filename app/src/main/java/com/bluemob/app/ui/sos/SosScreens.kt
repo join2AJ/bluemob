@@ -124,6 +124,8 @@ fun SosHubScreen(
     onText: (List<String>, String) -> Unit,
     onPreviewAlert: () -> Unit,
     still: Boolean = false,
+    rescue: com.bluemob.app.rescue.RescueRoom? = null,
+    onOpenRescue: () -> Unit = {},
 ) {
     var note by rememberSaveable { mutableStateOf("") }
     var armed by remember { mutableStateOf(false) }
@@ -170,6 +172,21 @@ fun SosHubScreen(
                 }
             }
             item { Gap(14.dp) }
+            item {
+                val coming = rescue?.coming.orEmpty()
+                androidx.compose.material3.Surface(onClick = onOpenRescue, shape = MaterialTheme.shapes.large, color = if (coming.isEmpty()) Extra.emberTint else Extra.pineTint,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(when (coming.size) { 0 -> "Waiting for someone to answer"; 1 -> "${coming[0].name} is coming"; else -> "${coming.size} people are coming" },
+                                style = MaterialTheme.typography.titleMedium)
+                            Text(if (coming.isEmpty()) "When people tap \"I'm coming\", you'll see them here and can chat with all of them."
+                                else "See where they are and chat with the whole group", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                        }
+                        Chevron()
+                    }
+                }
+            }
             item {
                 Group {
                     SettingRow(Icons.Outlined.Hub, MaterialTheme.colorScheme.primary,
@@ -356,7 +373,11 @@ fun SosSignalScreen(start: SignalMode, defaultMode: SignalMode, signals: SignalC
 
 /** Opens over everything when someone nearby sends an SOS. */
 @Composable
-fun SosAlert(sos: SosSignal, person: Person?, myLat: Double?, myLon: Double?, onComing: () -> Unit, onWay: () -> Unit, onHowTo: () -> Unit, onClose: () -> Unit) {
+fun SosAlert(
+    sos: SosSignal, person: Person?, myLat: Double?, myLon: Double?, onComing: () -> Unit, onWay: () -> Unit, onHowTo: () -> Unit, onClose: () -> Unit,
+    /** Names of people who already said they're coming. */
+    coming: List<String> = emptyList(),
+) {
     val distance = if (myLat != null && myLon != null && sos.lat != null && sos.lon != null) {
         val me = com.bluemob.app.contacts.GeoPoint(myLat, myLon, 0f, 0)
         val them = com.bluemob.app.contacts.GeoPoint(sos.lat, sos.lon, 0f, 0)
@@ -385,11 +406,18 @@ fun SosAlert(sos: SosSignal, person: Person?, myLat: Double?, myLon: Double?, on
                     Text(pos.describe(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                 }
             }
+            if (coming.isNotEmpty()) Text("Already coming: ${coming.joinToString(", ")}", style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
             Text(if (preview) "This is how an SOS from someone nearby looks. Real ones also sound a short alarm." else "Your phone is already passing it on to everyone it can reach.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 12.dp))
         }
         Column(Modifier.navigationBarsPadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = onComing, colors = ButtonDefaults.buttonColors(containerColor = Extra.rose, contentColor = Color.White),
-                modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("I'm coming", style = MaterialTheme.typography.titleMedium) }
+                modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("I'm coming", style = MaterialTheme.typography.titleMedium)
+                    Text("Join the rescue group: directions and chat", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.85f))
+                }
+            }
             if (sos.lat != null) OutlinedButton(onClick = onWay, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Show me the way") }
             OutlinedButton(onClick = onHowTo, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("How to help") }
             TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Close") }

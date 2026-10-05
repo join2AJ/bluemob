@@ -16,6 +16,7 @@ import com.bluemob.app.mesh.MeshEvent
 import com.bluemob.app.mesh.NearbyMeshTransport
 import com.bluemob.app.settings.AppSettings
 import com.bluemob.app.sos.SignalController
+import com.bluemob.app.rescue.RescueManager
 import com.bluemob.app.sos.SosManager
 import com.bluemob.app.system.Radios
 import com.bluemob.app.trail.LostMode
@@ -47,6 +48,7 @@ class BlueMobApp : Application() {
     lateinit var trail: TrailRecorder private set
     lateinit var lost: LostMode private set
     lateinit var radios: Radios private set
+    lateinit var rescue: RescueManager private set
 
     override fun onCreate() {
         super.onCreate()
@@ -65,6 +67,7 @@ class BlueMobApp : Application() {
         trail = TrailRecorder(this, location, heading, db.trail(), settings, audit, appScope) { identity.shareLocation.value }
         lost = LostMode(mesh, identity, trail, audit, appScope)
         sos = SosManager(this, mesh, identity, trail, signals, audit, appScope)
+        rescue = RescueManager(mesh, identity, db.rescue(), trail, location, sos, audit, appScope)
         messages = MessageRepository(db.messages(), mesh, appScope, sky = { text -> SkyBot.reply(text, skyFacts()) }) { kind, peer, text ->
             audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone"))
         }

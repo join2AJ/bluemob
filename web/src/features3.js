@@ -122,10 +122,11 @@
         <h1 class="t-title" style="margin-top:10px">${nameWithId(p)} needs help</h1>
         <p class="t-sub">${fmtDist(p.dist)} away to the ${cardinal(p.bearing)} · their battery ${s.battery}%</p>
         <div class="sos-quote">“${esc(s.text)}”</div>
+        ${(() => { const r = rescueOf(p.id); return r && coming(r).length ? `<p class="t-strong" style="color:var(--pine);margin-top:10px">Already coming: ${coming(r).map((h) => esc(whoName(h.id))).join(", ")}</p>` : ""; })()}
         <p class="t-cap">Already passed on to anyone with internet, automatically.</p>
       </div>
       <div class="sos-alert-actions">
-        <button class="btn" data-act="sos-coming" data-v="${p.id}">I'm coming</button>
+        <button class="btn" data-act="sos-coming" data-v="${p.id}" style="flex-direction:column;height:auto;padding:10px 0;line-height:1.2">I'm coming<span style="font-size:12px;font-weight:500;opacity:.85">Join the rescue group: directions and chat</span></button>
         <button class="btn secondary" data-act="sos-way" data-v="${p.id}">${I.compass} Show me the way</button>
         <button class="btn secondary" data-act="sos-howto">${I.book} How to help</button>
         <button class="btn text" data-act="sos-dismiss">Close</button>

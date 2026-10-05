@@ -113,7 +113,7 @@
     log("SOS sent to " + near.length + " people nearby");
     S.sos.contacts.forEach((sc) => { sc.msg = send(sc.id, text, { onDelivered: () => { sc.status = "sent"; sc.time = now(); refresh(); } }); });
     // People nearby answer first: they are the fastest help.
-    near.slice(0, 1).forEach((p) => later(2500, () => incoming(p.id, `🆘 I got your SOS! I'm ${fmtDist(p.dist)} from you and coming now. Stay where you are.`)));
+    S.sos.rescue = startOwnRescue(S.sosNote.trim()).id;
     render();
   }
   function sosHubView() {
@@ -138,6 +138,10 @@
       : `
       <div class="large-title" style="margin-top:8px"><span class="tag" style="background:var(--rose);color:#fff">SOS ACTIVE · ${clock(s.time)}</span>
         <h1 class="t-hero" style="margin-top:10px">Help is being called</h1></div>
+      ${(() => { const r = S.rescues[s.rescue], c = r ? coming(r) : [];
+        return `<button class="rescue-card ${c.length ? "good" : "wait"} press" data-act="open-rescue" data-v="${s.rescue}" style="display:block;width:100%;text-align:left;margin:12px 0">
+          <span class="t-strong" style="display:block;font-size:17px">${!c.length ? "Waiting for someone to answer" : c.length === 1 ? esc(whoName(c[0].id)) + " is coming" : c.length + " people are coming"}</span>
+          <span class="t-cap">${c.length ? "See where they are and chat with the whole group ›" : "When people tap \"I'm coming\", you'll see them here and can chat with all of them ›"}</span></button>`; })()}
       <div class="group">
         ${statusRow(I.mesh, "var(--pine)", `Delivered to ${s.near.length} people nearby`, s.near.length ? s.near.map((id) => nameWithId(P[id])).join(", ") + " · straight away, over the mesh" : "No one connected right now. It will go out as people appear.")}
         ${s.contacts.map((sc) => { const c = P[sc.id]; return statusRow(I.phone, sc.status === "sent" ? "var(--pine)" : "var(--ember)",

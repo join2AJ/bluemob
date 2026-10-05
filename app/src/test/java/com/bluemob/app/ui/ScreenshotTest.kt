@@ -40,6 +40,12 @@ import com.bluemob.app.settings.SosContact
 import com.bluemob.app.system.RadioState
 import com.bluemob.app.trail.PositionEstimate
 import com.bluemob.app.ui.compass.TrailUi
+import com.bluemob.app.data.RescueMessage
+import com.bluemob.app.rescue.Helper
+import com.bluemob.app.rescue.HelperStatus
+import com.bluemob.app.rescue.RescueRoom
+import com.bluemob.app.ui.rescue.RescueActions
+import com.bluemob.app.ui.rescue.RescueScreen
 import com.bluemob.app.ui.games.GamesScreen
 import com.bluemob.app.ui.games.TicTacToeScreen
 import com.bluemob.app.ui.profile.AuditScreen
@@ -179,6 +185,29 @@ class ScreenshotTest {
         ).mapIndexed { i, (k, t) -> AuditChain.next(prev, now - (6 - i) * 60_000L, k, t).also { prev = it } }
         AuditScreen(entries.asReversed(), null, {})
     }
+    private fun rescueRoom(mine: Boolean): RescueRoom {
+        var t = now - 9 * 60_000L
+        val victim = if (mine) "me" else "b7e4"
+        val vName = if (mine) "Arjun" else "Ravi"
+        fun row(kind: String, from: String, name: String, text: String = "") = RescueMessage("r${t}", "sos1", from, name, kind, text, t.also { t += 60_000 })
+        val rows = listOf(
+            row(RescueRoom.JOIN, "a1c2", "Asha", "I'm coming · 420 m away, about 6 min"),
+            row(RescueRoom.JOIN, if (mine) "c3d9" else "me", if (mine) "Meera" else "Arjun", "I'm coming · 380 m away, about 5 min"),
+            row(RescueRoom.TEXT, victim, vName, "Thank you! I'm under the big pine by the stream"),
+            row(RescueRoom.TEXT, "a1c2", "Asha", "Can you hear my whistle?"),
+            row(RescueRoom.TEXT, victim, vName, "I can hear you!"),
+        )
+        val ashaPos = PositionEstimate(30.0858, 78.2650, true, 30.0858, 78.2650, now - 60_000, 6f, null, null, null, 6.0, now - 60_000)
+        val otherPos = PositionEstimate(30.0870, 78.2676, true, 30.0870, 78.2676, now - 30_000, 6f, null, null, null, 6.0, now - 30_000)
+        val helpers = listOf(
+            Helper("a1c2", "Asha", HelperStatus.COMING, ashaPos, now - 60_000, rows[0].at),
+            Helper(if (mine) "c3d9" else "me", if (mine) "Meera" else "Arjun", HelperStatus.COMING, otherPos, now - 30_000, rows[1].at),
+        )
+        return RescueRoom("sos1", victim, vName, "Twisted my ankle near the stream. Can't walk", 21, now - 10 * 60_000, noGps, false, helpers, rows, mine,
+            if (mine) null else HelperStatus.COMING)
+    }
+    @Test fun rescueHelper() = shot(tall = true) { RescueScreen(rescueRoom(false), "me", me, flowOf(200f), RescueActions()) }
+    @Test fun rescueVictim() = shot(tall = true) { RescueScreen(rescueRoom(true), "me", me, flowOf(0f), RescueActions()) }
     @Test fun games() = shot { GamesScreen({}, {}) }
     @Test fun ticTacToe() = shot { TicTacToeScreen {} }
     @Test fun profile() = shot(tall = true) {

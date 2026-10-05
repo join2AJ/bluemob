@@ -139,16 +139,47 @@ interface TrailDao {
     suspend fun clear()
 }
 
-@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class], version = 2, exportSchema = false)
+/**
+ * One line in an SOS rescue group. [room] is the SOS ID. [kind]: OPEN (the SOS itself, kept locally), JOIN, TEXT, POS,
+ * ARRIVED, LEAVE, ENDED. [pos] is a PositionEstimate as JSON. [local] rows never go out over the mesh.
+ */
+@Entity(tableName = "rescue", indices = [Index("room")])
+data class RescueMessage(
+    @PrimaryKey val id: String,
+    val room: String,
+    val fromNodeId: String,
+    val fromName: String,
+    val kind: String,
+    val text: String,
+    val at: Long,
+    val pos: String? = null,
+    val battery: Int? = null,
+    val local: Boolean = false,
+)
+
+@Dao
+interface RescueDao {
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(m: RescueMessage): Long
+
+    @Query("SELECT * FROM rescue ORDER BY at")
+    fun observeAll(): Flow<List<RescueMessage>>
+
+    @Query("SELECT * FROM rescue WHERE room = :room AND local = 0 AND at > :since ORDER BY at DESC LIMIT :limit")
+    suspend fun recentShared(room: String, since: Long, limit: Int): List<RescueMessage>
+}
+
+@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class], version = 3, exportSchema = false)
 abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun messages(): MessageDao
     abstract fun audit(): AuditDao
     abstract fun trail(): TrailDao
+    abstract fun rescue(): RescueDao
 
     companion object {
         fun create(context: Context): BlueMobDatabase =
             Room.databaseBuilder(context, BlueMobDatabase::class.java, "bluemob.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)
                 })
@@ -162,6 +193,15 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `trail` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `time` INTEGER NOT NULL, " +
                     "`lat` REAL NOT NULL, `lon` REAL NOT NULL, `accuracyM` REAL NOT NULL, `estimated` INTEGER NOT NULL)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_trail_time` ON `trail` (`time`)")
+            }
+        }
+
+        /** Adds SOS rescue groups. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `rescue` (`id` TEXT NOT NULL, `room` TEXT NOT NULL, `fromNodeId` TEXT NOT NULL, `fromName` TEXT NOT NULL, " +
+                    "`kind` TEXT NOT NULL, `text` TEXT NOT NULL, `at` INTEGER NOT NULL, `pos` TEXT, `battery` INTEGER, `local` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_rescue_room` ON `rescue` (`room`)")
             }
         }
 

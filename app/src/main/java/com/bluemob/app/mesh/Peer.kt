@@ -34,7 +34,24 @@ sealed interface MeshEvent {
     data class PingResult(val nodeId: String, val roundTripMs: Long) : MeshEvent
     data class SosReceived(val sos: SosSignal) : MeshEvent
     data class LostReceived(val lost: LostSignal) : MeshEvent
+    data class RoomReceived(val msg: RoomPayload) : MeshEvent
 }
+
+/**
+ * One message in an SOS rescue group. [room] is the SOS ID. [kind] is JOIN, TEXT, POS, ARRIVED, LEAVE or ENDED.
+ * [pos] is the sender's position, when they share it (JOIN, POS, ARRIVED).
+ */
+data class RoomPayload(
+    val id: String,
+    val room: String,
+    val fromNodeId: String,
+    val fromName: String,
+    val kind: String,
+    val text: String,
+    val at: Long,
+    val pos: PositionEstimate?,
+    val hops: Int = 0,
+)
 
 /** An SOS as it travels the mesh. [hops] counts how many phones passed it on. */
 data class SosSignal(

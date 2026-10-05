@@ -172,12 +172,16 @@ object SkyBot {
         return SkyAnswer(fallback[turn % fallback.size])
     }
 
+    /** The guide that best fits some text (a question, or an SOS note like "twisted ankle"), if any. */
+    fun guideIdFor(text: String): String? {
+        val t = text.lowercase()
+        return survivalKeys.maxByOrNull { (_, keys) -> keys.sumOf { k -> if (k.split("+").all { t.contains(it) }) k.length else 0 } }
+            ?.takeIf { (_, keys) -> keys.any { k -> k.split("+").all { t.contains(it) } } }?.key
+    }
+
     /** Finds the guide that best fits the question and answers with its first steps. */
     fun guideAnswer(t: String, batteryPct: Int? = null): SkyAnswer? {
-        val best = survivalKeys.maxByOrNull { (_, keys) -> keys.sumOf { k -> if (k.split("+").all { t.contains(it) }) k.length else 0 } }
-            ?.takeIf { (_, keys) -> keys.any { k -> k.split("+").all { t.contains(it) } } }
-            ?: return null
-        val a = GuideContent.byId(best.key) ?: return null
+        val a = GuideContent.byId(guideIdFor(t) ?: return null) ?: return null
         val steps = a.steps.take(4).mapIndexed { i, s -> "${i + 1}. $s" }.joinToString("\n")
         val more = if (a.steps.size > 4) "\n…plus ${a.steps.size - 4} more step${if (a.steps.size - 4 > 1) "s" else ""} in the guide." else ""
         val avoid = if (a.avoid.isNotEmpty()) "\n\nAvoid: " + a.avoid.joinToString(" ") else ""
