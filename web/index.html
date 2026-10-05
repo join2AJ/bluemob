@@ -802,6 +802,7 @@ button.set:hover { background: var(--sand); }
     if (!p.remote) m.paths.direct = { state: p.presence === "online" ? "trying" : "waiting" };
     m.paths.internet = { state: "waiting" };
     note(m, "Written on your phone · ID " + m.id);
+    audit("message", `Message ${m.id} written to ${p.name}`);
     if (p.presence === "online" && !p.remote) {
       m.paths.internet.state = "not-needed";
       deliverDirect(m, id);
@@ -842,6 +843,7 @@ button.set:hover { background: var(--sand); }
     if (path === "direct") STATS.direct++; else { STATS.bridge++; if (m.route && m.route.includes("Ravi")) STATS.hopped++; }
     const back = path === "direct" ? how : "the internet and the bridge";
     m.receipts.push({ kind: "delivered", time: now(), via: back });
+    audit("receipt", `Message ${m.id} delivered to ${p ? p.name : id} by ${path === "direct" ? how : "internet"}`);
     note(m, `Delivered by ${path === "direct" ? how : p && p.sms ? "text message" : "internet"}. Delivery receipt came back over ${back}`);
     // The receipt stops the other path.
     const other = path === "direct" ? "internet" : "direct";
@@ -856,7 +858,8 @@ button.set:hover { background: var(--sand); }
     refresh();
     // Read receipt: SMS has none; people read it a little later.
     if (id !== "sky" && !(p && p.sms)) later(1800 + Math.random() * 2500, () => {
-      m.status = "read"; m.receipts.push({ kind: "read", time: now(), via: back }); note(m, "Read receipt received"); refresh();
+      m.status = "read"; m.receipts.push({ kind: "read", time: now(), via: back }); note(m, "Read receipt received");
+      audit("receipt", `Message ${m.id} read by ${p.name}`); refresh();
     });
     if (id === "sky") later(600, () => { m.status = "read"; m.receipts.push({ kind: "read", time: now(), via: "this phone" }); refresh(); });
     const r = id !== "sky" && friendReply(id, m.text);
@@ -919,6 +922,7 @@ button.set:hover { background: var(--sand); }
 
   // ---------- mesh simulation ----------
   function log(text) {
+    if (typeof audit === "function" && typeof AUDIT !== "undefined") audit(/sos/i.test(text) ? "sos" : "mesh", text);
     const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     S.log.unshift(t + "  " + text);
     S.log = S.log.slice(0, 120);
@@ -1065,7 +1069,7 @@ button.set:hover { background: var(--sand); }
     S._anim = anim;
     const SCREENS = { design: designView, power: powerView, insights: insightsView, article: articleView, ttt: tttView,
       quiz: quizView, games: gamesIdeasView, person: personView, soshub: sosHubView, contacts: contactsView, info: messageInfoView,
-      money: moneyView, play: gamesHubView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
+      money: moneyView, play: gamesHubView, audit: auditView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
     if (S.screen === "chat") { app.innerHTML = chatView(anim); renderChatParts(true); }
     else if (S.screen === "sos") { app.innerHTML = sosView(); clearTimeout(sosTimer); startSos(); }
     else if (SCREENS[S.screen]) app.innerHTML = SCREENS[S.screen](anim);
@@ -1573,6 +1577,11 @@ button.set:hover { background: var(--sand); }
         ${set("var(--rose)", I.trash, "Forget people I've met", "Clears last-seen history", "", "forget")}
       </div>
 
+      <div class="group-label t-over">Records</div>
+      <div class="group">
+        ${set("#3A4A44", I.terminal, "Audit trail", "Read-only, tamper-evident record of SOS, messages and positions", chev, "audit")}
+      </div>
+
       <div class="group-label t-over">For testers</div>
       <div class="group">
         ${set("#3A4A44", I.terminal, "Mesh activity log", "What the mesh is doing, step by step",
@@ -1683,6 +1692,12 @@ button.set:hover { background: var(--sand); }
       case "open-chat": open("chat", { chat: el.dataset.id }); break;
       case "design": case "power": case "insights": case "games": case "contacts": case "money": case "play": open(act); break;
       case "sos": S.sosArmed = false; open("soshub"); break;
+      case "audit": open("audit"); break;
+      case "audit-copy": {
+        const text = AUDIT.map((e) => `#${e.seq} ${new Date(e.time).toISOString()} [${e.kind}] ${e.text} prev=${e.prev} hash=${e.hash}`).join("\n");
+        try { navigator.clipboard.writeText(text).then(() => toast("Audit trail copied"), () => toast("Couldn't copy here")); } catch { toast("Couldn't copy here"); }
+        break;
+      }
       case "go-tab": S.stack = []; S.chat = null; S.screen = "main"; S.prevTab = S.tab; S.tab = v; render("fade"); S.prevTab = v; break;
       case "sos-light": S.signalMode = S.signalDefault; open("sos"); break;
       case "signal-mode": S.signalMode = v; clearTimeout(sosTimer); render(); break;
@@ -1714,6 +1729,7 @@ button.set:hover { background: var(--sand); }
       case "ex-toggle": S.exSplit = (S.exSplit || []).includes(v) ? S.exSplit.filter((x) => x !== v) : [...(S.exSplit || []), v]; render(); break;
       case "lobby": openLobby(v); break;
       case "lobby-switch": openLobby(v, el.dataset.p); break;
+      case "lobby-cpu": startGame(S.lobby.game, "cpu"); break;
       case "lobby-start": { const R = S.lobby.responses; startGame(S.lobby.game, Object.keys(R).find((id) => R[id].state === "joined")); break; }
       case "mute-invites": S.muteInvites = !S.muteInvites; store.set("muteInvites", S.muteInvites); if (S.muteInvites) S.invite = null;
         toast(S.muteInvites ? "Game invites muted" : "Game invites on"); render(); break;
@@ -2219,6 +2235,23 @@ button.set:hover { background: var(--sand); }
       "Stay away from rivers, streams and drains.",
       "If trapped in a building, go to the highest floor, not a closed attic.",
       "Use BlueMob to tell others where you are."]),
+    A("battery-low", "basics", "Phone battery critically low", 2, "At 1 to 5%, every minute of battery counts. Spend it on what keeps you safe.", [
+      "If you may need help, send your SOS now while you still can. Add a short note: where you are and what's wrong.",
+      "Send one short message to your group: where you are, where you're heading, and when you'll switch the phone on next.",
+      "Turn on Battery Saver, set the screen to its lowest brightness, and close every other app.",
+      "Turn on airplane mode so the phone stops searching for signal. If you need BlueMob, turn Bluetooth back on.",
+      "Switch the phone off completely. Turn it on only at agreed times, for example every 2 hours on the hour, to check messages.",
+      "Keep the phone warm in an inner pocket or sleeping bag. Cold drains batteries fast, and a cold \"dead\" phone often wakes up once warm.",
+      "Use other ways to be found: 3 whistle blasts, a mirror, bright clothing, or a smoky fire in the open."],
+      ["Don't leave the screen on for the compass or the map. Check, then switch off.", "Don't wait until 0% to send your SOS."]),
+    A("recharge", "basics", "Getting power back without a socket", 2, "Ways to recharge a phone far from a wall socket.", [
+      "Power bank: the most reliable option. Charge it fully before every trip.",
+      "Vehicle: a USB car charger works while the engine runs. Many cars, buses and bikes have USB sockets.",
+      "Solar charger: point the panel straight at the sun. Charge a power bank with it, then the phone. Cloud makes it very slow.",
+      "Hand-crank or dynamo chargers (in some radios and torches) give small top-ups. Crank steadily rather than fast.",
+      "Ask people nearby for a power bank or the right cable. Charge the phone your group relies on for SOS first.",
+      "Warm a cold battery slowly against your body before charging. Batteries charge poorly when very cold."],
+      ["Don't heat the phone on a fire, a stove or in strong direct sun.", "Don't open, bend or puncture the battery."]),
     A("threes", "basics", "The rule of threes", 1, "What to deal with first. Roughly, you can survive:", [
       "3 minutes without air.",
       "3 hours without shelter in harsh weather.",
@@ -2368,7 +2401,7 @@ button.set:hover { background: var(--sand); }
       <div class="board" role="grid" aria-label="Board">${G.board.map((v, i) => `<button class="cell ${v} ${G.line && G.line.includes(i) ? "win" : ""} ${i === G.last ? "pop" : ""}"
         data-act="ttt" data-v="${i}" ${v || G.over || G.turn !== "x" ? "disabled" : ""} aria-label="Square ${i + 1}${v ? ", " + v.toUpperCase() : ""}">${v ? v.toUpperCase() : ""}</button>`).join("")}</div>
       <div style="display:flex;justify-content:center;margin-top:20px">${G.over ? '<button class="btn" data-act="ttt-new">Play again</button>' : ""}</div>
-      <p class="t-cap" style="text-align:center;margin-top:16px">Each move is a 40-byte message, light enough for a Bluetooth link.<br>Web preview: ${esc(opp.name)} is simulated.</p>`);
+      <p class="t-cap" style="text-align:center;margin-top:16px">${opp.cpu ? "Playing against the computer, right on this phone. No one nearby needed." : "Each move is a 40-byte message, light enough for a Bluetooth link.<br>Web preview: " + esc(opp.name) + " is simulated."}</p>`);
   }
   function tttPlay(i) {
     if (G.board[i] || G.over || G.turn !== "x") return;
@@ -2526,6 +2559,10 @@ button.set:hover { background: var(--sand); }
     lightning: ["lightning", "thunder", "storm"],
     quake: ["earthquake", "quake", "tremor"],
     flood: ["flood", "river rising", "water rising"],
+    "battery-low": ["low battery", "battery low", "battery critical", "critical battery", "battery dying", "battery is dying", "phone dying", "phone is dying",
+      "battery discharg", "battery+die", "battery+dead", "battery+%", "battery+save", "battery+last", "battery+empty", "battery+drain", "phone+switch off"],
+    recharge: ["recharge", "charge my phone", "charge the phone", "charging", "power bank", "powerbank", "solar", "no charger", "regain battery",
+      "battery back", "get power", "charge+without"],
     threes: ["priorit", "first thing", "how long can", "survive without", "hungry", "food"],
   };
   const URGENT = /\b(hurt|pain|sick|injur|emergency|bitten|stung|sting|allerg|fever|poison|vomit|faint|seizure|pregnan|unwell|dizzy|bee|scorpion|spider)/;
@@ -2535,6 +2572,11 @@ button.set:hover { background: var(--sand); }
     // Questions about the app itself, and live insights from this phone, come first.
     const appAnswer = skyAppAnswer(t);
     if (appAnswer) return appAnswer;
+    // Free time: suggestions, not an emergency reply.
+    if (/\b(free time|spare time|something to do|what (can|should) i do (now|here)|pass (the )?time|kill time|entertain|bored)\b/.test(t)) {
+      return { text: "Some ideas for free time out here 🌿\n• Play a game with someone nearby, or against the computer if no one's around\n• Take the survival quiz and learn a guide or two\n• Check who's around on the radar and say hi",
+        actions: [{ label: "Play a game", act: "play" }, { label: "Survival quiz", act: "lobby", v: "quiz" }, { label: "Browse the guide", act: "tab-guide" }] };
+    }
     let best = null, score = 0;
     for (const [id, keys] of Object.entries(SKY_KEYS)) {
       // "a+b" means every part must appear, in any order: "water+safe" matches "make water safe".
@@ -2549,7 +2591,11 @@ button.set:hover { background: var(--sand); }
       const actions = [{ label: "Open full guide", act: "open-article", v: a.id }];
       if (a.cat === "aid") actions.push({ label: "🆘 SOS", act: "sos" });
       actions.push({ label: "Ask an expert", act: "ask-expert" });
-      return { text: `From your survival guide: ${a.title}\n${a.intro}\n\n${steps}${more}${avoid}`, actions };
+      // Battery: speak to the number they gave, or to the real level.
+      const pct = (t.match(/(\d{1,3})\s*%/) || [])[1];
+      const lead = a.id === "battery-low" ? (pct ? `At ${pct}%, act now. ` : `Your battery is ${S.batteryPct}% right now. `) + "\n\n" : "";
+      if (a.id === "battery-low") actions.splice(1, 0, { label: "How to recharge", act: "open-article", v: "recharge" }, { label: "Survival power", act: "power" });
+      return { text: `${lead}From your survival guide: ${a.title}\n${a.intro}\n\n${steps}${more}${avoid}`, actions };
     }
     const unknownHelp = {
       text: "I don't have a guide for that on your phone. Here's what I can do:\n\n" +
@@ -2560,7 +2606,9 @@ button.set:hover { background: var(--sand); }
     };
     if (URGENT.test(t)) return unknownHelp;
     if (SKY_RULES.some(([keys]) => keys.some((k) => matches(t, k)))) return pickReply(SKY_RULES, SKY_FALLBACK, text);
-    if (/\?|\b(how|what|why|where|when|can i|should i|is it)\b/.test(t)) return unknownHelp;
+    if (/\?|\b(how|what|why|where|when|can i|should i|is it)\b/.test(t)) return {
+      text: "I don't have an answer for that yet. I'm best with first aid, water, fire, shelter, finding your way, signals, weather, disasters, phone battery, and how BlueMob works.\n\nIf an expert should answer it, I can send your question as soon as someone nearby has internet.",
+      actions: [{ label: "Browse the guide", act: "tab-guide" }, { label: "Ask an expert", act: "ask-expert" }] };
     return pickReply(SKY_RULES, SKY_FALLBACK, text);
   }
   function askExpert() {
@@ -2739,6 +2787,8 @@ button.set:hover { background: var(--sand); }
     { id: "flag", name: "Capture the flag", em: "🏳️", players: "Teams · outdoors" },
   ];
   const gameOf = (id) => GAMES.find((g) => g.id === id);
+  // The computer: always available, for when no one nearby wants to play.
+  P.cpu = { id: "cpu", name: "Computer", avatar: "🤖", uid: "00000000000000C0", presence: "online", met: false, cpu: true, dist: 0, bearing: 0, link: "this phone", rtt: 0 };
   S.muteInvites = store.get("muteInvites", false);
   S.lobby = null;
   S.invite = null;
@@ -2793,7 +2843,8 @@ button.set:hover { background: var(--sand); }
           ${r.state === "suggest" ? `<button class="btn small secondary" data-act="lobby-switch" data-v="${r.suggest}" data-p="${id}">Play ${gameOf(r.suggest).name}</button>` : pill(r)}</div>`; }).join("")
         : '<div class="set"><span class="t-sub">No one online nearby. Switch the mesh on and wait for people to appear.</span></div>'}</div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:20px">
-        ${g.play ? `<button class="btn" data-act="lobby-start" ${joined.length ? "" : "disabled"}>${joined.length ? "Start with " + joined.map((id) => esc(P[id].name)).join(", ") : "Waiting for someone to join…"}</button>`
+        ${g.play ? `<button class="btn" data-act="lobby-start" ${joined.length ? "" : "disabled"}>${joined.length ? "Start with " + joined.map((id) => esc(P[id].name)).join(", ") : ids.length ? "Waiting for someone to join…" : "No one nearby yet"}</button>
+          <button class="btn ${joined.length ? "text" : "secondary"}" data-act="lobby-cpu">🤖 Play against the computer</button>`
           : '<p class="t-sub" style="text-align:center;max-width:32ch">This game is coming in the Android app. Try one of the coloured games for now.</p>'}
       </div>`);
   }
@@ -2858,7 +2909,7 @@ button.set:hover { background: var(--sand); }
       <div class="c4" role="grid" aria-label="Connect 4 board">${C4.b.map((v, i) => `<button class="c4-cell ${v} ${C4.line.includes(i) ? "win" : ""} ${i === C4.last ? "drop" : ""}"
         data-act="c4" data-v="${i % 7}" ${C4.over || C4.turn !== "x" || C4.b[i % 7] ? "disabled" : ""} aria-label="Column ${(i % 7) + 1}"><i></i></button>`).join("")}</div>
       <div style="display:flex;justify-content:center;margin-top:18px">${C4.over ? '<button class="btn" data-act="c4-new">Play again</button>' : ""}</div>
-      <p class="t-cap" style="text-align:center;margin-top:14px">Web preview: ${esc(opp.name)} is simulated.</p>`);
+      <p class="t-cap" style="text-align:center;margin-top:14px">${opp.cpu ? "Playing against the computer, right on this phone." : "Web preview: " + esc(opp.name) + " is simulated."}</p>`);
   }
   function c4Play(col) {
     if (C4.over || C4.turn !== "x") return;
@@ -3132,7 +3183,7 @@ button.set:hover { background: var(--sand); }
     { keys: ["navigate to", "walk to", "find my friend", "compass tab", "use the compass", "my trail", "save this spot", "waypoint", "back to camp", "find camp"],
       text: "The Compass tab works offline: pick a target (camp, a saved spot or a friend who's online) and the arrow shows the way, with distance and walking time. \"Save this spot\" remembers where you are, and your trail shows where you've walked.",
       actions: [go("compass", "Open Compass")] },
-    { keys: ["battery saver", "save battery", "survival power", "battery last", "low battery", "power mode"],
+    { keys: ["battery saver", "survival power", "power mode", "power settings"],
       text: "Turn on Survival power for dark screens, slower scanning and no animations. Then follow the two steps there to put the rest of the phone into Battery Saver while BlueMob keeps running.",
       actions: [{ label: "Open Power", act: "power" }] },
     { keys: ["share my location", "share location", "distance to", "how far is", "by distance"],
@@ -3165,8 +3216,9 @@ button.set:hover { background: var(--sand); }
         : "Not right now. No one nearby has internet. Messages to faraway people wait safely and go out as soon as a bridge appears." },
     { keys: ["my id", "what is my id", "bluemob id", "my number"],
       answer: () => `Your BlueMob ID is BM · ${fmtId(MY_ID)}. It was given to this phone automatically and no other phone has it. People see it next to your name, ${S.name}.` },
-    { keys: ["battery", "how much power", "charge"],
-      answer: () => ({ text: `Battery ${S.batteryPct}%. That's about ${hoursLeft(S.survival)} hours ${S.survival ? "in Survival power" : "at normal use, or about " + hoursLeft(true) + " hours with Survival power on"}.`, actions: [{ label: "Open Power", act: "power" }] }) },
+    { keys: ["battery", "how much power"],
+      // Only a plain "how's my battery?". A problem ("1%", "dying", "save it") goes to the battery guide instead.
+      answer: (t) => /\d\s*%|low|critical|dying|die|dead|discharg|drain|save|last|empty|charg|power bank|solar|regain|what to do|what do i do/.test(t) ? null : ({ text: `Battery ${S.batteryPct}%. That's about ${hoursLeft(S.survival)} hours ${S.survival ? "in Survival power" : "at normal use, or about " + hoursLeft(true) + " hours with Survival power on"}.`, actions: [{ label: "Open Power", act: "power" }] }) },
     { keys: ["my messages", "how many messages", "waiting messages", "undelivered", "unread"],
       answer: () => {
         const mine = Object.entries(S.convos).filter(([id]) => id !== "sky").flatMap(([id, c]) => c.messages.filter((m) => m.me).map((m) => ({ ...m, id })));
@@ -3181,10 +3233,85 @@ button.set:hover { background: var(--sand); }
   // Keys match at the start of a word, so "tick" doesn't fire inside "stick".
   const atWord = (t, k) => new RegExp("(^|[^a-z])" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(t);
   function skyAppAnswer(t) {
-    for (const r of SKY_LIVE) if (r.keys.some((k) => atWord(t, k))) return r.answer();
+    for (const r of SKY_LIVE) if (r.keys.some((k) => atWord(t, k))) { const a = r.answer(t); if (a) return a; }
     for (const r of SKY_APP) if (r.keys.some((k) => atWord(t, k))) return { text: r.text, actions: r.actions };
     return null;
   }
+
+  // =====================================================================
+  //  Audit trail: append-only and tamper-evident.
+  //  Each entry stores the SHA-256 of (previous hash + its own content).
+  //  Nothing can edit or delete entries; if anything changed, the chain breaks.
+  // =====================================================================
+  function sha256(str) {
+    const K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+      0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+      0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+      0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+      0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+      0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+    const bytes = new TextEncoder().encode(str);
+    const len = bytes.length, words = [];
+    for (let i = 0; i < len; i++) words[i >> 2] |= bytes[i] << (24 - (i % 4) * 8);
+    words[len >> 2] |= 0x80 << (24 - (len % 4) * 8);
+    const total = (((len + 8) >> 6) + 1) * 16;
+    for (let i = words.length; i < total; i++) words[i] = words[i] || 0;
+    words[total - 1] = len * 8;
+    let h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    const r = (x, n) => (x >>> n) | (x << (32 - n));
+    for (let i = 0; i < total; i += 16) {
+      const w = words.slice(i, i + 16).map((x) => x | 0);
+      for (let t = 16; t < 64; t++) {
+        const s0 = r(w[t - 15], 7) ^ r(w[t - 15], 18) ^ (w[t - 15] >>> 3), s1 = r(w[t - 2], 17) ^ r(w[t - 2], 19) ^ (w[t - 2] >>> 10);
+        w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
+      }
+      let [a, b, c, d, e, f, g, hh] = h;
+      for (let t = 0; t < 64; t++) {
+        const t1 = (hh + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[t] + w[t]) | 0;
+        const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+        hh = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      h = h.map((x, k) => (x + [a, b, c, d, e, f, g, hh][k]) | 0);
+    }
+    return h.map((x) => (x >>> 0).toString(16).padStart(8, "0")).join("");
+  }
+
+  const AUDIT = [];
+  const auditBody = (e) => `${e.seq}|${e.time}|${e.kind}|${e.text}`;
+  function audit(kind, text) {
+    const prev = AUDIT.length ? AUDIT[AUDIT.length - 1].hash : "0".repeat(64);
+    const e = { seq: AUDIT.length + 1, time: now(), kind, text, prev };
+    e.hash = sha256(prev + auditBody(e));
+    AUDIT.push(Object.freeze(e));
+  }
+  /** Re-computes every fingerprint. Returns the number of the first broken entry, or 0 if the chain is intact. */
+  function verifyAudit() {
+    let prev = "0".repeat(64);
+    for (const e of AUDIT) {
+      if (e.prev !== prev || sha256(prev + auditBody(e)) !== e.hash) return e.seq;
+      prev = e.hash;
+    }
+    return 0;
+  }
+  const AUDIT_KIND = { sos: ["SOS", "var(--rose)"], message: ["Message", "var(--pine)"], receipt: ["Receipt", "var(--pine)"], mesh: ["Mesh", "var(--sky)"],
+    position: ["Position", "var(--ember)"], app: ["App", "var(--ink-3)"] };
+  function auditView() {
+    const broken = verifyAudit();
+    return subScreen("Audit trail", `
+      <div class="large-title" style="margin-top:8px"><h1 class="t-hero">Audit trail</h1>
+        <p class="t-sub" style="margin-top:6px">Everything important that happened on this phone, in order. Entries can't be edited or deleted.</p></div>
+      <div class="status-card ${broken ? "wait" : "ok"}"><span class="big-tick" style="font-size:26px">${broken ? "⚠️" : "🔒"}</span>
+        <span><b style="display:block;font-size:17px">${broken ? "Entry " + broken + " was changed" : "Verified · " + AUDIT.length + " entries, chain intact"}</b>
+        <span class="t-cap">Each entry holds a fingerprint (SHA-256) of the one before it. Changing or removing any entry breaks every fingerprint after it.</span></span></div>
+      <div class="group-label t-over">Newest first</div>
+      <div class="group">${AUDIT.slice().reverse().map((e) => `<div class="set" style="align-items:flex-start">
+          <span class="tag" style="background:${AUDIT_KIND[e.kind][1]};color:#fff;margin-top:2px">${AUDIT_KIND[e.kind][0]}</span>
+          <span class="main"><span style="display:block">${esc(e.text)}</span>
+          <span class="t-cap num">#${e.seq} · ${new Date(e.time).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" })} · <span class="uid">${e.hash.slice(0, 12)}…</span></span></span></div>`).join("")
+        || '<div class="set"><span class="t-sub">Nothing yet.</span></div>'}</div>
+      <div style="display:flex;justify-content:center;margin-top:16px"><button class="btn secondary" data-act="audit-copy">Copy the full trail</button></div>`);
+  }
+  audit("app", "BlueMob started · ID BM " + fmtId(MY_ID));
   // Keep "last seen" times fresh.
   setInterval(() => { if (S.onboarded && S.screen === "main" && (S.tab === "radar" || S.tab === "chats")) refresh(); }, 30000);
 

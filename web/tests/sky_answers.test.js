@@ -23,7 +23,10 @@ const { chromium } = require('playwright');
     ["make a shadow stick", "Find north"], ["someone is not breathing", "CPR"], ["my friend is bleeding a lot", "Severe bleeding"],
     ["how does bluemob work", "Here's the magic"], ["how do I split money", "Trip money"], ["how do I walk to my friend", "Compass tab"],
     ["what should I do in an earthquake", "Earthquake"], ["lightning storm coming", "Lightning"], ["snake bit me", "Snake"],
-    ["my friend got stung by a scorpion", "I don't have a guide"], ["how do I fix a car engine?", "I don't have a guide"],
+    ["my friend got stung by a scorpion", "I don't have a guide"], ["how do I fix a car engine?", "I don't have an answer"],
+    ["Battery discharge what to do", "battery critically low"], ["Suppose my battery is 1 % what to do", "At 1%, act now"],
+    ["If still battery is 1%", "At 1%, act now"], ["how do I charge my phone without a socket", "Getting power back"],
+    ["how much battery do I have", "about"], ["What to do in free time", "ideas for free time"], ["I'm bored", "game"],
   ];
   let fail = 0;
   for (const [q, want] of cases) {

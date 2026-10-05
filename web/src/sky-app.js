@@ -40,7 +40,7 @@
     { keys: ["navigate to", "walk to", "find my friend", "compass tab", "use the compass", "my trail", "save this spot", "waypoint", "back to camp", "find camp"],
       text: "The Compass tab works offline: pick a target (camp, a saved spot or a friend who's online) and the arrow shows the way, with distance and walking time. \"Save this spot\" remembers where you are, and your trail shows where you've walked.",
       actions: [go("compass", "Open Compass")] },
-    { keys: ["battery saver", "save battery", "survival power", "battery last", "low battery", "power mode"],
+    { keys: ["battery saver", "survival power", "power mode", "power settings"],
       text: "Turn on Survival power for dark screens, slower scanning and no animations. Then follow the two steps there to put the rest of the phone into Battery Saver while BlueMob keeps running.",
       actions: [{ label: "Open Power", act: "power" }] },
     { keys: ["share my location", "share location", "distance to", "how far is", "by distance"],
@@ -73,8 +73,9 @@
         : "Not right now. No one nearby has internet. Messages to faraway people wait safely and go out as soon as a bridge appears." },
     { keys: ["my id", "what is my id", "bluemob id", "my number"],
       answer: () => `Your BlueMob ID is BM · ${fmtId(MY_ID)}. It was given to this phone automatically and no other phone has it. People see it next to your name, ${S.name}.` },
-    { keys: ["battery", "how much power", "charge"],
-      answer: () => ({ text: `Battery ${S.batteryPct}%. That's about ${hoursLeft(S.survival)} hours ${S.survival ? "in Survival power" : "at normal use, or about " + hoursLeft(true) + " hours with Survival power on"}.`, actions: [{ label: "Open Power", act: "power" }] }) },
+    { keys: ["battery", "how much power"],
+      // Only a plain "how's my battery?". A problem ("1%", "dying", "save it") goes to the battery guide instead.
+      answer: (t) => /\d\s*%|low|critical|dying|die|dead|discharg|drain|save|last|empty|charg|power bank|solar|regain|what to do|what do i do/.test(t) ? null : ({ text: `Battery ${S.batteryPct}%. That's about ${hoursLeft(S.survival)} hours ${S.survival ? "in Survival power" : "at normal use, or about " + hoursLeft(true) + " hours with Survival power on"}.`, actions: [{ label: "Open Power", act: "power" }] }) },
     { keys: ["my messages", "how many messages", "waiting messages", "undelivered", "unread"],
       answer: () => {
         const mine = Object.entries(S.convos).filter(([id]) => id !== "sky").flatMap(([id, c]) => c.messages.filter((m) => m.me).map((m) => ({ ...m, id })));
@@ -89,7 +90,7 @@
   // Keys match at the start of a word, so "tick" doesn't fire inside "stick".
   const atWord = (t, k) => new RegExp("(^|[^a-z])" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(t);
   function skyAppAnswer(t) {
-    for (const r of SKY_LIVE) if (r.keys.some((k) => atWord(t, k))) return r.answer();
+    for (const r of SKY_LIVE) if (r.keys.some((k) => atWord(t, k))) { const a = r.answer(t); if (a) return a; }
     for (const r of SKY_APP) if (r.keys.some((k) => atWord(t, k))) return { text: r.text, actions: r.actions };
     return null;
   }

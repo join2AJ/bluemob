@@ -82,7 +82,7 @@
     S._anim = anim;
     const SCREENS = { design: designView, power: powerView, insights: insightsView, article: articleView, ttt: tttView,
       quiz: quizView, games: gamesIdeasView, person: personView, soshub: sosHubView, contacts: contactsView, info: messageInfoView,
-      money: moneyView, play: gamesHubView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
+      money: moneyView, play: gamesHubView, audit: auditView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
     if (S.screen === "chat") { app.innerHTML = chatView(anim); renderChatParts(true); }
     else if (S.screen === "sos") { app.innerHTML = sosView(); clearTimeout(sosTimer); startSos(); }
     else if (SCREENS[S.screen]) app.innerHTML = SCREENS[S.screen](anim);
@@ -590,6 +590,11 @@
         ${set("var(--rose)", I.trash, "Forget people I've met", "Clears last-seen history", "", "forget")}
       </div>
 
+      <div class="group-label t-over">Records</div>
+      <div class="group">
+        ${set("#3A4A44", I.terminal, "Audit trail", "Read-only, tamper-evident record of SOS, messages and positions", chev, "audit")}
+      </div>
+
       <div class="group-label t-over">For testers</div>
       <div class="group">
         ${set("#3A4A44", I.terminal, "Mesh activity log", "What the mesh is doing, step by step",
@@ -700,6 +705,12 @@
       case "open-chat": open("chat", { chat: el.dataset.id }); break;
       case "design": case "power": case "insights": case "games": case "contacts": case "money": case "play": open(act); break;
       case "sos": S.sosArmed = false; open("soshub"); break;
+      case "audit": open("audit"); break;
+      case "audit-copy": {
+        const text = AUDIT.map((e) => `#${e.seq} ${new Date(e.time).toISOString()} [${e.kind}] ${e.text} prev=${e.prev} hash=${e.hash}`).join("\n");
+        try { navigator.clipboard.writeText(text).then(() => toast("Audit trail copied"), () => toast("Couldn't copy here")); } catch { toast("Couldn't copy here"); }
+        break;
+      }
       case "go-tab": S.stack = []; S.chat = null; S.screen = "main"; S.prevTab = S.tab; S.tab = v; render("fade"); S.prevTab = v; break;
       case "sos-light": S.signalMode = S.signalDefault; open("sos"); break;
       case "signal-mode": S.signalMode = v; clearTimeout(sosTimer); render(); break;
@@ -731,6 +742,7 @@
       case "ex-toggle": S.exSplit = (S.exSplit || []).includes(v) ? S.exSplit.filter((x) => x !== v) : [...(S.exSplit || []), v]; render(); break;
       case "lobby": openLobby(v); break;
       case "lobby-switch": openLobby(v, el.dataset.p); break;
+      case "lobby-cpu": startGame(S.lobby.game, "cpu"); break;
       case "lobby-start": { const R = S.lobby.responses; startGame(S.lobby.game, Object.keys(R).find((id) => R[id].state === "joined")); break; }
       case "mute-invites": S.muteInvites = !S.muteInvites; store.set("muteInvites", S.muteInvites); if (S.muteInvites) S.invite = null;
         toast(S.muteInvites ? "Game invites muted" : "Game invites on"); render(); break;

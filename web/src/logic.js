@@ -193,6 +193,7 @@
     if (!p.remote) m.paths.direct = { state: p.presence === "online" ? "trying" : "waiting" };
     m.paths.internet = { state: "waiting" };
     note(m, "Written on your phone · ID " + m.id);
+    audit("message", `Message ${m.id} written to ${p.name}`);
     if (p.presence === "online" && !p.remote) {
       m.paths.internet.state = "not-needed";
       deliverDirect(m, id);
@@ -233,6 +234,7 @@
     if (path === "direct") STATS.direct++; else { STATS.bridge++; if (m.route && m.route.includes("Ravi")) STATS.hopped++; }
     const back = path === "direct" ? how : "the internet and the bridge";
     m.receipts.push({ kind: "delivered", time: now(), via: back });
+    audit("receipt", `Message ${m.id} delivered to ${p ? p.name : id} by ${path === "direct" ? how : "internet"}`);
     note(m, `Delivered by ${path === "direct" ? how : p && p.sms ? "text message" : "internet"}. Delivery receipt came back over ${back}`);
     // The receipt stops the other path.
     const other = path === "direct" ? "internet" : "direct";
@@ -247,7 +249,8 @@
     refresh();
     // Read receipt: SMS has none; people read it a little later.
     if (id !== "sky" && !(p && p.sms)) later(1800 + Math.random() * 2500, () => {
-      m.status = "read"; m.receipts.push({ kind: "read", time: now(), via: back }); note(m, "Read receipt received"); refresh();
+      m.status = "read"; m.receipts.push({ kind: "read", time: now(), via: back }); note(m, "Read receipt received");
+      audit("receipt", `Message ${m.id} read by ${p.name}`); refresh();
     });
     if (id === "sky") later(600, () => { m.status = "read"; m.receipts.push({ kind: "read", time: now(), via: "this phone" }); refresh(); });
     const r = id !== "sky" && friendReply(id, m.text);
@@ -310,6 +313,7 @@
 
   // ---------- mesh simulation ----------
   function log(text) {
+    if (typeof audit === "function" && typeof AUDIT !== "undefined") audit(/sos/i.test(text) ? "sos" : "mesh", text);
     const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     S.log.unshift(t + "  " + text);
     S.log = S.log.slice(0, 120);

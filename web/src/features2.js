@@ -40,6 +40,10 @@
     lightning: ["lightning", "thunder", "storm"],
     quake: ["earthquake", "quake", "tremor"],
     flood: ["flood", "river rising", "water rising"],
+    "battery-low": ["low battery", "battery low", "battery critical", "critical battery", "battery dying", "battery is dying", "phone dying", "phone is dying",
+      "battery discharg", "battery+die", "battery+dead", "battery+%", "battery+save", "battery+last", "battery+empty", "battery+drain", "phone+switch off"],
+    recharge: ["recharge", "charge my phone", "charge the phone", "charging", "power bank", "powerbank", "solar", "no charger", "regain battery",
+      "battery back", "get power", "charge+without"],
     threes: ["priorit", "first thing", "how long can", "survive without", "hungry", "food"],
   };
   const URGENT = /\b(hurt|pain|sick|injur|emergency|bitten|stung|sting|allerg|fever|poison|vomit|faint|seizure|pregnan|unwell|dizzy|bee|scorpion|spider)/;
@@ -49,6 +53,11 @@
     // Questions about the app itself, and live insights from this phone, come first.
     const appAnswer = skyAppAnswer(t);
     if (appAnswer) return appAnswer;
+    // Free time: suggestions, not an emergency reply.
+    if (/\b(free time|spare time|something to do|what (can|should) i do (now|here)|pass (the )?time|kill time|entertain|bored)\b/.test(t)) {
+      return { text: "Some ideas for free time out here 🌿\n• Play a game with someone nearby, or against the computer if no one's around\n• Take the survival quiz and learn a guide or two\n• Check who's around on the radar and say hi",
+        actions: [{ label: "Play a game", act: "play" }, { label: "Survival quiz", act: "lobby", v: "quiz" }, { label: "Browse the guide", act: "tab-guide" }] };
+    }
     let best = null, score = 0;
     for (const [id, keys] of Object.entries(SKY_KEYS)) {
       // "a+b" means every part must appear, in any order: "water+safe" matches "make water safe".
@@ -63,7 +72,11 @@
       const actions = [{ label: "Open full guide", act: "open-article", v: a.id }];
       if (a.cat === "aid") actions.push({ label: "🆘 SOS", act: "sos" });
       actions.push({ label: "Ask an expert", act: "ask-expert" });
-      return { text: `From your survival guide: ${a.title}\n${a.intro}\n\n${steps}${more}${avoid}`, actions };
+      // Battery: speak to the number they gave, or to the real level.
+      const pct = (t.match(/(\d{1,3})\s*%/) || [])[1];
+      const lead = a.id === "battery-low" ? (pct ? `At ${pct}%, act now. ` : `Your battery is ${S.batteryPct}% right now. `) + "\n\n" : "";
+      if (a.id === "battery-low") actions.splice(1, 0, { label: "How to recharge", act: "open-article", v: "recharge" }, { label: "Survival power", act: "power" });
+      return { text: `${lead}From your survival guide: ${a.title}\n${a.intro}\n\n${steps}${more}${avoid}`, actions };
     }
     const unknownHelp = {
       text: "I don't have a guide for that on your phone. Here's what I can do:\n\n" +
@@ -74,7 +87,9 @@
     };
     if (URGENT.test(t)) return unknownHelp;
     if (SKY_RULES.some(([keys]) => keys.some((k) => matches(t, k)))) return pickReply(SKY_RULES, SKY_FALLBACK, text);
-    if (/\?|\b(how|what|why|where|when|can i|should i|is it)\b/.test(t)) return unknownHelp;
+    if (/\?|\b(how|what|why|where|when|can i|should i|is it)\b/.test(t)) return {
+      text: "I don't have an answer for that yet. I'm best with first aid, water, fire, shelter, finding your way, signals, weather, disasters, phone battery, and how BlueMob works.\n\nIf an expert should answer it, I can send your question as soon as someone nearby has internet.",
+      actions: [{ label: "Browse the guide", act: "tab-guide" }, { label: "Ask an expert", act: "ask-expert" }] };
     return pickReply(SKY_RULES, SKY_FALLBACK, text);
   }
   function askExpert() {
@@ -253,6 +268,8 @@
     { id: "flag", name: "Capture the flag", em: "🏳️", players: "Teams · outdoors" },
   ];
   const gameOf = (id) => GAMES.find((g) => g.id === id);
+  // The computer: always available, for when no one nearby wants to play.
+  P.cpu = { id: "cpu", name: "Computer", avatar: "🤖", uid: "00000000000000C0", presence: "online", met: false, cpu: true, dist: 0, bearing: 0, link: "this phone", rtt: 0 };
   S.muteInvites = store.get("muteInvites", false);
   S.lobby = null;
   S.invite = null;
@@ -307,7 +324,8 @@
           ${r.state === "suggest" ? `<button class="btn small secondary" data-act="lobby-switch" data-v="${r.suggest}" data-p="${id}">Play ${gameOf(r.suggest).name}</button>` : pill(r)}</div>`; }).join("")
         : '<div class="set"><span class="t-sub">No one online nearby. Switch the mesh on and wait for people to appear.</span></div>'}</div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:20px">
-        ${g.play ? `<button class="btn" data-act="lobby-start" ${joined.length ? "" : "disabled"}>${joined.length ? "Start with " + joined.map((id) => esc(P[id].name)).join(", ") : "Waiting for someone to join…"}</button>`
+        ${g.play ? `<button class="btn" data-act="lobby-start" ${joined.length ? "" : "disabled"}>${joined.length ? "Start with " + joined.map((id) => esc(P[id].name)).join(", ") : ids.length ? "Waiting for someone to join…" : "No one nearby yet"}</button>
+          <button class="btn ${joined.length ? "text" : "secondary"}" data-act="lobby-cpu">🤖 Play against the computer</button>`
           : '<p class="t-sub" style="text-align:center;max-width:32ch">This game is coming in the Android app. Try one of the coloured games for now.</p>'}
       </div>`);
   }
@@ -372,7 +390,7 @@
       <div class="c4" role="grid" aria-label="Connect 4 board">${C4.b.map((v, i) => `<button class="c4-cell ${v} ${C4.line.includes(i) ? "win" : ""} ${i === C4.last ? "drop" : ""}"
         data-act="c4" data-v="${i % 7}" ${C4.over || C4.turn !== "x" || C4.b[i % 7] ? "disabled" : ""} aria-label="Column ${(i % 7) + 1}"><i></i></button>`).join("")}</div>
       <div style="display:flex;justify-content:center;margin-top:18px">${C4.over ? '<button class="btn" data-act="c4-new">Play again</button>' : ""}</div>
-      <p class="t-cap" style="text-align:center;margin-top:14px">Web preview: ${esc(opp.name)} is simulated.</p>`);
+      <p class="t-cap" style="text-align:center;margin-top:14px">${opp.cpu ? "Playing against the computer, right on this phone." : "Web preview: " + esc(opp.name) + " is simulated."}</p>`);
   }
   function c4Play(col) {
     if (C4.over || C4.turn !== "x") return;

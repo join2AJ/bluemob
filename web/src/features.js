@@ -394,6 +394,23 @@
       "Stay away from rivers, streams and drains.",
       "If trapped in a building, go to the highest floor, not a closed attic.",
       "Use BlueMob to tell others where you are."]),
+    A("battery-low", "basics", "Phone battery critically low", 2, "At 1 to 5%, every minute of battery counts. Spend it on what keeps you safe.", [
+      "If you may need help, send your SOS now while you still can. Add a short note: where you are and what's wrong.",
+      "Send one short message to your group: where you are, where you're heading, and when you'll switch the phone on next.",
+      "Turn on Battery Saver, set the screen to its lowest brightness, and close every other app.",
+      "Turn on airplane mode so the phone stops searching for signal. If you need BlueMob, turn Bluetooth back on.",
+      "Switch the phone off completely. Turn it on only at agreed times, for example every 2 hours on the hour, to check messages.",
+      "Keep the phone warm in an inner pocket or sleeping bag. Cold drains batteries fast, and a cold \"dead\" phone often wakes up once warm.",
+      "Use other ways to be found: 3 whistle blasts, a mirror, bright clothing, or a smoky fire in the open."],
+      ["Don't leave the screen on for the compass or the map. Check, then switch off.", "Don't wait until 0% to send your SOS."]),
+    A("recharge", "basics", "Getting power back without a socket", 2, "Ways to recharge a phone far from a wall socket.", [
+      "Power bank: the most reliable option. Charge it fully before every trip.",
+      "Vehicle: a USB car charger works while the engine runs. Many cars, buses and bikes have USB sockets.",
+      "Solar charger: point the panel straight at the sun. Charge a power bank with it, then the phone. Cloud makes it very slow.",
+      "Hand-crank or dynamo chargers (in some radios and torches) give small top-ups. Crank steadily rather than fast.",
+      "Ask people nearby for a power bank or the right cable. Charge the phone your group relies on for SOS first.",
+      "Warm a cold battery slowly against your body before charging. Batteries charge poorly when very cold."],
+      ["Don't heat the phone on a fire, a stove or in strong direct sun.", "Don't open, bend or puncture the battery."]),
     A("threes", "basics", "The rule of threes", 1, "What to deal with first. Roughly, you can survive:", [
       "3 minutes without air.",
       "3 hours without shelter in harsh weather.",
@@ -543,7 +560,7 @@
       <div class="board" role="grid" aria-label="Board">${G.board.map((v, i) => `<button class="cell ${v} ${G.line && G.line.includes(i) ? "win" : ""} ${i === G.last ? "pop" : ""}"
         data-act="ttt" data-v="${i}" ${v || G.over || G.turn !== "x" ? "disabled" : ""} aria-label="Square ${i + 1}${v ? ", " + v.toUpperCase() : ""}">${v ? v.toUpperCase() : ""}</button>`).join("")}</div>
       <div style="display:flex;justify-content:center;margin-top:20px">${G.over ? '<button class="btn" data-act="ttt-new">Play again</button>' : ""}</div>
-      <p class="t-cap" style="text-align:center;margin-top:16px">Each move is a 40-byte message, light enough for a Bluetooth link.<br>Web preview: ${esc(opp.name)} is simulated.</p>`);
+      <p class="t-cap" style="text-align:center;margin-top:16px">${opp.cpu ? "Playing against the computer, right on this phone. No one nearby needed." : "Each move is a 40-byte message, light enough for a Bluetooth link.<br>Web preview: " + esc(opp.name) + " is simulated."}</p>`);
   }
   function tttPlay(i) {
     if (G.board[i] || G.over || G.turn !== "x") return;
