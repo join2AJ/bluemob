@@ -30,6 +30,9 @@
     <!-- "Keep BlueMob running" while Battery Saver is on, so messages and SOS still arrive -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Optional: count steps for the trail, so BlueMob can estimate your position when GPS drops out -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
     <!-- To show whether this phone has internet (it could act as a bridge for others) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -39,6 +42,16 @@
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
+    <queries>
+        <!-- To text SOS contacts with the phone's own SMS app -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+    </queries>
 
     <application
         android:name=".BlueMobApp"

@@ -67,7 +67,18 @@ import com.bluemob.app.ui.guide.ArticleScreen
 import com.bluemob.app.ui.guide.GuideScreen
 import com.bluemob.app.ui.onboarding.OnboardingScreen
 import com.bluemob.app.ui.profile.ProfileScreen
+import com.bluemob.app.contacts.GeoPoint
+import com.bluemob.app.sos.SosManager
+import com.bluemob.app.ui.compass.TrailActions
+import com.bluemob.app.ui.compass.TrailUi
+import com.bluemob.app.ui.games.ConnectFourScreen
+import com.bluemob.app.ui.games.GamesScreen
+import com.bluemob.app.ui.games.TicTacToeScreen
+import com.bluemob.app.ui.profile.AuditScreen
 import com.bluemob.app.ui.sos.SosAlert
+import com.bluemob.app.ui.sos.SosContactsScreen
+import com.bluemob.app.ui.sos.SosHubState
+import com.bluemob.app.ui.system.ConnectionsScreen
 import com.bluemob.app.ui.sos.SosHubScreen
 import com.bluemob.app.ui.sos.SosSignalScreen
 import com.bluemob.app.ui.theme.Extra
@@ -90,6 +101,9 @@ class SystemActions(
     val requestLocation: () -> Unit,
     val openBatterySaver: () -> Unit,
     val askKeepRunning: () -> Unit,
+    val switchRadio: (com.bluemob.app.system.Radio, Boolean) -> Unit = { _, _ -> },
+    val textSos: (List<String>, String) -> Unit = { _, _ -> },
+    val requestSteps: () -> Unit = {},
 )
 
 @Composable
@@ -138,6 +152,15 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val spots by vm.spots.collectAsStateWithLifecycle()
     val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()
     val headings = remember { vm.headings() }
+    val sosContacts by vm.sosContacts.collectAsStateWithLifecycle()
+    val radios by vm.radios.collectAsStateWithLifecycle()
+    val trailOn by vm.trailOn.collectAsStateWithLifecycle()
+    val trailPoints by vm.trailPoints.collectAsStateWithLifecycle()
+    val estimate by vm.estimate.collectAsStateWithLifecycle()
+    val lostOn by vm.lostOn.collectAsStateWithLifecycle()
+    var sosReached by rememberSaveable { mutableStateOf(-1) }
+    val hereFix = myFix ?: estimate?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
+    val askSteps = { if (vm.stepCounterAvailable && !vm.hasStepPermission()) actions.requestSteps() }
 
     LaunchedEffect(top) { vm.openChat(top?.takeIf { it.startsWith("chat:") }?.removePrefix("chat:")) }
     BackHandler(enabled = stack.isNotEmpty() || tab != Tab.NEARBY) { if (stack.isNotEmpty()) pop() else tab = Tab.NEARBY }
@@ -148,6 +171,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
         when {
             target == "sos" -> push("sos")
             target == "sos_signal" -> push("signal")
+            target == "power" -> actions.openBatterySaver()
+            target == "games" -> push("games")
             target.startsWith("guide:") -> push("article:" + target.removePrefix("guide:"))
             target.startsWith("tab:") -> goTab(when (target.removePrefix("tab:")) {
                 "nearby" -> Tab.NEARBY; "chats" -> Tab.CHATS; "compass" -> Tab.COMPASS; "guide" -> Tab.GUIDE; else -> Tab.YOU
@@ -164,17 +189,25 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == null -> Tabs(tab, vm.unreadCount(conversations), onTab = { tab = it }, onSos = { push("sos") }) { padding ->
                     when (tab) {
                         Tab.NEARBY -> NearbyScreen(
-                            NearbyState(name, running, people, system.permissionsGranted, system.locationServicesOff, sharing, myFix != null, online),
+                            NearbyState(name, running, people, system.permissionsGranted, system.locationServicesOff, sharing, myFix != null, online, radios),
                             padding, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onRequestPermissions = actions.requestMeshPermissions, onOpenLocationSettings = actions.openLocationSettings,
                             onShareLocation = { toggleLocation(true) }, onOpenChat = { push("chat:$it") },
                             onTalkToSky = { push("chat:" + SkyBot.NODE_ID) }, onOpenGuide = { tab = Tab.GUIDE }, onOpenBattery = { tab = Tab.YOU },
+                            onConnections = { push("connections") }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push("games") },
+                            onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
                         )
                         Tab.CHATS -> ChatsScreen(people, conversations, typing, padding) { push("chat:$it") }
                         Tab.COMPASS -> CompassScreen(
-                            people, spots, myFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
+                            people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
-                            onSaveSpot = { vm.saveSpot("Spot ${spots.size + 1}") }, onRemoveSpot = vm::removeSpot,
+                            onSaveSpot = { vm.saveSpot("Spot ${spots.count { !it.isBaseCamp } + 1}") }, onRemoveSpot = vm::removeSpot,
+                            trail = TrailUi(trailOn, trailPoints, estimate, lostOn, vm.hasStepPermission() && vm.stepCounterAvailable, vm.stepCounterAvailable),
+                            trailActions = TrailActions(
+                                onTrail = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setTrail(on) },
+                                onLost = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setLost(on) },
+                                onBaseCamp = { vm.setBaseCamp() }, onClear = vm::clearTrail, onAllowSteps = actions.requestSteps,
+                            ),
                         )
                         Tab.GUIDE -> GuideScreen(bookmarks, padding, onOpen = { push("article:$it") }, onSos = { push("sos") })
                         Tab.YOU -> ProfileScreen(
@@ -182,6 +215,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onName = vm::setName, onAvatar = vm::setAvatar, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onToggleLocation = toggleLocation, onBatterySaver = actions.openBatterySaver, onKeepRunning = actions.askKeepRunning,
                             onSos = { push("sos") }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
+                            onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
+                            onGames = { push("games") }, sosContactCount = sosContacts.size,
                         )
                     }
                 }
@@ -204,19 +239,31 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     else ArticleScreen(a, a.id in bookmarks, ::pop, onToggleSaved = { vm.toggleBookmark(a.id) }, onSos = { push("sos") })
                 }
                 route == "sos" -> SosHubScreen(
-                    mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, ::pop,
-                    onSend = vm::sendSos, onSafe = vm::cancelSos, onSignal = { push("signal") },
-                    onDefaultSignal = vm::setSignalDefault, onHowToHelp = { push("article:help-sos") },
+                    SosHubState(mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, sosContacts, sosReached),
+                    message = vm::sosMessage, onBack = ::pop,
+                    onSend = { sosReached = vm.sendSos(it) }, onSafe = { vm.cancelSos(); sosReached = -1 }, onSignal = { push("signal") },
+                    onDefaultSignal = vm::setSignalDefault, onHowToHelp = { push("article:help-sos") }, onContacts = { push("sos-contacts") },
+                    onText = actions.textSos, onPreviewAlert = vm::previewSosAlert,
                 )
+                route == "sos-contacts" -> SosContactsScreen(sosContacts, ::pop, onAdd = vm::addSosContact, onRemove = vm::removeSosContact)
+                route == "connections" -> ConnectionsScreen(radios, online, ::pop, onSwitch = actions.switchRadio)
+                route == "audit" -> {
+                    val audit by vm.audit.collectAsStateWithLifecycle()
+                    AuditScreen(audit.first, audit.second, ::pop)
+                }
+                route == "games" -> GamesScreen(::pop) { push("game:$it") }
+                route == "game:ttt" -> TicTacToeScreen(::pop)
+                route == "game:c4" -> ConnectFourScreen(::pop)
                 route == "signal" -> SosSignalScreen(signalDefault, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = ::pop)
             }
         }
 
         alert?.let { sos ->
+            val preview = sos.id == SosManager.PREVIEW_ID
             SosAlert(
-                sos, people.firstOrNull { it.nodeId == sos.fromNodeId }, myFix?.lat, myFix?.lon,
-                onComing = { vm.send(sos.fromNodeId, "I'm coming! Stay where you are 🙏"); vm.dismissSosAlert() },
-                onWay = { compassTarget = sos.fromNodeId; vm.dismissSosAlert(); goTab(Tab.COMPASS) },
+                sos, people.firstOrNull { it.nodeId == sos.fromNodeId }, hereFix?.lat, hereFix?.lon,
+                onComing = { if (!preview) vm.send(sos.fromNodeId, "I'm coming! Stay where you are 🙏"); vm.dismissSosAlert() },
+                onWay = { if (!preview) compassTarget = sos.fromNodeId; vm.dismissSosAlert(); if (!preview) goTab(Tab.COMPASS) },
                 onHowTo = { vm.dismissSosAlert(); push("article:help-sos") },
                 onClose = vm::dismissSosAlert,
             )

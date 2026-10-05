@@ -12,7 +12,12 @@ import com.bluemob.app.mesh.LinkQuality
 import com.bluemob.app.mesh.PeerState
 import com.bluemob.app.settings.SignalMode
 import com.bluemob.app.settings.Spot
+import com.bluemob.app.audit.AuditChain
+import com.bluemob.app.data.AuditEntry
+import com.bluemob.app.trail.PositionEstimate
 import com.bluemob.app.util.Geo
+import com.bluemob.app.util.shortId
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,6 +43,8 @@ data class Person(
     /** Another person nearby has the same name: show the short ID to tell them apart. */
     val sharesName: Boolean,
     val sos: Boolean,
+    /** Set while they're in lost mode: their latest position estimate. */
+    val lost: PositionEstimate? = null,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -47,6 +54,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = blueMob.messages
     private val sosManager = blueMob.sos
     private val settings = blueMob.settings
+    private val trail = blueMob.trail
+    private val lostMode = blueMob.lost
 
     val nodeId = identity.nodeId
     val name = identity.displayName
@@ -67,6 +76,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val bookmarks = settings.bookmarks
     val signals = blueMob.signals
     val compassAvailable = blueMob.heading.available
+    val sosContacts = settings.sosContacts
+    val radios = blueMob.radios.state
+    val trailOn = trail.enabled
+    val trailPoints = trail.points
+    val estimate = trail.estimate
+    val lostOn = lostMode.on
+    val lostShared = lostMode.lastShared
+    val stepCounterAvailable get() = trail.stepCounterAvailable
+    fun hasStepPermission() = trail.hasStepPermission()
+
+    /** The audit trail, newest first, with the seq of the first broken entry (null = intact). */
+    val audit: StateFlow<Pair<List<AuditEntry>, Long?>> = blueMob.audit.entries
+        .map { list -> list.asReversed() to AuditChain.firstBroken(list) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList<AuditEntry>() to null)
     fun headings(): Flow<Float> = blueMob.heading.headings()
 
     /** Ticks every 30 s so "last seen 5 min ago" stays fresh. */
@@ -78,8 +101,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val people: StateFlow<List<Person>> = combine(
-        mesh.peers, blueMob.contacts.contacts, myLocation, clock, sosManager.received,
-    ) { peers, contacts, me, now, sos ->
+        mesh.peers, blueMob.contacts.contacts, myLocation, clock, combine(sosManager.received, lostMode.received) { a, b -> a to b },
+    ) { peers, contacts, me, now, (sos, lost) ->
         val names = contacts.values.groupingBy { it.name }.eachCount()
         contacts.values.map { c ->
             val link = peers.values.filter { it.nodeId == c.nodeId }.maxByOrNull { it.state.ordinal }
@@ -88,7 +111,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 PeerState.CONNECTING, PeerState.DISCOVERED -> Presence.IN_RANGE
                 null -> Presence.OFFLINE
             }
-            val theirs = c.location ?: sos[c.nodeId]?.let { s -> if (s.lat != null && s.lon != null) GeoPoint(s.lat, s.lon, 0f, s.at) else null }
+            val lostPos = lost[c.nodeId]?.pos
+            val theirs = lostPos?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) } ?: c.location ?: sos[c.nodeId]?.let { s -> if (s.lat != null && s.lon != null) GeoPoint(s.lat, s.lon, 0f, s.at) else null }
             val name = link?.name ?: c.name
             Person(
                 nodeId = c.nodeId, name = name, avatar = c.avatar, presence = presence,
@@ -99,6 +123,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 location = theirs,
                 sharesName = (names[c.name] ?: 0) > 1,
                 sos = sos.containsKey(c.nodeId),
+                lost = lostPos,
             )
         }.sortedWith(compareBy<Person> { it.presence.ordinal }.thenByDescending { it.lastSeen })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -122,6 +147,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun clearMessages() = repo.clearAll()
 
     fun sendSos(note: String): Int = sosManager.send(note)
+    fun previewSosAlert() = sosManager.preview("Ravi")
+    fun addSosContact(name: String, phone: String) = settings.addSosContact(name, phone)
+    fun removeSosContact(id: String) = settings.removeSosContact(id)
+
+    /** The SOS text that goes to people nearby and to SOS contacts by SMS. */
+    fun sosMessage(note: String): String {
+        val pos = mySos.value?.pos ?: trail.snapshot()
+        val n = note.trim().trimEnd('.')
+        return "SOS from ${name.value} (BlueMob ${shortId(nodeId)}). I need help." + (if (n.isNotEmpty()) " $n." else "") +
+            " " + (pos?.describe() ?: "Position unknown.") + (batteryPct()?.let { " Battery $it%." } ?: "") + " Sent with BlueMob."
+    }
+
+    fun setTrail(on: Boolean) = trail.setEnabled(on)
+    fun clearTrail() = trail.clear()
+    fun onStepPermission() = trail.onStepPermission()
+    fun setLost(on: Boolean) = if (on) lostMode.start() else lostMode.stop()
+    fun setBaseCamp(): Boolean {
+        val here = trail.snapshot() ?: return false
+        settings.setBaseCamp(here.lat, here.lon)
+        blueMob.audit.add(com.bluemob.app.audit.AuditKind.POSITION, "Base camp set at ${Geo.formatLatLon(here.lat, here.lon)}")
+        return true
+    }
+    fun refreshRadios() = blueMob.radios.refresh()
     fun cancelSos() = sosManager.cancel()
     fun dismissSosAlert() = sosManager.dismissAlert()
     fun setSignalDefault(mode: SignalMode) = settings.setSignalDefault(mode)

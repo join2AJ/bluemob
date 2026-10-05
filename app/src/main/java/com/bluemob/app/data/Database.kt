@@ -12,6 +12,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /** Where a message is. Outgoing: LOCAL (Sky) → PENDING → SENT → DELIVERED → READ. Incoming: RECEIVED → READ. */
@@ -84,12 +86,89 @@ interface MessageDao {
     suspend fun markSeen(seen: SeenId): Long
 }
 
-@Database(entities = [MessageEntity::class, SeenId::class], version = 1, exportSchema = false)
+/**
+ * One line of the audit trail. Each entry holds the SHA-256 [hash] of the one before it ([prev]) plus its own
+ * content, so changing or removing any entry breaks every hash after it.
+ */
+@Entity(tableName = "audit")
+data class AuditEntry(
+    @PrimaryKey val seq: Long,
+    val time: Long,
+    val kind: String,
+    val text: String,
+    val prev: String,
+    val hash: String,
+)
+
+/**
+ * Append-only on purpose: there is no update or delete here, and "Delete all messages" doesn't touch this table.
+ * (A database trigger also refuses changes, in case other code tries.)
+ */
+@Dao
+interface AuditDao {
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun append(entry: AuditEntry)
+
+    @Query("SELECT * FROM audit ORDER BY seq DESC LIMIT 1")
+    suspend fun last(): AuditEntry?
+
+    @Query("SELECT * FROM audit ORDER BY seq")
+    fun observeAll(): Flow<List<AuditEntry>>
+}
+
+/** A point on the user's trail: a real GPS fix, or an estimate from steps and the compass when there's no GPS. */
+@Entity(tableName = "trail", indices = [Index("time")])
+data class TrailPoint(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val time: Long,
+    val lat: Double,
+    val lon: Double,
+    val accuracyM: Float,
+    val estimated: Boolean,
+)
+
+@Dao
+interface TrailDao {
+    @Insert
+    suspend fun insert(point: TrailPoint)
+
+    @Query("SELECT * FROM (SELECT * FROM trail ORDER BY time DESC LIMIT :limit) ORDER BY time")
+    fun observeRecent(limit: Int): Flow<List<TrailPoint>>
+
+    @Query("DELETE FROM trail")
+    suspend fun clear()
+}
+
+@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class], version = 2, exportSchema = false)
 abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun messages(): MessageDao
+    abstract fun audit(): AuditDao
+    abstract fun trail(): TrailDao
 
     companion object {
         fun create(context: Context): BlueMobDatabase =
-            Room.databaseBuilder(context, BlueMobDatabase::class.java, "bluemob.db").build()
+            Room.databaseBuilder(context, BlueMobDatabase::class.java, "bluemob.db")
+                .addMigrations(MIGRATION_1_2)
+                .addCallback(object : Callback() {
+                    override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)
+                })
+                .build()
+
+        /** Adds the audit trail and the trail of positions, keeping every message. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `audit` (`seq` INTEGER NOT NULL, `time` INTEGER NOT NULL, `kind` TEXT NOT NULL, " +
+                    "`text` TEXT NOT NULL, `prev` TEXT NOT NULL, `hash` TEXT NOT NULL, PRIMARY KEY(`seq`))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `trail` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `time` INTEGER NOT NULL, " +
+                    "`lat` REAL NOT NULL, `lon` REAL NOT NULL, `accuracyM` REAL NOT NULL, `estimated` INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_trail_time` ON `trail` (`time`)")
+            }
+        }
+
+        /** The database itself refuses to change or delete audit entries. */
+        private fun lockAudit(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT, 'audit trail is read-only'); END")
+            db.execSQL("CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, 'audit trail is read-only'); END")
+        }
     }
 }

@@ -4,7 +4,9 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.bluetooth.BluetoothAdapter
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -16,6 +18,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import com.bluemob.app.permissions.MeshPermissions
+import com.bluemob.app.system.Radio
 import com.bluemob.app.ui.AppViewModel
 import com.bluemob.app.ui.BlueMobRoot
 import com.bluemob.app.ui.SystemActions
@@ -42,6 +45,9 @@ class MainActivity : ComponentActivity() {
             shareAfterGrant = false
         }
 
+    private val stepPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) viewModel.onStepPermission() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -52,6 +58,11 @@ class MainActivity : ComponentActivity() {
             requestLocation = { shareAfterGrant = false; requestLocation() },
             openBatterySaver = { open(Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS), fallback = Intent(Settings.ACTION_SETTINGS)) },
             askKeepRunning = ::askKeepRunning,
+            switchRadio = ::switchRadio,
+            textSos = ::textSos,
+            requestSteps = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) stepPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+            },
         )
         setContent {
             BlueMobTheme {
@@ -63,6 +74,37 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refreshStatus()
+        viewModel.refreshRadios()
+    }
+
+    /**
+     * Android doesn't let apps switch radios on their own (since Android 10), so each switch opens the closest
+     * system panel or screen, and the user comes straight back.
+     */
+    @SuppressLint("MissingPermission")
+    private fun switchRadio(radio: Radio, on: Boolean) {
+        val settings = Intent(Settings.ACTION_SETTINGS)
+        when (radio) {
+            Radio.BLUETOOTH -> when {
+                !on -> open(Intent(Settings.ACTION_BLUETOOTH_SETTINGS), settings)
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ->
+                    meshPermissionLauncher.launch(MeshPermissions.required)
+                else -> open(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+            }
+            Radio.WIFI -> open(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) Intent(Settings.Panel.ACTION_WIFI) else Intent(Settings.ACTION_WIFI_SETTINGS), settings)
+            Radio.LOCATION -> open(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), settings)
+            Radio.INTERNET -> open(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) else Intent(Settings.ACTION_WIRELESS_SETTINGS), settings,
+            )
+        }
+    }
+
+    /** Opens the SMS app with the SOS written in, addressed to [numbers]. The user taps send. */
+    private fun textSos(numbers: List<String>, body: String) {
+        val to = numbers.joinToString(";") { it.filter { ch -> ch.isDigit() || ch == '+' } }
+        open(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$to")).putExtra("sms_body", body),
+            fallback = Intent(Intent.ACTION_VIEW, Uri.parse("sms:$to")).putExtra("sms_body", body))
     }
 
     private fun requestLocation() {

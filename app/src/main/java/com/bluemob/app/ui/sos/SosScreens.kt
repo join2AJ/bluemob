@@ -32,7 +32,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.FlashlightOn
-import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Contacts
+import androidx.compose.material.icons.outlined.Hub
+import androidx.compose.material.icons.outlined.LocationOff
+import androidx.compose.material.icons.outlined.MyLocation
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Sms
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import com.bluemob.app.settings.SosContact
+import com.bluemob.app.ui.components.Gap
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -88,50 +100,46 @@ import java.util.Locale
 private val clock = SimpleDateFormat("HH:mm", Locale.getDefault())
 private val REASONS = listOf("Injured", "Lost", "Medical", "Need water", "Stuck", "Cold", "Animal")
 
+/** What the SOS screen needs to show. */
+data class SosHubState(
+    val mine: SosSignal?,
+    val connected: Int,
+    val defaultSignal: SignalMode,
+    val contacts: List<SosContact>,
+    val reached: Int = -1,
+)
+
 @Composable
 fun SosHubScreen(
-    mine: SosSignal?,
-    connected: Int,
-    defaultSignal: SignalMode,
+    state: SosHubState,
+    /** The text that goes to people nearby and to SOS contacts, for a given note. */
+    message: (String) -> String,
     onBack: () -> Unit,
-    onSend: (String) -> Int,
+    onSend: (String) -> Unit,
     onSafe: () -> Unit,
     onSignal: () -> Unit,
     onDefaultSignal: (SignalMode) -> Unit,
     onHowToHelp: () -> Unit,
+    onContacts: () -> Unit,
+    onText: (List<String>, String) -> Unit,
+    onPreviewAlert: () -> Unit,
+    still: Boolean = false,
 ) {
     var note by rememberSaveable { mutableStateOf("") }
     var armed by remember { mutableStateOf(false) }
-    var reached by remember { mutableIntStateOf(-1) }
-    val scope = rememberCoroutineScope()
+    val mine = state.mine
 
     SubScreen("SOS", onBack) {
         if (mine == null) {
             item {
-                Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    val t = rememberInfiniteTransition(label = "armed")
-                    val glow by t.animateFloat(1f, 1.08f, infiniteRepeatable(tween(450), RepeatMode.Reverse), label = "g")
-                    Box(
-                        Modifier.size(184.dp).scale(if (armed) glow else 1f).clip(CircleShape)
-                            .background(Brush.radialGradient(listOf(Color(0xFFF0727A), Extra.rose, Color(0xFFA8323A))))
-                            .clickable {
-                                if (!armed) {
-                                    armed = true
-                                    scope.launch { delay(4000); armed = false }
-                                } else {
-                                    armed = false
-                                    reached = onSend(note)
-                                }
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("SOS", color = Color.White, fontSize = 46.sp, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.displaySmall)
-                            Text(if (armed) "Tap again to send" else "Tap to send", color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                    Text("Reaches everyone nearby right away ($connected connected now). Every phone that hears it passes it on.",
-                        style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 18.dp, start = 16.dp, end = 16.dp))
+                Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    SosButton(armed, onTap = { if (armed) { armed = false; onSend(note) } else armed = true }, onDisarm = { armed = false }, still = still)
+                    Text(
+                        "Goes to everyone nearby right away (${state.connected} connected now), and every phone that hears it passes it on." +
+                            if (state.contacts.isNotEmpty()) " Then you can text your SOS contacts." else "",
+                        style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                    )
                 }
             }
             item { GroupLabel("What's happening? (optional)") }
@@ -150,31 +158,127 @@ fun SosHubScreen(
                     }
                 }
             }
+            item { GroupLabel("What will be sent") }
+            item {
+                Group { Text(message(note), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(14.dp)) }
+            }
         } else {
             item {
                 Column(Modifier.padding(top = 12.dp)) {
-                    Tag("SOS active · " + clock.format(Date(mine.at)), Extra.rose, Color.White)
+                    Tag("SOS ACTIVE · " + clock.format(Date(mine.at)), Extra.rose, Color.White, dot = Color.White)
                     Text("Help is being called", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 10.dp))
-                    Text(
-                        (if (reached >= 0) "Reached $reached phone${if (reached == 1) "" else "s"} straight away. " else "") +
-                            "It's re-sent to every phone that comes into range, and each one passes it on, until you tap \"I'm safe\"." +
-                            if (mine.note.isNotBlank()) "\n\nYour note: ${mine.note}" else "",
-                        style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, modifier = Modifier.padding(top = 8.dp),
-                    )
-                    Button(onClick = { onSafe(); reached = -1; note = "" }, modifier = Modifier.padding(top = 16.dp)) { Text("I'm safe now") }
+                }
+            }
+            item { Gap(14.dp) }
+            item {
+                Group {
+                    SettingRow(Icons.Outlined.Hub, MaterialTheme.colorScheme.primary,
+                        if (state.reached >= 0) "Reached ${state.reached} phone${if (state.reached == 1) "" else "s"} nearby" else "Sent to everyone nearby",
+                        "Re-sent to every phone that comes into range, and passed on by each one, until you tap \"I'm safe\"")
+                    mine.pos?.let { pos ->
+                        SettingRow(Icons.Outlined.MyLocation, Extra.sky, if (pos.gps) "Your GPS position is included" else "Your estimated position is included",
+                            pos.describe(), divider = true)
+                    } ?: SettingRow(Icons.Outlined.LocationOff, Extra.ink3, "No position included", "Turn on location so helpers can find you", divider = true)
+                    if (state.contacts.isEmpty()) {
+                        SettingRow(Icons.Outlined.Sms, Extra.ember, "No SOS contacts yet", "Add family or friends to text when you send an SOS", divider = true, onClick = onContacts) { Chevron() }
+                    } else {
+                        state.contacts.forEach { c ->
+                            SettingRow(Icons.Outlined.Sms, Extra.ember, "${c.name} · ${c.phone}", "Opens your SMS app with the SOS written in. Needs mobile signal.", divider = true) {
+                                TextButton(onClick = { onText(listOf(c.phone), message(mine.note)) }) { Text("Text") }
+                            }
+                        }
+                    }
+                }
+            }
+            if (state.contacts.size > 1) item {
+                OutlinedButton(onClick = { onText(state.contacts.map { it.phone }, message(mine.note)) }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    Text("Text all ${state.contacts.size} SOS contacts")
+                }
+            }
+            item {
+                Text(
+                    (if (mine.note.isNotBlank()) "Your note: ${mine.note}\n\n" else "") +
+                        "Texts go from your phone's own SMS app. Sending them through a nearby phone that has internet comes with the internet bridge.",
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp),
+                )
+            }
+            item {
+                Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
+                    Button(onClick = { onSafe(); note = "" }, modifier = Modifier.height(52.dp)) { Text("I'm safe now", style = MaterialTheme.typography.titleMedium) }
                 }
             }
         }
         item { GroupLabel("More") }
         item {
             Group {
-                SettingRow(Icons.Outlined.FlashlightOn, Extra.rose, "SOS signal", "Screen, flashlight, sound or all · ··· ––– ···", onClick = onSignal)
+                SettingRow(Icons.Outlined.FlashlightOn, Extra.rose, "SOS signal", "Screen, flashlight, sound or all · ··· ––– ···", onClick = onSignal) { Chevron() }
                 SettingRow(Icons.Outlined.Bolt, Extra.ember, "Default signal", "Used when you open the SOS signal", divider = true)
                 LazyRow(Modifier.padding(start = 62.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(SignalMode.entries) { m -> Chip("${m.emoji} ${m.label}", m == defaultSignal) { onDefaultSignal(m) } }
+                    items(SignalMode.entries) { m -> Chip("${m.emoji} ${m.label}", m == state.defaultSignal) { onDefaultSignal(m) } }
                 }
-                SettingRow(Icons.Outlined.MenuBook, MaterialTheme.colorScheme.primary, "If you receive an SOS", "How to help someone safely", divider = true, onClick = onHowToHelp)
+                SettingRow(Icons.Outlined.Contacts, Extra.sky, "SOS contacts",
+                    if (state.contacts.isEmpty()) "None yet. Add a number" else state.contacts.joinToString(", ") { it.name }, divider = true, onClick = onContacts) { Chevron() }
+                SettingRow(Icons.AutoMirrored.Outlined.MenuBook, MaterialTheme.colorScheme.primary, "If you receive an SOS", "How to help someone safely", divider = true, onClick = onHowToHelp) { Chevron() }
+                SettingRow(Icons.Outlined.NotificationsActive, Extra.ink3, "Preview: receive an SOS", "See what happens when someone nearby asks for help", divider = true, onClick = onPreviewAlert) { Chevron() }
             }
+        }
+    }
+}
+
+@Composable
+internal fun Chevron() = Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = Extra.ink3)
+
+/** Add and remove the people to text when you send an SOS. Numbers stay on this phone. */
+@Composable
+fun SosContactsScreen(contacts: List<SosContact>, onBack: () -> Unit, onAdd: (String, String) -> Unit, onRemove: (String) -> Unit) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
+    SubScreen("SOS contacts", onBack) {
+        item {
+            Column(Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+                Text("SOS contacts", style = MaterialTheme.typography.headlineMedium)
+                Text("Family or friends to text when you send an SOS. They don't need BlueMob: they get a normal text with your note and position.",
+                    style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
+            }
+        }
+        item { Gap(12.dp) }
+        item {
+            Group {
+                if (contacts.isEmpty()) Text("No one yet. Add someone below.", color = Extra.ink2, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(16.dp))
+                contacts.forEachIndexed { i, c ->
+                    SettingRow(null, Color.Transparent, c.name, c.phone, divider = i > 0) {
+                        TextButton(onClick = { onRemove(c.id) }) { Text("Remove", color = Extra.rose) }
+                    }
+                }
+            }
+        }
+        item { GroupLabel("Add someone") }
+        item {
+            Group {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Field("Name", name, "e.g. Papa", KeyboardType.Text) { name = it.take(30) }
+                    Field("Phone number", phone, "+91 …", KeyboardType.Phone) { phone = it.filter { ch -> ch.isDigit() || ch in "+ -()" }.take(20) }
+                    Button(onClick = { onAdd(name, phone); name = ""; phone = "" }, enabled = name.isNotBlank() && phone.count { it.isDigit() } >= 6,
+                        modifier = Modifier.fillMaxWidth()) { Text("Add") }
+                }
+            }
+        }
+        item {
+            Text("Numbers stay on your phone. They're only used when you send an SOS.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+        }
+    }
+}
+
+@Composable
+private fun Field(label: String, value: String, hint: String, type: KeyboardType, onChange: (String) -> Unit) {
+    Column {
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
+        Box(Modifier.padding(top = 4.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(12.dp)) {
+            if (value.isEmpty()) Text(hint, color = Extra.ink3, style = MaterialTheme.typography.bodyLarge)
+            BasicTextField(value, onChange, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = type),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface), cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -258,11 +362,12 @@ fun SosAlert(sos: SosSignal, person: Person?, myLat: Double?, myLon: Double?, on
         val them = com.bluemob.app.contacts.GeoPoint(sos.lat, sos.lon, 0f, 0)
         Geo.formatDistance(Geo.distanceM(me, them)) + " away to the " + cardinal(Geo.bearingDeg(me, them))
     } else null
+    val preview = sos.id == com.bluemob.app.sos.SosManager.PREVIEW_ID
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(Modifier.fillMaxWidth().background(Extra.rose).statusBarsPadding().padding(18.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             com.bluemob.app.ui.components.PulsingDot(Color.White, 10.dp)
             Spacer(Modifier.width(10.dp))
-            Text("SOS RECEIVED · " + clock.format(Date(sos.at)), color = Color.White, style = MaterialTheme.typography.labelSmall)
+            Text((if (preview) "PREVIEW · NOTHING WAS SENT" else "SOS RECEIVED · " + clock.format(Date(sos.at))), color = Color.White, style = MaterialTheme.typography.labelSmall)
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Avatar(person?.avatar, sos.name, sos.fromNodeId, 84.dp)
@@ -274,7 +379,13 @@ fun SosAlert(sos: SosSignal, person: Person?, myLat: Double?, myLon: Double?, on
                 Text("“${sos.note}”", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium), textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 16.dp).clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(16.dp))
             }
-            Text("Your phone is already passing it on to everyone it can reach.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 12.dp))
+            sos.pos?.let { pos ->
+                Column(Modifier.padding(top = 14.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.skyTint).padding(14.dp)) {
+                    Text(if (pos.gps) "WHERE THEY ARE · GPS" else "WHERE THEY ARE · ESTIMATE", style = MaterialTheme.typography.labelSmall, color = Extra.sky)
+                    Text(pos.describe(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                }
+            }
+            Text(if (preview) "This is how an SOS from someone nearby looks. Real ones also sound a short alarm." else "Your phone is already passing it on to everyone it can reach.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 12.dp))
         }
         Column(Modifier.navigationBarsPadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = onComing, colors = ButtonDefaults.buttonColors(containerColor = Extra.rose, contentColor = Color.White),

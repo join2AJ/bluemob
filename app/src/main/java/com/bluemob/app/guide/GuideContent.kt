@@ -1,7 +1,7 @@
 package com.bluemob.app.guide
 
 /*
- * GENERATED from web/src/features.js by the command in README "Guide content".
+ * GENERATED from web/src/features.js by `node tools/gen_guide.js`. Don't edit by hand.
  * General guidance written for BlueMob, not medical advice.
  */
 
@@ -332,6 +332,45 @@ object GuideContent {
                 "Use BlueMob to tell others where you are.",
             ),
             avoid = emptyList(),
+        ),
+        Article(
+            id = "battery-low",
+            category = GuideCategory.BASICS,
+            title = "Phone battery critically low",
+            minutes = 2,
+            intro = "At 1 to 5%, every minute of battery counts. Spend it on what keeps you safe.",
+            steps = listOf(
+                "If you may need help, send your SOS now while you still can. Add a short note: where you are and what's wrong.",
+                "Send one short message to your group: where you are, where you're heading, and when you'll switch the phone on next.",
+                "Turn on Battery Saver, set the screen to its lowest brightness, and close every other app.",
+                "Turn on airplane mode so the phone stops searching for signal. If you need BlueMob, turn Bluetooth back on.",
+                "Switch the phone off completely. Turn it on only at agreed times, for example every 2 hours on the hour, to check messages.",
+                "Keep the phone warm in an inner pocket or sleeping bag. Cold drains batteries fast, and a cold \"dead\" phone often wakes up once warm.",
+                "Use other ways to be found: 3 whistle blasts, a mirror, bright clothing, or a smoky fire in the open.",
+            ),
+            avoid = listOf(
+                "Don't leave the screen on for the compass or the map. Check, then switch off.",
+                "Don't wait until 0% to send your SOS.",
+            ),
+        ),
+        Article(
+            id = "recharge",
+            category = GuideCategory.BASICS,
+            title = "Getting power back without a socket",
+            minutes = 2,
+            intro = "Ways to recharge a phone far from a wall socket.",
+            steps = listOf(
+                "Power bank: the most reliable option. Charge it fully before every trip.",
+                "Vehicle: a USB car charger works while the engine runs. Many cars, buses and bikes have USB sockets.",
+                "Solar charger: point the panel straight at the sun. Charge a power bank with it, then the phone. Cloud makes it very slow.",
+                "Hand-crank or dynamo chargers (in some radios and torches) give small top-ups. Crank steadily rather than fast.",
+                "Ask people nearby for a power bank or the right cable. Charge the phone your group relies on for SOS first.",
+                "Warm a cold battery slowly against your body before charging. Batteries charge poorly when very cold.",
+            ),
+            avoid = listOf(
+                "Don't heat the phone on a fire, a stove or in strong direct sun.",
+                "Don't open, bend or puncture the battery.",
+            ),
         ),
         Article(
             id = "threes",

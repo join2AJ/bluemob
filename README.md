@@ -26,8 +26,31 @@ through Meera, who has internet.
 | 3 | Chat messages hopping through several phones (A → B → C) | | simulated |
 | 4 | Internet bridge + BlueMob relay (Firebase): far-away friends, SMS to loved ones, experts | | simulated |
 | 5 | End-to-end encryption | | |
-| 6 | Games, trip money, insights, offline maps | | ✅ |
+| – | Trail, base camp, "walking straight?", lost mode with position estimate | ✅ 0.4 | |
+| – | SOS contacts (SMS), connections panel, tamper-evident audit trail | ✅ 0.4 | ✅ audit |
+| 6 | Games vs the computer | ✅ 0.4 | ✅ |
+| 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
+
+## Android 0.4: what's new
+
+- **Trail and lost mode** (`trail/`, `ui/compass/TrailViews.kt`): opt-in, because it keeps GPS on. Draws your trail on a
+  north-up map (solid = GPS, dashed = estimated), keeps the last GPS fix and your base camp, and tells you whether you're
+  walking straight, curving left or right, weaving, or walking in a circle. When GPS drops out, the step counter and compass
+  carry your position forward (dead reckoning) with an honest margin of error. **I'm lost** shares that estimate with
+  everyone nearby every minute (GPS, or last fix + metres walked + direction in degrees), passed on like an SOS, and it's
+  also included in every SOS. Helpers see "Asha is lost" on Nearby and can walk to her with the compass.
+- **SOS**: new animated SOS circle (ripples, breathing, a countdown ring after the first tap), **SOS contacts** (stored on
+  the phone only) that you can text with one tap from your SMS app, "What will be sent", and "Preview: receive an SOS".
+- **Connections** (`system/Radios.kt`, You → Bluetooth, Wi-Fi, GPS, internet): shows what's on, warns on Nearby when
+  something BlueMob needs is off, and each switch opens the matching Android panel (Android doesn't let apps flip radios).
+- **Audit trail** (`audit/`, You → Audit trail): SOS sent and received, messages, receipts, connections and shared positions,
+  each entry chained to the one before with SHA-256. There's no edit or delete in the app, a database trigger refuses
+  changes, "Delete all messages" keeps it, and the screen verifies the chain. (Someone with root access could still rewrite
+  the file; the chain makes that detectable, not impossible.)
+- **Games**: Tic-tac-toe (easy or unbeatable) and Connect 4 against the computer, for when no one is around.
+- **Sky**: critical-battery advice ("At 1%, act now") and how to recharge without a socket; ideas for free time; calmer
+  replies to questions it can't answer (SOS only for urgent ones).
 
 ## Android 0.3: what's real on the phone
 
@@ -40,7 +63,8 @@ through Meera, who has internet.
   Tap a sent message for its receipts, delivery paths and full history.
 - **Sky** (`bot/SkyBot.kt`): runs inside the app, no internet. Answers from the survival guide, explains the app, and gives
   live facts (who's nearby, your ID, battery, waiting messages, SOS status).
-- **Survival guide** (`guide/`): 20 articles in 9 topics, search, saved guides. Generated from `web/src/features.js`.
+- **Survival guide** (`guide/`): 22 articles in 9 topics, search, saved guides. Generated from `web/src/features.js`
+  with `node tools/gen_guide.js`.
 - **SOS** (`sos/`): two-tap send with an optional note and your last position; re-sent to every phone that connects until
   "I'm safe", and passed on by each phone that hears it (up to 5 hops). Receiving one opens a full-screen alert with
   "I'm coming", "Show me the way" and "How to help". The SOS signal uses the screen, the real flashlight, a 2.8 kHz
@@ -66,7 +90,9 @@ debug key, so uninstall the old version before installing a new one.
 ## Testing
 
 **Automated** (`./gradlew testDebugUnitTest`): the delivery engine with two simulated phones (waits until in range,
-exactly-once after a re-send, read receipts), 26 Sky questions, geo maths, and screenshots of 13 screens.
+exactly-once after a re-send, read receipts), 35 Sky questions, trail maths and dead reckoning, the audit chain (edits and
+removals are caught), the game opponents (the unbeatable one is checked against every possible game), geo maths, and
+screenshots of 23 screens.
 The web preview has its own Sky test: `node web/tests/sky_answers.test.js`.
 
 **On one phone:** go through the intro, ask Sky questions, read the guide, try the SOS signal (flashlight and sound),
@@ -81,6 +107,8 @@ and the compass (outdoors for GPS).
 5. **Store-and-forward:** turn the mesh off on phone B, send B a message from phone A (it shows the clock),
    then turn B's mesh back on. The message arrives, and A's tick goes to delivered, then read when B opens the chat.
 6. **SOS:** send an SOS from one phone. The other opens the alert. With three phones in a line, the middle one passes it on.
-7. Turn on **Share my location** on both phones to see distance on the radar and walk to each other with the compass.
+7. **Lost mode:** on phone A, Compass → **I'm lost**. Phone B shows "A is lost" with A's position. Walk somewhere with
+   A; in airplane mode indoors (no GPS) A's estimate keeps moving with its steps.
+8. Turn on **Share my location** on both phones to see distance on the radar and walk to each other with the compass.
 
 If something fails, send a screenshot of **You → Mesh activity log**.

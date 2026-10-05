@@ -15,7 +15,16 @@ enum class SignalMode(val label: String, val emoji: String, val tip: String) {
 }
 
 /** A place the user saved, to walk back to with the compass. */
-data class Spot(val id: String, val name: String, val lat: Double, val lon: Double, val time: Long)
+data class Spot(val id: String, val name: String, val lat: Double, val lon: Double, val time: Long) {
+    val isBaseCamp: Boolean get() = id == BASE_CAMP_ID
+
+    companion object {
+        const val BASE_CAMP_ID = "base"
+    }
+}
+
+/** Someone to text when the user sends an SOS. Stored only on this phone. */
+data class SosContact(val id: String, val name: String, val phone: String)
 
 /** Small preferences that aren't part of the identity: SOS signal, saved spots, saved guides. */
 class AppSettings(context: Context) {
@@ -50,6 +59,45 @@ class AppSettings(context: Context) {
     fun toggleBookmark(articleId: String) {
         _bookmarks.value = if (articleId in _bookmarks.value) _bookmarks.value - articleId else _bookmarks.value + articleId
         prefs.edit().putStringSet("bookmarks", _bookmarks.value).apply()
+    }
+
+    /** Base camp is a spot with a fixed ID, so setting it again moves it. */
+    fun setBaseCamp(lat: Double, lon: Double) {
+        _spots.value = listOf(Spot(Spot.BASE_CAMP_ID, "Base camp", lat, lon, System.currentTimeMillis())) + _spots.value.filterNot { it.isBaseCamp }
+        saveSpots()
+    }
+
+    private val _trailOn = MutableStateFlow(prefs.getBoolean("trail", false))
+    /** Opt-in: recording the trail keeps GPS on. */
+    val trailOn: StateFlow<Boolean> = _trailOn.asStateFlow()
+
+    fun setTrailOn(on: Boolean) {
+        prefs.edit().putBoolean("trail", on).apply()
+        _trailOn.value = on
+    }
+
+    private val _sosContacts = MutableStateFlow(loadContacts())
+    val sosContacts: StateFlow<List<SosContact>> = _sosContacts.asStateFlow()
+
+    fun addSosContact(name: String, phone: String) {
+        _sosContacts.value = _sosContacts.value + SosContact("c" + System.currentTimeMillis(), name.trim(), phone.trim())
+        saveContacts()
+    }
+
+    fun removeSosContact(id: String) {
+        _sosContacts.value = _sosContacts.value.filterNot { it.id == id }
+        saveContacts()
+    }
+
+    private fun loadContacts(): List<SosContact> = runCatching {
+        val a = JSONArray(prefs.getString("sosContacts", "[]"))
+        (0 until a.length()).map { i -> a.getJSONObject(i).let { SosContact(it.getString("id"), it.getString("name"), it.getString("phone")) } }
+    }.getOrDefault(emptyList())
+
+    private fun saveContacts() {
+        val a = JSONArray()
+        _sosContacts.value.forEach { a.put(JSONObject().put("id", it.id).put("name", it.name).put("phone", it.phone)) }
+        prefs.edit().putString("sosContacts", a.toString()).apply()
     }
 
     private fun loadSpots(): List<Spot> = runCatching {

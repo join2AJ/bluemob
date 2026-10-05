@@ -1,6 +1,8 @@
 package com.bluemob.app
 
 import android.app.Application
+import com.bluemob.app.audit.AuditKind
+import com.bluemob.app.audit.AuditLog
 import com.bluemob.app.bot.SkyBot
 import com.bluemob.app.bot.SkyFacts
 import com.bluemob.app.chat.MessageRepository
@@ -10,10 +12,14 @@ import com.bluemob.app.data.BlueMobDatabase
 import com.bluemob.app.data.MessageStatus
 import com.bluemob.app.identity.Identity
 import com.bluemob.app.location.LocationTracker
+import com.bluemob.app.mesh.MeshEvent
 import com.bluemob.app.mesh.NearbyMeshTransport
 import com.bluemob.app.settings.AppSettings
 import com.bluemob.app.sos.SignalController
 import com.bluemob.app.sos.SosManager
+import com.bluemob.app.system.Radios
+import com.bluemob.app.trail.LostMode
+import com.bluemob.app.trail.TrailRecorder
 import com.bluemob.app.util.Connectivity
 import com.bluemob.app.util.formatId
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +43,10 @@ class BlueMobApp : Application() {
     lateinit var signals: SignalController private set
     lateinit var sos: SosManager private set
     lateinit var heading: HeadingSensor private set
+    lateinit var audit: AuditLog private set
+    lateinit var trail: TrailRecorder private set
+    lateinit var lost: LostMode private set
+    lateinit var radios: Radios private set
 
     override fun onCreate() {
         super.onCreate()
@@ -48,8 +58,21 @@ class BlueMobApp : Application() {
         settings = AppSettings(this)
         signals = SignalController(this)
         heading = HeadingSensor(this)
-        sos = SosManager(this, mesh, identity, location, signals, appScope)
-        messages = MessageRepository(BlueMobDatabase.create(this).messages(), mesh, appScope) { text -> SkyBot.reply(text, skyFacts()) }
+        radios = Radios(this)
+        val db = BlueMobDatabase.create(this)
+        audit = AuditLog(db.audit(), appScope)
+        audit.add(AuditKind.APP, "BlueMob started · ID BM ${formatId(identity.nodeId)}")
+        trail = TrailRecorder(this, location, heading, db.trail(), settings, audit, appScope) { identity.shareLocation.value }
+        lost = LostMode(mesh, identity, trail, audit, appScope)
+        sos = SosManager(this, mesh, identity, trail, signals, audit, appScope)
+        messages = MessageRepository(db.messages(), mesh, appScope, sky = { text -> SkyBot.reply(text, skyFacts()) }) { kind, peer, text ->
+            audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone"))
+        }
+        appScope.launch {
+            mesh.events.collect { e ->
+                if (e is MeshEvent.PeerConnected) audit.add(AuditKind.MESH, "Connected to ${contacts.contacts.value[e.nodeId]?.name ?: "someone"} over ${mesh.linkName(e.nodeId)}")
+            }
+        }
 
         // Share our GPS position with connected phones only while the user allows it.
         appScope.launch {

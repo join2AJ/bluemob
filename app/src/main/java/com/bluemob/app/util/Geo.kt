@@ -29,6 +29,21 @@ object Geo {
         return (Math.toDegrees(atan2(y, x)) + 360) % 360
     }
 
+    /** The point [distanceM] metres from ([lat], [lon]) towards [bearingDeg]. */
+    fun offset(lat: Double, lon: Double, bearingDeg: Double, distanceM: Double): Pair<Double, Double> {
+        val d = distanceM / EARTH_RADIUS_M
+        val b = Math.toRadians(bearingDeg)
+        val lat1 = Math.toRadians(lat)
+        val lon1 = Math.toRadians(lon)
+        val lat2 = kotlin.math.asin(sin(lat1) * cos(d) + cos(lat1) * sin(d) * cos(b))
+        val lon2 = lon1 + atan2(sin(b) * sin(d) * cos(lat1), cos(d) - sin(lat1) * sin(lat2))
+        return Math.toDegrees(lat2) to ((Math.toDegrees(lon2) + 540) % 360 - 180)
+    }
+
+    /** "30.0869 N, 78.2676 E" */
+    fun formatLatLon(lat: Double, lon: Double): String =
+        "%.4f %s, %.4f %s".format(kotlin.math.abs(lat), if (lat >= 0) "N" else "S", kotlin.math.abs(lon), if (lon >= 0) "E" else "W")
+
     fun formatDistance(m: Double): String = when {
         m < 10 -> "a few m"
         m < 1000 -> "${(m / 5).roundToInt() * 5} m"

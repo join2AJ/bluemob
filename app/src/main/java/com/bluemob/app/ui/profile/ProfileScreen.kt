@@ -15,6 +15,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Contacts
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.SettingsInputAntenna
+import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -83,6 +87,11 @@ fun ProfileScreen(
     onReplayIntro: () -> Unit,
     onForgetPeople: () -> Unit,
     onClearMessages: () -> Unit,
+    onConnections: () -> Unit = {},
+    onSosContacts: () -> Unit = {},
+    onAudit: () -> Unit = {},
+    onGames: () -> Unit = {},
+    sosContactCount: Int = 0,
 ) {
     var draft by remember(name) { mutableStateOf(name) }
     var showLog by rememberSaveable { mutableStateOf(false) }
@@ -136,6 +145,8 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.LocationOn, Extra.sky, "Share my location", "Connected people see how far you are. GPS, no internet", divider = true) {
                     Switch(sharingLocation, onToggleLocation)
                 }
+                SettingRow(Icons.Outlined.SettingsInputAntenna, Extra.ember, "Bluetooth, Wi-Fi, GPS, internet", "See what's on and switch it, in one place",
+                    divider = true, onClick = onConnections) { chevron() }
             }
         }
 
@@ -153,6 +164,22 @@ fun ProfileScreen(
         item {
             Group {
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS", "Default signal: ${signalDefault.emoji} ${signalDefault.label}", onClick = onSos) { chevron() }
+                SettingRow(Icons.Outlined.Contacts, Extra.sky, "SOS contacts",
+                    if (sosContactCount == 0) "None yet. Add family to text when you send an SOS" else "$sosContactCount saved", divider = true, onClick = onSosContacts) { chevron() }
+            }
+        }
+
+        item { GroupLabel("Records") }
+        item {
+            Group {
+                SettingRow(Icons.Outlined.Lock, Color(0xFF3A4A44), "Audit trail", "Read-only, tamper-evident record of SOS, messages and positions", onClick = onAudit) { chevron() }
+            }
+        }
+
+        item { GroupLabel("Play") }
+        item {
+            Group {
+                SettingRow(Icons.Outlined.SportsEsports, Extra.ember, "Games", "Tic-tac-toe and Connect 4, against the computer", onClick = onGames) { chevron() }
             }
         }
 
@@ -161,7 +188,7 @@ fun ProfileScreen(
             Group {
                 SettingRow(Icons.Outlined.Refresh, Color(0xFF7C6BD6), "Replay the intro", onClick = onReplayIntro) { chevron() }
                 SettingRow(Icons.Outlined.DeleteOutline, Extra.ember, "Forget people I've met", "Clears the list and last-seen history", divider = true, onClick = onForgetPeople)
-                SettingRow(Icons.Outlined.DeleteOutline, Extra.rose, "Delete all messages", "From this phone only", divider = true, onClick = onClearMessages)
+                SettingRow(Icons.Outlined.DeleteOutline, Extra.rose, "Delete all messages", "From this phone only. The audit trail is kept", divider = true, onClick = onClearMessages)
             }
         }
 

@@ -1,5 +1,6 @@
 package com.bluemob.app.chat
 
+import com.bluemob.app.audit.AuditKind
 import com.bluemob.app.bot.SkyAnswer
 import com.bluemob.app.bot.SkyBot
 import com.bluemob.app.data.MessageDao
@@ -40,6 +41,8 @@ class MessageRepository(
     private val mesh: MessageLink,
     private val scope: CoroutineScope,
     private val sky: (String) -> SkyAnswer,
+    /** Writes to the audit trail: (kind, other person's node ID, what happened). */
+    private val record: (AuditKind, String, String) -> Unit = { _, _, _ -> },
 ) {
     val messages: StateFlow<List<MessageEntity>> = dao.observeAll().stateIn(scope, SharingStarted.Eagerly, emptyList())
 
@@ -82,9 +85,11 @@ class MessageRepository(
                 return@launch
             }
             val inRange = mesh.isConnected(peer)
+            val id = newId()
+            record(AuditKind.MESSAGE, peer, "Message $id written to {name}: \"${clean.take(80)}\"")
             dao.insert(
                 MessageEntity(
-                    id = newId(), peer = peer, fromMe = true, text = clean, createdAt = now, status = MessageStatus.PENDING,
+                    id = id, peer = peer, fromMe = true, text = clean, createdAt = now, status = MessageStatus.PENDING,
                     directState = if (inRange) PathState.TRYING else PathState.WAITING,
                     internetState = PathState.UNAVAILABLE,
                     history = event(now, "Written on your phone") +
@@ -139,6 +144,7 @@ class MessageRepository(
         // Always answer with a receipt: if our first one was lost, the sender is still re-sending.
         mesh.sendReceipt(e.fromNodeId, e.messageId, read = false)
         if (!isNew) return // A copy we already have: discard it.
+        record(AuditKind.MESSAGE, e.fromNodeId, "Message ${e.messageId} received from {name} over ${mesh.linkName(e.fromNodeId)}: \"${e.text.take(80)}\"")
         val open = openConversation == e.fromNodeId
         val readNow = open && mesh.sendReceipt(e.fromNodeId, e.messageId, read = true)
         dao.insert(
@@ -161,12 +167,16 @@ class MessageRepository(
             internetState = if (m.internetState == PathState.WAITING) PathState.CANCELLED else m.internetState,
         )
         when {
-            e.read && m.status != MessageStatus.READ ->
+            e.read && m.status != MessageStatus.READ -> {
+                record(AuditKind.RECEIPT, m.peer, "Read receipt for ${m.id} from {name} over $link")
                 dao.update(delivered.copy(status = MessageStatus.READ, readAt = now,
                     history = delivered.history + (if (m.deliveredAt == null) event(now, "Delivered over $link") else "") + event(now, "Read receipt came back over $link")))
-            !e.read && (m.status == MessageStatus.SENT || m.status == MessageStatus.PENDING) ->
+            }
+            !e.read && (m.status == MessageStatus.SENT || m.status == MessageStatus.PENDING) -> {
+                record(AuditKind.RECEIPT, m.peer, "Delivery receipt for ${m.id} from {name} over $link")
                 dao.update(delivered.copy(status = MessageStatus.DELIVERED,
                     history = delivered.history + event(now, "Delivered over $link. Delivery receipt came back")))
+            }
         }
     }
 

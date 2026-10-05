@@ -22,6 +22,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material.icons.outlined.SportsEsports
+import com.bluemob.app.system.Radio
+import com.bluemob.app.system.RadioState
+import com.bluemob.app.ui.system.RadioBanner
+import com.bluemob.app.ui.system.RadioStrip
+import com.bluemob.app.ui.system.firstProblem
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -66,6 +72,7 @@ data class NearbyState(
     val sharingLocation: Boolean,
     val hasMyFix: Boolean,
     val online: Boolean,
+    val radios: RadioState? = null,
 )
 
 @Composable
@@ -80,6 +87,10 @@ fun NearbyScreen(
     onTalkToSky: () -> Unit,
     onOpenGuide: () -> Unit,
     onOpenBattery: () -> Unit,
+    onConnections: () -> Unit = {},
+    onFixRadio: (Radio) -> Unit = {},
+    onGames: () -> Unit = {},
+    onFindLost: (String) -> Unit = {},
 ) {
     val list = state.people
     val online = list.count { it.presence == Presence.ONLINE }
@@ -90,11 +101,28 @@ fun NearbyScreen(
         contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 120.dp),
     ) {
         item { LargeTitle("Nearby", over = "${greeting()}, ${state.name}") }
+        state.radios?.let { radios ->
+            item { RadioStrip(radios, state.online, onConnections, Modifier.padding(bottom = 12.dp)) }
+            radios.firstProblem()?.let { problem ->
+                if (state.permissionsGranted) item { RadioBanner(problem, onFix = { onFixRadio(problem.first) }, onOpen = onConnections, modifier = Modifier.padding(bottom = 12.dp)) }
+            }
+        }
+        list.filter { it.lost != null }.forEach { p ->
+            item(key = "lost-" + p.nodeId) {
+                Surface(onClick = { onFindLost(p.nodeId) }, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("🧭  ${p.name} is lost", style = MaterialTheme.typography.titleMedium)
+                        Text(p.lost!!.describe(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                        Text("Tap to walk to them with the compass", style = MaterialTheme.typography.labelMedium, color = Extra.sky, modifier = Modifier.padding(top = 6.dp))
+                    }
+                }
+            }
+        }
 
         if (!state.permissionsGranted) item {
             Notice("Allow nearby access", "BlueMob needs Bluetooth and Wi-Fi permission to find people around you, without towers or internet.", "Allow", onRequestPermissions)
         }
-        if (state.locationServicesOff) item {
+        if (state.locationServicesOff && state.radios == null) item {
             Notice("Turn on Location", "Android 12 and older need the Location switch on to find nearby phones. No internet is used.", "Open settings", onOpenLocationSettings)
         }
 
@@ -161,6 +189,7 @@ fun NearbyScreen(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 FeatureCard(Icons.Outlined.SmartToy, Extra.sky, "Ask Sky", "Your built-in guide. Lives on your phone, works offline.", onTalkToSky)
                 FeatureCard(Icons.Outlined.MenuBook, Palette.Pine, "Survival guide", "First aid, water, fire, shelter and more. Stored on your phone.", onOpenGuide)
+                FeatureCard(Icons.Outlined.SportsEsports, Extra.ember, "Play a game", "With someone nearby, or against the computer when no one's around.", onGames)
                 FeatureCard(Icons.Outlined.BatterySaver, Color(0xFF3A9A5B), "Make the battery last", "Battery Saver for the phone, while BlueMob keeps running.", onOpenBattery)
             }
         }

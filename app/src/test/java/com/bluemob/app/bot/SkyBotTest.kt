@@ -36,7 +36,16 @@ class SkyBotTest {
         "what is my id" to "BM · 3F9A 1C2B",
         "why is my message waiting" to "waits safely on your phone",
         "my friend got stung by a scorpion" to "I don't have a guide",
-        "how do I fix a car engine?" to "I don't have a guide",
+        "how do I fix a car engine?" to "I don't have an answer",
+        "how much battery do I have" to "Battery 64%",
+        "Battery discharge what to do" to "Phone battery critically low",
+        "Suppose my battery is 1 % what to do" to "At 1%, act now",
+        "If still battery is 1%" to "At 1%, act now",
+        "my phone is dying" to "Phone battery critically low",
+        "how do I charge my phone without a socket" to "Getting power back",
+        "power bank" to "Getting power back",
+        "What to do in free time" to "free time",
+        "I'm bored" to "free time",
     )
 
     @Test

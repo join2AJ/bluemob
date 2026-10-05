@@ -2,11 +2,13 @@ package com.bluemob.app.sos
 
 import android.content.Context
 import android.os.BatteryManager
+import com.bluemob.app.audit.AuditKind
+import com.bluemob.app.audit.AuditLog
 import com.bluemob.app.identity.Identity
-import com.bluemob.app.location.LocationTracker
 import com.bluemob.app.mesh.MeshEvent
 import com.bluemob.app.mesh.NearbyMeshTransport
 import com.bluemob.app.mesh.SosSignal
+import com.bluemob.app.trail.TrailRecorder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,8 +29,9 @@ class SosManager(
     context: Context,
     private val mesh: NearbyMeshTransport,
     private val identity: Identity,
-    private val location: LocationTracker,
+    private val trail: TrailRecorder,
     private val signals: SignalController,
+    private val audit: AuditLog,
     scope: CoroutineScope,
 ) {
     private val battery = context.getSystemService(BatteryManager::class.java)
@@ -52,12 +55,15 @@ class SosManager(
                 if (e !is MeshEvent.SosReceived) return@collect
                 val s = e.sos
                 if (s.cancelled) {
+                    if (_received.value.containsKey(s.fromNodeId)) audit.add(AuditKind.SOS, "${s.name} is safe now (SOS ended)")
                     _received.update { it - s.fromNodeId }
                     if (_alert.value?.fromNodeId == s.fromNodeId) _alert.value = null
                     return@collect
                 }
                 _received.update { it + (s.fromNodeId to s) }
                 if (alerted.add(s.id)) {
+                    audit.add(AuditKind.SOS, "SOS received from ${s.name}" + (if (s.note.isNotBlank()) ": \"${s.note}\"" else "") +
+                        " (${if (s.hops <= 1) "direct" else "passed on by ${s.hops - 1} phones"}). " + (s.pos?.describe() ?: "No position."))
                     _alert.value = s
                     repeat(3) { signals.beep(220); delay(320) }
                 }
@@ -69,13 +75,16 @@ class SosManager(
 
     /** Sends an SOS. Returns how many phones it reached right now. */
     fun send(note: String): Int {
-        val here = location.location.value ?: location.lastKnown()
+        val here = trail.snapshot()
         val sos = SosSignal(
             id = "sos-" + UUID.randomUUID().toString().take(12), fromNodeId = identity.nodeId, name = identity.displayName.value,
-            note = note.trim(), lat = here?.lat, lon = here?.lon, battery = batteryPct(), at = System.currentTimeMillis(), hops = 0,
+            note = note.trim(), lat = here?.lat, lon = here?.lon, battery = batteryPct(), at = System.currentTimeMillis(), hops = 0, pos = here,
         )
         _mine.value = sos
-        return mesh.broadcastSos(sos)
+        val reached = mesh.broadcastSos(sos)
+        audit.add(AuditKind.SOS, "SOS sent to $reached phones nearby" + (if (sos.note.isNotBlank()) ": \"${sos.note}\"" else "") +
+            ". " + (here?.describe() ?: "No position known."))
+        return reached
     }
 
     /** "I'm safe": tells everyone and stops re-sending. */
@@ -83,7 +92,20 @@ class SosManager(
         val sos = _mine.value ?: return
         mesh.broadcastSos(sos.copy(cancelled = true, at = System.currentTimeMillis()))
         _mine.value = null
+        audit.add(AuditKind.SOS, "\"I'm safe\": SOS ended")
     }
 
     fun dismissAlert() { _alert.value = null }
+
+    /** Shows the alert as it would look if someone nearby sent an SOS. Nothing is sent. */
+    fun preview(name: String) {
+        val now = System.currentTimeMillis()
+        val (lat, lon) = com.bluemob.app.util.Geo.offset(30.0869, 78.2676, 215.0, 330.0)
+        val pos = com.bluemob.app.trail.PositionEstimate(lat, lon, false, 30.0869, 78.2676, now - 18 * 60_000, 8f, 340.0, 215.0, 230f, 61.0, now)
+        _alert.value = SosSignal(PREVIEW_ID, "preview", name, "Twisted my ankle near the stream. Can't walk", lat, lon, 23, now, 2, pos = pos)
+    }
+
+    companion object {
+        const val PREVIEW_ID = "preview"
+    }
 }

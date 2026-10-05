@@ -1,5 +1,7 @@
 package com.bluemob.app.mesh
 
+import com.bluemob.app.trail.PositionEstimate
+
 enum class PeerState { DISCOVERED, CONNECTING, CONNECTED }
 
 /** How good the radio link is, as reported by Nearby Connections. */
@@ -31,6 +33,7 @@ sealed interface MeshEvent {
     data class PeerConnected(val nodeId: String) : MeshEvent
     data class PingResult(val nodeId: String, val roundTripMs: Long) : MeshEvent
     data class SosReceived(val sos: SosSignal) : MeshEvent
+    data class LostReceived(val lost: LostSignal) : MeshEvent
 }
 
 /** An SOS as it travels the mesh. [hops] counts how many phones passed it on. */
@@ -45,4 +48,17 @@ data class SosSignal(
     val at: Long,
     val hops: Int,
     val cancelled: Boolean = false,
+    /** GPS, or last fix plus steps and direction since, so helpers can pinpoint the sender. */
+    val pos: PositionEstimate? = null,
+)
+
+/** "I'm lost": the sender's latest position estimate, passed on like an SOS. [ended] when they found their way. */
+data class LostSignal(
+    val id: String,
+    val fromNodeId: String,
+    val name: String,
+    val pos: PositionEstimate?,
+    val at: Long,
+    val hops: Int,
+    val ended: Boolean = false,
 )

@@ -7,6 +7,7 @@ import com.bluemob.app.contacts.Contact
 import com.bluemob.app.contacts.ContactsStore
 import com.bluemob.app.contacts.GeoPoint
 import com.bluemob.app.identity.Identity
+import com.bluemob.app.trail.PositionEstimate
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
@@ -53,6 +54,7 @@ import org.json.JSONObject
  * - `msg`: a chat message with a unique ID (it may be sent again until a receipt comes back)
  * - `rcpt`: a delivery (`k = d`) or read (`k = r`) receipt for a message ID
  * - `sos`: an SOS, passed on by every phone that hears it (up to [SOS_MAX_HOPS] hops)
+ * - `lost`: a lost person's position estimate, passed on the same way
  * - `ping` / `pong`: round-trip time test
  */
 class NearbyMeshTransport(
@@ -84,6 +86,9 @@ class NearbyMeshTransport(
 
     /** SOS we're currently sending: re-sent to every phone that connects until it's cancelled. */
     private var activeSos: JSONObject? = null
+
+    /** Our latest "I'm lost" position, re-sent to every phone that connects until lost mode ends. */
+    private var activeLost: JSONObject? = null
 
     /** Our latest position, if the user shares it. Sent to everyone we connect to. */
     private var myLocation: GeoPoint? = null
@@ -193,6 +198,18 @@ class NearbyMeshTransport(
         return targets.size
     }
 
+    /** Shares a lost-mode position with everyone connected, and with everyone who connects later. */
+    fun broadcastLost(lost: LostSignal): Int {
+        val json = JSONObject().put("t", TYPE_LOST).put("id", lost.id).put("from", lost.fromNodeId).put("name", lost.name)
+            .put("at", lost.at).put("hops", lost.hops).put("end", lost.ended)
+        lost.pos?.let { json.put("pos", posJson(it)) }
+        seenSos += lost.id
+        activeLost = if (lost.ended) null else json
+        val targets = connectedEndpoints()
+        targets.forEach { send(it, json) }
+        return targets.size
+    }
+
     /** Human words for the link to someone, e.g. "Bluetooth" or "Wi-Fi". */
     override fun linkName(nodeId: String): String {
         val peer = _peers.value.values.firstOrNull { it.nodeId == nodeId && it.state == PeerState.CONNECTED }
@@ -211,6 +228,25 @@ class NearbyMeshTransport(
         .put("t", TYPE_SOS).put("id", s.id).put("from", s.fromNodeId).put("name", s.name).put("note", s.note)
         .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("bat", s.battery ?: -1)
         .put("at", s.at).put("hops", s.hops).put("cancel", s.cancelled)
+        .also { j -> s.pos?.let { j.put("pos", posJson(it)) } }
+
+    private fun posJson(p: PositionEstimate) = JSONObject()
+        .put("lat", p.lat).put("lon", p.lon).put("gps", p.gps).put("flat", p.fixLat).put("flon", p.fixLon).put("fat", p.fixAt)
+        .put("facc", p.fixAccuracyM.toDouble()).put("walk", p.walkedM ?: -1.0).put("brg", p.travelBearingDeg ?: -1.0)
+        .put("hdg", p.headingDeg?.toDouble() ?: -1.0).put("unc", p.uncertaintyM).put("at", p.at)
+
+    private fun parsePos(j: JSONObject?): PositionEstimate? {
+        if (j == null) return null
+        val lat = j.optDouble("lat")
+        val lon = j.optDouble("lon")
+        if (lat.isNaN() || lon.isNaN()) return null
+        return PositionEstimate(
+            lat, lon, j.optBoolean("gps"), j.optDouble("flat", lat), j.optDouble("flon", lon), j.optLong("fat"),
+            j.optDouble("facc", 0.0).toFloat(), j.optDouble("walk", -1.0).takeIf { it >= 0 },
+            j.optDouble("brg", -1.0).takeIf { it >= 0 }, j.optDouble("hdg", -1.0).takeIf { it >= 0 }?.toFloat(),
+            j.optDouble("unc", 0.0), j.optLong("at"),
+        )
+    }
 
     /** Shares our position with everyone connected; pass null to stop sharing. */
     fun updateMyLocation(location: GeoPoint?) {
@@ -305,6 +341,7 @@ class NearbyMeshTransport(
                 send(endpointId, helloJson())
                 myLocation?.let { send(endpointId, locationJson(it)) }
                 activeSos?.let { send(endpointId, it) }
+                activeLost?.let { send(endpointId, it) }
                 _events.tryEmit(MeshEvent.PeerConnected(peer.nodeId))
             } else {
                 setState(endpointId, PeerState.DISCOVERED)
@@ -371,6 +408,7 @@ class NearbyMeshTransport(
                     if (id.isNotEmpty()) _events.tryEmit(MeshEvent.Receipt(peer.nodeId, id, json.optString("k") == "r"))
                 }
                 TYPE_SOS -> handleSos(endpointId, json)
+                TYPE_LOST -> handleLost(endpointId, json)
                 TYPE_PING -> {
                     log("Ping from ${peer.name}")
                     send(endpointId, JSONObject().put("t", TYPE_PONG).put("id", json.optString("id")))
@@ -396,11 +434,25 @@ class NearbyMeshTransport(
             id = id, fromNodeId = json.optString("from"), name = json.optString("name"), note = json.optString("note"),
             lat = json.optDouble("lat").takeUnless { it.isNaN() }, lon = json.optDouble("lon").takeUnless { it.isNaN() },
             battery = json.optInt("bat", -1).takeIf { it >= 0 }, at = json.optLong("at"), hops = hops,
-            cancelled = json.optBoolean("cancel"),
+            cancelled = json.optBoolean("cancel"), pos = parsePos(json.optJSONObject("pos")),
         )
         if (sos.fromNodeId == identity.nodeId) return
         log("SOS from ${sos.name} (${if (hops == 1) "direct" else "passed on $hops times"})")
         _events.tryEmit(MeshEvent.SosReceived(sos))
+        if (hops < SOS_MAX_HOPS) {
+            val forward = JSONObject(json.toString()).put("hops", hops)
+            connectedEndpoints().filter { it != fromEndpoint }.forEach { send(it, forward) }
+        }
+    }
+
+    /** Same as an SOS: show once, then pass on. */
+    private fun handleLost(fromEndpoint: String, json: JSONObject) {
+        val id = json.optString("id")
+        if (id.isEmpty() || !seenSos.add(id)) return
+        val hops = json.optInt("hops", 0) + 1
+        val lost = LostSignal(id, json.optString("from"), json.optString("name"), parsePos(json.optJSONObject("pos")), json.optLong("at"), hops, json.optBoolean("end"))
+        if (lost.fromNodeId == identity.nodeId) return
+        _events.tryEmit(MeshEvent.LostReceived(lost))
         if (hops < SOS_MAX_HOPS) {
             val forward = JSONObject(json.toString()).put("hops", hops)
             connectedEndpoints().filter { it != fromEndpoint }.forEach { send(it, forward) }
@@ -435,6 +487,7 @@ class NearbyMeshTransport(
         private const val TYPE_MSG = "msg"
         private const val TYPE_RCPT = "rcpt"
         private const val TYPE_SOS = "sos"
+        private const val TYPE_LOST = "lost"
         const val SOS_MAX_HOPS = 5
         private const val TYPE_PING = "ping"
         private const val TYPE_PONG = "pong"

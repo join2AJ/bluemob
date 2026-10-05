@@ -33,6 +33,20 @@ import com.bluemob.app.ui.profile.ProfileScreen
 import com.bluemob.app.ui.sos.SosAlert
 import com.bluemob.app.ui.sos.SosHubScreen
 import com.bluemob.app.ui.theme.BlueMobTheme
+import com.bluemob.app.audit.AuditChain
+import com.bluemob.app.data.AuditEntry
+import com.bluemob.app.data.TrailPoint
+import com.bluemob.app.settings.SosContact
+import com.bluemob.app.system.RadioState
+import com.bluemob.app.trail.PositionEstimate
+import com.bluemob.app.ui.compass.TrailUi
+import com.bluemob.app.ui.games.GamesScreen
+import com.bluemob.app.ui.games.TicTacToeScreen
+import com.bluemob.app.ui.profile.AuditScreen
+import com.bluemob.app.ui.sos.SosContactsScreen
+import com.bluemob.app.ui.sos.SosHubState
+import com.bluemob.app.ui.system.ConnectionsScreen
+import com.bluemob.app.util.Geo
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
@@ -110,10 +124,63 @@ class ScreenshotTest {
     }
     @Test fun guide() = shot { GuideScreen(setOf("burns"), pad, {}, {}) }
     @Test fun article() = shot { ArticleScreen(GuideContent.byId("burns")!!, true, {}, {}, {}) }
-    @Test fun sosHub() = shot { SosHubScreen(null, 2, SignalMode.SCREEN, {}, { 2 }, {}, {}, {}, {}) }
-    @Test fun sosAlert() = shot {
-        SosAlert(SosSignal("x", "b7e4", "Ravi", "Twisted my ankle near the stream. Can't walk", 30.0837, 78.2663, 21, now, 1), people[1], me.lat, me.lon, {}, {}, {}, {})
+    private val sosMsg: (String) -> String = { note ->
+        "SOS from Arjun (BlueMob #3F9A). I need help." + (if (note.isNotBlank()) " $note." else "") + " " + noGps.describe(now) + " Battery 48%. Sent with BlueMob."
     }
+    private val contacts = listOf(SosContact("1", "Papa", "+91 98100 12345"), SosContact("2", "Didi", "+91 98200 67890"))
+    private val noGps = run {
+        val (lat, lon) = Geo.offset(me.lat, me.lon, 215.0, 330.0)
+        PositionEstimate(lat, lon, false, me.lat, me.lon, now - 18 * 60_000, 8f, 340.0, 215.0, 230f, 61.0, now)
+    }
+    @Composable private fun hub(state: SosHubState) = SosHubScreen(state, sosMsg, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, still = true)
+
+    @Test fun sosHub() = shot(tall = true) { hub(SosHubState(null, 2, SignalMode.SCREEN, contacts)) }
+    @Test fun sosHubDark() = shot(dark = true) { hub(SosHubState(null, 2, SignalMode.SCREEN, contacts)) }
+    @Test fun sosActive() = shot(tall = true) {
+        hub(SosHubState(SosSignal("s", "me", "Arjun", "Twisted ankle", noGps.lat, noGps.lon, 48, now - 60_000, 0, pos = noGps), 2, SignalMode.ALL, contacts, reached = 2))
+    }
+    @Test fun sosContacts() = shot { SosContactsScreen(contacts, {}, { _, _ -> }, {}) }
+    @Test fun sosAlert() = shot(tall = true) {
+        SosAlert(SosSignal("x", "b7e4", "Ravi", "Twisted my ankle near the stream. Can't walk", noGps.lat, noGps.lon, 21, now, 2, pos = noGps), people[1], me.lat, me.lon, {}, {}, {}, {})
+    }
+    @Test fun connections() = shot(tall = true) {
+        ConnectionsScreen(RadioState(bluetooth = true, wifi = false, location = true, airplane = true), online = false, {}, { _, _ -> })
+    }
+    @Test fun nearbyBanner() = shot(tall = true) {
+        val lostAsha = people.mapIndexed { i, p -> if (i == 0) p.copy(lost = noGps) else p }
+        NearbyScreen(nearby.copy(people = lostAsha, radios = RadioState(bluetooth = false, wifi = true, location = true, airplane = false)), pad, {}, {}, {}, {}, {}, {}, {}, {})
+    }
+    private val trailPts = run {
+        val pts = mutableListOf<TrailPoint>()
+        var lat = 30.0830; var lon = 78.2640; var bearing = 30.0
+        repeat(40) { i ->
+            val est = i >= 28
+            pts += TrailPoint(i.toLong(), now - (40 - i) * 60_000L, lat, lon, if (est) 30f else 6f, est)
+            val next = Geo.offset(lat, lon, bearing, 25.0); lat = next.first; lon = next.second
+            bearing += if (i > 14) 7.0 else 1.0
+        }
+        pts
+    }
+    @Test fun compassTrail() = shot(tall = true) {
+        val last = trailPts.last()
+        val est = PositionEstimate(last.lat, last.lon, false, trailPts[27].lat, trailPts[27].lon, now - 13 * 60_000, 6f, 310.0, 140.0, 150f, 56.0, now)
+        CompassScreen(people, listOf(Spot(Spot.BASE_CAMP_ID, "Base camp", 30.0830, 78.2640, now)), GeoPoint(last.lat, last.lon, 56f, now), flowOf(150f), true, true,
+            Spot.BASE_CAMP_ID, pad, {}, {}, {}, {}, {}, trail = TrailUi(true, trailPts, est, lost = true))
+    }
+    @Test fun compassTrailOff() = shot(tall = true) {
+        CompassScreen(people, emptyList(), me, flowOf(20f), true, true, null, pad, {}, {}, {}, {}, {})
+    }
+    @Test fun audit() = shot(tall = true) {
+        var prev: AuditEntry? = null
+        val entries = listOf(
+            "APP" to "BlueMob started · ID BM 3F9A 1C2B 7D4E 8A01", "MESH" to "Connected to Asha over Wi-Fi",
+            "MESSAGE" to "Message m-1f2e written to Asha: \"On my way!\"", "RECEIPT" to "Delivery receipt for m-1f2e from Asha over Wi-Fi",
+            "POSITION" to "Base camp set at 30.0830 N, 78.2640 E", "SOS" to "SOS sent to 2 phones nearby: \"Twisted ankle\". " + noGps.describe(now),
+        ).mapIndexed { i, (k, t) -> AuditChain.next(prev, now - (6 - i) * 60_000L, k, t).also { prev = it } }
+        AuditScreen(entries.asReversed(), null, {})
+    }
+    @Test fun games() = shot { GamesScreen({}, {}) }
+    @Test fun ticTacToe() = shot { TicTacToeScreen {} }
     @Test fun profile() = shot(tall = true) {
         ProfileScreen("Arjun", "🦅", "3f9a1c2b7d4e8a01", true, false, false, SignalMode.ALL, listOf(LogLine(now, "Connected to Asha")), pad,
             {}, {}, {}, {}, {}, {}, {}, {}, {}, {})

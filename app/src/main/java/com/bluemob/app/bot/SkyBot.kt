@@ -3,7 +3,7 @@ package com.bluemob.app.bot
 import com.bluemob.app.guide.GuideCategory
 import com.bluemob.app.guide.GuideContent
 
-/** A button under Sky's reply. [target] is read by the UI: "sos", "sos_signal", "guide:<id>", "tab:<name>". */
+/** A button under Sky's reply. [target] is read by the UI: "sos", "sos_signal", "power", "games", "guide:<id>", "tab:<name>". */
 data class SkyAction(val label: String, val target: String)
 data class SkyAnswer(val text: String, val actions: List<SkyAction> = emptyList())
 
@@ -62,9 +62,16 @@ object SkyBot {
         "lightning" to listOf("lightning", "thunder", "storm"),
         "quake" to listOf("earthquake", "quake", "tremor"),
         "flood" to listOf("flood", "river rising", "water rising"),
+        "battery-low" to listOf("low battery", "battery low", "battery critical", "critical battery", "battery dying", "battery is dying", "phone dying", "phone is dying",
+            "battery discharg", "battery+die", "battery+dead", "battery+%", "battery+save", "battery+last", "battery+empty", "battery+drain", "phone+switch off"),
+        "recharge" to listOf("recharge", "charge my phone", "charge the phone", "charging", "power bank", "powerbank", "solar", "no charger", "regain battery",
+            "battery back", "get power", "charge+without"),
         "threes" to listOf("priorit", "first thing", "how long can", "survive without", "hungry", "food"),
     )
     private val urgent = Regex("\\b(hurt|pain|sick|injur|emergency|bitten|stung|sting|allerg|fever|poison|vomit|faint|seizure|pregnan|unwell|dizzy|bee|scorpion|spider)")
+    private val freeTime = Regex("\\b(free time|spare time|something to do|what (can|should) i do (now|here)|pass (the )?time|kill time|entertain|bored)\\b")
+    /** Battery questions about a problem go to the guide; plain "how much battery" gets the live number. */
+    private val batteryProblem = Regex("\\d\\s*%|low|critical|dying|die|dead|discharg|drain|save|last|empty|charg|power bank|solar|regain|what to do|what do i do")
     private val questionLike = Regex("\\?|\\b(how|what|why|where|when|can i|should i|is it)\\b")
 
     // ---------- the app: how to use each part ----------
@@ -93,7 +100,7 @@ object SkyBot {
         Help(listOf("navigate to", "walk to", "find my friend", "compass tab", "use the compass", "my trail", "save this spot", "waypoint", "back to camp", "find camp"),
             "The Compass tab works offline. Pick a target (a saved spot, or a friend who shares their location) and the arrow shows the way with the distance. \"Save this spot\" remembers where you are.",
             listOf(tab("compass", "Open Compass"))),
-        Help(listOf("battery saver", "save battery", "survival power", "battery last", "low battery", "power mode"),
+        Help(listOf("battery saver", "survival power", "power mode", "power settings"),
             "Go to You → Battery. Turn on the phone's Battery Saver, then let BlueMob keep running in the background, so messages and SOS still reach you.",
             listOf(tab("you", "Open You"))),
         Help(listOf("share my location", "share location", "distance to", "how far is"),
@@ -145,20 +152,28 @@ object SkyBot {
         turn++
         live(t, facts)?.let { return it }
         appHelp.firstOrNull { h -> h.keys.any { atWord(t, it) } }?.let { return SkyAnswer(it.text, it.actions) }
-        guideAnswer(t)?.let { return it }
-        val unknownHelp = SkyAnswer(
+        if (freeTime.containsMatchIn(t)) return SkyAnswer(
+            "Some ideas for free time out here 🌿\n• Play a game with someone nearby, or against the computer if no one's around\n" +
+                "• Learn a guide or two from the survival guide\n• Check who's around on the radar and say hi",
+            listOf(SkyAction("Play a game", "games"), tab("guide", "Browse the guide"), tab("nearby", "Open Nearby")),
+        )
+        guideAnswer(t, facts.batteryPct)?.let { return it }
+        if (urgent.containsMatchIn(t)) return SkyAnswer(
             "I don't have a guide for that on your phone. If it's serious, send an SOS: it reaches everyone nearby right away, and they can help or pass it on.\n\n" +
                 "Asking an expert, and messaging family far away, arrive with the internet bridge in the next update.",
             listOf(SkyAction("🆘 SOS", "sos"), tab("guide", "Browse the guide")),
         )
-        if (urgent.containsMatchIn(t)) return unknownHelp
         chat.firstOrNull { (keys, _) -> keys.any { matches(t, it) } }?.let { (_, options) -> return SkyAnswer(options[turn % options.size]) }
-        if (questionLike.containsMatchIn(t)) return unknownHelp
+        if (questionLike.containsMatchIn(t)) return SkyAnswer(
+            "I don't have an answer for that yet. I'm best with first aid, water, fire, shelter, finding your way, signals, weather, disasters, " +
+                "phone battery, and how BlueMob works.",
+            listOf(tab("guide", "Browse the guide")),
+        )
         return SkyAnswer(fallback[turn % fallback.size])
     }
 
     /** Finds the guide that best fits the question and answers with its first steps. */
-    fun guideAnswer(t: String): SkyAnswer? {
+    fun guideAnswer(t: String, batteryPct: Int? = null): SkyAnswer? {
         val best = survivalKeys.maxByOrNull { (_, keys) -> keys.sumOf { k -> if (k.split("+").all { t.contains(it) }) k.length else 0 } }
             ?.takeIf { (_, keys) -> keys.any { k -> k.split("+").all { t.contains(it) } } }
             ?: return null
@@ -168,9 +183,17 @@ object SkyBot {
         val avoid = if (a.avoid.isNotEmpty()) "\n\nAvoid: " + a.avoid.joinToString(" ") else ""
         val actions = buildList {
             add(SkyAction("Open full guide", "guide:${a.id}"))
+            if (a.id == "battery-low") { add(SkyAction("How to recharge", "guide:recharge")); add(SkyAction("Survival power", "power")) }
             if (a.category == GuideCategory.FIRST_AID) add(SkyAction("🆘 SOS", "sos"))
         }
-        return SkyAnswer("From your survival guide: ${a.title}\n${a.intro}\n\n$steps$more$avoid", actions)
+        // Battery: speak to the number they gave, or to the real level.
+        val pct = Regex("(\\d{1,3})\\s*%").find(t)?.groupValues?.get(1)
+        val lead = if (a.id != "battery-low") "" else when {
+            pct != null -> "At $pct%, act now.\n\n"
+            batteryPct != null -> "Your battery is $batteryPct% right now.\n\n"
+            else -> ""
+        }
+        return SkyAnswer("${lead}From your survival guide: ${a.title}\n${a.intro}\n\n$steps$more$avoid", actions)
     }
 
     private fun live(t: String, f: SkyFacts): SkyAnswer? = when {
@@ -185,8 +208,9 @@ object SkyBot {
                 else "This phone has no internet right now, and that's fine: BlueMob talks phone to phone.")
         listOf("my id", "what is my id", "bluemob id").any { atWord(t, it) } ->
             SkyAnswer("Your BlueMob ID is ${f.bluemobId}. It was given to this phone automatically and no other phone has it. People see it with your name, ${f.name}.")
-        listOf("battery", "how much power", "charge").any { atWord(t, it) } ->
-            SkyAnswer((f.batteryPct?.let { "Battery $it%. " } ?: "") + "To make it last, turn on the phone's Battery Saver and let BlueMob keep running: You → Battery.", listOf(tab("you", "Open You")))
+        listOf("battery", "how much power").any { atWord(t, it) } && !batteryProblem.containsMatchIn(t) ->
+            SkyAnswer((f.batteryPct?.let { "Battery $it%. " } ?: "") + "To make it last, turn on the phone's Battery Saver and let BlueMob keep running: You → Battery.",
+                listOf(SkyAction("Survival power", "power"), SkyAction("If it gets low", "guide:battery-low")))
         listOf("my messages", "how many messages", "waiting messages", "undelivered", "unread").any { atWord(t, it) } ->
             SkyAnswer((if (f.waitingMessages == 0) "All your messages have been delivered." else "${f.waitingMessages} message${if (f.waitingMessages == 1) " is" else "s are"} waiting for someone to come in range.") +
                 if (f.unread > 0) " You have ${f.unread} unread." else "")

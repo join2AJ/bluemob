@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -81,14 +82,16 @@ fun CompassScreen(
     onRequestLocation: () -> Unit,
     onSaveSpot: () -> Unit,
     onRemoveSpot: (String) -> Unit,
+    trail: TrailUi = TrailUi(),
+    trailActions: TrailActions = TrailActions(),
 ) {
     DisposableEffect(hasLocationPermission) {
         if (hasLocationPermission) onHoldLocation()
         onDispose { if (hasLocationPermission) onReleaseLocation() }
     }
     val heading by remember(headings) { headings }.collectAsStateWithLifecycle(initialValue = 0f)
-    val targets = spots.map { Target(it.id, it.name, "📍", GeoPoint(it.lat, it.lon, 0f, it.time)) } +
-        people.mapNotNull { p -> p.location?.let { Target(p.nodeId, p.name, p.avatar ?: "🙂", it) } }
+    val targets = spots.map { Target(it.id, it.name, if (it.isBaseCamp) "⛺" else "📍", GeoPoint(it.lat, it.lon, 0f, it.time)) } +
+        people.mapNotNull { p -> p.location?.let { Target(p.nodeId, if (p.lost != null) "${p.name} (lost)" else p.name, p.avatar ?: "🙂", it) } }
     var selected by rememberSaveable { mutableStateOf(initialTarget) }
     val target = targets.firstOrNull { it.id == selected } ?: targets.firstOrNull()
     val bearing = if (myLocation != null && target != null) Geo.bearingDeg(myLocation, target.point).toFloat() else null
@@ -140,15 +143,19 @@ fun CompassScreen(
             )
         }
         item {
-            Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
                 TextButton(onClick = onSaveSpot, enabled = hasLocationPermission) { Text("+ Save this spot") }
+                TextButton(onClick = trailActions.onBaseCamp, enabled = hasLocationPermission) { Text("⛺ Set base camp here") }
             }
         }
-        if (spots.isNotEmpty()) {
+        item { GroupLabel("Trail & lost mode") }
+        item { if (trail.on) TrailCard(trail, spots, myLocation, trailActions) else TrailOptIn(trailActions.onTrail) }
+        item { Box(Modifier.padding(top = 12.dp)) { LostCard(trail, trailActions.onLost) } }
+        if (spots.any { !it.isBaseCamp }) {
             item { GroupLabel("Saved spots") }
             item {
                 Group {
-                    spots.forEachIndexed { i, s ->
+                    spots.filterNot { it.isBaseCamp }.forEachIndexed { i, s ->
                         SettingRow(Icons.Outlined.Place, MaterialTheme.colorScheme.primary, s.name,
                             myLocation?.let { Geo.formatDistance(Geo.distanceM(it, GeoPoint(s.lat, s.lon, 0f, 0))) + " away" } ?: "Saved place", divider = i > 0) {
                             TextButton(onClick = { onRemoveSpot(s.id) }) { Text("Remove") }
