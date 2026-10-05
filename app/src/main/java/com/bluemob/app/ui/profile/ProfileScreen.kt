@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.SettingsInputAntenna
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.BatterySaver
@@ -92,6 +93,8 @@ fun ProfileScreen(
     onAudit: () -> Unit = {},
     onGames: () -> Unit = {},
     sosContactCount: Int = 0,
+    background: Boolean = true,
+    onBackground: (Boolean) -> Unit = {},
 ) {
     var draft by remember(name) { mutableStateOf(name) }
     var showLog by rememberSaveable { mutableStateOf(false) }
@@ -144,6 +147,10 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.Hub, MaterialTheme.colorScheme.primary, "Mesh", "Find and be found by nearby phones") { Switch(running, onToggleMesh) }
                 SettingRow(Icons.Outlined.LocationOn, Extra.sky, "Share my location", "Connected people see how far you are. GPS, no internet", divider = true) {
                     Switch(sharingLocation, onToggleLocation)
+                }
+                SettingRow(Icons.Outlined.NotificationsActive, Extra.rose, "Stay on in the background",
+                    if (background) "SOS and messages reach you with the screen off" else "Off: SOS and messages only arrive while BlueMob is open", divider = true) {
+                    Switch(background, onBackground)
                 }
                 SettingRow(Icons.Outlined.SettingsInputAntenna, Extra.ember, "Bluetooth, Wi-Fi, GPS, internet", "See what's on and switch it, in one place",
                     divider = true, onClick = onConnections) { chevron() }

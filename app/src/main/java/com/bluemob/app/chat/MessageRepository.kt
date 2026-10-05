@@ -8,6 +8,7 @@ import com.bluemob.app.data.MessageEntity
 import com.bluemob.app.data.MessageStatus
 import com.bluemob.app.data.PathState
 import com.bluemob.app.data.SeenId
+import com.bluemob.app.mesh.Handoff
 import com.bluemob.app.mesh.MeshEvent
 import com.bluemob.app.mesh.MessageLink
 import kotlinx.coroutines.CoroutineScope
@@ -43,6 +44,8 @@ class MessageRepository(
     private val sky: (String) -> SkyAnswer,
     /** Writes to the audit trail: (kind, other person's node ID, what happened). */
     private val record: (AuditKind, String, String) -> Unit = { _, _, _ -> },
+    /** Called once per new incoming message (not for copies), e.g. to show a notification. */
+    private val onIncoming: (peer: String, text: String) -> Unit = { _, _ -> },
 ) {
     val messages: StateFlow<List<MessageEntity>> = dao.observeAll().stateIn(scope, SharingStarted.Eagerly, emptyList())
 
@@ -93,10 +96,10 @@ class MessageRepository(
                     directState = if (inRange) PathState.TRYING else PathState.WAITING,
                     internetState = PathState.UNAVAILABLE,
                     history = event(now, "Written on your phone") +
-                        event(now, if (inRange) "In range. Sending directly" else "Not in range. Waiting on your phone until they are"),
+                        event(now, if (inRange) "In range. Sending directly" else "Not in range. Looking for a way to reach them through phones nearby"),
                 )
             )
-            deliver(peer)
+            deliverAll()
         }
     }
 
@@ -115,26 +118,31 @@ class MessageRepository(
 
     private suspend fun handle(event: MeshEvent) {
         when (event) {
-            is MeshEvent.PeerConnected -> deliver(event.nodeId)
+            // Any new phone in range might be them, or someone who can carry messages toward them.
+            is MeshEvent.PeerConnected, is MeshEvent.KeyLearned -> deliverAll()
             is MeshEvent.MessageReceived -> receive(event)
             is MeshEvent.Receipt -> receipt(event)
             else -> Unit
         }
     }
 
-    /** Sends everything still waiting for [peer], plus read receipts we owe them. */
-    private suspend fun deliver(peer: String) = deliveryLock.withLock {
-        if (!mesh.isConnected(peer)) return@withLock
-        val link = mesh.linkName(peer)
+    /** Offers every message still waiting for a receipt to the mesh, plus read receipts we owe. */
+    private suspend fun deliverAll() = deliveryLock.withLock {
         val now = System.currentTimeMillis()
-        dao.unacknowledged(peer).forEach { m ->
-            if (mesh.sendChat(peer, m.id, m.text, m.createdAt)) {
-                val note = if (m.attempts == 0) "Sent over $link" else "Sent again over $link (attempt ${m.attempts + 1}): no receipt came back last time"
-                dao.update(m.copy(status = MessageStatus.SENT, directState = PathState.TRYING, attempts = m.attempts + 1, history = m.history + event(now, note)))
+        dao.unacknowledgedAll().forEach { m ->
+            when (val h = mesh.sendChat(m.peer, m.id, m.text, m.createdAt)) {
+                is Handoff.Direct -> {
+                    val note = if (m.attempts == 0) "Sent over ${h.link}" else "Sent again over ${h.link} (attempt ${m.attempts + 1}): no receipt came back last time"
+                    dao.update(m.copy(status = MessageStatus.SENT, directState = PathState.TRYING, attempts = m.attempts + 1, history = m.history + event(now, note)))
+                }
+                is Handoff.Carried -> dao.update(m.copy(status = MessageStatus.SENT, directState = PathState.TRYING,
+                    history = m.history + event(now, "Handed to ${h.via.joinToString(" and ")} to carry toward them. It's encrypted: carriers can't read it")))
+                Handoff.NeedsKey -> if (!m.history.contains(KEY_NOTE)) dao.update(m.copy(history = m.history + event(now, KEY_NOTE)))
+                Handoff.Held -> Unit
             }
         }
-        dao.readReceiptsOwed(peer).forEach { m ->
-            if (mesh.sendReceipt(peer, m.id, read = true)) dao.update(m.copy(readReceiptSent = true))
+        dao.readReceiptsOwedAll().forEach { m ->
+            if (mesh.sendReceipt(m.peer, m.id, read = true)) dao.update(m.copy(readReceiptSent = true))
         }
     }
 
@@ -144,6 +152,7 @@ class MessageRepository(
         // Always answer with a receipt: if our first one was lost, the sender is still re-sending.
         mesh.sendReceipt(e.fromNodeId, e.messageId, read = false)
         if (!isNew) return // A copy we already have: discard it.
+        if (openConversation != e.fromNodeId) onIncoming(e.fromNodeId, e.text)
         record(AuditKind.MESSAGE, e.fromNodeId, "Message ${e.messageId} received from {name} over ${mesh.linkName(e.fromNodeId)}: \"${e.text.take(80)}\"")
         val open = openConversation == e.fromNodeId
         val readNow = open && mesh.sendReceipt(e.fromNodeId, e.messageId, read = true)
@@ -152,7 +161,8 @@ class MessageRepository(
                 id = e.messageId, peer = e.fromNodeId, fromMe = false, text = e.text, createdAt = e.sentAt,
                 status = if (open) MessageStatus.READ else MessageStatus.RECEIVED,
                 readAt = if (open) now else null, readReceiptSent = readNow,
-                history = event(now, "Received over ${mesh.linkName(e.fromNodeId)}"),
+                history = event(now, if (e.hops <= 1) "Received over ${mesh.linkName(e.fromNodeId)}"
+                    else "Received over the mesh: passed on by ${e.hops - 1} phone${if (e.hops > 2) "s" else ""}. End-to-end encrypted"),
             )
         )
     }
@@ -161,7 +171,7 @@ class MessageRepository(
         val m = dao.get(e.messageId) ?: return
         if (!m.fromMe || m.peer != e.fromNodeId) return
         val now = System.currentTimeMillis()
-        val link = m.deliveredVia ?: mesh.linkName(e.fromNodeId)
+        val link = m.deliveredVia ?: if (e.hops <= 1) mesh.linkName(e.fromNodeId) else "the mesh (${e.hops - 1} phone${if (e.hops > 2) "s" else ""} carried it)"
         val delivered = m.copy(
             deliveredAt = m.deliveredAt ?: now, deliveredVia = link, directState = PathState.DELIVERED,
             internetState = if (m.internetState == PathState.WAITING) PathState.CANCELLED else m.internetState,
@@ -197,6 +207,7 @@ class MessageRepository(
     }
 
     companion object {
+        const val KEY_NOTE = "Asking phones nearby for their key, so it can be encrypted"
         fun newId(): String = "m-" + UUID.randomUUID().toString().replace("-", "").take(20)
         fun event(at: Long, text: String) = "$at|$text\n"
 

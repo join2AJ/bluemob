@@ -125,7 +125,8 @@ fun ChatScreen(
                                     isBot -> "Lives on your phone · works offline"
                                     presence == Presence.ONLINE -> "Online nearby · " + linkWords(person?.quality)
                                     presence == Presence.IN_RANGE -> "In range · connecting…"
-                                    else -> "Seen ${TimeText.ago(person?.lastSeen ?: 0)} · messages wait until they're in range"
+                                    (person?.lastSeen ?: 0L) == 0L -> "Not met yet · reached through phones nearby"
+                                    else -> "Seen ${TimeText.ago(person?.lastSeen ?: 0)} · not in range, messages travel through the mesh"
                                 },
                                 style = MaterialTheme.typography.bodySmall, maxLines = 1,
                                 color = if (typing || presence == Presence.ONLINE) MaterialTheme.colorScheme.primary else Extra.ink2,
@@ -194,7 +195,8 @@ private fun Intro(isBot: Boolean, nodeId: String, name: String, emoji: String?, 
         if (isBot) Tag("On this phone · offline", Extra.skyTint, Extra.sky) else Tag("Direct · by BlueMob ID", Extra.pineTint, MaterialTheme.colorScheme.primary)
         Text(
             if (isBot) "Built into BlueMob, on your phone. No internet, no server: what you ask stays here. I know the app, the survival guide, and what's happening around you."
-            else "You met nearby. You can always write: messages wait on your phone and go over Bluetooth or Wi-Fi the moment ${person?.name ?: "they"} is in range, exactly once.",
+            else "Write any time, wherever ${person?.name ?: "they"} is. In range, it goes straight over Bluetooth or Wi-Fi. If not, phones nearby carry it " +
+                "toward them, end-to-end encrypted so no one else can read it. Shown exactly once; the ticks tell you when it arrives.",
             style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp),
         )
     }

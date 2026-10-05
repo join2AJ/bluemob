@@ -18,7 +18,8 @@ class EndpointInfoTest {
     @Test
     fun rejectsForeignEndpoints() {
         assertNull(EndpointInfo.decode("SomeOtherApp"))
-        assertNull(EndpointInfo.decode("BM2|abc|name"))
-        assertNull(EndpointInfo.decode("BM1||name"))
+        assertNull(EndpointInfo.decode("BM9|abc|name"))
+        assertNull(EndpointInfo.decode("BM1|abc|name")) // older, unsigned protocol
+        assertNull(EndpointInfo.decode("BM2||name"))
     }
 }

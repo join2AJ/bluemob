@@ -1,6 +1,10 @@
 package com.bluemob.app
 
+import android.app.Activity
 import android.app.Application
+import android.os.Bundle
+import com.bluemob.app.service.MeshService
+import com.bluemob.app.service.Notifier
 import com.bluemob.app.audit.AuditKind
 import com.bluemob.app.audit.AuditLog
 import com.bluemob.app.bot.SkyBot
@@ -14,6 +18,9 @@ import com.bluemob.app.identity.Identity
 import com.bluemob.app.location.LocationTracker
 import com.bluemob.app.mesh.MeshEvent
 import com.bluemob.app.mesh.NearbyMeshTransport
+import com.bluemob.app.mesh.RoomRelayStore
+import com.bluemob.app.contacts.Contact
+import com.bluemob.app.crypto.KeyBook
 import com.bluemob.app.settings.AppSettings
 import com.bluemob.app.sos.SignalController
 import com.bluemob.app.rescue.RescueManager
@@ -49,27 +56,64 @@ class BlueMobApp : Application() {
     lateinit var lost: LostMode private set
     lateinit var radios: Radios private set
     lateinit var rescue: RescueManager private set
+    lateinit var keyBook: KeyBook private set
+    lateinit var notifier: Notifier private set
+
+    /** True while any BlueMob screen is visible. Notifications are only shown when it isn't. */
+    @Volatile var inForeground = false
+        private set
 
     override fun onCreate() {
         super.onCreate()
+        notifier = Notifier(this)
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            private var started = 0
+            override fun onActivityStarted(a: Activity) { started++; inForeground = true }
+            override fun onActivityStopped(a: Activity) { started--; inForeground = started > 0 }
+            override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
+            override fun onActivityResumed(a: Activity) = Unit
+            override fun onActivityPaused(a: Activity) = Unit
+            override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
+            override fun onActivityDestroyed(a: Activity) = Unit
+        })
         identity = Identity(this)
         contacts = ContactsStore(this)
-        mesh = NearbyMeshTransport(this, identity, contacts)
+        val db = BlueMobDatabase.create(this)
+        keyBook = loadKeyBook()
+        mesh = NearbyMeshTransport(this, identity, contacts, keyBook, RoomRelayStore(db.relay(), appScope))
         location = LocationTracker(this)
         connectivity = Connectivity(this)
         settings = AppSettings(this)
         signals = SignalController(this)
         heading = HeadingSensor(this)
         radios = Radios(this)
-        val db = BlueMobDatabase.create(this)
         audit = AuditLog(db.audit(), appScope)
         audit.add(AuditKind.APP, "BlueMob started · ID BM ${formatId(identity.nodeId)}")
+        identity.previousNodeId?.let { audit.add(AuditKind.APP, "BlueMob ID changed from BM ${formatId(it)} to a key-based ID that can't be copied") }
         trail = TrailRecorder(this, location, heading, db.trail(), settings, audit, appScope) { identity.shareLocation.value }
         lost = LostMode(mesh, identity, trail, audit, appScope)
         sos = SosManager(this, mesh, identity, trail, signals, audit, appScope)
         rescue = RescueManager(mesh, identity, db.rescue(), trail, location, sos, audit, appScope)
-        messages = MessageRepository(db.messages(), mesh, appScope, sky = { text -> SkyBot.reply(text, skyFacts()) }) { kind, peer, text ->
-            audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone"))
+        messages = MessageRepository(db.messages(), mesh.router, appScope, sky = { text -> SkyBot.reply(text, skyFacts()) },
+            record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
+            onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, contacts.contacts.value[peer]?.name ?: "Someone", text) },
+        )
+        appScope.launch { sos.alert.collect { a -> if (a != null && !inForeground && a.id != SosManager.PREVIEW_ID) notifier.sos(a) } }
+        appScope.launch { rescue.notices.collect { n -> if (!inForeground) notifier.rescue(n.room, n.text) } }
+        // The mesh keeps running in the background (with its notification) whenever it's on.
+        appScope.launch {
+            combine(mesh.running, settings.background) { on, bg -> on && bg }.collect { keep ->
+                if (keep) MeshService.start(this@BlueMobApp) else MeshService.stop(this@BlueMobApp)
+            }
+        }
+        // People who message us by our ID, without having met: add them so they show up in Chats.
+        appScope.launch {
+            mesh.router.events.collect { e ->
+                if (e is MeshEvent.MessageReceived && e.hops > 1) {
+                    val name = e.name ?: ("BM " + formatId(e.fromNodeId).take(9))
+                    contacts.upsert(e.fromNodeId) { c -> c?.let { if (it.lastSeen == 0L) it.copy(name = name) else it } ?: Contact(e.fromNodeId, name, null, 0) }
+                }
+            }
         }
         appScope.launch {
             mesh.events.collect { e ->
@@ -88,6 +132,15 @@ class BlueMobApp : Application() {
         appScope.launch {
             combine(identity.displayName, identity.avatar) { _, _ -> }.drop(1).collect { mesh.broadcastProfile() }
         }
+    }
+
+    /** Public keys we've learned, saved so we can message people later without asking the mesh again. */
+    private fun loadKeyBook(): KeyBook {
+        val prefs = getSharedPreferences("keys", MODE_PRIVATE)
+        val initial = runCatching { org.json.JSONObject(prefs.getString("book", "{}")!!).let { o -> o.keys().asSequence().associateWith { o.getString(it) } } }.getOrDefault(emptyMap())
+        var latest = initial
+        val save = com.bluemob.app.util.Debounced(2_000) { prefs.edit().putString("book", org.json.JSONObject(latest).toString()).apply() }
+        return KeyBook(initial) { latest = it; save() }
     }
 
     /** What Sky can see on this phone right now. */

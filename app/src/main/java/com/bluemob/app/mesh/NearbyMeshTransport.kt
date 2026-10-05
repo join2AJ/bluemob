@@ -6,6 +6,8 @@ import android.util.Log
 import com.bluemob.app.contacts.Contact
 import com.bluemob.app.contacts.ContactsStore
 import com.bluemob.app.contacts.GeoPoint
+import com.bluemob.app.crypto.Crypto
+import com.bluemob.app.crypto.KeyBook
 import com.bluemob.app.identity.Identity
 import com.bluemob.app.trail.PosCodec.parsePos
 import com.bluemob.app.trail.PosCodec.posJson
@@ -63,7 +65,9 @@ class NearbyMeshTransport(
     context: Context,
     private val identity: Identity,
     private val contacts: ContactsStore,
-) : MessageLink {
+    private val keyBook: KeyBook,
+    relayStore: RelayStore = MemoryRelayStore(),
+) : Wire {
 
     private val client = Nearby.getConnectionsClient(context.applicationContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -78,13 +82,21 @@ class NearbyMeshTransport(
     val log: StateFlow<List<LogLine>> = _log.asStateFlow()
 
     private val _events = MutableSharedFlow<MeshEvent>(extraBufferCapacity = 64)
-    override val events: SharedFlow<MeshEvent> = _events.asSharedFlow()
+    val events: SharedFlow<MeshEvent> = _events.asSharedFlow()
+
+    /** Gets chat messages and receipts to anyone, through other phones if needed. The message store talks to this. */
+    val router = MeshRouter(this, identity.keys, keyBook, relayStore, myName = { identity.displayName.value }, log = ::log)
+
+    /** Nearby's per-connection token: the other phone signs it in its hello to prove it owns its ID. */
+    private val authTokens = mutableMapOf<String, ByteArray>()
 
     /** Ping send times, keyed by ping ID, to measure round-trip time. */
     private val pendingPings = mutableMapOf<String, Long>()
 
-    /** SOS IDs already seen, so a passed-on SOS isn't shown or passed on twice. */
-    private val seenSos = mutableSetOf<String>()
+    /** IDs of SOS, lost and rescue-group packets already seen, so they aren't shown or passed on twice. Bounded. */
+    private val seenSos: MutableSet<String> = java.util.Collections.newSetFromMap(object : LinkedHashMap<String, Boolean>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?) = size > 5_000
+    })
 
     /** SOS we're currently sending: re-sent to every phone that connects until it's cancelled. */
     private var activeSos: JSONObject? = null
@@ -171,68 +183,67 @@ class NearbyMeshTransport(
         val endpointId = connectedEndpointFor(nodeId) ?: return false
         val id = SystemClock.elapsedRealtimeNanos().toString()
         pendingPings[id] = SystemClock.elapsedRealtime()
-        send(endpointId, JSONObject().put("t", TYPE_PING).put("id", id))
-        return true
-    }
-
-    /** Sends a chat message to a directly connected phone. Returns false if they are not connected. */
-    override fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long): Boolean {
-        val endpointId = connectedEndpointFor(toNodeId) ?: return false
-        send(endpointId, JSONObject().put("t", TYPE_MSG).put("id", messageId).put("text", text).put("at", sentAt))
-        return true
-    }
-
-    /** Sends a delivery or read receipt for a message. Returns false if they are not connected. */
-    override fun sendReceipt(toNodeId: String, messageId: String, read: Boolean): Boolean {
-        val endpointId = connectedEndpointFor(toNodeId) ?: return false
-        send(endpointId, JSONObject().put("t", TYPE_RCPT).put("id", messageId).put("k", if (read) "r" else "d"))
+        sendTo(endpointId, JSONObject().put("t", TYPE_PING).put("id", id))
         return true
     }
 
     /** Broadcasts our SOS to everyone connected now, and to everyone who connects later, until cancelled. */
     fun broadcastSos(sos: SosSignal): Int {
-        val json = sosJson(sos)
-        seenSos += sos.id + sos.cancelled
+        val json = Envelope.seal(TYPE_SOS, sosBody(sos), identity.keys)
+        seenSos += TYPE_SOS + sos.id + sos.cancelled
         activeSos = if (sos.cancelled) null else json
         val targets = connectedEndpoints()
-        targets.forEach { send(it, json) }
+        targets.forEach { sendTo(it, json) }
         log((if (sos.cancelled) "Sent \"I'm safe\" to " else "SOS sent to ") + "${targets.size} phones")
         return targets.size
     }
 
     /** Shares a lost-mode position with everyone connected, and with everyone who connects later. */
     fun broadcastLost(lost: LostSignal): Int {
-        val json = JSONObject().put("t", TYPE_LOST).put("id", lost.id).put("from", lost.fromNodeId).put("name", lost.name)
-            .put("at", lost.at).put("hops", lost.hops).put("end", lost.ended)
-        lost.pos?.let { json.put("pos", posJson(it)) }
-        seenSos += lost.id
+        val body = JSONObject().put("id", lost.id).put("name", lost.name).put("at", lost.at).put("end", lost.ended)
+        lost.pos?.let { body.put("pos", posJson(it)) }
+        val json = Envelope.seal(TYPE_LOST, body, identity.keys)
+        seenSos += TYPE_LOST + lost.id
         activeLost = if (lost.ended) null else json
         val targets = connectedEndpoints()
-        targets.forEach { send(it, json) }
+        targets.forEach { sendTo(it, json) }
         return targets.size
     }
 
     /** Sends a rescue-group message to everyone connected; each phone passes it on. */
     fun broadcastRoom(m: RoomPayload): Int {
-        seenSos += m.id
-        val json = roomJson(m)
+        val json = roomJson(m) ?: return 0
+        seenSos += TYPE_ROOM + m.id
         val targets = connectedEndpoints()
-        targets.forEach { send(it, json) }
+        targets.forEach { sendTo(it, json) }
         return targets.size
     }
 
     /** Sends a rescue-group message to one phone, e.g. one that just connected and may have missed it. */
     fun sendRoom(nodeId: String, m: RoomPayload): Boolean {
         val endpointId = connectedEndpointFor(nodeId) ?: return false
-        send(endpointId, roomJson(m))
+        sendTo(endpointId, roomJson(m) ?: return false)
         return true
     }
 
-    private fun roomJson(m: RoomPayload) = JSONObject().put("t", TYPE_ROOM).put("id", m.id).put("room", m.room).put("from", m.fromNodeId)
-        .put("name", m.fromName).put("k", m.kind).put("text", m.text).put("at", m.at).put("hops", m.hops)
-        .also { j -> m.pos?.let { j.put("pos", posJson(it)) } }
+    /** Our own group messages are signed by us. Ones we pass on for others keep their original signature. */
+    private val roomPackets = object : LinkedHashMap<String, JSONObject>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, JSONObject>?) = size > 500
+    }
+
+    private fun roomJson(m: RoomPayload): JSONObject? = roomPackets[m.id]?.let { JSONObject(it.toString()).put("h", 0) } ?: run {
+        // Someone else's message we no longer hold signed (e.g. after a restart): we can't re-sign it as them.
+        if (m.fromNodeId != identity.nodeId) return null
+        val body = JSONObject().put("id", m.id).put("room", m.room).put("name", m.fromName).put("k", m.kind).put("text", m.text).put("at", m.at)
+            .also { j -> m.pos?.let { j.put("pos", posJson(it)) } }
+        Envelope.seal(TYPE_ROOM, body, identity.keys).also { if (m.fromNodeId == identity.nodeId) roomPackets[m.id] = it }
+    }
 
     /** Human words for the link to someone, e.g. "Bluetooth" or "Wi-Fi". */
+    override fun neighbors(): List<String> = connectedNodes()
+    override fun send(nodeId: String, packet: JSONObject) { connectedEndpointFor(nodeId)?.let { sendTo(it, packet) } }
+    override fun nameOf(nodeId: String): String = contacts.contacts.value[nodeId]?.name ?: "someone"
+
     override fun linkName(nodeId: String): String {
         val peer = _peers.value.values.firstOrNull { it.nodeId == nodeId && it.state == PeerState.CONNECTED }
         return when (peer?.quality) {
@@ -246,23 +257,23 @@ class NearbyMeshTransport(
     fun connectedNodes(): List<String> =
         _peers.value.values.filter { it.state == PeerState.CONNECTED }.map { it.nodeId }
 
-    private fun sosJson(s: SosSignal) = JSONObject()
-        .put("t", TYPE_SOS).put("id", s.id).put("from", s.fromNodeId).put("name", s.name).put("note", s.note)
+    private fun sosBody(s: SosSignal) = JSONObject()
+        .put("id", s.id).put("name", s.name).put("note", s.note)
         .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("bat", s.battery ?: -1)
-        .put("at", s.at).put("hops", s.hops).put("cancel", s.cancelled)
+        .put("at", s.at).put("cancel", s.cancelled)
         .also { j -> s.pos?.let { j.put("pos", posJson(it)) } }
 
     /** Shares our position with everyone connected; pass null to stop sharing. */
     fun updateMyLocation(location: GeoPoint?) {
         myLocation = location
         if (location == null) return
-        connectedEndpoints().forEach { send(it, locationJson(location)) }
+        connectedEndpoints().forEach { sendTo(it, locationJson(location)) }
     }
 
     /** Re-sends our profile after the user changes their name or avatar. */
-    fun broadcastProfile() = connectedEndpoints().forEach { send(it, helloJson()) }
+    fun broadcastProfile() = connectedEndpoints().forEach { sendTo(it, helloJson()) }
 
-    override fun isConnected(nodeId: String): Boolean = connectedEndpointFor(nodeId) != null
+    fun isConnected(nodeId: String): Boolean = connectedEndpointFor(nodeId) != null
 
     private fun connectedEndpointFor(nodeId: String): String? =
         _peers.value.values.firstOrNull { it.nodeId == nodeId && it.state == PeerState.CONNECTED }?.endpointId
@@ -272,15 +283,19 @@ class NearbyMeshTransport(
 
     private fun myEndpointName() = EndpointInfo.encode(identity.nodeId, identity.displayName.value)
 
-    private fun helloJson() = JSONObject()
-        .put("t", TYPE_HELLO)
+    /** Our profile, our public key, and a signature over this connection's token: proof we own our ID. */
+    private fun helloJson(endpointId: String? = null) = JSONObject()
+        .put("t", TYPE_HELLO).put("v", PROTOCOL)
         .put("name", identity.displayName.value)
         .put("avatar", identity.avatar.value)
+        .put("pk", identity.keys.publicB64)
+        .also { j -> endpointId?.let { authTokens[it] }?.let { j.put("auth", Crypto.encode(identity.keys.sign(it))) } }
 
     private fun locationJson(l: GeoPoint) = JSONObject()
         .put("t", TYPE_LOC).put("lat", l.lat).put("lon", l.lon).put("acc", l.accuracyM.toDouble()).put("at", l.time)
 
-    private fun send(endpointId: String, json: JSONObject) {
+    private fun sendTo(endpointId: String, json: JSONObject) {
+        if (!_peers.value.containsKey(endpointId)) return
         client.sendPayload(endpointId, Payload.fromBytes(json.toString().toByteArray()))
             .addOnFailureListener { log("Send failed: ${describe(it)}") }
     }
@@ -332,7 +347,9 @@ class NearbyMeshTransport(
                 return
             }
             _peers.update { it + (endpointId to Peer(endpointId, nodeId, name, PeerState.CONNECTING)) }
-            // Everyone is accepted for now. Phase 5 adds identity keys and encryption.
+            // Both phones see the same token for this connection. Each signs it in its hello, proving it owns the ID
+            // it advertised; a phone that can't is disconnected. (Nearby also encrypts the link itself.)
+            info.rawAuthenticationToken?.let { authTokens[endpointId] = it }
             client.acceptConnection(endpointId, payloadCallback)
         }
 
@@ -342,10 +359,11 @@ class NearbyMeshTransport(
                 setState(endpointId, PeerState.CONNECTED)
                 contacts.touch(peer.nodeId, peer.name)
                 log("Connected to ${peer.name}")
-                send(endpointId, helloJson())
-                myLocation?.let { send(endpointId, locationJson(it)) }
-                activeSos?.let { send(endpointId, it) }
-                activeLost?.let { send(endpointId, it) }
+                sendTo(endpointId, helloJson(endpointId))
+                myLocation?.let { sendTo(endpointId, locationJson(it)) }
+                activeSos?.let { sendTo(endpointId, it) }
+                activeLost?.let { sendTo(endpointId, it) }
+                router.onNeighborConnected(peer.nodeId)
                 _events.tryEmit(MeshEvent.PeerConnected(peer.nodeId))
             } else {
                 setState(endpointId, PeerState.DISCOVERED)
@@ -357,6 +375,7 @@ class NearbyMeshTransport(
         override fun onDisconnected(endpointId: String) {
             val peer = _peers.value[endpointId] ?: return
             _peers.update { it - endpointId }
+            authTokens.remove(endpointId)
             contacts.touch(peer.nodeId, peer.name)
             log("${peer.name} disconnected")
         }
@@ -377,14 +396,16 @@ class NearbyMeshTransport(
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             val bytes = payload.asBytes() ?: return
+            if (bytes.size > MAX_PAYLOAD) return log("Ignored an oversized packet")
             val json = runCatching { JSONObject(String(bytes)) }.getOrNull() ?: return
             val peer = _peers.value[endpointId] ?: return
             contacts.touch(peer.nodeId, peer.name)
             when (json.optString("t")) {
                 TYPE_HELLO -> {
-                    val name = json.optString("name").ifBlank { peer.name }
-                    val avatar = json.optString("avatar").ifBlank { null }
-                    _peers.update { it + (endpointId to peer.copy(name = name)) }
+                    if (!verifyHello(endpointId, peer, json)) return
+                    val name = json.optString("name").replace("|", " ").trim().take(Identity.MAX_NAME_LENGTH).ifBlank { peer.name }
+                    val avatar = json.optString("avatar").take(8).ifBlank { null }
+                    _peers.update { it + (endpointId to peer.copy(name = name, verified = true)) }
                     contacts.upsert(peer.nodeId) { c ->
                         c?.copy(name = name, avatar = avatar, lastSeen = System.currentTimeMillis())
                             ?: Contact(peer.nodeId, name, avatar, System.currentTimeMillis())
@@ -400,23 +421,13 @@ class NearbyMeshTransport(
                         (c ?: Contact(peer.nodeId, peer.name, null, System.currentTimeMillis())).copy(location = loc)
                     }
                 }
-                TYPE_MSG -> {
-                    val id = json.optString("id")
-                    val text = json.optString("text")
-                    if (id.isEmpty() || text.isEmpty()) return
-                    // The message store decides whether this is new, and sends the receipt.
-                    _events.tryEmit(MeshEvent.MessageReceived(peer.nodeId, id, text, json.optLong("at", System.currentTimeMillis())))
-                }
-                TYPE_RCPT -> {
-                    val id = json.optString("id")
-                    if (id.isNotEmpty()) _events.tryEmit(MeshEvent.Receipt(peer.nodeId, id, json.optString("k") == "r"))
-                }
+                MeshRouter.RMSG, MeshRouter.RRCPT, MeshRouter.KEYQ, MeshRouter.KEYA -> router.onPacket(peer.nodeId, json)
                 TYPE_SOS -> handleSos(endpointId, json)
                 TYPE_LOST -> handleLost(endpointId, json)
                 TYPE_ROOM -> handleRoom(endpointId, json)
                 TYPE_PING -> {
                     log("Ping from ${peer.name}")
-                    send(endpointId, JSONObject().put("t", TYPE_PONG).put("id", json.optString("id")))
+                    sendTo(endpointId, JSONObject().put("t", TYPE_PONG).put("id", json.optString("id")))
                 }
                 TYPE_PONG -> {
                     val sentAt = pendingPings.remove(json.optString("id")) ?: return
@@ -430,53 +441,67 @@ class NearbyMeshTransport(
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) = Unit
     }
 
-    /** Show an SOS once, then pass it on to everyone else we're connected to. */
+    /** Checks the hello: the key must match the advertised ID, and it must sign this connection's token. */
+    private fun verifyHello(endpointId: String, peer: Peer, json: JSONObject): Boolean {
+        val pk = json.optString("pk")
+        val bytes = Crypto.decode(pk)
+        val key = bytes?.let(Crypto::publicKey)
+        val token = authTokens[endpointId]
+        val sig = Crypto.decode(json.optString("auth"))
+        val ok = key != null && Crypto.idFor(bytes) == peer.nodeId &&
+            (token == null || (sig != null && Crypto.verify(key, token, sig)))
+        if (!ok) {
+            log("Couldn't verify ${peer.name}: their ID doesn't match their key. Disconnected")
+            disconnect(endpointId)
+            return false
+        }
+        keyBook.add(pk)
+        return true
+    }
+
+    /** Opens a signed SOS / lost / group packet once, and passes it on to everyone else we're connected to. */
+    private fun relaySigned(fromEndpoint: String, json: JSONObject, seenKey: (Envelope.Opened) -> String): Envelope.Opened? {
+        val o = Envelope.open(json) ?: run { log("Dropped a packet with a bad signature"); return null }
+        if (!seenSos.add(o.type + seenKey(o))) return null
+        keyBook.add(o.publicB64)
+        val hops = o.hops + 1
+        if (hops < SOS_MAX_HOPS) {
+            val forward = JSONObject(json.toString()).put("h", hops)
+            connectedEndpoints().filter { it != fromEndpoint }.forEach { sendTo(it, forward) }
+        }
+        return if (o.from == identity.nodeId) null else o
+    }
+
     private fun handleSos(fromEndpoint: String, json: JSONObject) {
-        val id = json.optString("id")
-        if (id.isEmpty() || !seenSos.add(id + json.optBoolean("cancel"))) return
-        val hops = json.optInt("hops", 0) + 1
+        val o = relaySigned(fromEndpoint, json) { it.body.optString("id") + it.body.optBoolean("cancel") } ?: return
+        val b = o.body
         val sos = SosSignal(
-            id = id, fromNodeId = json.optString("from"), name = json.optString("name"), note = json.optString("note"),
-            lat = json.optDouble("lat").takeUnless { it.isNaN() }, lon = json.optDouble("lon").takeUnless { it.isNaN() },
-            battery = json.optInt("bat", -1).takeIf { it >= 0 }, at = json.optLong("at"), hops = hops,
-            cancelled = json.optBoolean("cancel"), pos = parsePos(json.optJSONObject("pos")),
+            id = b.optString("id"), fromNodeId = o.from, name = b.optString("name").take(Identity.MAX_NAME_LENGTH), note = b.optString("note").take(MAX_NOTE),
+            lat = b.optDouble("lat").takeUnless { it.isNaN() }, lon = b.optDouble("lon").takeUnless { it.isNaN() },
+            battery = b.optInt("bat", -1).takeIf { it in 0..100 }, at = b.optLong("at"), hops = o.hops + 1,
+            cancelled = b.optBoolean("cancel"), pos = parsePos(b.optJSONObject("pos")),
         )
-        if (sos.fromNodeId == identity.nodeId) return
-        log("SOS from ${sos.name} (${if (hops == 1) "direct" else "passed on $hops times"})")
+        if (sos.id.isEmpty()) return
+        log("SOS from ${sos.name} (${if (sos.hops == 1) "direct" else "passed on ${sos.hops} times"}), signature checked")
         _events.tryEmit(MeshEvent.SosReceived(sos))
-        if (hops < SOS_MAX_HOPS) {
-            val forward = JSONObject(json.toString()).put("hops", hops)
-            connectedEndpoints().filter { it != fromEndpoint }.forEach { send(it, forward) }
-        }
     }
 
-    /** Same as an SOS: show once, then pass on. */
     private fun handleLost(fromEndpoint: String, json: JSONObject) {
-        val id = json.optString("id")
-        if (id.isEmpty() || !seenSos.add(id)) return
-        val hops = json.optInt("hops", 0) + 1
-        val lost = LostSignal(id, json.optString("from"), json.optString("name"), parsePos(json.optJSONObject("pos")), json.optLong("at"), hops, json.optBoolean("end"))
-        if (lost.fromNodeId == identity.nodeId) return
-        _events.tryEmit(MeshEvent.LostReceived(lost))
-        if (hops < SOS_MAX_HOPS) {
-            val forward = JSONObject(json.toString()).put("hops", hops)
-            connectedEndpoints().filter { it != fromEndpoint }.forEach { send(it, forward) }
-        }
+        val o = relaySigned(fromEndpoint, json) { it.body.optString("id") } ?: return
+        val b = o.body
+        _events.tryEmit(MeshEvent.LostReceived(LostSignal(b.optString("id"), o.from, b.optString("name").take(Identity.MAX_NAME_LENGTH),
+            parsePos(b.optJSONObject("pos")), b.optLong("at"), o.hops + 1, b.optBoolean("end"))))
     }
 
-    /** Rescue-group messages travel like an SOS: accept once, then pass on. */
     private fun handleRoom(fromEndpoint: String, json: JSONObject) {
-        val id = json.optString("id")
-        val room = json.optString("room")
-        if (id.isEmpty() || room.isEmpty() || !seenSos.add(id)) return
-        val hops = json.optInt("hops", 0) + 1
-        val m = RoomPayload(id, room, json.optString("from"), json.optString("name"), json.optString("k"), json.optString("text"),
-            json.optLong("at"), parsePos(json.optJSONObject("pos")), hops)
-        if (m.fromNodeId != identity.nodeId) _events.tryEmit(MeshEvent.RoomReceived(m))
-        if (hops < SOS_MAX_HOPS) {
-            val forward = JSONObject(json.toString()).put("hops", hops)
-            connectedEndpoints().filter { it != fromEndpoint }.forEach { send(it, forward) }
-        }
+        val o = relaySigned(fromEndpoint, json) { it.body.optString("id") } ?: return
+        val b = o.body
+        val id = b.optString("id")
+        val room = b.optString("room")
+        if (id.isEmpty() || room.isEmpty()) return
+        roomPackets[id] = JSONObject(json.toString())
+        _events.tryEmit(MeshEvent.RoomReceived(RoomPayload(id, room, o.from, b.optString("name").take(Identity.MAX_NAME_LENGTH), b.optString("k"),
+            b.optString("text").take(MAX_NOTE * 2), b.optLong("at"), parsePos(b.optJSONObject("pos")), o.hops + 1)))
     }
 
     private fun setState(endpointId: String, state: PeerState) {
@@ -504,8 +529,10 @@ class NearbyMeshTransport(
         private const val MAX_LOG_LINES = 200
         private const val TYPE_HELLO = "hello"
         private const val TYPE_LOC = "loc"
-        private const val TYPE_MSG = "msg"
-        private const val TYPE_RCPT = "rcpt"
+        /** Bumped when packets change in ways older versions can't read. Matches the endpoint prefix. */
+        const val PROTOCOL = 2
+        private const val MAX_PAYLOAD = 32 * 1024
+        private const val MAX_NOTE = 200
         private const val TYPE_SOS = "sos"
         private const val TYPE_LOST = "lost"
         private const val TYPE_ROOM = "room"

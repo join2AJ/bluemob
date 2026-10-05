@@ -23,6 +23,7 @@ import com.bluemob.app.settings.Spot
 import com.bluemob.app.ui.chat.ChatScreen
 import com.bluemob.app.ui.chat.ChatsScreen
 import com.bluemob.app.ui.chat.MessageInfoScreen
+import com.bluemob.app.ui.chat.NewChatScreen
 import com.bluemob.app.ui.compass.CompassScreen
 import com.bluemob.app.ui.dashboard.NearbyScreen
 import com.bluemob.app.ui.dashboard.NearbyState
@@ -208,6 +209,10 @@ class ScreenshotTest {
     }
     @Test fun rescueHelper() = shot(tall = true) { RescueScreen(rescueRoom(false), "me", me, flowOf(200f), RescueActions()) }
     @Test fun rescueVictim() = shot(tall = true) { RescueScreen(rescueRoom(true), "me", me, flowOf(0f), RescueActions()) }
+    @Test fun newChat() = shot(tall = true) {
+        NewChatScreen("3f9a1c2b7d4e8a01", people + people[0].copy(nodeId = "9c1f00aa77b2e410", name = "Kabir", avatar = "🐺", presence = Presence.OFFLINE, lastSeen = 0, location = null),
+            {}, { _, _ -> }, {}, {})
+    }
     @Test fun games() = shot { GamesScreen({}, {}) }
     @Test fun ticTacToe() = shot { TicTacToeScreen {} }
     @Test fun profile() = shot(tall = true) {

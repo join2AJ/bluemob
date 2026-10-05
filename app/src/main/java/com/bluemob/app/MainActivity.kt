@@ -16,6 +16,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.core.content.ContextCompat
 import com.bluemob.app.permissions.MeshPermissions
 import com.bluemob.app.system.Radio
@@ -52,24 +54,49 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val actions = SystemActions(
-            requestMeshPermissions = { meshPermissionLauncher.launch(MeshPermissions.required) },
+            requestMeshPermissions = { meshPermissionLauncher.launch(MeshPermissions.required + notificationPermission()) },
             openLocationSettings = { startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) },
             enableLocationSharing = { shareAfterGrant = true; requestLocation() },
             requestLocation = { shareAfterGrant = false; requestLocation() },
             openBatterySaver = { open(Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS), fallback = Intent(Settings.ACTION_SETTINGS)) },
             askKeepRunning = ::askKeepRunning,
             switchRadio = ::switchRadio,
+            shareId = {
+                val text = "Message me on BlueMob, even with no signal: BM ${com.bluemob.app.util.formatId(viewModel.nodeId)}"
+                runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), "Share your BlueMob ID")) }
+            },
             textSos = ::textSos,
             requestSteps = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) stepPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
             },
         )
+        handleRoute(intent)
+        // Show over the lock screen only while an SOS alert is up, never for chats.
+        lifecycleScope.launch {
+            viewModel.sosAlert.collect { alert ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) { setShowWhenLocked(alert != null); setTurnScreenOn(alert != null) }
+            }
+        }
         setContent {
             BlueMobTheme {
                 BlueMobRoot(vm = viewModel, system = systemStatus.value, actions = actions)
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleRoute(intent)
+    }
+
+    /** A notification asked to open a chat or rescue group. */
+    private fun handleRoute(intent: Intent?) {
+        intent?.getStringExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)?.let { viewModel.pendingRoute.value = it }
+        intent?.removeExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)
+    }
+
+    private fun notificationPermission(): Array<String> =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else emptyArray()
 
     override fun onResume() {
         super.onResume()

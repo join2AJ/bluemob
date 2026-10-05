@@ -61,14 +61,14 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE id = :id")
     suspend fun get(id: String): MessageEntity?
 
-    @Query("SELECT * FROM messages WHERE peer = :peer AND fromMe = 1 AND status IN ('PENDING', 'SENT') ORDER BY createdAt")
-    suspend fun unacknowledged(peer: String): List<MessageEntity>
+    @Query("SELECT * FROM messages WHERE fromMe = 1 AND status IN ('PENDING', 'SENT') ORDER BY createdAt")
+    suspend fun unacknowledgedAll(): List<MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE fromMe = 0 AND status = 'READ' AND readReceiptSent = 0 AND peer != 'sky'")
+    suspend fun readReceiptsOwedAll(): List<MessageEntity>
 
     @Query("SELECT * FROM messages WHERE peer = :peer AND fromMe = 0 AND status = 'RECEIVED'")
     suspend fun unread(peer: String): List<MessageEntity>
-
-    @Query("SELECT * FROM messages WHERE peer = :peer AND fromMe = 0 AND status = 'READ' AND readReceiptSent = 0")
-    suspend fun readReceiptsOwed(peer: String): List<MessageEntity>
 
     @Query("SELECT COUNT(*) FROM messages WHERE peer = :peer")
     suspend fun count(peer: String): Int
@@ -169,17 +169,44 @@ interface RescueDao {
     suspend fun recentShared(room: String, since: Long, limit: Int): List<RescueMessage>
 }
 
-@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class], version = 3, exportSchema = false)
+/** A message or receipt this phone carries for other people (see MeshRouter). Encrypted and signed by its sender. */
+@Entity(tableName = "relay")
+data class RelayRow(
+    @PrimaryKey val key: String,
+    val toNode: String,
+    val origin: String,
+    val packet: String,
+    val copies: Int,
+    /** Phones already given a copy, comma-separated. */
+    val givenTo: String,
+    val expiresAt: Long,
+    val receivedAt: Long,
+)
+
+@Dao
+interface RelayDao {
+    @Query("SELECT * FROM relay")
+    suspend fun all(): List<RelayRow>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun put(row: RelayRow)
+
+    @Query("DELETE FROM relay WHERE `key` = :key")
+    suspend fun remove(key: String)
+}
+
+@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class], version = 4, exportSchema = false)
 abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun messages(): MessageDao
     abstract fun audit(): AuditDao
     abstract fun trail(): TrailDao
     abstract fun rescue(): RescueDao
+    abstract fun relay(): RelayDao
 
     companion object {
         fun create(context: Context): BlueMobDatabase =
             Room.databaseBuilder(context, BlueMobDatabase::class.java, "bluemob.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)
                 })
@@ -202,6 +229,14 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `rescue` (`id` TEXT NOT NULL, `room` TEXT NOT NULL, `fromNodeId` TEXT NOT NULL, `fromName` TEXT NOT NULL, " +
                     "`kind` TEXT NOT NULL, `text` TEXT NOT NULL, `at` INTEGER NOT NULL, `pos` TEXT, `battery` INTEGER, `local` INTEGER NOT NULL, PRIMARY KEY(`id`))")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_rescue_room` ON `rescue` (`room`)")
+            }
+        }
+
+        /** Adds messages carried for others. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `relay` (`key` TEXT NOT NULL, `toNode` TEXT NOT NULL, `origin` TEXT NOT NULL, `packet` TEXT NOT NULL, " +
+                    "`copies` INTEGER NOT NULL, `givenTo` TEXT NOT NULL, `expiresAt` INTEGER NOT NULL, `receivedAt` INTEGER NOT NULL, PRIMARY KEY(`key`))")
             }
         }
 

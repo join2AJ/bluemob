@@ -4,11 +4,11 @@ package com.bluemob.app.mesh
  * Encodes our identity into the Nearby "endpoint name" that is broadcast while advertising,
  * so a phone learns who is nearby before connecting.
  *
- * Format: `BM1|<nodeId>|<displayName>`. The prefix lets us ignore unrelated apps and
- * change the format later.
+ * Format: `BM2|<nodeId>|<displayName>`. The prefix lets us ignore unrelated apps and older BlueMob versions
+ * (BM1 used unsigned packets), so phones only link with ones that speak the same protocol.
  */
 object EndpointInfo {
-    private const val PREFIX = "BM1"
+    private const val PREFIX = "BM2"
 
     fun encode(nodeId: String, name: String): String = "$PREFIX|$nodeId|${name.replace("|", " ")}"
 

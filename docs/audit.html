@@ -1,0 +1,238 @@
+<title>BlueMob Engineering Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column (~70ch) with wide tables that scroll inside their own box. Pine & Sand, the app's own system. */
+:root {
+  --bg: #F6F4EF; --surface: #FFFFFF; --ink: #15201B; --ink-2: #4E5B55; --ink-3: #85918B; --line: #E4E0D7;
+  --pine: #11694E; --pine-tint: #E2F1E9; --ember: #C2621A; --ember-tint: #FBEBDC; --rose: #C8434A; --rose-tint: #FBE4E4;
+  --sky: #2F7BC0; --sky-tint: #E3EEF8; --grey-tint: #EDEAE3;
+  --display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0F1613; --surface: #17211C; --ink: #E8EFEA; --ink-2: #A9B6AF; --ink-3: #74827B; --line: #2A3631;
+  --pine: #4FC293; --pine-tint: #16362A; --ember: #E39552; --ember-tint: #3A2617; --rose: #F07C82; --rose-tint: #3C1D20;
+  --sky: #6DAEEA; --sky-tint: #172C40; --grey-tint: #222D28; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0F1613; --surface: #17211C; --ink: #E8EFEA; --ink-2: #A9B6AF; --ink-3: #74827B; --line: #2A3631;
+  --pine: #4FC293; --pine-tint: #16362A; --ember: #E39552; --ember-tint: #3A2617; --rose: #F07C82; --rose-tint: #3C1D20;
+  --sky: #6DAEEA; --sky-tint: #172C40; --grey-tint: #222D28; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); padding-inline: 16px; padding-block: 0 64px; }
+main { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(32px, 6vw, 46px); font-weight: 800; line-height: 1.05; }
+h2 { font-size: 26px; font-weight: 800; }
+h3 { font-size: 18px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+section { display: flex; flex-direction: column; gap: 14px; }
+.over { font: 600 12px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.lead { font-size: 18px; color: var(--ink-2); }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+code { background: var(--grey-tint); padding: 1px 5px; border-radius: 5px; }
+a { color: var(--pine); }
+
+header { padding-block: 48px 4px; display: flex; flex-direction: column; gap: 14px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 22px; color: var(--ink-2); font-size: 14px; }
+.meta b { color: var(--ink); font-weight: 600; }
+.tally { display: flex; flex-wrap: wrap; gap: 10px; }
+.tally span { font-size: 14px; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.tally b { font-weight: 700; }
+
+.chip { display: inline-block; font: 700 11px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; border-radius: 6px; white-space: nowrap; }
+.crit { background: var(--rose-tint); color: var(--rose); }
+.high { background: var(--ember-tint); color: var(--ember); }
+.med { background: var(--sky-tint); color: var(--sky); }
+.low { background: var(--grey-tint); color: var(--ink-2); }
+.fixed { background: var(--pine-tint); color: var(--pine); }
+
+.strengths { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.strengths div { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.strengths b { display: block; font-weight: 700; margin-bottom: 2px; }
+.strengths span { color: var(--ink-2); font-size: 14px; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th { text-align: left; font: 600 12px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: 12px 14px; border-bottom: 1px solid var(--line); }
+td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-family: var(--mono); color: var(--ink-3); white-space: nowrap; }
+td b { font-weight: 700; }
+td .where { display: block; color: var(--ink-3); font-family: var(--mono); font-size: 12px; margin-top: 4px; }
+
+.flow { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; overflow-x: auto; }
+.flow svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.flow text { font-family: var(--body); }
+
+.horizon { display: flex; flex-direction: column; gap: 10px; }
+.item { display: grid; grid-template-columns: 52px 1fr; gap: 4px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.item .id { font-family: var(--mono); color: var(--ink-3); font-size: 13px; padding-top: 2px; }
+.item div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.item .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.item p { color: var(--ink-2); font-size: 15px; }
+
+ul.plain { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; max-width: 68ch; }
+.note { background: var(--sky-tint); border-radius: 14px; padding: 14px 16px; font-size: 15px; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.metrics div { border-top: 3px solid var(--pine); background: var(--surface); padding: 12px 14px; border-radius: 0 0 12px 12px; min-width: 0; }
+.metrics b { display: block; font-weight: 700; }
+.metrics span { color: var(--ink-2); font-size: 14px; }
+.metrics .target { font-family: var(--mono); font-size: 12px; color: var(--pine); display: block; margin-top: 6px; }
+footer { color: var(--ink-3); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<main>
+<header>
+  <span class="over">Engineering audit · Android app and web preview</span>
+  <h1>BlueMob Engineering Audit</h1>
+  <p class="lead">A senior full-stack review of the offline mesh app: what's solid, what was risky, what I fixed in 0.5, and what to build next so BlueMob holds up when someone's life depends on it.</p>
+  <div class="meta"><span>Audited <b>0.4.1</b> → shipped <b>0.5.0</b></span><span>Date <b>5 Oct 2026</b></span><span>Branch <b class="mono">ccr-359d137e-830q4m</b></span></div>
+  <div class="tally"><span><b>10</b> findings fixed in 0.5</span><span><b>17</b> open, prioritised below</span><span><b>76</b> automated tests passing</span><span><b>0</b> lint errors</span></div>
+</header>
+
+<section>
+  <h2>The short version</h2>
+  <p>The product idea and the delivery engine are strong. Messages have unique IDs, are stored before sending, are deduplicated on arrival and have real receipts. That is the hard part, and it's done well. The weak spots were the ones every first version of a mesh app has. Anyone could claim to be anyone. Nothing worked with the screen off. Messages only reached people in direct range.</p>
+  <p>All three are fixed in 0.5. You can now message anyone by their BlueMob ID, even someone you've never met. The message travels phone to phone, end-to-end encrypted. The biggest remaining risks are real-world ones: battery drain, behaviour on many different phone models, and no crash reporting yet. The next step is a field test with real phones, not more features.</p>
+</section>
+
+<section>
+  <h2>What's working well</h2>
+  <div class="strengths">
+    <div><b>Exactly-once delivery</b><span>Unique message IDs, a seen-ID table on the receiver, re-send until a receipt arrives. Tested with dropped receipts.</span></div>
+    <div><b>Offline by design</b><span>Sky, the survival guide, compass, trail and games all run on the phone with no server.</span></div>
+    <div><b>Room database with migrations</b><span>Four schema versions, each migration checked against Room's generated SQL, so updates keep users' data.</span></div>
+    <div><b>Tamper-evident audit trail</b><span>SHA-256 hash chain plus database triggers that refuse edits and deletes.</span></div>
+    <div><b>Testable core</b><span>Delivery, routing, trail maths, rescue groups and game AI are plain Kotlin, tested on the JVM with simulated phones.</span></div>
+    <div><b>Consistent design system</b><span>Pine &amp; Sand tokens, two bundled fonts, light and dark, 26 screens captured in screenshot tests.</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Fixed in 0.5</h2>
+  <p>Ordered by severity. Each fix ships with tests where the logic allows it.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>ID</th><th>Finding</th><th>Severity</th><th>What changed</th></tr></thead>
+    <tbody>
+      <tr><td>S1</td><td><b>Anyone could pretend to be anyone.</b> A phone's ID was just text it announced. A stranger could appear as your friend, send an SOS in their name, or send "I'm safe" to cancel someone's real SOS.</td><td><span class="chip crit">Critical</span></td><td>Each phone has a P-256 key pair; the ID is derived from the public key. On connect, each phone signs Nearby's per-connection token. SOS, "I'm safe", lost mode and rescue packets are signed and checked on every hop.<span class="where">crypto/Crypto.kt · mesh/Envelope.kt · identity/Identity.kt</span></td></tr>
+      <tr><td>S2</td><td><b>SOS missed with the screen off.</b> The mesh only ran while the app was open, so a phone in a pocket heard nothing.</td><td><span class="chip crit">Critical</span></td><td>A foreground service keeps the mesh on. SOS uses an alarm-style notification that can show over the lock screen, but only while the alert is up and never for chats. Messages and rescue updates also notify.<span class="where">service/MeshService.kt · service/Notifier.kt</span></td></tr>
+      <tr><td>S3</td><td><b>Messages only reached people in direct range.</b> You couldn't message someone you hadn't met, or someone far away.</td><td><span class="chip high">High</span></td><td>New router: message anyone by BlueMob ID. Phones nearby carry the message and hand it on as people move. At most 8 copies exist, so the mesh doesn't flood. Receipts come back the same way.<span class="where">mesh/MeshRouter.kt · ui/chat/NewChatScreen.kt</span></td></tr>
+      <tr><td>S4</td><td><b>No end-to-end encryption.</b> Once other phones carry messages, they could read them.</td><td><span class="chip high">High</span></td><td>ECDH + HKDF + AES-256-GCM between sender and recipient. Carriers see only ciphertext; tampering fails the signature check.<span class="where">crypto/Crypto.kt</span></td></tr>
+      <tr><td>S5</td><td><b>Unbounded memory.</b> The set of seen SOS, lost and rescue IDs grew forever; lost mode adds one a minute.</td><td><span class="chip med">Medium</span></td><td>Bounded LRU sets (5,000 entries) in the transport and the router.</td></tr>
+      <tr><td>S6</td><td><b>Disk write on every packet.</b> Contacts were re-serialised to disk each time any packet arrived.</td><td><span class="chip med">Medium</span></td><td>Saves are batched to at most once a second; the key book saves every 2 seconds at most.<span class="where">util/Debounced.kt</span></td></tr>
+      <tr><td>S7</td><td><b>No input limits.</b> A malicious phone could send huge names, notes or packets.</td><td><span class="chip med">Medium</span></td><td>32 KB packet cap, field length caps, a cap on how much each sender can have carried, 3-day expiry.</td></tr>
+      <tr><td>S8</td><td><b>No protocol version.</b> Mixed app versions would misread each other.</td><td><span class="chip med">Medium</span></td><td>Endpoint prefix <code>BM2</code> and a version in the hello. 0.5 phones only link with 0.5 phones.</td></tr>
+      <tr><td>S9</td><td><b>Lost receipts caused endless re-sends.</b> Found while building the router: repeat copies were dropped silently, so the receipt was never sent again.</td><td><span class="chip med">Medium</span></td><td>Repeats still reach the message store, which discards the copy and answers with a receipt again. Covered by tests.</td></tr>
+      <tr><td>S10</td><td><b>New private keys need protected storage.</b> Keeping them in plain app preferences would expose them on a rooted or backed-up phone.</td><td><span class="chip low">Low</span></td><td>The private key is wrapped with an AES key that lives in Android Keystore and never leaves it.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>How "message by ID" works</h2>
+  <p>Asha types Kabir's ID. They've never met and are kilometres apart. Ravi walks between their groups.</p>
+  <div class="flow" role="img" aria-label="Asha hands an encrypted message to Ravi, Ravi later meets Kabir and delivers it, and the receipt rides back with Ravi to Asha">
+    <svg viewBox="0 0 640 230" xmlns="http://www.w3.org/2000/svg">
+      <g font-size="13">
+        <rect x="10" y="20" width="150" height="190" rx="12" fill="var(--pine-tint)"/>
+        <rect x="245" y="20" width="150" height="190" rx="12" fill="var(--grey-tint)"/>
+        <rect x="480" y="20" width="150" height="190" rx="12" fill="var(--sky-tint)"/>
+        <text x="85" y="46" text-anchor="middle" font-weight="700" fill="var(--ink)">Asha</text>
+        <text x="320" y="46" text-anchor="middle" font-weight="700" fill="var(--ink)">Ravi (carrier)</text>
+        <text x="555" y="46" text-anchor="middle" font-weight="700" fill="var(--ink)">Kabir</text>
+        <text x="85" y="66" text-anchor="middle" fill="var(--ink-2)">has never met Kabir</text>
+        <text x="320" y="66" text-anchor="middle" fill="var(--ink-2)">can't read it</text>
+        <text x="555" y="66" text-anchor="middle" fill="var(--ink-2)">far away</text>
+        <line x1="160" y1="96" x2="240" y2="96" stroke="var(--pine)" stroke-width="2.5"/>
+        <path d="M240 96 l-9 -5 v10 z" fill="var(--pine)"/>
+        <text x="200" y="88" text-anchor="middle" fill="var(--pine)">1 · asks for key,</text>
+        <text x="200" y="114" text-anchor="middle" fill="var(--pine)">hands over copy</text>
+        <line x1="395" y1="140" x2="475" y2="140" stroke="var(--sky)" stroke-width="2.5"/>
+        <path d="M475 140 l-9 -5 v10 z" fill="var(--sky)"/>
+        <text x="435" y="132" text-anchor="middle" fill="var(--sky)">2 · meets Kabir</text>
+        <text x="435" y="158" text-anchor="middle" fill="var(--sky)">delivers</text>
+        <line x1="240" y1="184" x2="160" y2="184" stroke="var(--ember)" stroke-width="2.5" stroke-dasharray="6 5"/>
+        <path d="M160 184 l9 -5 v10 z" fill="var(--ember)"/>
+        <text x="200" y="202" text-anchor="middle" fill="var(--ember)">3 · receipt back</text>
+      </g>
+    </svg>
+  </div>
+  <ul class="plain">
+    <li><b>Key lookup.</b> Asha's phone needs Kabir's public key to encrypt. It asks phones nearby. Anyone who knows the key can answer, and the answer proves itself because the key must hash to Kabir's ID.</li>
+    <li><b>Spray and wait.</b> A message starts with 8 copies. Each hand-off gives away half; the last copy is kept for Kabir himself. That reaches people quickly without flooding.</li>
+    <li><b>Receipts clean up.</b> Kabir's delivery receipt travels back the same way. Every carrier that sees it drops its copy of the message.</li>
+    <li><b>Honest timing.</b> Delivery depends on people moving between groups. It can take minutes or hours, and messages expire after 3 days. The ticks always show the truth.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Open findings and roadmap</h2>
+  <p>Nothing below is broken today. These are the gaps between a working app and a service people can rely on in an emergency.</p>
+
+  <h3>Now · next 2 to 4 weeks</h3>
+  <div class="horizon">
+    <div class="item"><span class="id">O1</span><div><span class="head"><b>Field test with 5 to 10 real phones</b><span class="chip crit">Critical</span></span><p>Emulators can't use Bluetooth with each other, so the mesh has only been tested with simulated phones. Measure time to first connection, link stability while walking, delivery rate over 1, 2 and 3 hops, and battery per hour across at least three phone brands. Add a "Diagnostics" export (log plus counters) to make this easy.</p></div></div>
+    <div class="item"><span class="id">O2</span><div><span class="head"><b>Battery duty cycling</b><span class="chip high">High</span></span><p>Advertising and scanning nonstop is the biggest battery cost. Add a low-power mode: scan for 20 seconds every 2 minutes when no one is around, stop scanning when enough phones are connected, and switch to it automatically under Battery Saver. An active SOS always overrides it.</p></div></div>
+    <div class="item"><span class="id">O3</span><div><span class="head"><b>Crash and freeze reporting</b><span class="chip high">High</span></span><p>There is none today, so failures in the field are invisible. Add opt-in crash reporting (Crashlytics or Sentry). Queue reports on the phone until it has internet.</p></div></div>
+    <div class="item"><span class="id">O4</span><div><span class="head"><b>SOS spam controls</b><span class="chip high">High</span></span><p>SOS is now signed, so a fake one can be traced to a sender, but nothing stops one phone repeating it. Add per-sender rate limits, "Mute this sender" on the alert, and a block list.</p></div></div>
+    <div class="item"><span class="id">O5</span><div><span class="head"><b>Late joiners can't see a rescue group</b><span class="chip med">Medium</span></span><p>A phone that never heard the SOS itself hides its group. Phones should re-share an active SOS (still signed by the person in need) with anyone who connects, for a few hours. Also store other people's signed group messages, so they can be passed on after a restart.</p></div></div>
+    <div class="item"><span class="id">O6</span><div><span class="head"><b>Forward secrecy</b><span class="chip med">Medium</span></span><p>Each pair of phones uses one fixed encryption key. If a phone's private key is ever stolen, messages captured earlier could be read. Move 1:1 chats to the Signal protocol (prekeys plus Double Ratchet, for example libsignal).</p></div></div>
+    <div class="item"><span class="id">O7</span><div><span class="head"><b>Room schema export and migration tests</b><span class="chip med">Medium</span></span><p>Turn on <code>exportSchema</code>, commit the schemas, and add MigrationTestHelper tests on a device, so no update can ever wipe someone's messages.</p></div></div>
+  </div>
+
+  <h3>Next · 1 to 3 months</h3>
+  <div class="horizon">
+    <div class="item"><span class="id">O8</span><div><span class="head"><b>The internet bridge</b><span class="chip high">High</span></span><p>The relay that carries messages beyond the mesh. Its design is in the next section.</p></div></div>
+    <div class="item"><span class="id">O9</span><div><span class="head"><b>Background reliability across brands</b><span class="chip high">High</span></span><p>Xiaomi, Oppo, Vivo, Realme and Samsung kill background apps aggressively. Add per-brand setup guides (auto-start, battery exceptions) inside Connections, and check the foreground service on each brand during O1.</p></div></div>
+    <div class="item"><span class="id">O10</span><div><span class="head"><b>Languages</b><span class="chip med">Medium</span></span><p>All text is hard-coded in English. Move strings into resources and add Hindi first, then regional languages. The survival guide content needs a professional medical translation and review, not machine translation.</p></div></div>
+    <div class="item"><span class="id">O11</span><div><span class="head"><b>Accessibility</b><span class="chip med">Medium</span></span><p>Add TalkBack descriptions to the radar, compass and trail map. Check layouts at 200% font size. Add a hardware SOS shortcut (for example, press power five times) for when the screen can't be used.</p></div></div>
+    <div class="item"><span class="id">O12</span><div><span class="head"><b>Offline maps</b><span class="chip med">Medium</span></span><p>MapLibre with vector tiles downloaded per region before a trip. Draw the trail, base camp and the people coming to help on the map.</p></div></div>
+    <div class="item"><span class="id">O13</span><div><span class="head"><b>Trip groups and voice notes</b><span class="chip low">Low</span></span><p>Group chats beyond rescue groups, using sender keys. Short Opus voice clips, which fit the mesh. Live calls only over Wi-Fi links.</p></div></div>
+    <div class="item"><span class="id">O14</span><div><span class="head"><b>Code structure</b><span class="chip low">Low</span></span><p>The ViewModel and root screen have grown large. Split them per feature, move routes to type-safe Navigation Compose, and add dependency injection (Hilt) once a second developer joins.</p></div></div>
+    <div class="item"><span class="id">O15</span><div><span class="head"><b>Mesh simulator in CI</b><span class="chip low">Low</span></span><p>Grow the router test harness into a 50-phone simulation with movement, so routing changes are judged by delivery rate and copies per message before they ship.</p></div></div>
+  </div>
+
+  <h3>Later</h3>
+  <div class="horizon">
+    <div class="item"><span class="id">O16</span><div><span class="head"><b>Longer range</b><span class="chip low">Low</span></span><p>Bridges to LoRa radios (Meshtastic) for text over several kilometres, satellite SOS on phones that support it, and a Wear OS panic button.</p></div></div>
+    <div class="item"><span class="id">O17</span><div><span class="head"><b>Play Store release</b><span class="chip med">Medium</span></span><p>Release signing and key backup, Play Integrity, a privacy policy and data-safety form, staged roll-outs, and a public test track for field testers.</p></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Backend plan for the internet bridge</h2>
+  <p>When any phone in the mesh has internet, it uploads carried messages to the relay and downloads messages waiting for people nearby. The rules that matter:</p>
+  <ul class="plain">
+    <li><b>No accounts, same keys.</b> Every request is signed by the phone's device key. The server checks the ID-to-key hash exactly like phones do.</li>
+    <li><b>Ciphertext only.</b> The server stores the same encrypted packets the mesh carries. It can't read messages, and a breach exposes no content.</li>
+    <li><b>Same dedup, same receipts.</b> Messages are stored once by message ID. The first delivery wins, whether by mesh or internet, and receipts cancel the other path. The app already models this.</li>
+    <li><b>Stack.</b> Firebase works for a pilot: Cloud Functions to check signatures, Firestore with expiry rules, FCM to wake recipients. Move to a small Kotlin or Go service on Cloud Run with Postgres if costs or control demand it.</li>
+    <li><b>SMS to loved ones.</b> Use an Indian SMS gateway (MSG91 or Gupshup) with DLT-registered templates. Limit how many texts each phone and each number can trigger, and confirm a number before it's used for anything other than SOS.</li>
+    <li><b>Privacy law.</b> India's DPDP Act 2023 applies. Ask for clear consent for SOS contacts and location, collect only what's needed, delete on request, and keep data in an Indian region.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>How to measure "amazing service"</h2>
+  <p>Track these from the field test onward. They tell you more than any feature list.</p>
+  <div class="metrics">
+    <div><b>SOS to first helper</b><span>Time from tapping SOS to the nearest phone showing the alert.</span><span class="target">target &lt; 5 s in range</span></div>
+    <div><b>Multi-hop delivery rate</b><span>Messages to people out of range that arrive within 24 hours.</span><span class="target">target &gt; 80% in a busy area</span></div>
+    <div><b>Battery cost</b><span>Battery percentage per hour with the mesh on in the background.</span><span class="target">target &lt; 3%/h low-power</span></div>
+    <div><b>Time to first peer</b><span>From opening the app to the first connection with a phone in range.</span><span class="target">target &lt; 15 s</span></div>
+    <div><b>Crash-free sessions</b><span>Share of sessions without a crash or freeze.</span><span class="target">target &gt; 99.5%</span></div>
+    <div><b>Copies per message</b><span>Network cost of each delivered message.</span><span class="target">cap 8, watch the median</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Limits to know</h2>
+  <div class="note">Everything in 0.5 is tested with simulated phones, not yet between real phones. All phones must update to 0.5: it uses a new, signed protocol and won't link with 0.4. Each phone's BlueMob ID changes once to the new key-based ID, and chats with old IDs won't continue. Delivery to people out of range depends on people moving between groups, so it is not instant and not guaranteed. A rooted phone can still read its own stored data.</div>
+</section>
+
+<footer>BlueMob engineering audit · prepared with the 0.5.0 release on branch ccr-359d137e-830q4m. Repository copy: docs/audit.html.</footer>
+</main>

@@ -111,13 +111,17 @@ object SkyBot {
         Help(listOf("survival guide", "guide tab", "offline guide", "first aid guide"),
             "The Guide tab has short survival guides stored on your phone: first aid, water, fire, shelter, navigation, signals, weather and disasters. Or just ask me, like \"what do I do for a burn?\"",
             listOf(tab("guide", "Open Guide"))),
-        Help(listOf("after the trip", "stay in touch", "without number", "keep in touch", "without exchanging"),
-            "Everyone you meet stays in your Chats, by their BlueMob ID. No phone numbers are shared. Messages reach them whenever you're in range again; reaching them far away through the internet is coming in the next update."),
+        Help(listOf("after the trip", "stay in touch", "without number", "keep in touch", "without exchanging", "message by id", "unique number", "unique id",
+            "message someone far", "not nearby", "far away", "someone i haven't met", "share my id", "my number"),
+            "Everyone has a BlueMob ID, like BM 3F9A 1C2B 7D4E 8A01. Share yours, and anyone can message you with it: no phone number needed.\n\n" +
+                "Chats → \"Message anyone by BlueMob ID\". If they're not in range, your message is handed, encrypted, to phones around you, " +
+                "which carry it and pass it on until it reaches them. The ticks show when it arrives.",
+            listOf(tab("chats", "Open Chats"))),
         Help(listOf("split", "money", "upi", "expense", "owe", "game", "play"),
             "Trip money and games are coming in the next BlueMob update. You can try them now in the web preview."),
         Help(listOf("how does bluemob", "how bluemob works", "how it works", "how does it work", "how does this work", "how does the app", "mesh network", "without towers"),
             "Here's the magic ✨: phones running BlueMob find each other over Bluetooth and Wi-Fi and link up directly. No SIM, no towers, no internet.\n\n" +
-                "Messages wait on your phone until the person is in range, then go straight to them, exactly once."),
+                "Messages go straight to people in range, or travel phone to phone to people further away, end-to-end encrypted and shown exactly once."),
     )
 
     // ---------- small talk ----------

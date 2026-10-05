@@ -2,25 +2,72 @@ package com.bluemob.app.identity
 
 import android.content.Context
 import android.os.Build
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Log
+import com.bluemob.app.crypto.Crypto
+import com.bluemob.app.crypto.DeviceKeys
+import java.security.KeyPair
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.UUID
 
 /**
  * This phone's identity and profile in the mesh.
  *
- * [nodeId] is a random ID generated once on first launch and never changes. It is how other
- * phones (and later the Firebase server) know who sent a message, no matter which Bluetooth
- * or Wi-Fi link it arrived over.
+ * [keys] is this phone's key pair, made once on first launch. [nodeId] comes from the public key, so no other phone
+ * can use it: everything that matters is signed, and others check the signature against the ID. The private key is
+ * stored encrypted with a key that lives in Android's Keystore and never leaves it.
  */
 class Identity(context: Context) {
     private val prefs = context.getSharedPreferences("identity", Context.MODE_PRIVATE)
 
-    val nodeId: String = prefs.getString(KEY_NODE_ID, null) ?: UUID.randomUUID().toString()
-        .replace("-", "")
-        .take(16)
-        .also { prefs.edit().putString(KEY_NODE_ID, it).apply() }
+    val keys: DeviceKeys = DeviceKeys(loadOrCreateKeys())
+    val nodeId: String = keys.nodeId
+
+    /** The random ID older versions used, if this phone had one. IDs now come from the key, so it changed once. */
+    val previousNodeId: String? = prefs.getString(KEY_NODE_ID, null)?.takeIf { it != nodeId }
+
+    init {
+        prefs.edit().putString(KEY_NODE_ID, nodeId).apply()
+    }
+
+    private fun loadOrCreateKeys(): KeyPair {
+        val pub = prefs.getString(KEY_PUBLIC, null)?.let(Crypto::decode)
+        val priv = prefs.getString(KEY_PRIVATE, null)?.let(Crypto::decode)?.let(::unwrap)
+        if (pub != null && priv != null) {
+            runCatching { return KeyPair(Crypto.publicKey(pub)!!, Crypto.privateKey(priv)) }
+        }
+        val pair = Crypto.generate()
+        prefs.edit().putString(KEY_PUBLIC, Crypto.encode(pair.public.encoded)).putString(KEY_PRIVATE, Crypto.encode(wrap(pair.private.encoded))).apply()
+        return pair
+    }
+
+    /** AES-GCM with a Keystore key. Falls back to storing the key as is if the Keystore isn't usable on this phone. */
+    private fun wrap(plain: ByteArray): ByteArray = runCatching {
+        val c = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, wrappingKey()) }
+        byteArrayOf(1) + c.iv + c.doFinal(plain)
+    }.getOrElse { Log.w("BlueMob", "Keystore unavailable, storing key unwrapped", it); byteArrayOf(0) + plain }
+
+    private fun unwrap(stored: ByteArray): ByteArray? = runCatching {
+        if (stored[0].toInt() == 0) return stored.copyOfRange(1, stored.size)
+        val c = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, wrappingKey(), GCMParameterSpec(128, stored, 1, 12)) }
+        c.doFinal(stored, 13, stored.size - 13)
+    }.getOrNull()
+
+    private fun wrappingKey(): SecretKey {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (ks.getKey(WRAP_ALIAS, null) as? SecretKey)?.let { return it }
+        return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").apply {
+            init(KeyGenParameterSpec.Builder(WRAP_ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).setKeySize(256).build())
+        }.generateKey()
+    }
 
     private val _displayName = MutableStateFlow(prefs.getString(KEY_NAME, null) ?: Build.MODEL)
     val displayName: StateFlow<String> = _displayName.asStateFlow()
@@ -61,6 +108,9 @@ class Identity(context: Context) {
         /** Avatars to pick from: nature and freedom themed. */
         val AVATARS = listOf("🌿", "🦅", "🌊", "⛰️", "🌻", "🦋", "🐬", "🔥", "🌙", "🍀", "🐺", "🌵")
         private const val KEY_NODE_ID = "node_id"
+        private const val KEY_PUBLIC = "public_key"
+        private const val KEY_PRIVATE = "private_key_wrapped"
+        private const val WRAP_ALIAS = "bluemob_identity_wrap"
         private const val KEY_NAME = "display_name"
         private const val KEY_AVATAR = "avatar"
         private const val KEY_SHARE_LOCATION = "share_location"

@@ -68,6 +68,7 @@ fun ChatsScreen(
     contentPadding: PaddingValues,
     rescues: List<com.bluemob.app.rescue.RescueRoom> = emptyList(),
     onOpenRescue: (String) -> Unit = {},
+    onNewChat: () -> Unit = {},
     onOpen: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -100,6 +101,19 @@ fun ChatsScreen(
                     if (query.isEmpty()) Text("Search", color = Extra.ink3, style = MaterialTheme.typography.bodyLarge)
                     BasicTextField(query, { query = it }, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+        item {
+            androidx.compose.material3.Surface(onClick = onNewChat, shape = MaterialTheme.shapes.large, color = Extra.pineTint,
+                modifier = Modifier.padding(start = Space.lg, end = Space.lg, top = 14.dp).fillMaxWidth()) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("✉️", fontSize = 22.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Message anyone by BlueMob ID", style = MaterialTheme.typography.titleMedium)
+                        Text("Even if they're not nearby. Share your own ID too", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }

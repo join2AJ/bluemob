@@ -171,6 +171,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun refreshRadios() = blueMob.radios.refresh()
 
+    /** Adds someone by ID so their chat can open. Uses the name they gave, or a short form of the ID. */
+    fun startChatById(id: String, name: String) {
+        blueMob.contacts.addById(id, name.ifBlank { "BM " + com.bluemob.app.util.formatId(id).take(9) })
+    }
+    val carrying: Int get() = mesh.router.carrying
+
+    val background = settings.background
+    fun setBackground(on: Boolean) = settings.setBackground(on)
+
+    /** A screen to open, e.g. from a notification. The UI opens it and clears it. */
+    val pendingRoute = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
     val rescues = blueMob.rescue.rooms
     val rescueNotices = blueMob.rescue.notices
     fun joinRescue(id: String) = blueMob.rescue.join(id)

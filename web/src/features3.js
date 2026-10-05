@@ -11,6 +11,7 @@
     return {
       direct: { waiting: `Waiting for ${esc(name)} to come in range`, trying: "Sending now", delivered: "Delivered" + t,
         cancelled: "Not needed: delivered another way", discarded: "Arrived second. Discarded by message ID" },
+      mesh: { waiting: "Waiting for someone nearby to carry it", moving: "Being carried by phones nearby. Encrypted: they can't read it", delivered: "Delivered" + t },
       internet: { waiting: bridgeOnline() ? "Starting…" : "Waiting for someone nearby with internet (a bridge)", moving: "Travelling through Meera's internet",
         relay: `Stored at the relay until ${esc(name)} can be reached`, delivered: "Delivered" + t, cancelled: "Cancelled: delivered another way",
         discarded: "Arrived second. Discarded by message ID", "not-needed": "Not needed: delivered directly" },
@@ -47,7 +48,7 @@
     const to = S.info.chat === "sky" ? { name: "Sky", uid: null } : P[S.info.chat];
     const route = m.route || ["You", to.name];
     const statusWord = { read: "Read", delivered: "Delivered", pending: "Waiting to be delivered", sent: "On its way", sending: "Sending" }[m.status] || m.status;
-    const viaWord = m.deliveredVia === "direct" ? (m.receipts[0]?.via || "Bluetooth / Wi-Fi") : m.deliveredVia === "internet" ? (to.sms ? "Text message through a bridge" : "Internet through a bridge") : "";
+    const viaWord = m.deliveredVia === "mesh" ? "phones nearby carrying it, " + (route.length - 2) + " hops" : m.deliveredVia === "direct" ? (m.receipts[0]?.via || "Bluetooth / Wi-Fi") : m.deliveredVia === "internet" ? (to.sms ? "Text message through a bridge" : "Internet through a bridge") : "";
     const who = (title, name, id, sub) => `<div class="party"><span class="t-over">${title}</span><b>${name}</b><span class="uid">${id}</span>${sub ? `<span class="t-cap">${sub}</span>` : ""}</div>`;
     const pathRow = (path, icon, color) => {
       const st = m.paths[path] ? m.paths[path].state : "none";
@@ -81,7 +82,7 @@
         ${to.sms ? '<div class="set"><span class="main"><span class="t-cap">Text messages give a delivery receipt from the phone network, but no read receipt.</span></span></div>' : ""}</div>
 
       <div class="group-label t-over">Delivery paths · first one wins</div>
-      <div class="group">${pathRow("direct", I.mesh, "var(--sky)")}${pathRow("internet", I.globe, "var(--ember)")}</div>
+      <div class="group">${m.paths.mesh ? pathRow("mesh", I.mesh, "var(--pine)") : pathRow("direct", I.mesh, "var(--sky)") + pathRow("internet", I.globe, "var(--ember)")}</div>
 
       <div class="group-label t-over">Journey</div>
       <div class="group spec"><ol class="timeline">${timeline}</ol></div>

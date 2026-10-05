@@ -6,6 +6,7 @@ import com.bluemob.app.data.MessageDao
 import com.bluemob.app.data.MessageEntity
 import com.bluemob.app.data.MessageStatus
 import com.bluemob.app.data.SeenId
+import com.bluemob.app.mesh.Handoff
 import com.bluemob.app.mesh.MeshEvent
 import com.bluemob.app.mesh.MessageLink
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,14 +30,14 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class MessageRepositoryTest {
 
-    private class FakeDao : MessageDao {
+    internal class FakeDao : MessageDao {
         val rows = MutableStateFlow<List<MessageEntity>>(emptyList())
         private val seen = mutableSetOf<String>()
         override fun observeAll(): Flow<List<MessageEntity>> = rows
         override suspend fun get(id: String) = rows.value.firstOrNull { it.id == id }
-        override suspend fun unacknowledged(peer: String) = rows.value.filter { it.peer == peer && it.fromMe && (it.status == MessageStatus.PENDING || it.status == MessageStatus.SENT) }
+        override suspend fun unacknowledgedAll() = rows.value.filter { it.fromMe && (it.status == MessageStatus.PENDING || it.status == MessageStatus.SENT) }
         override suspend fun unread(peer: String) = rows.value.filter { it.peer == peer && !it.fromMe && it.status == MessageStatus.RECEIVED }
-        override suspend fun readReceiptsOwed(peer: String) = rows.value.filter { it.peer == peer && !it.fromMe && it.status == MessageStatus.READ && !it.readReceiptSent }
+        override suspend fun readReceiptsOwedAll() = rows.value.filter { it.peer != SkyBot.NODE_ID && !it.fromMe && it.status == MessageStatus.READ && !it.readReceiptSent }
         override suspend fun count(peer: String) = rows.value.count { it.peer == peer }
         override suspend fun insert(message: MessageEntity): Long {
             if (rows.value.any { it.id == message.id }) return -1
@@ -64,11 +65,11 @@ class MessageRepositoryTest {
             override val events: SharedFlow<MeshEvent> = inbox
             override fun isConnected(nodeId: String) = connected
             override fun linkName(nodeId: String) = "Bluetooth"
-            override fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long): Boolean {
-                if (!connected) return false
+            override fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long): Handoff {
+                if (!connected) return Handoff.Held
                 copiesSent++
                 other.inbox.tryEmit(MeshEvent.MessageReceived(me, messageId, text, sentAt))
-                return true
+                return Handoff.Direct("Bluetooth")
             }
             override fun sendReceipt(toNodeId: String, messageId: String, read: Boolean): Boolean {
                 if (!connected) return false

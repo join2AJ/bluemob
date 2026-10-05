@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Someone we have met over the mesh at least once. */
+/** Someone we've met over the mesh, or added by their BlueMob ID. [lastSeen] is 0 for people we've never met in person. */
 data class Contact(
     val nodeId: String,
     val name: String,
@@ -26,17 +26,22 @@ class ContactsStore(context: Context) {
     private val prefs = context.getSharedPreferences("contacts", Context.MODE_PRIVATE)
 
     private val _contacts = MutableStateFlow(load())
+    /** Every packet touches a contact, so writes are batched: at most one save a second. */
+    private val saveSoon = com.bluemob.app.util.Debounced(1_000) { save() }
     val contacts: StateFlow<Map<String, Contact>> = _contacts.asStateFlow()
 
     fun upsert(nodeId: String, transform: (Contact?) -> Contact) {
         val updated = transform(_contacts.value[nodeId])
         _contacts.value = _contacts.value + (nodeId to updated)
-        save()
+        saveSoon()
     }
 
     fun touch(nodeId: String, name: String, now: Long = System.currentTimeMillis()) = upsert(nodeId) {
         it?.copy(name = name, lastSeen = now) ?: Contact(nodeId, name, null, now)
     }
+
+    /** Adds someone by their BlueMob ID, before ever meeting them. Keeps what we already know about them. */
+    fun addById(nodeId: String, name: String) = upsert(nodeId) { it ?: Contact(nodeId, name, null, 0) }
 
     fun forgetAll() {
         _contacts.value = emptyMap()

@@ -23,14 +23,35 @@ through Meera, who has internet.
 | 2 | Chat saved on the phone, store-and-forward, exactly-once, delivered / read receipts | ✅ 0.3 | ✅ |
 | – | Pine & Sand design system, 5 tabs, SOS button everywhere | ✅ 0.3 | ✅ |
 | – | Sky (on-device helper), survival guide, SOS (send, pass on, alert, signals), compass | ✅ 0.3 | ✅ |
-| 3 | Chat messages hopping through several phones (A → B → C) | | simulated |
+| 3 | Message anyone by BlueMob ID: messages hop phone to phone (A → B → C), end-to-end encrypted | ✅ 0.5 | simulated |
+| – | Verified IDs (key-based), signed SOS / lost / rescue packets, background service + notifications | ✅ 0.5 | |
 | 4 | Internet bridge + BlueMob relay (Firebase): far-away friends, SMS to loved ones, experts | | simulated |
-| 5 | End-to-end encryption | | |
+| 5 | End-to-end encryption | ✅ 0.5 (messages) | |
 | – | Trail, base camp, "walking straight?", lost mode with position estimate | ✅ 0.4 | |
 | – | SOS contacts (SMS), connections panel, tamper-evident audit trail | ✅ 0.4 | ✅ audit |
 | 6 | Games vs the computer | ✅ 0.4 | ✅ |
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
+
+## Android 0.5: security, reach and reliability
+
+All phones need 0.5: it speaks a new protocol (`BM2`) and won't link with older versions. IDs change once (see below).
+
+- **Message anyone by BlueMob ID** (`mesh/MeshRouter.kt`, Chats → "Message anyone by BlueMob ID"): type someone's ID, even if
+  you've never met. In range, it goes straight to them. Otherwise it's handed to phones nearby, who carry it and pass it on
+  as people move (store-carry-forward, "Binary Spray and Wait": at most 8 copies, so the mesh doesn't flood). Receipts come
+  back the same way and tell carriers to drop their copies. If we don't have their key yet, the mesh is asked for it; any
+  phone that knows it can answer. Carried messages expire after 3 days, with limits per sender.
+- **End-to-end encryption** (`crypto/Crypto.kt`): ECDH P-256 + HKDF + AES-256-GCM per pair of phones. Carriers can't read or
+  change messages.
+- **Verified identities**: each phone has a P-256 key pair (private key wrapped by an Android Keystore key). The BlueMob ID
+  is derived from the public key, so it can't be claimed by another phone. Hellos sign Nearby's per-connection token;
+  SOS, "I'm safe", lost-mode and rescue-group packets are signed, so nobody can fake someone's SOS or cancel it.
+  Existing IDs change once to the key-based ID (recorded in the audit trail).
+- **Background**: a foreground service keeps the mesh on with the screen off (You → "Stay on in the background").
+  Notifications for SOS (alarm channel, over the lock screen only while the alert shows), messages and rescue groups.
+- **Hardening**: payload size limits, field length caps, bounded "seen" sets, batched contact saves, protocol version.
+- See the full audit and roadmap: `docs/audit.html`.
 
 ## Android 0.4: what's new
 
@@ -100,7 +121,9 @@ debug key, so uninstall the old version before installing a new one.
 **Automated** (`./gradlew testDebugUnitTest`): the delivery engine with two simulated phones (waits until in range,
 exactly-once after a re-send, read receipts), 35 Sky questions, trail maths and dead reckoning, the audit chain (edits and
 removals are caught), the game opponents (the unbeatable one is checked against every possible game), geo maths, and
-rescue groups (joining, moving, arriving, leaving, late SOS), and screenshots of 25 screens.
+rescue groups (joining, moving, arriving, leaving, late SOS), the router on a simulated network of moving phones
+(carried delivery, key lookup, tampering and forgery rejected, copy limits, expiry), one end-to-end test of message store +
+router across three phones, and screenshots of 26 screens.
 The web preview has its own Sky test: `node web/tests/sky_answers.test.js`.
 
 **On one phone:** go through the intro, ask Sky questions, read the guide, try the SOS signal (flashlight and sound),
@@ -115,10 +138,13 @@ and the compass (outdoors for GPS).
 5. **Store-and-forward:** turn the mesh off on phone B, send B a message from phone A (it shows the clock),
    then turn B's mesh back on. The message arrives, and A's tick goes to delivered, then read when B opens the chat.
 6. **SOS:** send an SOS from one phone. The other opens the alert. With three phones in a line, the middle one passes it on.
-7. **Rescue group:** with three phones, send an SOS from A. On B tap **I'm coming**, then on C too. All three see each
+7. **Message by ID across phones:** with three phones A, B, C: keep C away from A. On A, Chats → "Message anyone by BlueMob
+   ID", type C's ID (C: Chats → same screen shows it). Bring A next to B, then walk B over to C. C gets the message;
+   its receipt comes back the next time B meets A.
+8. **Rescue group:** with three phones, send an SOS from A. On B tap **I'm coming**, then on C too. All three see each
    other in the group, with distances, and can chat. Tap "I'm safe" on A to end it.
-8. **Lost mode:** on phone A, Compass → **I'm lost**. Phone B shows "A is lost" with A's position. Walk somewhere with
+9. **Lost mode:** on phone A, Compass → **I'm lost**. Phone B shows "A is lost" with A's position. Walk somewhere with
    A; in airplane mode indoors (no GPS) A's estimate keeps moving with its steps.
-9. Turn on **Share my location** on both phones to see distance on the radar and walk to each other with the compass.
+10. Turn on **Share my location** on both phones to see distance on the radar and walk to each other with the compass.
 
 If something fails, send a screenshot of **You → Mesh activity log**.

@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bluemob.app.bot.SkyBot
 import com.bluemob.app.guide.GuideContent
 import com.bluemob.app.ui.chat.ChatScreen
+import com.bluemob.app.ui.chat.NewChatScreen
 import com.bluemob.app.ui.chat.ChatsScreen
 import com.bluemob.app.ui.chat.MessageInfoScreen
 import com.bluemob.app.ui.compass.CompassScreen
@@ -109,6 +110,7 @@ class SystemActions(
     val switchRadio: (com.bluemob.app.system.Radio, Boolean) -> Unit = { _, _ -> },
     val textSos: (List<String>, String) -> Unit = { _, _ -> },
     val requestSteps: () -> Unit = {},
+    val shareId: () -> Unit = {},
 )
 
 @Composable
@@ -167,6 +169,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val rescues by vm.rescues.collectAsStateWithLifecycle()
     var notice by remember { mutableStateOf<RescueNotice?>(null) }
     LaunchedEffect(Unit) { vm.rescueNotices.collect { n -> notice = n } }
+    val pendingRoute by vm.pendingRoute.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingRoute) { pendingRoute?.let { stack.clear(); push(it); vm.pendingRoute.value = null } }
     LaunchedEffect(notice) { if (notice != null) { delay(6_000); notice = null } }
     val hereFix = myFix ?: estimate?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
     val askSteps = { if (vm.stepCounterAvailable && !vm.hasStepPermission()) actions.requestSteps() }
@@ -206,7 +210,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onConnections = { push("connections") }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push("games") },
                             onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
                         )
-                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { push("rescue:$it") }) { push("chat:$it") }
+                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { push("rescue:$it") }, onNewChat = { push("newchat") }) { push("chat:$it") }
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
@@ -226,6 +230,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onSos = { push("sos") }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
                             onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
                             onGames = { push("games") }, sosContactCount = sosContacts.size,
+                            background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
                         )
                     }
                 }
@@ -255,6 +260,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     onText = actions.textSos, onPreviewAlert = vm::previewSosAlert,
                     rescue = rescues.firstOrNull { it.mine && it.id == mySos?.id }, onOpenRescue = { mySos?.let { push("rescue:" + it.id) } },
                 )
+                route == "newchat" -> NewChatScreen(vm.nodeId, people, ::pop,
+                    onStart = { id, n -> vm.startChatById(id, n); pop(); push("chat:$id") },
+                    onOpen = { pop(); push("chat:$it") }, onShareId = actions.shareId)
                 route.startsWith("rescue:") -> {
                     val room = rescues.firstOrNull { it.id == route.removePrefix("rescue:") }
                     if (room == null) LaunchedEffect(Unit) { delay(1_500); pop() }

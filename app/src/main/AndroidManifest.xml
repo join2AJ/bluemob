@@ -33,6 +33,13 @@
     <!-- Optional: count steps for the trail, so BlueMob can estimate your position when GPS drops out -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
+    <!-- Keep the mesh running in the background, with a visible notification, so SOS and messages arrive -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- An SOS from someone nearby opens over the lock screen where Android allows it -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <!-- To show whether this phone has internet (it could act as a bridge for others) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -61,8 +68,14 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.BlueMob">
+        <service
+            android:name=".service.MeshService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
         <activity
             android:name=".MainActivity"
+            android:launchMode="singleTop"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

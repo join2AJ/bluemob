@@ -46,6 +46,7 @@ class SkyBotTest {
         "power bank" to "Getting power back",
         "What to do in free time" to "free time",
         "I'm bored" to "free time",
+        "can I message someone by their unique number?" to "BlueMob ID",
     )
 
     @Test

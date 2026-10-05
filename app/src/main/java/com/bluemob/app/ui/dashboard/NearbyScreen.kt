@@ -234,7 +234,7 @@ private fun PersonCard(p: Person, onClick: () -> Unit) {
 fun statusLine(p: Person): String = when (p.presence) {
     Presence.ONLINE -> listOfNotNull(p.distanceM?.let { Geo.formatDistance(it) }, linkWords(p.quality)).joinToString(" · ")
     Presence.IN_RANGE -> "Connecting…"
-    Presence.OFFLINE -> "Seen " + TimeText.ago(p.lastSeen)
+    Presence.OFFLINE -> if (p.lastSeen == 0L) "Added by ID · not met yet" else "Seen " + TimeText.ago(p.lastSeen)
 }
 
 fun linkWords(q: LinkQuality?): String = when (q) {

@@ -171,7 +171,7 @@
   //  recognises the ID and discards it. So a message is shown exactly once.
   // =====================================================================
   const hasInternet = (p) => p.remote || !!p.home;   // far-away people are online where they are
-  const PATH_LABEL = { direct: "Bluetooth / Wi-Fi", internet: "Internet" };
+  const PATH_LABEL = { direct: "Bluetooth / Wi-Fi", internet: "Internet", mesh: "Phones nearby" };
 
   function send(id, text, opts = {}) {
     text = text.trim();
@@ -190,6 +190,7 @@
       return m;
     }
     const p = P[id];
+    if (p.byid) { note(m, "Written on your phone · ID " + m.id); audit("message", `Message ${m.id} written to ${p.name}`); carryViaMesh(m, id); return m; }
     if (!p.remote) m.paths.direct = { state: p.presence === "online" ? "trying" : "waiting" };
     m.paths.internet = { state: "waiting" };
     note(m, "Written on your phone · ID " + m.id);
@@ -232,10 +233,10 @@
     m.status = "delivered";
     STATS.delivered++;
     if (path === "direct") STATS.direct++; else { STATS.bridge++; if (m.route && m.route.includes("Ravi")) STATS.hopped++; }
-    const back = path === "direct" ? how : "the internet and the bridge";
+    const back = path === "direct" ? how : path === "mesh" ? "the mesh (" + (m.route.length - 2) + " phones carried it)" : "the internet and the bridge";
     m.receipts.push({ kind: "delivered", time: now(), via: back });
     audit("receipt", `Message ${m.id} delivered to ${p ? p.name : id} by ${path === "direct" ? how : "internet"}`);
-    note(m, `Delivered by ${path === "direct" ? how : p && p.sms ? "text message" : "internet"}. Delivery receipt came back over ${back}`);
+    note(m, `Delivered by ${path === "direct" ? how : path === "mesh" ? "phones carrying it" : p && p.sms ? "text message" : "internet"}. Delivery receipt came back over ${back}`);
     // The receipt stops the other path.
     const other = path === "direct" ? "internet" : "direct";
     const o = m.paths[other];

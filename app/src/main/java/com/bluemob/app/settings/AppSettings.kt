@@ -67,6 +67,15 @@ class AppSettings(context: Context) {
         saveSpots()
     }
 
+    private val _background = MutableStateFlow(prefs.getBoolean("background", true))
+    /** Keep the mesh running with the screen off (a foreground service with a notification). On by default: it's a safety app. */
+    val background: StateFlow<Boolean> = _background.asStateFlow()
+
+    fun setBackground(on: Boolean) {
+        prefs.edit().putBoolean("background", on).apply()
+        _background.value = on
+    }
+
     private val _trailOn = MutableStateFlow(prefs.getBoolean("trail", false))
     /** Opt-in: recording the trail keeps GPS on. */
     val trailOn: StateFlow<Boolean> = _trailOn.asStateFlow()

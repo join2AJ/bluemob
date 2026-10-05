@@ -19,6 +19,8 @@ data class Peer(
     val name: String,
     val state: PeerState,
     val quality: LinkQuality? = null,
+    /** True once the phone proved it owns its ID (signed hello). */
+    val verified: Boolean = false,
 )
 
 data class LogLine(val timeMillis: Long, val text: String)
@@ -26,15 +28,23 @@ data class LogLine(val timeMillis: Long, val text: String)
 /** Things that arrive over the mesh that other parts of the app care about. */
 sealed interface MeshEvent {
     /** A chat message. The same [messageId] may arrive more than once; the receiver keeps the first. */
-    data class MessageReceived(val fromNodeId: String, val messageId: String, val text: String, val sentAt: Long) : MeshEvent
+    data class MessageReceived(
+        val fromNodeId: String, val messageId: String, val text: String, val sentAt: Long,
+        /** 1 = straight from them; more = passed on by other phones. */
+        val hops: Int = 1,
+        /** The sender's name, as they wrote it. Lets us show people we've never met. */
+        val name: String? = null,
+    ) : MeshEvent
     /** A receipt for one of our messages: [read] is false for "delivered", true for "read". */
-    data class Receipt(val fromNodeId: String, val messageId: String, val read: Boolean) : MeshEvent
+    data class Receipt(val fromNodeId: String, val messageId: String, val read: Boolean, val hops: Int = 1) : MeshEvent
     /** A link to [nodeId] just opened: anything waiting for them can go now. */
     data class PeerConnected(val nodeId: String) : MeshEvent
     data class PingResult(val nodeId: String, val roundTripMs: Long) : MeshEvent
     data class SosReceived(val sos: SosSignal) : MeshEvent
     data class LostReceived(val lost: LostSignal) : MeshEvent
     data class RoomReceived(val msg: RoomPayload) : MeshEvent
+    /** We just learned [nodeId]'s public key, so messages waiting for it can go. */
+    data class KeyLearned(val nodeId: String) : MeshEvent
 }
 
 /**

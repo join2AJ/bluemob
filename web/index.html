@@ -557,6 +557,9 @@ button.set:hover { background: var(--sand); }
 .rmsg .who { font-size: 12px; font-weight: 600; color: var(--ink-3); margin: 0 0 2px 12px; }
 .rmsg.victim .who { color: var(--rose); }
 .rmsg .when { font-size: 11px; color: var(--ink-3); margin: 2px 12px 0; }
+.byid-card { display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 14px 16px 0; padding: 14px; border-radius: 20px; background: var(--pine-tint); color: var(--ink); font-size: 16px; }
+.id-card { background: var(--pine); color: #fff; border-radius: 20px; padding: 18px; margin-top: 8px; }
+.id-big { font: 700 22px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 4px; letter-spacing: .02em; }
 </style>
 
 <div class="stage">
@@ -795,7 +798,7 @@ button.set:hover { background: var(--sand); }
   //  recognises the ID and discards it. So a message is shown exactly once.
   // =====================================================================
   const hasInternet = (p) => p.remote || !!p.home;   // far-away people are online where they are
-  const PATH_LABEL = { direct: "Bluetooth / Wi-Fi", internet: "Internet" };
+  const PATH_LABEL = { direct: "Bluetooth / Wi-Fi", internet: "Internet", mesh: "Phones nearby" };
 
   function send(id, text, opts = {}) {
     text = text.trim();
@@ -814,6 +817,7 @@ button.set:hover { background: var(--sand); }
       return m;
     }
     const p = P[id];
+    if (p.byid) { note(m, "Written on your phone · ID " + m.id); audit("message", `Message ${m.id} written to ${p.name}`); carryViaMesh(m, id); return m; }
     if (!p.remote) m.paths.direct = { state: p.presence === "online" ? "trying" : "waiting" };
     m.paths.internet = { state: "waiting" };
     note(m, "Written on your phone · ID " + m.id);
@@ -856,10 +860,10 @@ button.set:hover { background: var(--sand); }
     m.status = "delivered";
     STATS.delivered++;
     if (path === "direct") STATS.direct++; else { STATS.bridge++; if (m.route && m.route.includes("Ravi")) STATS.hopped++; }
-    const back = path === "direct" ? how : "the internet and the bridge";
+    const back = path === "direct" ? how : path === "mesh" ? "the mesh (" + (m.route.length - 2) + " phones carried it)" : "the internet and the bridge";
     m.receipts.push({ kind: "delivered", time: now(), via: back });
     audit("receipt", `Message ${m.id} delivered to ${p ? p.name : id} by ${path === "direct" ? how : "internet"}`);
-    note(m, `Delivered by ${path === "direct" ? how : p && p.sms ? "text message" : "internet"}. Delivery receipt came back over ${back}`);
+    note(m, `Delivered by ${path === "direct" ? how : path === "mesh" ? "phones carrying it" : p && p.sms ? "text message" : "internet"}. Delivery receipt came back over ${back}`);
     // The receipt stops the other path.
     const other = path === "direct" ? "internet" : "direct";
     const o = m.paths[other];
@@ -1030,6 +1034,7 @@ button.set:hover { background: var(--sand); }
     if (p.remote) return bridgeOnline() ? "2,000 km away · via Meera's internet" : "2,000 km away · waiting for a bridge";
     if (p.presence === "online") return ["Online", S.shareLoc ? fmtDist(p.dist) + " away" : null, p.link].filter(Boolean).join(" · ");
     if (p.presence === "range") return "In range · connecting…";
+    if (p.byid) return "Added by ID · reached through phones nearby";
     return "Seen " + ago(p.lastSeen) + (p.home ? " · now in " + p.home.split(",")[0] : S.shareLoc ? " · was " + fmtDist(p.dist) + " away" : "") + " · reach by ID";
   }
 
@@ -1085,7 +1090,7 @@ button.set:hover { background: var(--sand); }
     S._anim = anim;
     const SCREENS = { design: designView, power: powerView, insights: insightsView, article: articleView, ttt: tttView,
       quiz: quizView, games: gamesIdeasView, person: personView, soshub: sosHubView, contacts: contactsView, info: messageInfoView,
-      money: moneyView, play: gamesHubView, audit: auditView, rescue: rescueView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
+      money: moneyView, play: gamesHubView, audit: auditView, rescue: rescueView, newchat: newChatView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
     if (S.screen === "chat") { app.innerHTML = chatView(anim); renderChatParts(true); }
     else if (S.screen === "sos") { app.innerHTML = sosView(); clearTimeout(sosTimer); startSos(); }
     else if (SCREENS[S.screen]) app.innerHTML = SCREENS[S.screen](anim);
@@ -1379,8 +1384,8 @@ button.set:hover { background: var(--sand); }
   function chatEntries() {
     const entries = [
       { id: "sky", name: SKY.name, emoji: SKY.avatar, presence: "online", kind: "bot", status: "Your practice buddy" },
-      ...["dee", "experts", ...S.contacts.map((c) => c.id)].map((id) => ({ id, name: P[id].name, emoji: P[id].avatar, presence: "remote",
-        kind: P[id].sms ? "sms" : id === "experts" ? "expert" : "far", status: statusLine(P[id]) })),
+      ...["dee", "experts", ...S.contacts.map((c) => c.id), ...S.byId.map((b) => b.id)].map((id) => ({ id, name: P[id].name, emoji: P[id].avatar, presence: "remote",
+        kind: P[id].sms ? "sms" : id === "experts" ? "expert" : P[id].byid ? "byid" : "far", status: statusLine(P[id]) })),
       ...nearby().map((p) => ({ id: p.id, name: p.name, emoji: p.avatar, presence: p.presence, kind: p.presence === "offline" ? "far" : "near", status: statusLine(p) })),
     ];
     const lastTime = (e) => S.convos[e.id]?.messages.at(-1)?.time ?? 0;
@@ -1390,7 +1395,7 @@ button.set:hover { background: var(--sand); }
     const q = S.query.trim().toLowerCase();
     const all = chatEntries();
     const list = all.filter((e) => (!q || e.name.toLowerCase().includes(q)) &&
-      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && ["far", "sms", "expert"].includes(e.kind)) ||
+      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && ["far", "sms", "expert", "byid"].includes(e.kind)) ||
        (S.filter === "unread" && S.convos[e.id]?.unread) || (S.filter === "online" && e.presence === "online")));
     const onlineNow = nearby().filter((p) => p.presence === "online");
     return `
@@ -1398,6 +1403,7 @@ button.set:hover { background: var(--sand); }
       <label class="search">${I.search}<input id="q" type="search" placeholder="Search" value="${esc(S.query)}" aria-label="Search chats"></label>
       ${onlineNow.length && !q ? `<div class="section-h" style="margin-top:20px"><span class="t-over">Online nearby</span></div>
         <div class="stories">${onlineNow.map((p) => `<button class="story press" data-act="open-chat" data-id="${p.id}">${avatar(p.avatar, p.id, 60, "online")}<span class="ellipsis" style="max-width:64px">${esc(p.name)}</span></button>`).join("")}</div>` : ""}
+      ${q ? "" : `<button class="byid-card press" data-act="newchat"><span style="font-size:22px">✉️</span><span style="flex:1;text-align:left"><b>Message anyone by BlueMob ID</b><span class="t-cap" style="display:block">Even if they're not nearby. Share your own ID too</span></span><span style="color:var(--pine);font-size:22px">›</span></button>`}
       ${q ? "" : rescueGroupsHtml()}
       <div class="filters" role="group" aria-label="Filter chats">${[["all", "All"], ["unread", "Unread"], ["online", "Online"], ["nearby", "Nearby"], ["far", "Far away"]].map(([v, l]) =>
         `<button class="chip" data-act="filter" data-v="${v}" aria-pressed="${S.filter === v}">${l}</button>`).join("")}</div>
@@ -1407,7 +1413,7 @@ button.set:hover { background: var(--sand); }
     const c = S.convos[e.id];
     const last = c?.messages.at(-1);
     const unread = c?.unread || 0;
-    const tag = { bot: '<span class="tag sky">BOT</span>', far: '<span class="tag ember">VIA BRIDGE</span>', sms: '<span class="tag ember">SMS</span>',
+    const tag = { bot: '<span class="tag sky">BOT</span>', far: '<span class="tag ember">VIA BRIDGE</span>', sms: '<span class="tag ember">SMS</span>', byid: '<span class="tag pine">BY ID</span>',
       expert: '<span class="tag pine">EXPERTS</span>' }[e.kind] || "";
     const preview = c?.typing ? '<span class="typing-text">typing…</span>'
       : last ? (last.me ? "You: " : "") + esc(last.text.split("\n")[0]) : esc(e.status);
@@ -1457,10 +1463,11 @@ button.set:hover { background: var(--sand); }
     const sub = info.bot ? "Built into BlueMob, on your phone. No internet, no server: what you ask stays here. I know the app, the survival guide, and what's happening around you."
       : id === "experts" ? "Volunteer medics, rangers and rescuers. Your questions go out as soon as someone nearby has internet, and you're notified when they reply."
       : info.sms ? `${esc(p.phone)} · They don't need BlueMob. Your message reaches them as a normal text once someone nearby has internet.`
+      : p && p.byid ? "Added by BlueMob ID. If they're not nearby, your messages travel phone to phone, end-to-end encrypted, until they reach them."
       : info.remote ? "2,000 km away. Messages travel through a nearby friend who has internet."
       : p.presence === "offline" ? `You met on the trip. ${p.home ? "Now in " + esc(p.home) + ". " : ""}You can still talk, by BlueMob ID, with no phone numbers shared.`
       : "Met nearby over " + (p.link || "Bluetooth") + ". Messages go phone to phone.";
-    const tag = info.bot ? '<span class="tag sky">ON THIS PHONE · OFFLINE</span>' : info.sms ? '<span class="tag ember">BY TEXT MESSAGE</span>'
+    const tag = info.bot ? '<span class="tag sky">ON THIS PHONE · OFFLINE</span>' : p && p.byid ? '<span class="tag pine">BY ID · PHONE TO PHONE</span>' : info.sms ? '<span class="tag ember">BY TEXT MESSAGE</span>'
       : info.far ? '<span class="tag ember">VIA BRIDGE</span>' : '<span class="tag pine">DIRECT</span>';
     return `<div class="intro">${avatar(info.emoji, id, 80)}<h2 class="t-title" style="margin-top:8px">${esc(info.name)}</h2>${tag}<p class="t-sub" style="margin-top:4px">${sub}</p></div>`;
   }
@@ -1469,7 +1476,9 @@ button.set:hover { background: var(--sand); }
     if (m.status === "pending" || !m.route || m.route.length < 3) return pn ? `<div class="journey-note">${pn}</div>` : "";
     const done = m.status === "delivered";
     const steps = m.route.map((h, i) => `<li class="${done || i < m.hop ? "done" : i === m.hop ? "now" : ""}"><i></i><span class="ellipsis" style="max-width:100%">${esc(h.replace(" 🌐", ""))}</span></li>`).join("");
-    const note = done ? "Delivered through Meera's internet · tap for details" : m.hop === 0 ? "Leaving your phone…" : "Passing through " + m.route[m.hop].replace(" 🌐", "") + "…";
+    const carriedBy = m.route.slice(1, -1);
+    const note = done && m.deliveredVia === "mesh" ? `Carried by ${carriedBy.slice(0, -1).join(", ")} and ${carriedBy.slice(-1)} · tap for details`
+      : done ? "Delivered through Meera's internet · tap for details" : m.hop === 0 ? "Leaving your phone…" : "Passing through " + m.route[m.hop].replace(" 🌐", "") + "…";
     return `<ol class="journey" aria-label="Route">${steps}</ol><div class="journey-note">${note}</div>`;
   }
   function messagesHtml(id, info, c) {
@@ -1722,6 +1731,10 @@ button.set:hover { background: var(--sand); }
       case "sos-reason": S.sosNote = S.sosNote.includes(v) ? S.sosNote.replace(v, "").replace(/^[,\s]+|[,\s]+$/g, "").replace(/,\s*,/g, ",") : (S.sosNote ? S.sosNote + ", " : "") + v; render(); break;
       case "sos-test": back(); later(300, () => { if (P.ravi.presence !== "online") { toast("Switch the mesh on first, so someone nearby can send one"); return; } receiveSos("ravi", "Twisted my ankle near the stream. Can't walk. Please bring a torch"); }); break;
       case "sos-coming": S.alertOpen = false; joinRescueFor(v); break;
+      case "newchat": open("newchat"); break;
+      case "copy-id": try { navigator.clipboard.writeText("BM " + MY_ID.match(/.{4}/g).join(" ")); } catch (e) { /* clipboard blocked */ } toast("Your ID is copied"); break;
+      case "share-id": toast("On a phone this opens the share sheet: \"Message me on BlueMob: BM " + MY_ID.match(/.{4}/g).join(" ") + "\""); break;
+      case "byid-example": { const i = document.getElementById("byid-id"), n = document.getElementById("byid-name"); i.value = "BM 9C1F 00AA 77B2 E410"; n.value = "Kabir from the bus"; break; }
       case "open-rescue": open("rescue", { rescue: v }); break;
       case "rescue-join": { const r = S.rescues[S.rescue]; rescueJoin(r, "me", P[r.victim].dist); render(); break; }
       case "rescue-quick": rescueSend(v); break;
@@ -1840,6 +1853,7 @@ button.set:hover { background: var(--sand); }
       S.exSplit.forEach((id) => send(id, `🧾 I paid ${RUPEE(amt)} for ${note}. Your share is ${RUPEE(amt / split.length)}. It's in Trip money.`));
       S.exSplit = []; toast("Added and shared with " + (split.length - 1) + " people"); render(); return;
     }
+    if (e.target.id === "byid-form") { e.preventDefault(); startById(document.getElementById("byid-id").value, document.getElementById("byid-name").value); return; }
     if (e.target.id === "rescue-form") { e.preventDefault(); const i = document.getElementById("rescue-draft"); rescueSend(i.value); return; }
     if (e.target.id === "word-form") { e.preventDefault(); wordsPlay(document.getElementById("word-in").value); return; }
     if (e.target.id !== "composer") return;
@@ -3052,6 +3066,7 @@ button.set:hover { background: var(--sand); }
     return {
       direct: { waiting: `Waiting for ${esc(name)} to come in range`, trying: "Sending now", delivered: "Delivered" + t,
         cancelled: "Not needed: delivered another way", discarded: "Arrived second. Discarded by message ID" },
+      mesh: { waiting: "Waiting for someone nearby to carry it", moving: "Being carried by phones nearby. Encrypted: they can't read it", delivered: "Delivered" + t },
       internet: { waiting: bridgeOnline() ? "Starting…" : "Waiting for someone nearby with internet (a bridge)", moving: "Travelling through Meera's internet",
         relay: `Stored at the relay until ${esc(name)} can be reached`, delivered: "Delivered" + t, cancelled: "Cancelled: delivered another way",
         discarded: "Arrived second. Discarded by message ID", "not-needed": "Not needed: delivered directly" },
@@ -3088,7 +3103,7 @@ button.set:hover { background: var(--sand); }
     const to = S.info.chat === "sky" ? { name: "Sky", uid: null } : P[S.info.chat];
     const route = m.route || ["You", to.name];
     const statusWord = { read: "Read", delivered: "Delivered", pending: "Waiting to be delivered", sent: "On its way", sending: "Sending" }[m.status] || m.status;
-    const viaWord = m.deliveredVia === "direct" ? (m.receipts[0]?.via || "Bluetooth / Wi-Fi") : m.deliveredVia === "internet" ? (to.sms ? "Text message through a bridge" : "Internet through a bridge") : "";
+    const viaWord = m.deliveredVia === "mesh" ? "phones nearby carrying it, " + (route.length - 2) + " hops" : m.deliveredVia === "direct" ? (m.receipts[0]?.via || "Bluetooth / Wi-Fi") : m.deliveredVia === "internet" ? (to.sms ? "Text message through a bridge" : "Internet through a bridge") : "";
     const who = (title, name, id, sub) => `<div class="party"><span class="t-over">${title}</span><b>${name}</b><span class="uid">${id}</span>${sub ? `<span class="t-cap">${sub}</span>` : ""}</div>`;
     const pathRow = (path, icon, color) => {
       const st = m.paths[path] ? m.paths[path].state : "none";
@@ -3122,7 +3137,7 @@ button.set:hover { background: var(--sand); }
         ${to.sms ? '<div class="set"><span class="main"><span class="t-cap">Text messages give a delivery receipt from the phone network, but no read receipt.</span></span></div>' : ""}</div>
 
       <div class="group-label t-over">Delivery paths · first one wins</div>
-      <div class="group">${pathRow("direct", I.mesh, "var(--sky)")}${pathRow("internet", I.globe, "var(--ember)")}</div>
+      <div class="group">${m.paths.mesh ? pathRow("mesh", I.mesh, "var(--pine)") : pathRow("direct", I.mesh, "var(--sky)") + pathRow("internet", I.globe, "var(--ember)")}</div>
 
       <div class="group-label t-over">Journey</div>
       <div class="group spec"><ol class="timeline">${timeline}</ol></div>
@@ -3511,6 +3526,68 @@ button.set:hover { background: var(--sand); }
         <span class="main"><span class="line1"><span class="name ellipsis">${r.victim === "me" ? "Your rescue" : "Help " + esc(P[r.victim].name)}</span><span class="tag ${r.ended ? "" : "ember"}">${r.ended ? "ENDED" : coming(r).length + " COMING"}</span></span>
         <span class="preview ellipsis">${last ? esc(whoName(last.from)) + ": " + esc(last.text) : esc(r.note || "SOS")}</span></span></button>`;
     }).join("")}</div>`;
+  }
+  // ---------- message anyone by BlueMob ID ----------
+  // On phones, a message to someone out of range is handed (end-to-end encrypted) to phones nearby, who carry it
+  // and pass it on as people move, until it reaches them. Here, the carriers and the journey are simulated.
+  S.byId = store.get("byid", []);
+  const normId = (s) => { const h = String(s || "").toLowerCase().replace(/^\s*bm/, "").replace(/[^0-9a-z]/g, ""); return /^[0-9a-f]{16}$/.test(h) ? h.toUpperCase() : null; };
+  function byIdPerson(b) {
+    P[b.id] = { id: b.id, name: b.name, avatar: "✉️", uid: b.uid, byid: true, presence: "offline", met: true, lastSeen: 0, dist: 3200, bearing: 40, link: "" };
+    FRIEND[b.id] = { rules: [], fallback: ["Got your message through the mesh! 🙌 Two phones carried it to me.", "Yes! Message received, no signal here either 😄"] };
+  }
+  S.byId.forEach(byIdPerson);
+  function startById(idText, name) {
+    const uidHex = normId(idText);
+    if (!uidHex) return toast("A BlueMob ID has 16 letters and numbers, like BM 3F9A 1C2B 7D4E 8A01");
+    if (uidHex === MY_ID) return toast("That's your own ID");
+    const known = Object.values(P).find((p) => p.uid === uidHex);
+    if (known) { back(); open("chat", { chat: known.id }); return; }
+    const b = { id: "id-" + uidHex.slice(0, 8).toLowerCase(), uid: uidHex, name: (name || "").trim().slice(0, 24) || "BM " + uidHex.slice(0, 4) + " " + uidHex.slice(4, 8) };
+    S.byId.push(b); store.set("byid", S.byId); byIdPerson(b);
+    audit("mesh", `Added ${b.name} by BlueMob ID ${uidHex}`);
+    back(); open("chat", { chat: b.id });
+  }
+  /** The mesh-carry path: ask for their key, hand encrypted copies to phones nearby, delivered when a carrier meets them. */
+  function carryViaMesh(m, id) {
+    const p = P[id];
+    const carriers = nearby().filter((x) => x.presence === "online").slice(0, 2);
+    m.paths = { mesh: { state: "waiting" } };
+    m.status = "pending";
+    note(m, "Not in range. Looking for a way to reach them through phones nearby");
+    if (!S.mesh || !carriers.length) { note(m, "No one nearby yet. It waits on your phone and goes with the next person you meet"); refresh(); return; }
+    later(700, () => {
+      if (!p.keyKnown) { note(m, `Asked phones nearby for ${p.name}'s key, so it can be encrypted. ${carriers[0].name} knew it`); p.keyKnown = true; }
+      m.paths.mesh.state = "moving"; m.status = "sent";
+      Object.assign(m, { route: ["You", ...carriers.map((c) => c.name), "Tara", p.name], hop: 0, hopTimes: [now()] });
+      note(m, `Handed to ${carriers.map((c) => c.name).join(" and ")} to carry toward them. It's encrypted: carriers can't read it`);
+      refresh();
+      const step = () => { m.hop++; m.hopTimes.push(now()); if (m.hop >= m.route.length - 1) { delivered(m, id, "mesh", "the mesh"); return; } refresh(); later(2200, step); };
+      later(2200, step);
+    });
+  }
+  function newChatView() {
+    const known = [...nearby(), ...S.byId.map((b) => P[b.id])].filter((p, i, a) => p && a.indexOf(p) === i);
+    return subScreen("New message", `
+      <div class="id-card">
+        <span class="t-over" style="color:rgba(255,255,255,.8)">YOUR BLUEMOB ID</span>
+        <div class="id-big">BM ${MY_ID.match(/.{4}/g).join(" ")}</div>
+        <p style="font-size:14px;opacity:.9;margin-top:6px">Give it to anyone, at home or on the trail. They can message you with it: no phone number, no internet. It can't be copied by another phone.</p>
+        <div class="row" style="gap:8px;padding:12px 0 0"><button class="btn" style="background:#fff;color:var(--pine)" data-act="copy-id">Copy</button>
+          <button class="btn secondary" style="background:transparent;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)" data-act="share-id">Share</button></div>
+      </div>
+      <div class="group-label t-over">Message someone by their ID</div>
+      <form class="group spec" id="byid-form">
+        <div class="field"><label class="t-over" for="byid-id">BlueMob ID</label><input id="byid-id" maxlength="30" placeholder="BM 3F9A 1C2B 7D4E 8A01" autocomplete="off" style="font-family:ui-monospace,monospace;text-transform:uppercase"></div>
+        <div class="field"><label class="t-over" for="byid-name">Their name (optional)</label><input id="byid-name" maxlength="24" placeholder="e.g. Kabir from the bus"></div>
+        <button class="btn" type="submit">Start chat</button>
+        <button class="btn text" type="button" data-act="byid-example">Try an example ID</button>
+      </form>
+      <p class="t-cap" style="margin:10px 4px 0">If they're not nearby, your message is handed, encrypted, to phones around you. They carry it and pass it on as people move, until it reaches them. The more BlueMob phones around, the faster it gets there.</p>
+      <div class="group-label t-over">People you know (${known.length})</div>
+      <div class="group">${known.map((p) => `<div class="set">${avatar(p.avatar, p.id, 40, p.presence)}
+        <span class="main"><span class="t-strong" style="display:block">${esc(p.name)}</span><span class="t-cap">BM ${p.uid.match(/.{4}/g).join(" ")} · ${p.byid ? "Added by ID" : statusLine(p)}</span></span>
+        <button class="btn text" data-act="open-chat" data-id="${p.id}">Message</button></div>`).join("")}</div>`);
   }
   // Keep "last seen" times fresh.
   setInterval(() => { if (S.onboarded && S.screen === "main" && (S.tab === "radar" || S.tab === "chats")) refresh(); }, 30000);

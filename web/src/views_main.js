@@ -28,6 +28,7 @@
     if (p.remote) return bridgeOnline() ? "2,000 km away · via Meera's internet" : "2,000 km away · waiting for a bridge";
     if (p.presence === "online") return ["Online", S.shareLoc ? fmtDist(p.dist) + " away" : null, p.link].filter(Boolean).join(" · ");
     if (p.presence === "range") return "In range · connecting…";
+    if (p.byid) return "Added by ID · reached through phones nearby";
     return "Seen " + ago(p.lastSeen) + (p.home ? " · now in " + p.home.split(",")[0] : S.shareLoc ? " · was " + fmtDist(p.dist) + " away" : "") + " · reach by ID";
   }
 
@@ -83,7 +84,7 @@
     S._anim = anim;
     const SCREENS = { design: designView, power: powerView, insights: insightsView, article: articleView, ttt: tttView,
       quiz: quizView, games: gamesIdeasView, person: personView, soshub: sosHubView, contacts: contactsView, info: messageInfoView,
-      money: moneyView, play: gamesHubView, audit: auditView, rescue: rescueView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
+      money: moneyView, play: gamesHubView, audit: auditView, rescue: rescueView, newchat: newChatView, lobby: lobbyView, c4: c4View, words: wordsView, hunt: huntView };
     if (S.screen === "chat") { app.innerHTML = chatView(anim); renderChatParts(true); }
     else if (S.screen === "sos") { app.innerHTML = sosView(); clearTimeout(sosTimer); startSos(); }
     else if (SCREENS[S.screen]) app.innerHTML = SCREENS[S.screen](anim);
@@ -377,8 +378,8 @@
   function chatEntries() {
     const entries = [
       { id: "sky", name: SKY.name, emoji: SKY.avatar, presence: "online", kind: "bot", status: "Your practice buddy" },
-      ...["dee", "experts", ...S.contacts.map((c) => c.id)].map((id) => ({ id, name: P[id].name, emoji: P[id].avatar, presence: "remote",
-        kind: P[id].sms ? "sms" : id === "experts" ? "expert" : "far", status: statusLine(P[id]) })),
+      ...["dee", "experts", ...S.contacts.map((c) => c.id), ...S.byId.map((b) => b.id)].map((id) => ({ id, name: P[id].name, emoji: P[id].avatar, presence: "remote",
+        kind: P[id].sms ? "sms" : id === "experts" ? "expert" : P[id].byid ? "byid" : "far", status: statusLine(P[id]) })),
       ...nearby().map((p) => ({ id: p.id, name: p.name, emoji: p.avatar, presence: p.presence, kind: p.presence === "offline" ? "far" : "near", status: statusLine(p) })),
     ];
     const lastTime = (e) => S.convos[e.id]?.messages.at(-1)?.time ?? 0;
@@ -388,7 +389,7 @@
     const q = S.query.trim().toLowerCase();
     const all = chatEntries();
     const list = all.filter((e) => (!q || e.name.toLowerCase().includes(q)) &&
-      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && ["far", "sms", "expert"].includes(e.kind)) ||
+      (S.filter === "all" || (S.filter === "nearby" && e.kind === "near") || (S.filter === "far" && ["far", "sms", "expert", "byid"].includes(e.kind)) ||
        (S.filter === "unread" && S.convos[e.id]?.unread) || (S.filter === "online" && e.presence === "online")));
     const onlineNow = nearby().filter((p) => p.presence === "online");
     return `
@@ -396,6 +397,7 @@
       <label class="search">${I.search}<input id="q" type="search" placeholder="Search" value="${esc(S.query)}" aria-label="Search chats"></label>
       ${onlineNow.length && !q ? `<div class="section-h" style="margin-top:20px"><span class="t-over">Online nearby</span></div>
         <div class="stories">${onlineNow.map((p) => `<button class="story press" data-act="open-chat" data-id="${p.id}">${avatar(p.avatar, p.id, 60, "online")}<span class="ellipsis" style="max-width:64px">${esc(p.name)}</span></button>`).join("")}</div>` : ""}
+      ${q ? "" : `<button class="byid-card press" data-act="newchat"><span style="font-size:22px">✉️</span><span style="flex:1;text-align:left"><b>Message anyone by BlueMob ID</b><span class="t-cap" style="display:block">Even if they're not nearby. Share your own ID too</span></span><span style="color:var(--pine);font-size:22px">›</span></button>`}
       ${q ? "" : rescueGroupsHtml()}
       <div class="filters" role="group" aria-label="Filter chats">${[["all", "All"], ["unread", "Unread"], ["online", "Online"], ["nearby", "Nearby"], ["far", "Far away"]].map(([v, l]) =>
         `<button class="chip" data-act="filter" data-v="${v}" aria-pressed="${S.filter === v}">${l}</button>`).join("")}</div>
@@ -405,7 +407,7 @@
     const c = S.convos[e.id];
     const last = c?.messages.at(-1);
     const unread = c?.unread || 0;
-    const tag = { bot: '<span class="tag sky">BOT</span>', far: '<span class="tag ember">VIA BRIDGE</span>', sms: '<span class="tag ember">SMS</span>',
+    const tag = { bot: '<span class="tag sky">BOT</span>', far: '<span class="tag ember">VIA BRIDGE</span>', sms: '<span class="tag ember">SMS</span>', byid: '<span class="tag pine">BY ID</span>',
       expert: '<span class="tag pine">EXPERTS</span>' }[e.kind] || "";
     const preview = c?.typing ? '<span class="typing-text">typing…</span>'
       : last ? (last.me ? "You: " : "") + esc(last.text.split("\n")[0]) : esc(e.status);
@@ -455,10 +457,11 @@
     const sub = info.bot ? "Built into BlueMob, on your phone. No internet, no server: what you ask stays here. I know the app, the survival guide, and what's happening around you."
       : id === "experts" ? "Volunteer medics, rangers and rescuers. Your questions go out as soon as someone nearby has internet, and you're notified when they reply."
       : info.sms ? `${esc(p.phone)} · They don't need BlueMob. Your message reaches them as a normal text once someone nearby has internet.`
+      : p && p.byid ? "Added by BlueMob ID. If they're not nearby, your messages travel phone to phone, end-to-end encrypted, until they reach them."
       : info.remote ? "2,000 km away. Messages travel through a nearby friend who has internet."
       : p.presence === "offline" ? `You met on the trip. ${p.home ? "Now in " + esc(p.home) + ". " : ""}You can still talk, by BlueMob ID, with no phone numbers shared.`
       : "Met nearby over " + (p.link || "Bluetooth") + ". Messages go phone to phone.";
-    const tag = info.bot ? '<span class="tag sky">ON THIS PHONE · OFFLINE</span>' : info.sms ? '<span class="tag ember">BY TEXT MESSAGE</span>'
+    const tag = info.bot ? '<span class="tag sky">ON THIS PHONE · OFFLINE</span>' : p && p.byid ? '<span class="tag pine">BY ID · PHONE TO PHONE</span>' : info.sms ? '<span class="tag ember">BY TEXT MESSAGE</span>'
       : info.far ? '<span class="tag ember">VIA BRIDGE</span>' : '<span class="tag pine">DIRECT</span>';
     return `<div class="intro">${avatar(info.emoji, id, 80)}<h2 class="t-title" style="margin-top:8px">${esc(info.name)}</h2>${tag}<p class="t-sub" style="margin-top:4px">${sub}</p></div>`;
   }
@@ -467,7 +470,9 @@
     if (m.status === "pending" || !m.route || m.route.length < 3) return pn ? `<div class="journey-note">${pn}</div>` : "";
     const done = m.status === "delivered";
     const steps = m.route.map((h, i) => `<li class="${done || i < m.hop ? "done" : i === m.hop ? "now" : ""}"><i></i><span class="ellipsis" style="max-width:100%">${esc(h.replace(" 🌐", ""))}</span></li>`).join("");
-    const note = done ? "Delivered through Meera's internet · tap for details" : m.hop === 0 ? "Leaving your phone…" : "Passing through " + m.route[m.hop].replace(" 🌐", "") + "…";
+    const carriedBy = m.route.slice(1, -1);
+    const note = done && m.deliveredVia === "mesh" ? `Carried by ${carriedBy.slice(0, -1).join(", ")} and ${carriedBy.slice(-1)} · tap for details`
+      : done ? "Delivered through Meera's internet · tap for details" : m.hop === 0 ? "Leaving your phone…" : "Passing through " + m.route[m.hop].replace(" 🌐", "") + "…";
     return `<ol class="journey" aria-label="Route">${steps}</ol><div class="journey-note">${note}</div>`;
   }
   function messagesHtml(id, info, c) {
@@ -720,6 +725,10 @@
       case "sos-reason": S.sosNote = S.sosNote.includes(v) ? S.sosNote.replace(v, "").replace(/^[,\s]+|[,\s]+$/g, "").replace(/,\s*,/g, ",") : (S.sosNote ? S.sosNote + ", " : "") + v; render(); break;
       case "sos-test": back(); later(300, () => { if (P.ravi.presence !== "online") { toast("Switch the mesh on first, so someone nearby can send one"); return; } receiveSos("ravi", "Twisted my ankle near the stream. Can't walk. Please bring a torch"); }); break;
       case "sos-coming": S.alertOpen = false; joinRescueFor(v); break;
+      case "newchat": open("newchat"); break;
+      case "copy-id": try { navigator.clipboard.writeText("BM " + MY_ID.match(/.{4}/g).join(" ")); } catch (e) { /* clipboard blocked */ } toast("Your ID is copied"); break;
+      case "share-id": toast("On a phone this opens the share sheet: \"Message me on BlueMob: BM " + MY_ID.match(/.{4}/g).join(" ") + "\""); break;
+      case "byid-example": { const i = document.getElementById("byid-id"), n = document.getElementById("byid-name"); i.value = "BM 9C1F 00AA 77B2 E410"; n.value = "Kabir from the bus"; break; }
       case "open-rescue": open("rescue", { rescue: v }); break;
       case "rescue-join": { const r = S.rescues[S.rescue]; rescueJoin(r, "me", P[r.victim].dist); render(); break; }
       case "rescue-quick": rescueSend(v); break;
@@ -838,6 +847,7 @@
       S.exSplit.forEach((id) => send(id, `🧾 I paid ${RUPEE(amt)} for ${note}. Your share is ${RUPEE(amt / split.length)}. It's in Trip money.`));
       S.exSplit = []; toast("Added and shared with " + (split.length - 1) + " people"); render(); return;
     }
+    if (e.target.id === "byid-form") { e.preventDefault(); startById(document.getElementById("byid-id").value, document.getElementById("byid-name").value); return; }
     if (e.target.id === "rescue-form") { e.preventDefault(); const i = document.getElementById("rescue-draft"); rescueSend(i.value); return; }
     if (e.target.id === "word-form") { e.preventDefault(); wordsPlay(document.getElementById("word-in").value); return; }
     if (e.target.id !== "composer") return;
