@@ -45,6 +45,17 @@ class LiveLink(
     var onBinary: (from: String, bytes: ByteArray) -> Unit = { _, _ -> }
     /** The relay says [to] isn't signed in. */
     var onOffline: (to: String) -> Unit = {}
+    /** The relay stored a message for us (or a phone we carry): fetch it now instead of at the next sync. */
+    var onPoke: () -> Unit = {}
+
+    /** Who was online at the last [askPresence]: signed in themselves, or reachable through a phone near them. */
+    data class Presence(val online: Set<String> = emptySet(), val via: Map<String, String> = emptyMap(), val at: Long = 0) {
+        fun reachable(id: String) = id in online || id in via
+    }
+    private val _presence = MutableStateFlow(Presence())
+    val presence: StateFlow<Presence> = _presence.asStateFlow()
+    private var lastVia: Set<String> = emptySet()
+    private var lastViaAt = 0L
 
     @Volatile private var ws: WebSocket? = null
     private var loop: Job? = null
@@ -89,7 +100,13 @@ class LiveLink(
                         val sig = Crypto.encode(keys.sign("bluemob-live|${m.optString("n")}".toByteArray()))
                         webSocket.send(JSONObject().put("t", "auth").put("pk", keys.publicB64).put("sig", sig).toString())
                     }
-                    "ok" -> if (m.optString("id") == keys.nodeId) _connected.value = true
+                    "ok" -> if (m.optString("id") == keys.nodeId) { lastVia = emptySet(); _connected.value = true }
+                    "poke" -> onPoke()
+                    "presence" -> {
+                        val on = m.optJSONArray("online")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { ID.matches(it) }.toSet() }.orEmpty()
+                        val via = m.optJSONObject("via")?.let { v -> v.keys().asSequence().filter { ID.matches(it) }.associateWith { v.optString(it) } }.orEmpty()
+                        _presence.value = Presence(on, via, System.currentTimeMillis())
+                    }
                     "msg" -> m.optString("from").takeIf { ID.matches(it) }?.let { onText(it, m.optString("data")) }
                     "offline" -> onOffline(m.optString("to"))
                 }
@@ -121,6 +138,24 @@ class LiveLink(
         val s = ws?.takeIf { _connected.value } ?: return false
         val id = runCatching { ByteArray(8) { i -> to.substring(i * 2, i * 2 + 2).toInt(16).toByte() } }.getOrNull() ?: return false
         return s.send((id + bytes).toByteString())
+    }
+
+    /** Asks who of [ids] is online; the answer updates [presence]. */
+    fun askPresence(ids: Collection<String>): Boolean {
+        val s = ws?.takeIf { _connected.value } ?: return false
+        if (ids.isEmpty()) return false
+        return s.send(JSONObject().put("t", "presence").put("ids", org.json.JSONArray(ids.take(50))).toString())
+    }
+
+    /**
+     * Tells the relay which phones near us (with no internet of their own) we can pass things to. Sent when the list
+     * changes, and every minute anyway.
+     */
+    fun carry(ids: Collection<String>) {
+        val s = ws?.takeIf { _connected.value } ?: return
+        val set = ids.filter { ID.matches(it) }.take(50).toSet()
+        if (set == lastVia && System.currentTimeMillis() - lastViaAt < 60_000) return
+        if (s.send(JSONObject().put("t", "via").put("ids", org.json.JSONArray(set.toList())).toString())) { lastVia = set; lastViaAt = System.currentTimeMillis() }
     }
 
     /** Bytes queued to the relay but not sent yet: calls hold back video and drop stale voice when this grows. */

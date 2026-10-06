@@ -136,11 +136,12 @@ fun ChatScreen(
                                     isBot -> "Lives on your phone · works offline"
                                     presence == Presence.ONLINE -> "Online nearby · " + linkWords(person?.quality)
                                     presence == Presence.IN_RANGE -> "In range · connecting…"
+                                    person?.reach != null -> person.reach + " · calls work"
                                     (person?.lastSeen ?: 0L) == 0L -> "Not met yet · reached through phones nearby"
                                     else -> "Seen ${TimeText.ago(person?.lastSeen ?: 0)} · not in range, messages travel through the mesh"
                                 },
                                 style = MaterialTheme.typography.bodySmall, maxLines = 1,
-                                color = if (typing || presence == Presence.ONLINE) MaterialTheme.colorScheme.primary else Extra.ink2,
+                                color = if (typing || presence == Presence.ONLINE || person?.reach != null) MaterialTheme.colorScheme.primary else Extra.ink2,
                             )
                         }
                     }

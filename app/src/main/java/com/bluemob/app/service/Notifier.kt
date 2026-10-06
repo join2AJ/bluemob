@@ -97,6 +97,9 @@ class Notifier(private val context: Context) {
         runCatching { manager.notify(id, n) }
     }
 
+    /** Opens BlueMob on the call that's going on. */
+    fun openCall(): PendingIntent = open("call", 9)
+
     private fun open(route: String?, code: Int): PendingIntent = PendingIntent.getActivity(
         context, code,
         Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP).apply { route?.let { putExtra(EXTRA_ROUTE, it) } },
@@ -106,7 +109,8 @@ class Notifier(private val context: Context) {
     companion object {
         const val ONGOING_ID = 1001
         const val EXTRA_ROUTE = "route"
-        private const val CH_MESH = "mesh"
+        const val CH_MESH = "mesh"
+        const val CALL_ID = 1002
         private const val CH_SOS = "sos"
         private const val CH_MSG = "messages"
         private const val CH_RESCUE = "rescue"

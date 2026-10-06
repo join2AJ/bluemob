@@ -33,6 +33,26 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.12: faster internet, calls through friends, encrypted calls
+
+- **Messages over the internet in about a second**: they go straight over the relay's live channel when the other
+  phone is online; otherwise the relay stores them and pokes the phone (or the friend carrying it) the moment one
+  arrives, instead of waiting for the next 20-second sync.
+- **Calls hop through friends**: phones share a small route table, so a call can go A → B → C (up to 5 hops) when
+  A and C aren't in range of each other. **One phone with internet is the whole group's way out**: it tells the
+  relay which phones it can reach, and calls and messages for them come through it.
+- **End-to-end encrypted calls** (both phones on 0.12+): voice and video are sealed with a key only the two phones can
+  derive, so neither the phones in between nor the relay can listen in or inject sound.
+- **No more one-way voice when the screen locks**: a microphone foreground service keeps the mic live during calls.
+- **Internet video adapts**: up to 640 px at 12 fps, stepping down when frames start to queue.
+- Calls keep ringing for 20 s while the other phone reconnects; chats show "Online on the internet" or
+  "Reachable through Asha"; decline with a quick message.
+- **Calls history filters** (missed, received, dialled, video, voice; today / 7 / 30 days; search) and a **Files** tab
+  for everything shared in all chats, filtered by type or extension and sorted by date, size or name.
+- **Survival guide dashboard**: counts, reading progress, continue reading, guide of the day, topics; a NEW tag for a
+  day after a pack downloads; step-by-step mode, read aloud, text size, share, tick-off steps, a CPR beat, and an
+  animated illustration for each topic.
+
 ## Android 0.11: consent, trips, backup, more games, guide packs
 
 - **Nothing turns on by itself**: the mesh asks before starting with Bluetooth or Wi-Fi off, pauses when Bluetooth is

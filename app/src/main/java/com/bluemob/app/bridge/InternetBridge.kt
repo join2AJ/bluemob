@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** What the internet bridge is doing, for the status screen. */
 data class BridgeStatus(
@@ -28,8 +30,8 @@ data class BridgeStatus(
 )
 
 /**
- * Keeps this phone in touch with the BlueMob relay whenever it has internet: every 20 seconds (sooner when something
- * is waiting) it uploads messages it's sending or carrying, and downloads messages for itself and the phones around it.
+ * Keeps this phone in touch with the BlueMob relay whenever it has internet: as soon as something is waiting or the
+ * relay pokes us over the live channel (and every 20 seconds anyway) it uploads messages it's sending or carrying, and downloads messages for itself and the phones around it.
  * That's how two people who met over Bluetooth can keep talking from 1,000 km apart, and how a phone with signal
  * becomes a bridge for everyone near it.
  */
@@ -46,11 +48,16 @@ class InternetBridge(
         cursors = mutableMapOf<String, Long>().apply { settings.bridgeCursor.takeIf { it > 0 }?.let { put(identity.nodeId, it) } })
     private val me = identity.nodeId
 
+    /** Wakes the sync loop: a message is waiting to go, or the relay poked us because one arrived. */
+    private val wake = Channel<Unit>(Channel.CONFLATED)
+    fun syncNow() { wake.trySend(Unit) }
+
     private val _status = MutableStateFlow(BridgeStatus())
     val status: StateFlow<BridgeStatus> = _status.asStateFlow()
 
     init {
         client.online = { connectivity.online.value }
+        client.onQueued = ::syncNow
         mesh.router.internet = client
         scope.launch {
             var wasUp = false
@@ -77,7 +84,9 @@ class InternetBridge(
                 } else {
                     _status.value = _status.value.copy(configured = client.configured, online = connectivity.online.value, queued = client.queued)
                 }
-                delay(if (client.queued > 0) 5_000 else 20_000)
+                // Normally woken straight away (something to send, or a poke from the relay); this is the fallback.
+                withTimeoutOrNull(if (client.queued > 0) 5_000L else 20_000L) { wake.receive() }
+                delay(300) // gather a burst into one round trip
             }
         }
     }

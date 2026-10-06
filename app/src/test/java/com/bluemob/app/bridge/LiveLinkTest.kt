@@ -72,6 +72,26 @@ class LiveLinkTest {
         a.stop(); b.stop()
     }
 
+    /** A phone with internet carries a friend who has none: the far phone sees them online, and calls reach them through it. */
+    @Test fun aGatewayCarriesAFriendWithoutInternet() = runBlocking {
+        val (far, _) = phone()
+        val (gw, gwKeys) = phone()
+        val friend = DeviceKeys(Crypto.generate()).nodeId
+        val atGateway = LinkedBlockingQueue<ByteArray>()
+        gw.onBinary = { _, bytes -> atGateway.add(bytes) }
+        far.start(); gw.start()
+        withTimeout(15_000) { while (!far.connected.value || !gw.connected.value) delay(100) }
+        gw.carry(listOf(friend))
+        delay(300)
+        far.askPresence(listOf(friend))
+        withTimeout(5_000) { while (far.presence.value.via[friend] != gwKeys.nodeId) delay(50) }
+        far.sendBinary(friend, byteArrayOf('E'.code.toByte(), 'A'.code.toByte(), 1, 2, 3))
+        val frame = com.bluemob.app.mesh.RelayFrame.parse(atGateway.poll(5, TimeUnit.SECONDS)!!)!!
+        assertEquals(friend, frame.dest)
+        assertArrayEquals(byteArrayOf('E'.code.toByte(), 'A'.code.toByte(), 1, 2, 3), frame.inner)
+        far.stop(); gw.stop()
+    }
+
     @Test fun reconnectsAfterTheLinkDrops() = runBlocking {
         val (a, _) = phone()
         a.start()

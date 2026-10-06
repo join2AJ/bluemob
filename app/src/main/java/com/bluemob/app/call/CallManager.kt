@@ -57,8 +57,12 @@ data class Call(
     val talking: Boolean = false,
     val theyPtt: Boolean = false,
     val theyTalking: Boolean = false,
-    /** How we're linked, e.g. "Wi-Fi" or "Bluetooth". */
+    /** How we're linked, e.g. "Wi-Fi", "Bluetooth", "Internet" or "Through Asha". */
     val link: String = "",
+    /** Voice and video are end-to-end encrypted (both phones have BlueMob 0.12 or newer). */
+    val e2e: Boolean = false,
+    /** Ringing them, but their phone isn't online yet: we keep trying for a little while. */
+    val waiting: Boolean = false,
 )
 
 /**
@@ -79,6 +83,10 @@ class CallManager(
     private val log: suspend (com.bluemob.app.data.CallLogEntry) -> Unit = {},
     /** True when a BlueMob relay is set, so calls can go over the internet. */
     private val relaySet: () -> Boolean = { false },
+    /** The end-to-end key for a call with someone, or null if we don't have their public key. */
+    private val cipherFor: (peer: String, callId: String) -> com.bluemob.app.mesh.CallCipher? = { _, _ -> null },
+    /** Keeps the microphone (and camera) working while the screen is off or another app is open. */
+    private val keepAlive: (active: Boolean, video: Boolean) -> Unit = { _, _ -> },
 ) {
     private val app = context.applicationContext
     private val _call = MutableStateFlow<Call?>(null)
@@ -92,13 +100,21 @@ class CallManager(
     private val voice = VoiceLink(app) { bytes ->
         _call.value?.let { c ->
             // If the link has fallen behind, drop this bit of audio rather than let the delay keep growing.
-            if (mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_AUDIO) < AUDIO_BACKLOG_MAX) mesh.sendMedia(c.peer, bytes)
+            if (mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_AUDIO) < AUDIO_BACKLOG_MAX) send(c, bytes)
         }
+    }
+    /** This call's end-to-end key, when both phones support it. */
+    @Volatile private var cipher: com.bluemob.app.mesh.CallCipher? = null
+
+    private fun send(c: Call, frame: ByteArray) {
+        val sealed = if (c.e2e) cipher?.seal(frame) ?: return else frame
+        mesh.sendMedia(c.peer, sealed)
     }
     private var ringtone: Ringtone? = null
     private var ringJob: Job? = null
     private var timeoutJob: Job? = null
     private var linkWatch: Job? = null
+    private var retryJob: Job? = null
     private var lastFrameSent = 0L
     @Volatile private var lastAudioAt = 0L
     @Volatile private var encoding = false
@@ -107,8 +123,15 @@ class CallManager(
         scope.launch {
             mesh.events.collect { e ->
                 if (e is MeshEvent.App && e.kind == KIND) onSignal(e)
-                if (e is MeshEvent.Unreachable) _call.value?.takeIf { it.peer == e.nodeId && it.phase == CallPhase.OUTGOING && !mesh.isConnected(it.peer) }?.let {
-                    finish("${it.name} isn't online right now. Try again later, or send a message: it waits for them.", "NO_ANSWER")
+                if (e is MeshEvent.Unreachable) _call.value?.takeIf { it.peer == e.nodeId && it.phase == CallPhase.OUTGOING && !mesh.isConnected(it.peer) }?.let { c ->
+                    // Their phone may be reconnecting (switching networks, waking up): keep ringing for a while.
+                    if (System.currentTimeMillis() - c.createdAt < UNREACHABLE_GRACE_MS) {
+                        if (!c.waiting) _call.update { it?.copy(waiting = true) }
+                        if (retryJob?.isActive != true) retryJob = scope.launch {
+                            delay(RETRY_MS)
+                            _call.value?.takeIf { it.id == c.id && it.phase == CallPhase.OUTGOING }?.let { signal(it, "invite", JSONObject().put("video", it.video).put("e2e", it.e2e)) }
+                        }
+                    } else finish("${c.name} isn't online right now. Try again later, or send a message: it waits for them.", "NO_ANSWER")
                 }
             }
         }
@@ -116,9 +139,11 @@ class CallManager(
             mesh.media.collect { m ->
                 val c = _call.value ?: return@collect
                 if (c.phase != CallPhase.ACTIVE || m.fromNodeId != c.peer) return@collect
-                when (m.bytes[0]) {
-                    NearbyMeshTransport.MEDIA_AUDIO -> { lastAudioAt = SystemClock.elapsedRealtime(); voice.onPacket(m.bytes) }
-                    NearbyMeshTransport.MEDIA_VIDEO -> decodeFrame(m.bytes)
+                // An encrypted call takes only frames sealed with its key; anything else is dropped.
+                val frame = if (c.e2e) cipher?.open(m.bytes, c.peer) ?: return@collect else m.bytes
+                when (frame[0]) {
+                    NearbyMeshTransport.MEDIA_AUDIO -> { lastAudioAt = SystemClock.elapsedRealtime(); voice.onPacket(frame) }
+                    NearbyMeshTransport.MEDIA_VIDEO -> decodeFrame(frame)
                 }
             }
         }
@@ -132,10 +157,13 @@ class CallManager(
         _call.value?.takeIf { it.phase != CallPhase.ENDED }?.let { return "You're already in a call with ${it.name}" }
         if (!mesh.canReachLive(peer)) return when {
             !relaySet() -> "$name isn't nearby. Calls over the internet need the BlueMob relay: set it in You → Internet bridge."
-            else -> "$name isn't nearby, and this phone isn't connected to the internet relay yet. Check mobile data or Wi-Fi and try again."
+            else -> "$name isn't nearby, and neither this phone nor anyone near you is connected to the internet. Check mobile data or Wi-Fi and try again."
         }
-        val c = Call("c-" + UUID.randomUUID().toString().take(10), peer, name, video, CallPhase.OUTGOING, outgoing = true, link = mesh.callLink(peer))
-        if (!signal(c, "invite", JSONObject().put("video", video))) return "Couldn't reach $name"
+        val id = "c-" + UUID.randomUUID().toString().take(10)
+        // Encrypt whenever we can; the other phone says in its answer whether it can too.
+        val canEncrypt = cipherFor(peer, id) != null && mesh.featureGap(peer, "e2ecall") == null
+        val c = Call(id, peer, name, video, CallPhase.OUTGOING, outgoing = true, link = mesh.callLink(peer), e2e = canEncrypt)
+        if (!signal(c, "invite", JSONObject().put("video", video).put("e2e", canEncrypt))) return "Couldn't reach $name"
         _call.value = c
         ringback()
         timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == c.id && _call.value?.phase == CallPhase.OUTGOING) { signal(c, "end"); finish(if (mesh.mayBeOld(c.peer)) "No answer. If ${c.name} has BlueMob 0.6 or older, they need to update for calls" else "No answer", "NO_ANSWER") } }
@@ -145,7 +173,7 @@ class CallManager(
 
     fun accept() {
         val c = _call.value?.takeIf { it.phase == CallPhase.INCOMING } ?: return
-        signal(c, "accept")
+        signal(c, "accept", JSONObject().put("e2e", c.e2e))
         begin(c)
     }
 
@@ -197,14 +225,39 @@ class CallManager(
     fun wantsFrame(): Boolean {
         val c = _call.value ?: return false
         if (c.phase != CallPhase.ACTIVE || !c.cameraOn || encoding) return false
-        val fps = if (wifi(c)) FPS_WIFI else FPS_BLUETOOTH
+        val fps = if (internet(c)) INTERNET_VIDEO[videoLevel].fps else if (wifi(c)) FPS_WIFI else FPS_BLUETOOTH
         if (SystemClock.elapsedRealtime() - lastFrameSent < 1000 / fps) return false
+        adaptVideo(c)
         // Voice comes first: only send the next frame once the last one has gone and no audio is waiting.
         return mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_VIDEO) == 0 && mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_AUDIO) < AUDIO_BACKLOG_MAX / 2
     }
 
     /** Wi-Fi nearby, or the internet: room for bigger, more frequent video frames than Bluetooth. */
-    private fun wifi(c: Call) = mesh.callLink(c.peer).let { it == "Wi-Fi" || it == "Internet" }
+    private fun wifi(c: Call) = when (mesh.pathTo(c.peer)) {
+        is NearbyMeshTransport.Path.Direct -> mesh.linkName(c.peer) == "Wi-Fi"
+        NearbyMeshTransport.Path.Live -> true
+        else -> false // through other phones: keep it small
+    }
+
+    private fun internet(c: Call) = mesh.pathTo(c.peer) == NearbyMeshTransport.Path.Live
+
+    /**
+     * Over the internet, video quality follows the connection: sharper while frames go out as fast as we make them,
+     * smaller as soon as they start to queue. 0 is the best of [INTERNET_VIDEO].
+     */
+    @Volatile private var videoLevel = 1
+    private var clearSince = 0L
+
+    private fun adaptVideo(c: Call) {
+        if (!internet(c)) return
+        val backlog = mesh.mediaBacklog(c.peer)
+        val now = SystemClock.elapsedRealtime()
+        when {
+            backlog > INTERNET_BUSY -> { videoLevel = (videoLevel + 1).coerceAtMost(INTERNET_VIDEO.lastIndex); clearSince = now }
+            backlog == 0 && now - clearSince > 3_000 -> { videoLevel = (videoLevel - 1).coerceAtLeast(0); clearSince = now }
+            backlog > 0 -> clearSince = now
+        }
+    }
 
     /**
      * A camera frame, already upright. Sent only as often as the link can take: about [FPS_WIFI] frames a second
@@ -214,15 +267,17 @@ class CallManager(
         val c = _call.value ?: return
         if (c.phase != CallPhase.ACTIVE || !c.cameraOn || encoding) return
         val now = SystemClock.elapsedRealtime()
-        val fps = if (wifi(c)) FPS_WIFI else FPS_BLUETOOTH
+        val net = internet(c)
+        val q = INTERNET_VIDEO[videoLevel]
+        val fps = if (net) q.fps else if (wifi(c)) FPS_WIFI else FPS_BLUETOOTH
         if (now - lastFrameSent < 1000 / fps) return
         lastFrameSent = now
         encoding = true
         try {
-            val small = scaleDown(frame, if (wifi(c)) FRAME_SIZE else FRAME_SIZE_BLUETOOTH)
-            val jpeg = jpeg(small, if (wifi(c)) 55 else 35)
+            val small = scaleDown(frame, if (net) q.size else if (wifi(c)) FRAME_SIZE else FRAME_SIZE_BLUETOOTH)
+            val jpeg = jpeg(small, if (net) q.quality else if (wifi(c)) 55 else 35)
             _localFrame.value = small
-            if (jpeg != null) mesh.sendMedia(c.peer, byteArrayOf(NearbyMeshTransport.MEDIA_VIDEO) + jpeg)
+            if (jpeg != null) send(c, byteArrayOf(NearbyMeshTransport.MEDIA_VIDEO) + jpeg)
         } finally {
             encoding = false
         }
@@ -234,20 +289,24 @@ class CallManager(
         val current = _call.value
         when (b.optString("a")) {
             "invite" -> {
-                // Calls need a live link: straight to us nearby, or over the internet relay.
-                if (!e.direct && !e.viaInternet) return
+                // Calls need a live link back: nearby, over the internet, or through the phones around us.
+                if (!e.direct && !e.viaInternet && !mesh.canReachLive(e.fromNodeId)) return
+                if (current?.id == id) return // the same invite again (they retried while we were reconnecting)
                 if (current != null && current.phase != CallPhase.ENDED) {
                     mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("cid", id).put("a", "busy"))
                     return
                 }
-                val c = Call(id, e.fromNodeId, e.name.ifBlank { "Someone" }, b.optBoolean("video"), CallPhase.INCOMING, link = if (e.direct) mesh.linkName(e.fromNodeId) else "Internet")
+                val e2e = b.optBoolean("e2e") && cipherFor(e.fromNodeId, id) != null
+                val c = Call(id, e.fromNodeId, e.name.ifBlank { "Someone" }, b.optBoolean("video"), CallPhase.INCOMING,
+                    link = if (e.direct) mesh.linkName(e.fromNodeId) else mesh.callLink(e.fromNodeId), e2e = e2e)
                 _call.value = c
                 ring()
                 timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == id && _call.value?.phase == CallPhase.INCOMING) finish("Missed call") }
                 audit.add(AuditKind.MESH, "${if (c.video) "Video" else "Voice"} call from ${c.name}")
                 onIncoming(c)
             }
-            "accept" -> if (current?.id == id && current.phase == CallPhase.OUTGOING && current.peer == e.fromNodeId) begin(current)
+            // An older BlueMob doesn't answer "e2e": then the call isn't encrypted (it can only be nearby or over the relay).
+            "accept" -> if (current?.id == id && current.phase == CallPhase.OUTGOING && current.peer == e.fromNodeId) begin(current.copy(e2e = current.e2e && b.optBoolean("e2e")))
             "decline" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} can't talk right now", "DECLINED")
             "busy" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} is on another call", "BUSY")
             "ptt" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyPtt = b.optBoolean("on"), theyTalking = false, noAudio = false) }
@@ -260,8 +319,12 @@ class CallManager(
     private fun begin(c: Call) {
         stopRinging()
         timeoutJob?.cancel()
-        val active = c.copy(phase = CallPhase.ACTIVE, startedAt = System.currentTimeMillis())
+        retryJob?.cancel()
+        cipher = if (c.e2e) cipherFor(c.peer, c.id) else null
+        val active = c.copy(phase = CallPhase.ACTIVE, startedAt = System.currentTimeMillis(), waiting = false, e2e = c.e2e && cipher != null)
         _call.value = active
+        videoLevel = 1
+        runCatching { keepAlive(true, active.video) }
         // Always play their voice, even if we can't record ours.
         voice.start(active.speaker)
         voice.muted = active.muted || !hasMic()
@@ -305,8 +368,11 @@ class CallManager(
         }
         stopRinging()
         timeoutJob?.cancel()
+        retryJob?.cancel()
         linkWatch?.cancel()
         voice.stop()
+        cipher = null
+        runCatching { keepAlive(false, false) }
         if (c.phase == CallPhase.ACTIVE) {
             val secs = (System.currentTimeMillis() - c.startedAt) / 1000
             audit.add(AuditKind.MESH, "Call with ${c.name} ended after ${secs / 60} min ${secs % 60} s")
@@ -368,6 +434,15 @@ class CallManager(
         const val FRAME_SIZE_BLUETOOTH = 176
         /** About half a second of voice. */
         const val AUDIO_BACKLOG_MAX = 4_000
+        /** Keep ringing someone whose phone is offline this long, in case it's just reconnecting. */
+        const val UNREACHABLE_GRACE_MS = 20_000L
+        const val RETRY_MS = 4_000L
+
+        /** Video over the internet, best first: picked by how fast frames actually leave the phone. */
+        class VideoQuality(val size: Int, val quality: Int, val fps: Int)
+        val INTERNET_VIDEO = listOf(VideoQuality(640, 70, 12), VideoQuality(480, 62, 12), VideoQuality(360, 55, 10), VideoQuality(240, 45, 6))
+        /** Queued bytes that mean the internet link is behind: step video down. */
+        const val INTERNET_BUSY = 40_000
 
         fun scaleDown(b: Bitmap, max: Int): Bitmap {
             val scale = max.toFloat() / maxOf(b.width, b.height)
@@ -383,7 +458,7 @@ class CallManager(
 
         /** JPEG small enough for one packet: lowers the quality until it fits. */
         fun jpeg(b: Bitmap, startQuality: Int = 55): ByteArray? {
-            for (q in intArrayOf(startQuality, 40, 28, 18).filter { it <= startQuality }) {
+            for (q in (listOf(startQuality) + listOf(40, 28, 18).filter { it < startQuality })) {
                 val out = ByteArrayOutputStream()
                 b.compress(Bitmap.CompressFormat.JPEG, q, out)
                 if (out.size() < NearbyMeshTransport.MAX_MEDIA - 64) return out.toByteArray()

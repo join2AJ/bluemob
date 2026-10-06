@@ -67,7 +67,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
 
 <div class="wrap">
   <header>
-    <h1>BlueMob 0.11 field test</h1>
+    <h1>BlueMob 0.12 field test</h1>
     <p class="lede">Work through each category with your phones side by side, then apart. Mark each check Pass, Fail or Skip and add a note for anything odd. When you're done, tap <b>Copy results</b> and paste them to Claude. Your ticks are saved in this browser only.</p>
     <div class="phones">
       <span class="phone">Phone A · you</span><span class="phone">Phone B · friend</span><span class="phone">Phone C · relay (for 3-phone checks)</span>
@@ -96,7 +96,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
   <div class="tips">
     <h2>Before you start</h2>
     <ul>
-      <li>Install the same APK (0.11.0) on every phone. Check under You → About.</li>
+      <li>Install the same APK (0.12.0) on every phone. Check under You → About.</li>
       <li>On each phone allow Nearby devices, Location, Notifications, and Microphone + Camera when asked for a call.</li>
       <li>Turn Bluetooth and Location on. Wi-Fi on (no network needed). Mobile data off unless a check says otherwise.</li>
       <li>Distances: "side by side" is under 2 m, "apart" is another room or 20–50 m outdoors, "out of range" is 150 m+ outdoors or several walls.</li>
@@ -132,6 +132,33 @@ const CATS = [
     ["From 0.8, challenge the 0.6 phone to a game, call it, or ring it.", "Nothing hangs: after about 40 s (games), 45 s (calls) or 15 s (ring), 0.8 says there's no answer and that BlueMob 0.6 or older needs an update.", 2, 1],
     ["0.8 and 0.7: game, voice call.", "Both work (0.7 already has them).", 2, 1],
     ["If you have a phone with 0.4 or older, put it nearby.", "0.8 shows \"… is nearby on a different BlueMob version\" on Nearby.", 2, 1],
+  ]},
+  { k: "internet", name: "Over the internet", why: "New in 0.12: instant messages, online status, calls that keep working with the screen locked.", items: [
+    ["A and B far apart (or Bluetooth off on both), both on mobile data. A messages B.", "Arrives in about <b>1–3 s</b> (was 30 s – 1 min). Ticks go delivered → read just as fast.", 2, 1],
+    ["Open B's chat on A.", "Header says <b>Online on the internet · calls work</b> within a few seconds.", 2, 1],
+    ["B turns mobile data off for 10 s while A calls, then on again.", "A shows 'Waiting for B to come online…' and B's phone still rings once it's back (within 20 s).", 2, 1],
+    ["Voice call; B locks the screen and opens another app mid-call.", "A still hears B (a 'Voice call with A' notification stays on B).", 2, 1],
+    ["Video call over the internet on good data.", "Sharper picture than 0.11; drops in size, not to a frozen frame, on a weak connection. Voice never cuts out for video.", 2, 1],
+    ["Look under the call's link chip.", "'🔒 End-to-end encrypted' when both phones are 0.12.", 2, 1],
+    ["Incoming call: tap 'Reply with a message'.", "Call is declined and the chosen message arrives in chat.", 2, 1],
+  ]},
+  { k: "hops", name: "Calls through friends", why: "New in 0.12: a call can hop through phones in between, and one phone with internet serves the group.", items: [
+    ["Three phones in a line A ↔ C ↔ B (A and B out of range, no internet). A calls B.", "B's phone rings; the call screen says 'Through C'. Voice both ways.", 3, 1],
+    ["Same line, C walks away mid-call.", "Call ends with 'Lost the connection' after about 8 s.", 3, 1],
+    ["Only C has internet; A is nearby with no data. D (far away, on data) messages A.", "A gets it within a few seconds, through C.", 3, 1],
+    ["D calls A in the same setup.", "A rings; call screen shows 'Internet, then through C' on D's side.", 3, 1],
+    ["A's chat with D.", "Header says 'Online through C's internet' or similar.", 3, 1],
+  ]},
+  { k: "history", name: "Calls & files history", why: "New in 0.12.", items: [
+    ["Chats → Calls. Tap Missed, Received, Dialled, Video, then Today / Last 7 days, and search a name.", "Only matching calls, grouped Today / Yesterday / This week…; counts on each chip; total talk time.", 1, 1],
+    ["Long-press a call.", "Voice call / Video call / Remove from history.", 1, 1],
+    ["Chats → Files.", "Every photo, document and voice note from all chats; filter by type and by extension (PDF, JPG…); sort Latest / Largest / Name; search names.", 1, 1],
+  ]},
+  { k: "guides12", name: "Survival guide dashboard", why: "New in 0.12.", items: [
+    ["Open Guide.", "Dashboard: guides, from packs, new today, saved, and a 'Read X of Y' bar; Guide of the day with a moving picture; Topics with counts.", 1, 1],
+    ["Download a pack.", "Its guides show a small red NEW under them for about a day; 'New today' counts them.", 1, 1],
+    ["Open a guide: Step by step, Read aloud, A+/A−, Share, tick steps.", "All work; read aloud works offline on most phones.", 1, 1],
+    ["Open 'CPR for an adult' and tap the compression beat.", "Beeps 110 a minute with a 1–30 count.", 1, 1],
   ]},
   { k: "consent", name: "Nothing turns on by itself", why: "New in 0.11.", items: [
     ["Bluetooth off. Turn the mesh on.", "BlueMob asks first: Turn on Bluetooth / Not now. 'Not now' leaves Bluetooth off.", 1, 1],
@@ -245,7 +272,7 @@ const CATS = [
   ]},
 ];
 
-const KEY = "bluemob-field-test-0.11";
+const KEY = "bluemob-field-test-0.12";
 let state = {};
 try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { state = {}; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
@@ -306,7 +333,7 @@ document.querySelectorAll(".filters button").forEach(b => b.onclick = () => { fi
 function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
 
 document.getElementById("copy").onclick = () => {
-  const lines = ["BlueMob 0.11 field test results"];
+  const lines = ["BlueMob 0.12 field test results"];
   CATS.forEach(c => {
     const rows = all.filter(x => x.cat === c && (state[x.id]?.v || state[x.id]?.n));
     if (!rows.length) return;

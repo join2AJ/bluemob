@@ -88,6 +88,9 @@ class BlueMobApp : Application() {
     @Volatile var inForeground = false
         private set
 
+    /** People whose online status matters right now (the open chat or call), checked first. */
+    @Volatile var watchPresence: () -> List<String> = { listOfNotNull(calls.call.value?.peer) }
+
     /** Set if BlueMob couldn't start; the activity shows it instead of closing. */
     var startupError: Throwable? = null
         private set
@@ -95,6 +98,7 @@ class BlueMobApp : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashLog.install(this)
+        CrashLog.forgetOtherVersions(this) // an update starts fresh instead of showing the old version's crash
         // The last launch died while starting (for example inside native code): show what happened instead of
         // dying again. "Try again" on that screen clears this and starts normally.
         CrashLog.unfinishedStep(this)?.let { step ->
@@ -173,7 +177,10 @@ class BlueMobApp : Application() {
         }
         calls = com.bluemob.app.call.CallManager(this, mesh, audit, appScope, onIncoming = { c ->
             if (!inForeground) notifier.note("${c.name} is calling", "${if (c.video) "Video" else "Voice"} call from someone nearby. Tap to answer.", "call", id = 7_007)
-        }, relaySet = { settings.bridgeUrl.value.isNotBlank() }, log = { entry ->
+        }, relaySet = { settings.bridgeUrl.value.isNotBlank() },
+            cipherFor = { peer, cid -> keyBook.key(peer)?.let { com.bluemob.app.mesh.CallCipher(com.bluemob.app.crypto.Crypto.sharedKey(identity.keys.keyPair.private, it, identity.nodeId, peer), cid, identity.nodeId) } },
+            keepAlive = { active, video -> com.bluemob.app.service.CallService.update(this, active, video) },
+            log = { entry ->
             db.calls().insert(entry)
             if (entry.outcome == "MISSED" && !inForeground) notifier.note("Missed call from ${entry.name}", "${if (entry.video) "Video" else "Voice"} call. Tap to call back.", "calls", id = 7_008)
         })
@@ -181,7 +188,16 @@ class BlueMobApp : Application() {
         // Live link to the relay for internet calls: stays signed in while there's internet and a relay is set.
         live = com.bluemob.app.bridge.LiveLink({ settings.bridgeUrl.value }, identity.keys, appScope, { connectivity.online.value })
         mesh.live = live
+        live.onPoke = { bridge.syncNow() }
+        bridge.client.liveSend = { to, packet -> live.sendText(to, packet) }
         live.start()
+        // Who's online over the internet, for chats and calls: the people we talk to, every 15 seconds.
+        appScope.launch {
+            while (true) {
+                if (live.connected.value) live.askPresence((watchPresence() + contacts.contacts.value.values.sortedByDescending { it.lastSeen }.map { it.nodeId }).distinct().take(50))
+                kotlinx.coroutines.delay(15_000)
+            }
+        }
         trust = TrustManager(db.ratings(), identity, mesh, bridge.client, contacts, audit, appScope)
         // Ratings travel as people meet: each phone gives the ones it holds to every phone it connects to.
         appScope.launch { trust.ratings.collect { ratingPackets = trust.packetsToShare() } }

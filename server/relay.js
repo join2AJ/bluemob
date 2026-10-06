@@ -85,6 +85,7 @@ class Store {
     if (o.type === "rrcpt" && b.k === "d") { const mk = "rmsg:" + b.mid; if (this.packets.has(mk)) this.apply({ op: "del", key: mk }); }
     const clean = { t: p.t, b: p.b, pk: p.pk, s: p.s, h: Number(p.h) || 0, net: 1 };
     this.apply({ op: "put", seq: ++this.seq, key, to: b.to, packet: clean, expiresAt: Math.min(b.x, now + TTL_MS) });
+    if (this.onPut) this.onPut(b.to); // tell the phone (or its gateway) over the live channel: pull now
     return "ok";
   }
   /** Packets for each ID after that ID's cursor (a phone pulls for itself and the phones around it). */
@@ -195,6 +196,6 @@ if (require.main === module) {
   const store = new Store(path.join(dataDir, "relay.jsonl"));
   setInterval(() => store.prune(), 3600e3).unref();
   const server = createServer(store);
-  require("./live").attachLive(server);
+  require("./live").attachLive(server, { store });
   server.listen(port, () => console.log(`BlueMob relay listening on :${port}`));
 }

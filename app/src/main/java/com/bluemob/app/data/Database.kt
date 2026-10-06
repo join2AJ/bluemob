@@ -83,6 +83,9 @@ interface CallLogDao {
 
     @Query("DELETE FROM calls")
     suspend fun clear()
+
+    @Query("DELETE FROM calls WHERE id = :id")
+    suspend fun delete(id: String)
 }
 
 /** Message IDs this phone has already accepted, so a second copy is discarded. */

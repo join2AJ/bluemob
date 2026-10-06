@@ -24,6 +24,28 @@ object GuidePacks {
     private val _installed = MutableStateFlow<List<PackInfo>>(emptyList())
     val installed: StateFlow<List<PackInfo>> = _installed.asStateFlow()
 
+    /** When each pack was downloaded (or last updated), by pack ID. */
+    @Volatile var installedAt: Map<String, Long> = emptyMap()
+        private set
+
+    private val _read = MutableStateFlow<Map<String, Long>>(emptyMap())
+    /** Guides the user has opened, with when they last did: for the dashboard and "continue reading". */
+    val read: StateFlow<Map<String, Long>> = _read.asStateFlow()
+
+    /** The pack a guide came from, or null for a built-in one. */
+    fun packOf(articleId: String): String? = installedAt.keys.firstOrNull { articleId.startsWith("$it-") }
+
+    /** True for a guide from a pack downloaded in the last [NEW_FOR_MS] (about a day). */
+    fun isNew(articleId: String, now: Long = System.currentTimeMillis()): Boolean =
+        packOf(articleId)?.let { installedAt[it] }?.let { now - it < NEW_FOR_MS } == true
+
+    fun markRead(articleId: String, now: Long = System.currentTimeMillis()) {
+        _read.value = _read.value + (articleId to now)
+        prefs?.edit()?.putLong("read:$articleId", now)?.apply()
+    }
+
+    const val NEW_FOR_MS = 24 * 3_600_000L
+
     private var prefs: SharedPreferences? = null
 
     fun init(prefs: SharedPreferences) {
@@ -36,6 +58,8 @@ object GuidePacks {
         val packs = p.all.keys.filter { it.startsWith("pack:") }.mapNotNull { k -> p.getString(k, null)?.let { runCatching { parse(JSONObject(it)) }.getOrNull() } }
         installedArticles = packs.flatMap { it.second }
         _installed.value = packs.map { it.first }.sortedBy { it.title }
+        installedAt = packs.associate { (info, _) -> info.id to p.getLong("packAt:${info.id}", 0L) }
+        _read.value = p.all.keys.filter { it.startsWith("read:") }.associate { it.removePrefix("read:") to p.getLong(it, 0L) }
     }
 
     /** What the relay offers. Null if it couldn't be reached. */
@@ -51,12 +75,12 @@ object GuidePacks {
         val body = get("$relay/v1/guides/$id") ?: return@withContext "Couldn't download it. Check the internet connection and try again."
         val parsed = runCatching { parse(JSONObject(body)) }.getOrNull() ?: return@withContext "That pack couldn't be read."
         if (parsed.second.isEmpty()) return@withContext "That pack is empty."
-        prefs?.edit()?.putString("pack:$id", body)?.apply()
+        prefs?.edit()?.putString("pack:$id", body)?.putLong("packAt:$id", System.currentTimeMillis())?.apply()
         reload()
         null
     }
 
-    fun remove(id: String) { prefs?.edit()?.remove("pack:$id")?.apply(); reload() }
+    fun remove(id: String) { prefs?.edit()?.remove("pack:$id")?.remove("packAt:$id")?.apply(); reload() }
 
     private fun info(j: JSONObject, articles: Int, bytes: Long) = PackInfo(j.getString("id"), j.optInt("version", 1), j.optString("emoji", "📘"),
         j.getString("title"), j.optString("about"), articles, bytes)
@@ -84,4 +108,39 @@ object GuidePacks {
         c.connectTimeout = 20_000; c.readTimeout = 60_000
         try { if (c.responseCode == 200) c.inputStream.bufferedReader().readText().takeIf { it.length < 512 * 1024 } else null } finally { c.disconnect() }
     }.getOrNull()
+}
+
+/** The numbers on the guide dashboard. */
+data class GuideDashboard(
+    val total: Int,
+    val downloaded: Int,
+    val packs: Int,
+    val newCount: Int,
+    val saved: Int,
+    val readCount: Int,
+    val byCategory: Map<GuideCategory, Int>,
+    /** The guide opened most recently, to carry on with. */
+    val lastRead: String?,
+) {
+    val readShare: Float get() = if (total == 0) 0f else readCount.toFloat() / total
+
+    companion object {
+        fun of(all: List<Article>, saved: Set<String>, read: Map<String, Long>, isNew: (String) -> Boolean, packs: Int): GuideDashboard {
+            val ids = all.map { it.id }.toSet()
+            return GuideDashboard(
+                total = all.size,
+                downloaded = all.count { GuidePacks.packOf(it.id) != null },
+                packs = packs,
+                newCount = all.count { isNew(it.id) },
+                saved = saved.count { it in ids },
+                readCount = read.keys.count { it in ids },
+                byCategory = all.groupingBy { it.category }.eachCount(),
+                lastRead = read.filterKeys { it in ids }.maxByOrNull { it.value }?.key,
+            )
+        }
+
+        /** Same guide all day, a different one tomorrow. */
+        fun ofTheDay(all: List<Article>, day: Long = System.currentTimeMillis() / 86_400_000L): Article? =
+            all.takeIf { it.isNotEmpty() }?.let { it.sortedBy { a -> a.id }[(day % it.size).toInt()] }
+    }
 }

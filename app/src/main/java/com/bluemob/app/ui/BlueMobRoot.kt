@@ -278,7 +278,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { push("rescue:$it") }, onNewChat = { push("newchat") },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
                             onCallBack = { id, n, video -> actions.requestCallPermissions(video) { vm.startCall(id, n, video) } },
-                            onClearCalls = { vm.clearCallLog() }) { push("chat:$it") }
+                            onClearCalls = { vm.clearCallLog() }, onDeleteCall = { vm.deleteCall(it) },
+                            filesFor = { chatFiles(it) }) { push("chat:$it") }
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
@@ -336,7 +337,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route.startsWith("article:") -> {
                     val a = GuideContent.byId(route.removePrefix("article:"))
                     if (a == null) LaunchedEffect(Unit) { pop() }
-                    else ArticleScreen(a, a.id in bookmarks, ::pop, onToggleSaved = { vm.toggleBookmark(a.id) }, onSos = { push("sos") })
+                    else ArticleScreen(a, a.id in bookmarks, ::pop, onToggleSaved = { vm.toggleBookmark(a.id) }, onSos = { push("sos") }, onOpen = { push("article:$it") })
                 }
                 route == "sos" -> SosHubScreen(
                     SosHubState(mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, sosContacts, sosReached),
@@ -491,6 +492,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 onDecline = vm::hangUp, onMute = vm::toggleMute, onSpeaker = vm::toggleSpeaker, onCamera = vm::toggleCamera,
                 wantsFrame = vm::wantsFrame, onFrame = vm::onCameraFrame,
                 onPtt = vm::togglePtt, onTalk = vm::talk, avatar = people.firstOrNull { it.nodeId == c.peer }?.avatar,
+                onQuickReply = { text -> vm.hangUp(); vm.send(c.peer, text) },
             )
         }
 

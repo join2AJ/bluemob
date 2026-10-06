@@ -235,7 +235,7 @@ fun ProfileScreen(
         item { GroupLabel("Play") }
         item {
             Group {
-                SettingRow(Icons.Outlined.SportsEsports, Extra.ember, "Games", "Tic-tac-toe and Connect 4, against the computer", onClick = onGames) { chevron() }
+                SettingRow(Icons.Outlined.SportsEsports, Extra.ember, "Games", "5 games, against the computer or people nearby", onClick = onGames) { chevron() }
             }
         }
 

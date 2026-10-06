@@ -54,7 +54,7 @@ fun GuidePacksScreen(relay: String, online: Boolean, onBack: () -> Unit) {
         if (installed.isNotEmpty()) {
             item { GroupLabel("On this phone") }
             items(installed, key = { "i" + it.id }) { p ->
-                PackRow(p, "${p.articles} guides · works offline") { TextButton(onClick = { GuidePacks.remove(p.id); note = "${p.title} removed." }) { Text("Remove", color = Extra.rose) } }
+                PackRow(p, "${p.articles} guides · works offline" + if (System.currentTimeMillis() - (GuidePacks.installedAt[p.id] ?: 0L) < GuidePacks.NEW_FOR_MS) " · NEW" else "") { TextButton(onClick = { GuidePacks.remove(p.id); note = "${p.title} removed." }) { Text("Remove", color = Extra.rose) } }
             }
         }
         item { GroupLabel("Available") }

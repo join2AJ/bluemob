@@ -24,6 +24,8 @@ interface InternetPath {
     fun enqueue(key: String, packet: String)
     /** Ask the relay for this ID's public key. */
     fun lookupKey(id: String)
+    /** Hand a packet to the relay's live channel right now (delivered in about a second if [to] is online). */
+    fun sendNow(to: String, packet: String): Boolean = false
 }
 
 /** A message or receipt this phone carries for others. [copies] is how many more phones it may hand copies to. */
@@ -132,7 +134,9 @@ class MeshRouter(
         val names = given.map(wire::nameOf).toMutableList()
         // Far away? If this phone has internet, the relay carries it too. Whichever arrives first wins.
         if (!out.uploaded && internet?.up() == true) {
-            internet?.enqueue(out.key, JSONObject(out.packet).put("c", 1).toString())
+            val p = JSONObject(out.packet).put("c", 1).toString()
+            internet?.sendNow(to, p)
+            internet?.enqueue(out.key, p)
             out.uploaded = true
             names += INTERNET_NAME
         }
@@ -202,6 +206,7 @@ class MeshRouter(
         }
         if (copies != item.copies) store.put(item.copy(copies = copies, givenTo = given))
         if (item.key !in uploadedCarried && internet?.up() == true) {
+            internet?.sendNow(item.to, item.packet)
             internet?.enqueue(item.key, item.packet)
             uploadedCarried += item.key
         }

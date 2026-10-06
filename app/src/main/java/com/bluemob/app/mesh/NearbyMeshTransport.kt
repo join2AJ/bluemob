@@ -86,6 +86,9 @@ class NearbyMeshTransport(
     private val _events = MutableSharedFlow<MeshEvent>(extraBufferCapacity = 64)
     val events: SharedFlow<MeshEvent> = _events.asSharedFlow()
 
+    /** Who can reach whom through the phones around us: lets calls hop through friends, and reach the internet through one. */
+    val routes = RouteTable(identity.nodeId)
+
     /** Gets chat messages and receipts to anyone, through other phones if needed. The message store talks to this. */
     val router = MeshRouter(this, identity.keys, keyBook, relayStore, myName = { identity.displayName.value }, log = ::log)
 
@@ -150,6 +153,7 @@ class NearbyMeshTransport(
                 delay(HEARTBEAT_MS)
                 if (!_running.value) continue
                 heartbeat()
+                if (ticks % 2 == 0L) shareRoutes()
                 if (++ticks % (WATCHDOG_MS / HEARTBEAT_MS) == 0L) checkHealth()
             }
         }
@@ -290,7 +294,24 @@ class NearbyMeshTransport(
         }
     }
 
+    /**
+     * Tells the phones around us who we can reach (for calls through friends), and tells the internet relay which
+     * phones it can reach through us, so this phone becomes the whole group's way to the world.
+     */
+    private fun shareRoutes() {
+        val ns = connectedNodes()
+        val online = live?.connected?.value == true
+        if (ns.isNotEmpty()) {
+            val advert = routes.advert(ns, online)
+            verifiedEndpoints().forEach { sendTo(it, advert) }
+        }
+        if (online) live?.carry(routes.reach(ns).keys)
+    }
+
+    private fun verifiedEndpoints() = _peers.value.values.filter { it.state == PeerState.CONNECTED && it.verified }.map { it.endpointId }
+
     private fun dropSilent(p: Peer) {
+        routes.remove(p.nodeId)
         client.disconnectFromEndpoint(p.endpointId)
         _peers.update { it - p.endpointId }
         authTokens.remove(p.endpointId)
@@ -440,25 +461,111 @@ class NearbyMeshTransport(
             field = value
             value?.onText = { from, data ->
                 val json = runCatching { JSONObject(data) }.getOrNull()
-                if (json != null && json.optString("t") == TYPE_APP) scope.launch { handleApp(null, json, viaInternetFrom = from) }
+                when (json?.optString("t")) {
+                    TYPE_APP -> scope.launch { handleApp(null, json, viaInternetFrom = from) }
+                    // A chat message or receipt sent live: for us, or for a phone near us that we carry.
+                    MeshRouter.RMSG, MeshRouter.RRCPT -> scope.launch { router.onInternetPacket(json.put("net", 1)) }
+                }
             }
             value?.onBinary = { from, bytes ->
-                if (bytes.isNotEmpty() && bytes.size <= MAX_MEDIA && (bytes[0] == MEDIA_AUDIO || bytes[0] == MEDIA_VIDEO)) _media.tryEmit(Media(from, bytes))
+                when {
+                    bytes.isEmpty() || bytes.size > MAX_MEDIA + RelayFrame.HEADER -> {}
+                    bytes[0] == RelayFrame.MARK -> scope.launch { relayFrame(null, bytes) }
+                    bytes.size <= MAX_MEDIA && isCallFrame(bytes[0]) -> _media.tryEmit(Media(from, bytes))
+                }
             }
             value?.onOffline = { to -> _events.tryEmit(MeshEvent.Unreachable(to)) }
         }
 
-    /** True when we can reach [nodeId] live: connected nearby, or signed in to the relay over the internet. */
-    fun canReachLive(nodeId: String) = isConnected(nodeId) || live?.connected?.value == true
+    /** How a call's audio and video get to someone right now. */
+    sealed interface Path {
+        /** Connected to them nearby. */
+        data class Direct(val endpointId: String) : Path
+        /** Over the internet relay, from this phone. */
+        data object Live : Path
+        /** Through phones around us: [hop] is the next one, [hops] the whole way. */
+        data class Relay(val endpointId: String, val hop: String, val hops: Int) : Path
+        /** To the internet through a phone near us that has it. */
+        data class NetVia(val endpointId: String, val hop: String) : Path
+    }
 
-    /** "Wi-Fi" / "Bluetooth" when they're nearby, "Internet" when the call goes through the relay. */
-    fun callLink(nodeId: String) = if (isConnected(nodeId)) linkName(nodeId) else "Internet"
+    fun pathTo(nodeId: String): Path? {
+        connectedEndpointFor(nodeId)?.let { return Path.Direct(it) }
+        val ns = connectedNodes()
+        val mesh = routes.nextHop(nodeId, ns)?.let { (hop, hops) -> connectedEndpointFor(hop)?.let { Path.Relay(it, hop, hops) } }
+        val online = live?.connected?.value == true
+        // With our own internet, prefer it unless they're only a couple of hops away and not online themselves.
+        if (online && (mesh == null || mesh.hops > 2 || live?.presence?.value?.reachable(nodeId) == true)) return Path.Live
+        if (mesh != null) return mesh
+        if (online) return Path.Live
+        return routes.netHop(ns)?.let { (hop, _) -> connectedEndpointFor(hop)?.let { Path.NetVia(it, hop) } }
+    }
+
+    /** True when a call can reach [nodeId]: nearby, through phones around us, or over the internet (ours or a friend's). */
+    fun canReachLive(nodeId: String) = pathTo(nodeId) != null
+
+    /** "Wi-Fi" / "Bluetooth" when they're nearby, "Internet", or the friend the call goes through. */
+    fun callLink(nodeId: String) = when (val p = pathTo(nodeId)) {
+        is Path.Direct -> linkName(nodeId)
+        is Path.Relay -> "Through ${nameOf(p.hop)}" + if (p.hops > 2) " (${p.hops} hops)" else ""
+        is Path.NetVia -> "Internet through ${nameOf(p.hop)}"
+        Path.Live -> live?.presence?.value?.via?.get(nodeId)?.let { "Internet, then through ${nameOf(it)}" } ?: "Internet"
+        null -> "Internet"
+    }
+
+    /** True if [nodeId] is online over the internet (signed in to the relay, or carried by a phone near them). */
+    fun onlineOverInternet(nodeId: String) = live?.presence?.value?.reachable(nodeId) == true
+
+    private fun isCallFrame(b: Byte) = b == MEDIA_AUDIO || b == MEDIA_VIDEO || b == CallCipher.MARK
+
+    /** The kind of call frame ('A' or 'V'), looking inside encrypted and relay frames. */
+    private fun kindOf(bytes: ByteArray): Byte = when (bytes.firstOrNull()) {
+        CallCipher.MARK -> bytes.getOrElse(1) { 0 }
+        RelayFrame.MARK -> RelayFrame.innerKind(bytes)
+        else -> bytes.firstOrNull() ?: 0
+    }
+
+    /**
+     * A call frame passing through: for us, or on its way to someone else. Only end-to-end encrypted frames are
+     * accepted from a relay, so a phone in between can't put words in anyone's mouth.
+     */
+    private fun relayFrame(fromNode: String?, bytes: ByteArray) {
+        val f = RelayFrame.parse(bytes) ?: return
+        if (f.dest == identity.nodeId) {
+            if (f.inner.size <= MAX_MEDIA && f.inner[0] == CallCipher.MARK) _media.tryEmit(Media(f.origin, f.inner))
+            return
+        }
+        if (f.origin == identity.nodeId) return
+        val next = RelayFrame.hop(bytes) ?: return
+        val video = kindOf(bytes) == MEDIA_VIDEO
+        connectedEndpointFor(f.dest)?.let { sendRelayed(it, next, video); return }
+        val ns = connectedNodes()
+        routes.nextHop(f.dest, ns)?.takeIf { it.first != fromNode }?.let { (hop, _) -> connectedEndpointFor(hop)?.let { sendRelayed(it, next, video); return } }
+        if (live?.connected?.value == true) {
+            if (!video || (live?.backlog() ?: 0) < RELAY_VIDEO_BACKLOG) live?.sendBinary(f.dest, next)
+            return
+        }
+        routes.netHop(ns)?.takeIf { it.first != fromNode }?.let { (hop, _) -> connectedEndpointFor(hop)?.let { sendRelayed(it, next, video) } }
+    }
+
+    /** Passes on someone else's call frame, dropping video (never voice first) if that link is already busy. */
+    private fun sendRelayed(endpointId: String, frame: ByteArray, video: Boolean) {
+        val busy = endpointBacklog(endpointId)
+        if (busy > (if (video) RELAY_VIDEO_BACKLOG else RELAY_AUDIO_BACKLOG)) return
+        sendTracked(endpointId, frame)
+    }
+
+    private fun sendTracked(endpointId: String, bytes: ByteArray) {
+        val payload = Payload.fromBytes(bytes)
+        inFlight[payload.id] = InFlight(endpointId, bytes.size, kindOf(bytes), SystemClock.elapsedRealtime())
+        client.sendPayload(endpointId, payload).addOnFailureListener { inFlight.remove(payload.id) }
+    }
 
     private fun handleApp(fromEndpoint: String?, json: JSONObject, viaInternetFrom: String? = null) {
         val o = Envelope.open(json) ?: return
         val to = o.body.optString("to")
-        // Over the internet, the relay vouches for who sent it; the signature must agree.
-        if (viaInternetFrom != null && (o.from != viaInternetFrom || to != identity.nodeId)) return
+        // Over the internet it may come from the sender, or from a phone with internet passing it on for them (a gateway);
+        // either way the sender's signature has been checked.
         if (!seenSos.add(TYPE_APP + o.body.optString("id"))) return
         if (to == identity.nodeId) {
             if (o.from == identity.nodeId) return
@@ -472,8 +579,10 @@ class NearbyMeshTransport(
         if (hops >= SOS_MAX_HOPS) return
         val forward = JSONObject(json.toString()).put("h", hops)
         val direct = connectedEndpointFor(to)
-        if (direct != null) sendTo(direct, forward)
-        else connectedEndpoints().filter { it != fromEndpoint }.forEach { sendTo(it, forward) }
+        if (direct != null) { sendTo(direct, forward); return }
+        connectedEndpoints().filter { it != fromEndpoint }.forEach { sendTo(it, forward) }
+        // We have internet and they aren't around us: this phone is the group's way out.
+        if (viaInternetFrom == null && routes.nextHop(to, connectedNodes()) == null) live?.takeIf { it.connected.value }?.sendText(to, forward.toString())
     }
 
     private val _media = MutableSharedFlow<Media>(extraBufferCapacity = 32, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
@@ -483,13 +592,16 @@ class NearbyMeshTransport(
     /** A chunk of call audio or a video frame. The first byte says which ([Media.AUDIO] or [Media.VIDEO]). */
     class Media(val fromNodeId: String, val bytes: ByteArray)
 
-    /** Sends call audio or video straight to a connected phone. Returns false if they aren't connected. */
-    fun sendMedia(nodeId: String, bytes: ByteArray): Boolean {
-        val endpointId = connectedEndpointFor(nodeId) ?: return live?.sendBinary(nodeId, bytes) == true
-        val payload = Payload.fromBytes(bytes)
-        inFlight[payload.id] = InFlight(endpointId, bytes.size, bytes[0], SystemClock.elapsedRealtime())
-        client.sendPayload(endpointId, payload).addOnFailureListener { inFlight.remove(payload.id) }
-        return true
+    /**
+     * Sends call audio or video: straight to them nearby, over the internet, or through the phones around us
+     * ([pathTo]). Frames that go through other phones must already be end-to-end encrypted. False if there's no way.
+     */
+    fun sendMedia(nodeId: String, bytes: ByteArray): Boolean = when (val p = pathTo(nodeId)) {
+        is Path.Direct -> { sendTracked(p.endpointId, bytes); true }
+        Path.Live -> live?.sendBinary(nodeId, bytes) == true
+        is Path.Relay -> bytes[0] == CallCipher.MARK && run { sendTracked(p.endpointId, RelayFrame.wrap(nodeId, identity.nodeId, bytes)); true }
+        is Path.NetVia -> bytes[0] == CallCipher.MARK && run { sendTracked(p.endpointId, RelayFrame.wrap(nodeId, identity.nodeId, bytes)); true }
+        null -> false
     }
 
     /** Progress and results of file transfers (photos, documents, voice notes). */
@@ -534,7 +646,16 @@ class NearbyMeshTransport(
     fun mediaBacklog(nodeId: String, kind: Byte? = null): Int {
         // Over the internet we can't tell audio from video in the queue. Video waits for an empty queue; voice only
         // counts as behind once more than about one video frame is waiting.
-        val endpointId = connectedEndpointFor(nodeId) ?: return (live?.backlog() ?: 0L).toInt().let { if (kind == MEDIA_AUDIO) (it - 32_000).coerceAtLeast(0) else it }
+        val endpointId = when (val p = pathTo(nodeId)) {
+            is Path.Direct -> p.endpointId
+            is Path.Relay -> p.endpointId
+            is Path.NetVia -> p.endpointId
+            else -> return (live?.backlog() ?: 0L).toInt().let { if (kind == MEDIA_AUDIO) (it - 32_000).coerceAtLeast(0) else it }
+        }
+        return endpointBacklog(endpointId, kind)
+    }
+
+    private fun endpointBacklog(endpointId: String, kind: Byte? = null): Int {
         val now = SystemClock.elapsedRealtime()
         var total = 0
         val it = inFlight.entries.iterator()
@@ -716,6 +837,7 @@ class NearbyMeshTransport(
 
         override fun onDisconnected(endpointId: String) {
             val peer = _peers.value[endpointId] ?: return
+            routes.remove(peer.nodeId)
             _peers.update { it - endpointId }
             authTokens.remove(endpointId)
             lastHeard.remove(endpointId)
@@ -748,10 +870,11 @@ class NearbyMeshTransport(
                 return
             }
             val bytes = payload.asBytes() ?: return
-            if (bytes.isNotEmpty() && (bytes[0] == MEDIA_AUDIO || bytes[0] == MEDIA_VIDEO)) {
+            if (bytes.isNotEmpty() && (isCallFrame(bytes[0]) || bytes[0] == RelayFrame.MARK)) {
                 // Call media only from a phone that proved its ID, and only within the size of a frame.
                 val peer = _peers.value[endpointId]?.takeIf { it.verified } ?: return
-                if (bytes.size <= MAX_MEDIA) _media.tryEmit(Media(peer.nodeId, bytes))
+                if (bytes[0] == RelayFrame.MARK) { if (bytes.size <= MAX_MEDIA) relayFrame(peer.nodeId, bytes) }
+                else if (bytes.size <= MAX_MEDIA) _media.tryEmit(Media(peer.nodeId, bytes))
                 return
             }
             if (bytes.size > MAX_PAYLOAD) return log("Ignored an oversized packet")
@@ -782,6 +905,7 @@ class NearbyMeshTransport(
                     }
                 }
                 MeshRouter.RMSG, MeshRouter.RRCPT, MeshRouter.KEYQ, MeshRouter.KEYA -> router.onPacket(peer.nodeId, json)
+                RouteTable.TYPE -> if (peer.verified) routes.update(peer.nodeId, json)
                 TYPE_RATE -> relaySigned(endpointId, json) { o -> listOf(o.body.optString("subject"), o.body.optString("kind"), o.body.optString("ctx"), o.body.optLong("at")).joinToString("|") }
                     ?.let { _events.tryEmit(MeshEvent.Extra(peer.nodeId, TYPE_RATE, json)) }
                 in extraTypes -> _events.tryEmit(MeshEvent.Extra(peer.nodeId, json.optString("t"), json))
@@ -918,6 +1042,9 @@ class NearbyMeshTransport(
         private const val PEER_TIMEOUT_MS = 15_000L
         private const val HEARTBEAT = "hb-"
         private const val MEDIA_STALE_MS = 3_000L
+        /** Someone else's call through us: drop their video above this much queued, and their voice above the second. */
+        private const val RELAY_VIDEO_BACKLOG = 24_000
+        private const val RELAY_AUDIO_BACKLOG = 6_000
         /** Largest file accepted: the 25 MB attachment limit plus encryption overhead. */
         private const val FILE_MAX_BYTES = 25L * 1024 * 1024 + 1024
         private const val RADIO_SETTLE_MS = 2_000L
@@ -934,7 +1061,7 @@ class NearbyMeshTransport(
          * What this version can do, sent in every hello. Older phones ignore packet types they don't know, so new
          * features are added as new capabilities and new types, never by changing what existing packets mean.
          */
-        val CAPS = setOf("msg", "rcpt", "sos", "lost", "room", "rate", "audit", "app", "game", "games2", "call", "ring", "file", "ptt")
+        val CAPS = setOf("msg", "rcpt", "sos", "lost", "room", "rate", "audit", "app", "game", "games2", "call", "ring", "file", "ptt", "relay", "e2ecall")
         private const val MAX_PAYLOAD = 32 * 1024
         private const val MAX_NOTE = 200
         private const val TYPE_SOS = "sos"

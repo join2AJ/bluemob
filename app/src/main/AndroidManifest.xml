@@ -36,6 +36,9 @@
     <!-- Keep the mesh running in the background, with a visible notification, so SOS and messages arrive -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- During calls only: Android silences the microphone (and camera) of apps that aren't on screen otherwise -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- An SOS from someone nearby opens over the lock screen where Android allows it -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
@@ -83,6 +86,11 @@
             android:name=".service.MeshService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <service
+            android:name=".service.CallService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|camera" />
 
         <activity
             android:name=".MainActivity"

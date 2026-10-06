@@ -17,6 +17,7 @@ class PermissionsTest {
         val declared = app.packageManager.getPackageInfo(app.packageName, PackageManager.GET_PERMISSIONS).requestedPermissions.orEmpty().toSet()
         listOf(
             "android.permission.INTERNET",              // relay: messages, internet calls, guide downloads
+            "android.permission.FOREGROUND_SERVICE_MICROPHONE", // calls keep the mic with the screen off
             "android.permission.ACCESS_NETWORK_STATE",
             "android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_ADVERTISE", "android.permission.BLUETOOTH_CONNECT",
             "android.permission.ACCESS_FINE_LOCATION",  // GPS, trail, base camp

@@ -52,6 +52,8 @@ data class Person(
     /** 0 to 5 stars from other people's ratings (4.0 for someone new). */
     val stars: Double = com.bluemob.app.trust.Trust.START,
     val ratingCount: Int = 0,
+    /** Not nearby but reachable live, e.g. "Online on the internet" or "Reachable through Asha": calls work. */
+    val reach: String? = null,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -117,8 +119,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val people: StateFlow<List<Person>> = combine(
-        mesh.peers, blueMob.contacts.contacts, myLocation, clock, combine(sosManager.received, lostMode.received, blueMob.trust.scores) { a, b, c -> Triple(a, b, c) },
-    ) { peers, contacts, me, now, (sos, lost, scores) ->
+        combine(mesh.peers, blueMob.live.presence) { a, b -> a to b }, blueMob.contacts.contacts, myLocation, clock, combine(sosManager.received, lostMode.received, blueMob.trust.scores) { a, b, c -> Triple(a, b, c) },
+    ) { (peers, online), contacts, me, now, (sos, lost, scores) ->
+        val neighbors = mesh.connectedNodes()
         val names = contacts.values.groupingBy { it.name }.eachCount()
         contacts.values.map { c ->
             val link = peers.values.filter { it.nodeId == c.nodeId }.maxByOrNull { it.state.ordinal }
@@ -142,6 +145,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 lost = lostPos,
                 stars = scores[c.nodeId]?.stars ?: com.bluemob.app.trust.Trust.START,
                 ratingCount = scores[c.nodeId]?.ratings ?: 0,
+                reach = if (presence != Presence.OFFLINE) null else mesh.routes.nextHop(c.nodeId, neighbors)?.let { (hop, hops) ->
+                    "Reachable through ${contacts[hop]?.name ?: "a friend"}" + if (hops > 2) " ($hops hops)" else ""
+                } ?: when {
+                    c.nodeId in online.online -> "Online on the internet"
+                    c.nodeId in online.via -> "Online through ${contacts[online.via[c.nodeId]]?.name ?: "a friend"}'s internet"
+                    else -> null
+                },
             )
         }.sortedWith(compareBy<Person> { it.presence.ordinal }.thenByDescending { it.lastSeen })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -214,7 +224,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun ping(nodeId: String) = mesh.ping(nodeId)
 
     fun send(nodeId: String, text: String) = repo.send(nodeId, text)
-    fun openChat(nodeId: String?) { repo.openConversation = nodeId }
+    fun openChat(nodeId: String?) {
+        repo.openConversation = nodeId
+        // Check whether they're online over the internet right away, and keep checking while the chat is open.
+        blueMob.watchPresence = { listOfNotNull(nodeId, blueMob.calls.call.value?.peer) }
+        if (nodeId != null && blueMob.live.connected.value) blueMob.live.askPresence(listOf(nodeId))
+    }
     fun message(id: String): MessageEntity? = repo.messages.value.firstOrNull { it.id == id }
     fun unreadCount(all: Map<String, List<MessageEntity>>) = all.values.sumOf { list -> list.count { !it.fromMe && it.status == MessageStatus.RECEIVED } }
 
@@ -463,6 +478,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun talk(down: Boolean) = calls.talk(down)
     val callLog = blueMob.callLog.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     fun clearCallLog() = viewModelScope.launch { blueMob.callLog.clear() }
+    fun deleteCall(id: String) = viewModelScope.launch { blueMob.callLog.delete(id) }
     fun toggleSpeaker() = calls.toggleSpeaker()
     fun toggleCamera() = calls.toggleCamera()
     fun canUseCamera() = calls.hasCamera()

@@ -98,7 +98,22 @@ fun CallScreen(
     onPtt: () -> Unit = {},
     onTalk: (Boolean) -> Unit = {},
     avatar: String? = null,
+    /** Declines with a short message, like "Can't talk now, I'll call you back". */
+    onQuickReply: (String) -> Unit = {},
 ) {
+    var replies by remember { mutableStateOf(false) }
+    if (replies) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { replies = false },
+        title = { Text("Reply with a message") },
+        text = {
+            Column {
+                QUICK_REPLIES.forEach { r ->
+                    Text(r, fontSize = 16.sp, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { replies = false; onQuickReply(r) }.padding(vertical = 12.dp, horizontal = 8.dp))
+                }
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { replies = false }) { Text("Cancel") } },
+    )
     var front by rememberSaveable { mutableStateOf(true) }
     var controls by remember { mutableStateOf(true) }
     val showVideo = call.phase == CallPhase.ACTIVE && remote != null
@@ -135,7 +150,7 @@ fun CallScreen(
                     Text(call.name, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 22.dp))
                     Text(
                         when (call.phase) {
-                            CallPhase.OUTGOING -> "Ringing…"
+                            CallPhase.OUTGOING -> if (call.waiting) "Waiting for ${call.name} to come online…" else "Ringing…"
                             CallPhase.INCOMING -> if (call.video) "Incoming video call" else "Incoming voice call"
                             CallPhase.ACTIVE -> "%d:%02d".format(elapsed / 60, elapsed % 60) + (if (call.video && remote == null) " · waiting for video…" else "")
                             CallPhase.ENDED -> call.ended ?: "Call ended"
@@ -155,9 +170,13 @@ fun CallScreen(
                 // Controls
                 Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     when (call.phase) {
-                        CallPhase.INCOMING -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            RoundButton("✕", "Decline", Rose, onDecline, big = true)
-                            RoundButton(if (call.video) "🎥" else "📞", "Answer", Pine, onAccept, big = true)
+                        CallPhase.INCOMING -> {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                RoundButton("✕", "Decline", Rose, onDecline, big = true)
+                                RoundButton(if (call.video) "🎥" else "📞", "Answer", Pine, onAccept, big = true)
+                            }
+                            Text("💬  Reply with a message", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp,
+                                modifier = Modifier.padding(top = 18.dp).clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.12f)).clickable { replies = true }.padding(horizontal = 16.dp, vertical = 8.dp))
                         }
                         CallPhase.OUTGOING -> RoundButton("✕", "Cancel", Rose, onDecline, big = true)
                         CallPhase.ACTIVE -> {
@@ -193,11 +212,19 @@ private fun problem(call: Call): String? = when {
 @Composable
 private fun LinkChip(call: Call) {
     if (call.phase == CallPhase.ENDED) return
-    Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("🔒", fontSize = 12.sp)
-        Text("  Phone to phone · ${call.link.ifBlank { "nearby" }} · no internet", color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
+    val link = call.link.ifBlank { "nearby" }
+    val nearby = link == "Wi-Fi" || link == "Bluetooth" || link == "Wi-Fi or Bluetooth" || link == "nearby"
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(when { link.startsWith("Internet") -> "🌐"; link.startsWith("Through") -> "🔗"; link == "Wi-Fi" -> "📶"; else -> "ᛒ" }, fontSize = 12.sp, color = Color.White)
+            Text("  " + if (nearby) "Phone to phone · $link · no internet" else link, color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
+        }
+        // Nearby links are encrypted by the radio link itself; anything that goes through others needs end-to-end.
+        if (call.e2e || nearby) Text("🔒 " + if (call.e2e) "End-to-end encrypted" else "Encrypted link", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }
+
+private val QUICK_REPLIES = listOf("Can't talk now, I'll call you back.", "I'm on my way.", "Send me a message instead.", "Is everything OK?")
 
 /** Pulsing rings while ringing, or while the other person is talking in walkie-talkie mode. */
 @Composable

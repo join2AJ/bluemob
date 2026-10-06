@@ -63,7 +63,12 @@ class BridgeClient(
 
     val configured: Boolean get() = !baseUrl().isNullOrBlank()
     override fun up(): Boolean = configured && online()
-    override fun enqueue(key: String, packet: String) { synchronized(lock) { queue[key] = packet } }
+    override fun enqueue(key: String, packet: String) { synchronized(lock) { queue[key] = packet }; onQueued() }
+    override fun sendNow(to: String, packet: String): Boolean = liveSend(to, packet)
+    /** Something is waiting to upload: sync now rather than at the next tick. */
+    var onQueued: () -> Unit = {}
+    /** The live channel, when signed in (set by the app). */
+    var liveSend: (to: String, packet: String) -> Boolean = { _, _ -> false }
     override fun lookupKey(id: String) { synchronized(lock) { wantedKeys += id } }
     val queued: Int get() = synchronized(lock) { queue.size }
 

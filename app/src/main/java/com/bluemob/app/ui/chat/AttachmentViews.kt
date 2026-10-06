@@ -153,52 +153,115 @@ fun HoldToRecord(onStart: () -> Unit, onStop: (Boolean) -> Unit, modifier: Modif
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MediaScreen(name: String, messages: List<MessageEntity>, files: ChatFiles, onBack: () -> Unit) {
-    var filter by rememberSaveable { mutableStateOf("all") }
-    val withFiles = messages.mapNotNull { m -> Attachment.fromJson(m.att)?.let { m to it } }.sortedByDescending { it.first.createdAt }
-    val shown = withFiles.filter { (_, a) ->
-        when (filter) { "photo" -> a.kind == AttKind.IMAGE; "video" -> a.kind == AttKind.VIDEO; "doc" -> a.kind == AttKind.DOC; "voice" -> a.kind == AttKind.AUDIO; else -> true }
-    }
-    val counts = withFiles.groupingBy { it.second.kind }.eachCount()
+    val state = rememberFileBrowserState()
+    val all = sharedFiles(messages)
     SubScreen("Media, docs & voice", onBack) {
-        item {
-            Text("Shared with $name", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp))
+        item { Text("Shared with $name", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)) }
+        fileBrowser(state, all, nameOf = { name }, filesFor = { files }, showPeople = false)
+    }
+}
+
+/** Every file shared in [messages], newest first. */
+fun sharedFiles(messages: List<MessageEntity>): List<SharedFile<MessageEntity>> =
+    messages.mapNotNull { m -> Attachment.fromJson(m.att)?.let { SharedFile(m, m.peer, m.fromMe, m.createdAt, it) } }.sortedByDescending { it.at }
+
+/** What the file browser is showing: type, extension, order and search. Kept across screen rotations. */
+class FileBrowserState(kind: String, ext: String?, sort: FileSort, query: String) {
+    var kind by mutableStateOf(kind)
+    var ext by mutableStateOf(ext)
+    var sort by mutableStateOf(sort)
+    var query by mutableStateOf(query)
+    val attKind get() = when (kind) { "photo" -> AttKind.IMAGE; "video" -> AttKind.VIDEO; "doc" -> AttKind.DOC; "voice" -> AttKind.AUDIO; else -> null }
+}
+
+@Composable
+fun rememberFileBrowserState(): FileBrowserState = rememberSaveable(
+    saver = androidx.compose.runtime.saveable.listSaver(
+        save = { listOf(it.kind, it.ext ?: "", it.sort.name, it.query) },
+        restore = { FileBrowserState(it[0], it[1].ifEmpty { null }, FileSort.valueOf(it[2]), it[3]) },
+    ),
+) { FileBrowserState("all", null, FileSort.LATEST, "") }
+
+/**
+ * Shared files with filters: by type (photos, videos, documents, voice), by extension (PDF, JPG…), sorted by date,
+ * size or name, and searchable by file name. [showPeople] adds who each file is with (for the all-chats view).
+ */
+fun androidx.compose.foundation.lazy.LazyListScope.fileBrowser(
+    state: FileBrowserState,
+    all: List<SharedFile<MessageEntity>>,
+    nameOf: (String) -> String,
+    filesFor: (String) -> ChatFiles,
+    showPeople: Boolean,
+    sidePadding: androidx.compose.ui.unit.Dp = 0.dp,
+) {
+    val side = Modifier.padding(horizontal = sidePadding)
+    val byType = all.filter { state.attKind == null || it.att.kind == state.attKind }
+    val exts = FileFilter.extensions(byType)
+    val shown = FileFilter.apply(all, state.attKind, state.ext?.takeIf { e -> exts.any { it.first == e } }, state.sort, state.query)
+    val counts = all.groupingBy { it.att.kind }.eachCount()
+    item {
+        Column(side, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val tabs = listOf("all" to "All ${withFiles.size}", "photo" to "Photos ${counts[AttKind.IMAGE] ?: 0}", "video" to "Videos ${counts[AttKind.VIDEO] ?: 0}",
+                val tabs = listOf("all" to "All ${all.size}", "photo" to "Photos ${counts[AttKind.IMAGE] ?: 0}", "video" to "Videos ${counts[AttKind.VIDEO] ?: 0}",
                     "doc" to "Documents ${counts[AttKind.DOC] ?: 0}", "voice" to "Voice ${counts[AttKind.AUDIO] ?: 0}")
-                items(tabs) { (k, label) -> Chip(label, filter == k) { filter = k } }
+                items(tabs) { (k, label) -> Chip(label, state.kind == k) { state.kind = k; state.ext = null } }
             }
-        }
-        if (shown.isEmpty()) item {
-            Text(if (withFiles.isEmpty()) "Nothing shared yet. Tap 📎 in the chat to send a photo or document, or hold 🎤 for a voice note." else "Nothing of this type yet.",
-                style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 24.dp))
-        }
-        val photos = shown.filter { it.second.kind == AttKind.IMAGE }
-        if (photos.isNotEmpty() && (filter == "photo" || filter == "all")) item {
-            // A fixed-height grid inside the list: 3 across.
-            val rows = (photos.size + 2) / 3
-            LazyVerticalGrid(GridCells.Fixed(3), Modifier.fillMaxWidth().height((rows * 118).dp).padding(top = 12.dp), userScrollEnabled = false,
-                horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(photos, key = { it.second.fid }) { (m, a) ->
-                    val thumb = rememberLoaded(m.attPath, m.attState) { files.thumbnail(m) }
-                    Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Extra.sand).clickable { files.onOpen(m) }, contentAlignment = Alignment.Center) {
-                        thumb?.let { Image(it.asImageBitmap(), a.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: Text("📷")
+            if (exts.size > 1) androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(exts) { (e, n) -> Chip("${e.uppercase()} $n", state.ext == e) { state.ext = if (state.ext == e) null else e } }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.OutlinedTextField(state.query, { state.query = it }, placeholder = { Text("Search file names") }, singleLine = true,
+                    modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodyMedium)
+                var open by remember { mutableStateOf(false) }
+                Box(Modifier.padding(start = 8.dp)) {
+                    Chip("⇅ ${state.sort.label}", true) { open = true }
+                    androidx.compose.material3.DropdownMenu(open, { open = false }) {
+                        FileSort.entries.forEach { s -> androidx.compose.material3.DropdownMenuItem(text = { Text(s.label) }, onClick = { state.sort = s; open = false }) }
                     }
                 }
             }
+            if (all.isNotEmpty()) Text("${shown.size} of ${all.size} · ${Attachment.sizeText(shown.sumOf { it.att.size })}", style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
         }
-        items(shown.filter { it.second.kind != AttKind.IMAGE }, key = { it.second.fid }) { (m, a) ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { if (a.kind == AttKind.AUDIO) files.onPlay(m) else files.onOpen(m) }.padding(vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(Extra.sand), contentAlignment = Alignment.Center) {
-                    Text(when (a.kind) { AttKind.AUDIO -> "🎤"; AttKind.VIDEO -> "🎬"; else -> docEmoji(a.name) }, fontSize = 22.sp)
-                }
-                Column(Modifier.padding(start = 12.dp).weight(1f)) {
-                    Text(if (a.kind == AttKind.AUDIO) "Voice note · ${Attachment.durationText(a.durationMs)}" else a.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${if (m.fromMe) "You" else name} · ${dateFormat.format(Date(m.createdAt))} · ${Attachment.sizeText(a.size)}" +
-                        if (m.attState != AttState.DONE && !(m.fromMe && m.attPath != null)) " · not here yet" else "",
-                        style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+    }
+    if (shown.isEmpty()) item {
+        Text(if (all.isEmpty()) "Nothing shared yet. Tap 📎 in a chat to send a photo or document, or hold 🎤 for a voice note." else "Nothing matches these filters.",
+            style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = side.padding(top = 24.dp))
+    }
+    // Photos as a grid when that's all we're looking at, in the chosen order; otherwise one list for everything.
+    if (state.attKind == AttKind.IMAGE && shown.isNotEmpty()) item {
+        val rows = (shown.size + 2) / 3
+        LazyVerticalGrid(GridCells.Fixed(3), side.fillMaxWidth().height((rows * 118).dp).padding(top = 12.dp), userScrollEnabled = false,
+            horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            items(shown, key = { it.att.fid }) { f ->
+                val m = f.ref
+                val files = filesFor(m.peer)
+                val thumb = rememberLoaded(m.attPath, m.attState) { files.thumbnail(m) }
+                Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Extra.sand).clickable { files.onOpen(m) }, contentAlignment = Alignment.Center) {
+                    thumb?.let { Image(it.asImageBitmap(), f.att.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: Text("📷")
                 }
             }
+        }
+    } else items(shown, key = { it.att.fid }) { f ->
+        val m = f.ref
+        val a = f.att
+        val files = filesFor(m.peer)
+        Row(side.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { if (a.kind == AttKind.AUDIO) files.onPlay(m) else files.onOpen(m) }.padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(Extra.sand), contentAlignment = Alignment.Center) {
+                if (a.kind == AttKind.IMAGE) {
+                    val thumb = rememberLoaded(m.attPath, m.attState) { files.thumbnail(m) }
+                    thumb?.let { Image(it.asImageBitmap(), a.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: Text("📷", fontSize = 22.sp)
+                } else Text(when (a.kind) { AttKind.AUDIO -> "🎤"; AttKind.VIDEO -> "🎬"; else -> docEmoji(a.name) }, fontSize = 22.sp)
+            }
+            Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                Text(if (a.kind == AttKind.AUDIO && a.durationMs > 0) "Voice note · ${Attachment.durationText(a.durationMs)}" else a.name,
+                    style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val who = if (m.fromMe) (if (showPeople) "You → ${nameOf(m.peer)}" else "You") else nameOf(m.peer)
+                Text("$who · ${dateFormat.format(Date(m.createdAt))} · ${Attachment.sizeText(a.size)}" +
+                    if (m.attState != AttState.DONE && !(m.fromMe && m.attPath != null)) " · not here yet" else "",
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text(f.ext.uppercase(), style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 8.dp))
         }
     }
 }

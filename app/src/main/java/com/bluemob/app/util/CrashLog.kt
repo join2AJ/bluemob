@@ -41,16 +41,36 @@ object CrashLog {
     // the next launch knows exactly where, and shows it instead of trying again blindly. ----
     private fun stepFile(context: Context) = File(context.noBackupFilesDir, "starting.txt")
 
-    fun step(context: Context, what: String) = runCatching { stepFile(context).writeText(what) }
+    fun step(context: Context, what: String) = runCatching { stepFile(context).writeText("v=${appVersion(context)}\n$what") }
 
     fun started(context: Context) { stepFile(context).delete() }
 
     /** The step the previous launch was on when it stopped, if it never finished starting. */
-    fun unfinishedStep(context: Context): String? = stepFile(context).takeIf { it.exists() }?.readText()
+    fun unfinishedStep(context: Context): String? = stepFile(context).takeIf { it.exists() }?.readText()?.lines()?.filterNot { it.startsWith("v=") }?.joinToString("\n")
+
+    /**
+     * Forgets crash records left by a different version of BlueMob. After an update fixes a crash, the old report
+     * (and an unfinished start-up step) would otherwise keep showing, as if the new version had crashed too.
+     * True if something was forgotten.
+     */
+    fun forgetOtherVersions(context: Context, current: String? = appVersion(context)): Boolean {
+        val stepVersion = stepFile(context).takeIf { it.exists() }?.readText()?.lines()?.firstOrNull { it.startsWith("v=") }?.removePrefix("v=")
+        val stepStale = stepFile(context).exists() && stepVersion != current
+        val reportStale = read(context)?.let { reportVersion(it) != current } ?: false
+        if (!stepStale && !reportStale) return false
+        clear(context)
+        return true
+    }
+
+    /** "0.11.1" from a report's first line, "BlueMob 0.11.1 · Android …". */
+    fun reportVersion(report: String): String? =
+        report.lineSequence().firstOrNull()?.takeIf { it.startsWith("BlueMob ") }?.removePrefix("BlueMob ")?.substringBefore(" ·")?.trim()
+
+    private fun appVersion(context: Context): String? =
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
 
     fun deviceLine(context: Context): String {
-        val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
-        return "BlueMob $version · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MANUFACTURER} ${Build.MODEL} · ${Build.SUPPORTED_ABIS.joinToString()}"
+        return "BlueMob ${appVersion(context)} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MANUFACTURER} ${Build.MODEL} · ${Build.SUPPORTED_ABIS.joinToString()}"
     }
 
     // ---- errors in background work that were contained instead of closing the app ----

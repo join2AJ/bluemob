@@ -5,11 +5,19 @@
 // 1. The server sends {t:"challenge", n}. The phone answers {t:"auth", pk, sig} where sig signs "bluemob-live|n" with
 //    its device key; its ID is the hash of pk, so no one can sign in as someone else's ID.
 // 2. Text  {t:"send", to, data}   → delivered to `to` as {t:"msg", from, data}, or answered {t:"offline", to}.
-//    Text  {t:"presence", ids}    → {t:"presence", online:[...]}
+//    Text  {t:"presence", ids}    → {t:"presence", online:[...], via:{id: gatewayId}}
+//    Text  {t:"via", ids}         → this phone carries these IDs (phones near it with no internet of their own)
 //    Binary [8-byte target ID | payload] → delivered as [8-byte sender ID | payload]   (call audio and video)
+//    Server → phone {t:"poke"}    → a message for you (or a phone you carry) was stored: pull now
 //
-// Call set-up messages are the app's own signed packets, and the audio and video are already in the app's format; the
-// server only passes bytes between two signed-in phones. Nothing is stored. Zero dependencies (RFC 6455 by hand).
+// Gateways: a phone with internet tells the server which nearby phones it can reach ("via"). Anything for one of those
+// phones, while it isn't signed in itself, goes to the gateway, which hands it on over Bluetooth / Wi-Fi. Binary frames
+// for them are wrapped as relay frames ['R' | ttl | dest(8) | origin(8) | payload] so the gateway knows where they go.
+//
+// Call set-up messages are the app's own signed packets, chat messages are signed and end-to-end encrypted, and calls
+// from 0.12 on are end-to-end encrypted too; the server only passes bytes along. Messages sent here for someone who
+// isn't reachable right now are stored (like /v1/push) so they're delivered when that phone next pulls.
+// Zero dependencies (RFC 6455 by hand).
 "use strict";
 const crypto = require("crypto");
 
@@ -18,6 +26,13 @@ const MAX_FRAME = 64 * 1024;
 const MAX_TEXT = 32 * 1024;
 const BYTES_PER_SEC = 512 * 1024; // per phone: plenty for voice and small video frames, but not a free file host
 const IDLE_MS = 75e3;
+const MAX_VIA = 50;
+/** Receiver's queue above which video frames are dropped (voice keeps going until the bigger limit). */
+const VIDEO_BACKLOG = 96 * 1024;
+const AUDIO_BACKLOG = 256 * 1024;
+const RELAY = 0x52; // 'R'
+const VIDEO = 0x56; // 'V'
+const ENCRYPTED = 0x45; // 'E' | kind ('A' or 'V') | counter | ciphertext: an end-to-end encrypted call frame
 
 function idFor(der) { return crypto.createHash("sha256").update(der).digest().subarray(0, 8).toString("hex"); }
 
@@ -84,8 +99,20 @@ class Socket {
 }
 
 /** Adds the live channel to an http server. Returns the table of connected phones (for tests and /health). */
-function attachLive(server, { now = () => Date.now() } = {}) {
+function attachLive(server, { now = () => Date.now(), store = null } = {}) {
   const online = new Map(); // id -> Socket
+  const carriers = new Map(); // phone without internet -> gateway id that carries it
+  const carried = new Map(); // gateway id -> Set of ids it carries
+  const forget = (gw) => {
+    for (const x of carried.get(gw) || []) if (carriers.get(x) === gw) carriers.delete(x);
+    carried.delete(gw);
+  };
+  /** Who to hand something for [to] to: the phone itself, or the gateway carrying it. */
+  const route = (to) => online.get(to) || (carriers.has(to) ? online.get(carriers.get(to)) : undefined);
+  const poke = (to) => { const ws = route(to); if (ws) ws.text({ t: "poke" }); };
+  if (store) store.onPut = poke;
+  online.poke = poke;
+  online.carriers = carriers;
   server.on("upgrade", (req, sock) => {
     const url = new URL(req.url, "http://relay");
     const key = req.headers["sec-websocket-key"];
@@ -121,21 +148,45 @@ function attachLive(server, { now = () => Date.now() } = {}) {
       }
       if (!allowed(txt.length)) return;
       if (m.t === "send" && /^[0-9a-f]{16}$/.test(m.to) && typeof m.data === "string") {
-        const peer = online.get(m.to);
-        if (peer) peer.text({ t: "msg", from: id, data: m.data }); else ws.text({ t: "offline", to: m.to });
+        const direct = online.get(m.to);
+        const peer = route(m.to);
+        if (peer) peer.text({ t: "msg", from: id, data: m.data });
+        // Chat messages and receipts are kept for later unless they reached the phone itself.
+        if (!direct && store) {
+          let p = null; try { p = JSON.parse(m.data); } catch {}
+          if (p && (p.t === "rmsg" || p.t === "rrcpt")) { const saved = store.onPut; store.onPut = null; try { store.put(p); } finally { store.onPut = saved; } }
+        }
+        if (!peer) ws.text({ t: "offline", to: m.to });
       } else if (m.t === "presence" && Array.isArray(m.ids)) {
-        ws.text({ t: "presence", online: m.ids.slice(0, 50).filter((x) => online.has(x)) });
+        const ids = m.ids.slice(0, 50);
+        const via = {};
+        for (const x of ids) if (!online.has(x) && carriers.has(x) && online.has(carriers.get(x))) via[x] = carriers.get(x);
+        ws.text({ t: "presence", online: ids.filter((x) => online.has(x)), via });
+      } else if (m.t === "via" && Array.isArray(m.ids)) {
+        forget(id);
+        const set = new Set(m.ids.filter((x) => typeof x === "string" && /^[0-9a-f]{16}$/.test(x) && x !== id).slice(0, MAX_VIA));
+        carried.set(id, set);
+        for (const x of set) carriers.set(x, id);
       }
     }, (bin) => {
       if (!id || bin.length < 9 || !allowed(bin.length)) return;
       const to = bin.subarray(0, 8).toString("hex");
-      const peer = online.get(to);
+      const peer = route(to);
       if (!peer) return;
-      if (peer.backlog() > 256 * 1024) return; // their link is behind: drop this frame instead of adding delay
-      const out = Buffer.from(bin);
-      Buffer.from(id, "hex").copy(out, 0);
+      // Their link is behind: drop this frame instead of adding delay. Video goes first, so voice keeps flowing.
+      const kind = bin[8];
+      const video = kind === VIDEO || (kind === ENCRYPTED && bin[9] === VIDEO) || (kind === RELAY && bin.length > 2048);
+      if (peer.backlog() > (video ? VIDEO_BACKLOG : AUDIO_BACKLOG)) return;
+      let out;
+      if (peer === online.get(to) || kind === RELAY) {
+        out = Buffer.from(bin);
+        Buffer.from(id, "hex").copy(out, 0);
+      } else {
+        // For a phone a gateway carries: wrap it, so the gateway knows where it goes and who it's from.
+        out = Buffer.concat([Buffer.from(id, "hex"), Buffer.from([RELAY, 4]), Buffer.from(to, "hex"), Buffer.from(id, "hex"), bin.subarray(8)]);
+      }
       peer.binary(out);
-    }, () => { if (id && online.get(id) === ws) online.delete(id); });
+    }, () => { if (id && online.get(id) === ws) { online.delete(id); forget(id); } });
     ws.text({ t: "challenge", n: nonce });
   });
   // Close links that have gone quiet (phones send a ping every 25 s).
