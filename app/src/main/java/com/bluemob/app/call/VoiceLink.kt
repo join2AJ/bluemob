@@ -24,31 +24,48 @@ import java.util.concurrent.TimeUnit
  */
 class VoiceLink(context: Context, private val send: (ByteArray) -> Unit) {
     private val audio = context.getSystemService(AudioManager::class.java)
-    @Volatile private var running = false
+    /**
+     * One call's audio. Each call gets its own, so threads from a call that just ended can never keep the
+     * microphone or eat the next call's audio, and sequence numbers start fresh.
+     */
+    private class Session {
+        @Volatile var running = true
+        val queue = ArrayBlockingQueue<ShortArray>(QUEUE_MAX)
+        var lastSeq = -1
+    }
+
+    @Volatile private var session: Session? = null
     @Volatile var muted = false
     private var recorder: Thread? = null
     private var player: Thread? = null
-    private val queue = ArrayBlockingQueue<ShortArray>(QUEUE_MAX)
-    private var lastSeq = -1
     private var oldMode = AudioManager.MODE_NORMAL
+
+    /** True while the microphone is actually recording; false if Android refused it. */
+    @Volatile var micWorking = false
+        private set
 
     @SuppressLint("MissingPermission")
     fun start(speaker: Boolean) {
-        if (running) return
-        running = true
+        if (session != null) return
+        val s = Session()
+        session = s
         oldMode = audio.mode
         runCatching { audio.mode = AudioManager.MODE_IN_COMMUNICATION }
         setSpeaker(speaker)
-        recorder = Thread({ record() }, "bluemob-mic").apply { start() }
-        player = Thread({ play() }, "bluemob-speaker").apply { start() }
+        recorder = Thread({ record(s) }, "bluemob-mic").apply { start() }
+        player = Thread({ play(s) }, "bluemob-speaker").apply { start() }
     }
 
     fun stop() {
-        if (!running) return
-        running = false
+        val s = session ?: return
+        session = null
+        s.running = false
         recorder?.interrupt(); player?.interrupt()
+        // Let the microphone go before a new call can ask for it.
+        runCatching { recorder?.join(500) }
         recorder = null; player = null
-        queue.clear()
+        s.queue.clear()
+        micWorking = false
         runCatching {
             if (Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice() else @Suppress("DEPRECATION") { audio.isSpeakerphoneOn = false }
             audio.mode = oldMode
@@ -69,31 +86,32 @@ class VoiceLink(context: Context, private val send: (ByteArray) -> Unit) {
 
     /** A voice packet from the other phone. */
     fun onPacket(bytes: ByteArray) {
+        val s = session ?: return
         if (bytes.size < 4 || bytes[0] != NearbyMeshTransport.MEDIA_AUDIO) return
         val seq = ((bytes[1].toInt() and 0xFF) shl 8) or (bytes[2].toInt() and 0xFF)
-        // Late or repeated frame (sequence numbers wrap at 65536).
-        if (lastSeq >= 0 && ((seq - lastSeq) and 0xFFFF) > 0x8000) return
-        lastSeq = seq
+        if (!SeqWindow.accept(s.lastSeq, seq)) return
+        s.lastSeq = seq
         val pcm = MuLaw.decode(bytes, 3)
-        while (queue.size >= QUEUE_KEEP) queue.poll()
-        queue.offer(pcm)
+        while (s.queue.size >= QUEUE_KEEP) s.queue.poll()
+        s.queue.offer(pcm)
     }
 
     @SuppressLint("MissingPermission")
-    private fun record() {
+    private fun record(s: Session) {
         val min = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val rec = runCatching {
             AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, FRAME * 2 * 4))
-        }.getOrNull()?.takeIf { it.state == AudioRecord.STATE_INITIALIZED } ?: run { Log.w(TAG, "Microphone unavailable"); return }
+        }.getOrNull()?.takeIf { it.state == AudioRecord.STATE_INITIALIZED } ?: run { Log.w(TAG, "Microphone unavailable"); micWorking = false; return }
         val aec = if (AcousticEchoCanceler.isAvailable()) runCatching { AcousticEchoCanceler.create(rec.audioSessionId)?.apply { enabled = true } }.getOrNull() else null
         val ns = if (NoiseSuppressor.isAvailable()) runCatching { NoiseSuppressor.create(rec.audioSessionId)?.apply { enabled = true } }.getOrNull() else null
         val pcm = ShortArray(FRAME)
         var seq = 0
         try {
             rec.startRecording()
-            while (running) {
+            micWorking = rec.recordingState == AudioRecord.RECORDSTATE_RECORDING
+            while (s.running) {
                 var got = 0
-                while (got < FRAME && running) {
+                while (got < FRAME && s.running) {
                     val n = rec.read(pcm, got, FRAME - got)
                     if (n <= 0) break
                     got += n
@@ -114,7 +132,7 @@ class VoiceLink(context: Context, private val send: (ByteArray) -> Unit) {
         }
     }
 
-    private fun play() {
+    private fun play(s: Session) {
         val min = AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val track = runCatching {
             AudioTrack.Builder()
@@ -126,8 +144,8 @@ class VoiceLink(context: Context, private val send: (ByteArray) -> Unit) {
         }.getOrNull() ?: return
         try {
             track.play()
-            while (running) {
-                val pcm = queue.poll(200, TimeUnit.MILLISECONDS) ?: continue
+            while (s.running) {
+                val pcm = s.queue.poll(200, TimeUnit.MILLISECONDS) ?: continue
                 track.write(pcm, 0, pcm.size)
             }
         } catch (_: InterruptedException) {
@@ -137,6 +155,11 @@ class VoiceLink(context: Context, private val send: (ByteArray) -> Unit) {
             runCatching { track.stop() }
             track.release()
         }
+    }
+
+    /** Which audio frames to play: in order, skipping late or repeated ones. Sequence numbers wrap at 65536. */
+    object SeqWindow {
+        fun accept(last: Int, seq: Int): Boolean = last < 0 || ((seq - last) and 0xFFFF).let { it != 0 && it < 0x8000 }
     }
 
     companion object {

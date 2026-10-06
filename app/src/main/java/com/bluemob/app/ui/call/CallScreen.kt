@@ -100,6 +100,17 @@ fun CallScreen(
                 },
                 color = Color.White.copy(alpha = 0.8f), fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp, start = 24.dp, end = 24.dp),
             )
+            val problem = when {
+                call.phase != CallPhase.ACTIVE -> null
+                call.warning != null -> call.warning
+                call.theyMuted -> "${call.name} muted their microphone"
+                call.noAudio -> "Can't hear ${call.name} right now: the link is weak. Move closer."
+                else -> null
+            }
+            problem?.let {
+                Text(it, color = Color(0xFFFFD27A), fontSize = 14.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp).clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.35f)).padding(horizontal = 12.dp, vertical = 6.dp))
+            }
             if (call.phase != CallPhase.ENDED) Text("Phone to phone over Bluetooth / Wi-Fi · no internet",
                 color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
         }

@@ -44,6 +44,11 @@ data class Call(
     val speaker: Boolean = video,
     val cameraOn: Boolean = video,
     val ended: String? = null,
+    /** Something wrong on this side, e.g. the microphone isn't allowed. */
+    val warning: String? = null,
+    val theyMuted: Boolean = false,
+    /** No voice from them for a few seconds while they aren't muted: the link is struggling. */
+    val noAudio: Boolean = false,
 )
 
 /**
@@ -70,12 +75,18 @@ class CallManager(
     private val _localFrame = MutableStateFlow<Bitmap?>(null)
     val localFrame: StateFlow<Bitmap?> = _localFrame.asStateFlow()
 
-    private val voice = VoiceLink(app) { bytes -> _call.value?.let { mesh.sendMedia(it.peer, bytes) } }
+    private val voice = VoiceLink(app) { bytes ->
+        _call.value?.let { c ->
+            // If the link has fallen behind, drop this bit of audio rather than let the delay keep growing.
+            if (mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_AUDIO) < AUDIO_BACKLOG_MAX) mesh.sendMedia(c.peer, bytes)
+        }
+    }
     private var ringtone: Ringtone? = null
     private var ringJob: Job? = null
     private var timeoutJob: Job? = null
     private var linkWatch: Job? = null
     private var lastFrameSent = 0L
+    @Volatile private var lastAudioAt = 0L
     @Volatile private var encoding = false
 
     init {
@@ -85,7 +96,7 @@ class CallManager(
                 val c = _call.value ?: return@collect
                 if (c.phase != CallPhase.ACTIVE || m.fromNodeId != c.peer) return@collect
                 when (m.bytes[0]) {
-                    NearbyMeshTransport.MEDIA_AUDIO -> voice.onPacket(m.bytes)
+                    NearbyMeshTransport.MEDIA_AUDIO -> { lastAudioAt = SystemClock.elapsedRealtime(); voice.onPacket(m.bytes) }
                     NearbyMeshTransport.MEDIA_VIDEO -> decodeFrame(m.bytes)
                 }
             }
@@ -122,7 +133,13 @@ class CallManager(
 
     fun hangUp() = decline()
 
-    fun toggleMute() = _call.update { it?.copy(muted = !it.muted) }.also { voice.muted = _call.value?.muted == true }
+    fun toggleMute() {
+        _call.update { it?.copy(muted = !it.muted) }
+        val c = _call.value ?: return
+        voice.muted = c.muted || !hasMic()
+        // Tell them, so their phone doesn't think the link dropped.
+        signal(c, "mute", JSONObject().put("on", c.muted))
+    }
     fun toggleSpeaker() { _call.update { it?.copy(speaker = !it.speaker) }; voice.setSpeaker(_call.value?.speaker == true) }
     fun toggleCamera() { _call.update { it?.copy(cameraOn = !it.cameraOn) }; if (_call.value?.cameraOn == false) _localFrame.value = null }
 
@@ -133,9 +150,13 @@ class CallManager(
     fun wantsFrame(): Boolean {
         val c = _call.value ?: return false
         if (c.phase != CallPhase.ACTIVE || !c.cameraOn || encoding) return false
-        val fps = if (mesh.linkName(c.peer) == "Wi-Fi") FPS_WIFI else FPS_BLUETOOTH
-        return SystemClock.elapsedRealtime() - lastFrameSent >= 1000 / fps
+        val fps = if (wifi(c)) FPS_WIFI else FPS_BLUETOOTH
+        if (SystemClock.elapsedRealtime() - lastFrameSent < 1000 / fps) return false
+        // Voice comes first: only send the next frame once the last one has gone and no audio is waiting.
+        return mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_VIDEO) == 0 && mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_AUDIO) < AUDIO_BACKLOG_MAX / 2
     }
+
+    private fun wifi(c: Call) = mesh.linkName(c.peer) == "Wi-Fi"
 
     /**
      * A camera frame, already upright. Sent only as often as the link can take: about [FPS_WIFI] frames a second
@@ -150,8 +171,8 @@ class CallManager(
         lastFrameSent = now
         encoding = true
         try {
-            val small = scaleDown(frame, FRAME_SIZE)
-            val jpeg = jpeg(small)
+            val small = scaleDown(frame, if (wifi(c)) FRAME_SIZE else FRAME_SIZE_BLUETOOTH)
+            val jpeg = jpeg(small, if (wifi(c)) 55 else 35)
             _localFrame.value = small
             if (jpeg != null) mesh.sendMedia(c.peer, byteArrayOf(NearbyMeshTransport.MEDIA_VIDEO) + jpeg)
         } finally {
@@ -180,6 +201,7 @@ class CallManager(
             "accept" -> if (current?.id == id && current.phase == CallPhase.OUTGOING && current.peer == e.fromNodeId) begin(current)
             "decline" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} can't talk right now")
             "busy" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} is on another call")
+            "mute" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyMuted = b.optBoolean("on"), noAudio = false) }
             "end" -> if (current?.id == id && current.peer == e.fromNodeId) finish(if (current.phase == CallPhase.INCOMING) "Missed call" else "Call ended")
         }
     }
@@ -189,8 +211,16 @@ class CallManager(
         timeoutJob?.cancel()
         val active = c.copy(phase = CallPhase.ACTIVE, startedAt = System.currentTimeMillis())
         _call.value = active
-        if (hasMic()) voice.start(active.speaker)
+        // Always play their voice, even if we can't record ours.
+        voice.start(active.speaker)
         voice.muted = active.muted || !hasMic()
+        lastAudioAt = SystemClock.elapsedRealtime()
+        if (!hasMic()) _call.update { it?.copy(warning = "Microphone not allowed, so ${c.name} can't hear you. Allow it in Settings → Apps → BlueMob → Permissions.") }
+        else scope.launch {
+            delay(1_500)
+            if (_call.value?.id == c.id && _call.value?.phase == CallPhase.ACTIVE && !voice.micWorking)
+                _call.update { it?.copy(warning = "The microphone is busy (another app may be using it), so ${c.name} can't hear you.") }
+        }
         // The call needs the direct link: if it drops for more than a few seconds, end the call cleanly.
         linkWatch = scope.launch {
             var gone = 0
@@ -198,6 +228,8 @@ class CallManager(
                 delay(1_000)
                 gone = if (mesh.isConnected(c.peer)) 0 else gone + 1
                 if (gone >= LINK_GRACE_S) finish("Lost the connection with ${c.name}")
+                val quiet = SystemClock.elapsedRealtime() - lastAudioAt > NO_AUDIO_MS && _call.value?.theyMuted == false
+                if (_call.value?.noAudio != quiet) _call.update { it?.copy(noAudio = quiet) }
             }
         }
     }
@@ -260,10 +292,15 @@ class CallManager(
         const val KIND = "call"
         const val RING_TIMEOUT_MS = 45_000L
         const val LINK_GRACE_S = 8
+        const val NO_AUDIO_MS = 3_000L
         const val FPS_WIFI = 10
         const val FPS_BLUETOOTH = 2
         /** Longest side of a video frame, in pixels. */
         const val FRAME_SIZE = 320
+        /** Smaller over Bluetooth (about 3–6 KB a frame), so video never crowds out the voice. */
+        const val FRAME_SIZE_BLUETOOTH = 176
+        /** About half a second of voice. */
+        const val AUDIO_BACKLOG_MAX = 4_000
 
         fun scaleDown(b: Bitmap, max: Int): Bitmap {
             val scale = max.toFloat() / maxOf(b.width, b.height)
@@ -278,8 +315,8 @@ class CallManager(
         }
 
         /** JPEG small enough for one packet: lowers the quality until it fits. */
-        fun jpeg(b: Bitmap): ByteArray? {
-            for (q in intArrayOf(55, 40, 28, 18)) {
+        fun jpeg(b: Bitmap, startQuality: Int = 55): ByteArray? {
+            for (q in intArrayOf(startQuality, 40, 28, 18).filter { it <= startQuality }) {
                 val out = ByteArrayOutputStream()
                 b.compress(Bitmap.CompressFormat.JPEG, q, out)
                 if (out.size() < NearbyMeshTransport.MAX_MEDIA - 64) return out.toByteArray()

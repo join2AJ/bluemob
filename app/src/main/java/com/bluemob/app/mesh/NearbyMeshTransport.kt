@@ -134,9 +134,12 @@ class NearbyMeshTransport(
         // by Nearby itself. This keeps both alive and retries until the phones find each other again.
         watchdog?.cancel()
         watchdog = scope.launch {
+            var ticks = 0L
             while (isActive) {
-                delay(WATCHDOG_MS)
-                if (_running.value) checkHealth()
+                delay(HEARTBEAT_MS)
+                if (!_running.value) continue
+                heartbeat()
+                if (++ticks % (WATCHDOG_MS / HEARTBEAT_MS) == 0L) checkHealth()
             }
         }
     }
@@ -252,6 +255,35 @@ class NearbyMeshTransport(
         discovering = false
         _peers.update { peers -> peers.filterValues { it.state != PeerState.DISCOVERED } }
         beginDiscovery()
+    }
+
+    /** When we last heard anything from each connected phone. */
+    private val lastHeard = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /**
+     * Nearby can take a minute or two to notice a phone has gone (Bluetooth switched off, walked away). So we
+     * ping quiet links, and treat a phone that hasn't answered anything for [PEER_TIMEOUT_MS] as gone. Uses the
+     * plain ping every BlueMob version answers.
+     */
+    private fun heartbeat() {
+        val now = SystemClock.elapsedRealtime()
+        _peers.value.values.filter { it.state == PeerState.CONNECTED }.forEach { p ->
+            val heard = lastHeard[p.endpointId] ?: now.also { lastHeard[p.endpointId] = it }
+            when {
+                now - heard > PEER_TIMEOUT_MS -> dropSilent(p)
+                now - heard > HEARTBEAT_MS -> sendTo(p.endpointId, JSONObject().put("t", TYPE_PING).put("id", HEARTBEAT + now))
+            }
+        }
+    }
+
+    private fun dropSilent(p: Peer) {
+        client.disconnectFromEndpoint(p.endpointId)
+        _peers.update { it - p.endpointId }
+        authTokens.remove(p.endpointId)
+        lastHeard.remove(p.endpointId)
+        contacts.touch(p.nodeId, p.name)
+        log("${p.name} stopped answering (out of range or Bluetooth off)")
+        scope.launch { delay(RADIO_SETTLE_MS); refreshDiscovery() }
     }
 
     private fun checkHealth() {
@@ -404,8 +436,32 @@ class NearbyMeshTransport(
     /** Sends call audio or video straight to a connected phone. Returns false if they aren't connected. */
     fun sendMedia(nodeId: String, bytes: ByteArray): Boolean {
         val endpointId = connectedEndpointFor(nodeId) ?: return false
-        client.sendPayload(endpointId, Payload.fromBytes(bytes))
+        val payload = Payload.fromBytes(bytes)
+        inFlight[payload.id] = InFlight(endpointId, bytes.size, bytes[0], SystemClock.elapsedRealtime())
+        client.sendPayload(endpointId, payload).addOnFailureListener { inFlight.remove(payload.id) }
         return true
+    }
+
+    private class InFlight(val endpointId: String, val size: Int, val kind: Byte, val at: Long)
+    /** Call media handed to Nearby but not yet confirmed sent, so calls can tell when the link is falling behind. */
+    private val inFlight = java.util.concurrent.ConcurrentHashMap<Long, InFlight>()
+
+    /**
+     * Bytes of call media ([kind] = audio or video, or all) still queued for [nodeId]. Over Bluetooth this grows
+     * quickly if we send more than the link carries; calls use it to hold back video and drop stale audio.
+     */
+    fun mediaBacklog(nodeId: String, kind: Byte? = null): Int {
+        val endpointId = connectedEndpointFor(nodeId) ?: return 0
+        val now = SystemClock.elapsedRealtime()
+        var total = 0
+        val it = inFlight.entries.iterator()
+        while (it.hasNext()) {
+            val f = it.next().value
+            // Nearby normally reports each payload; forget any it never did.
+            if (now - f.at > MEDIA_STALE_MS) { it.remove(); continue }
+            if (f.endpointId == endpointId && (kind == null || f.kind == kind)) total += f.size
+        }
+        return total
     }
 
     private val _otherVersions = MutableStateFlow<Map<String, OtherVersion>>(emptyMap())
@@ -556,6 +612,7 @@ class NearbyMeshTransport(
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             val peer = _peers.value[endpointId] ?: return
             if (result.status.isSuccess) {
+                lastHeard[endpointId] = SystemClock.elapsedRealtime()
                 setState(endpointId, PeerState.CONNECTED)
                 contacts.touch(peer.nodeId, peer.name)
                 log("Connected to ${peer.name}")
@@ -577,6 +634,7 @@ class NearbyMeshTransport(
             val peer = _peers.value[endpointId] ?: return
             _peers.update { it - endpointId }
             authTokens.remove(endpointId)
+            lastHeard.remove(endpointId)
             contacts.touch(peer.nodeId, peer.name)
             log("${peer.name} disconnected")
             // So they're found again as soon as they're back in range.
@@ -598,6 +656,7 @@ class NearbyMeshTransport(
 
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
+            lastHeard[endpointId] = SystemClock.elapsedRealtime()
             val bytes = payload.asBytes() ?: return
             if (bytes.isNotEmpty() && (bytes[0] == MEDIA_AUDIO || bytes[0] == MEDIA_VIDEO)) {
                 // Call media only from a phone that proved its ID, and only within the size of a frame.
@@ -641,7 +700,7 @@ class NearbyMeshTransport(
                 TYPE_ROOM -> handleRoom(endpointId, json)
                 TYPE_APP -> handleApp(endpointId, json)
                 TYPE_PING -> {
-                    log("Ping from ${peer.name}")
+                    if (!json.optString("id").startsWith(HEARTBEAT)) log("Ping from ${peer.name}")
                     sendTo(endpointId, JSONObject().put("t", TYPE_PONG).put("id", json.optString("id")))
                 }
                 TYPE_PONG -> {
@@ -653,7 +712,9 @@ class NearbyMeshTransport(
             }
         }
 
-        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) = Unit
+        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
+            if (update.status != PayloadTransferUpdate.Status.IN_PROGRESS) inFlight.remove(update.payloadId)
+        }
     }
 
     /** Checks the hello: the key must match the advertised ID, and it must sign this connection's token. */
@@ -741,7 +802,12 @@ class NearbyMeshTransport(
         private const val SERVICE_ID = "com.bluemob.mesh"
         private val STRATEGY = Strategy.P2P_CLUSTER
         private const val AUTO_CONNECT_BACKOFF_MS = 4_000L
-        private const val WATCHDOG_MS = 15_000L
+        private const val WATCHDOG_MS = 16_000L
+        private const val HEARTBEAT_MS = 4_000L
+        /** No packet at all from a connected phone for this long: it's gone. */
+        private const val PEER_TIMEOUT_MS = 15_000L
+        private const val HEARTBEAT = "hb-"
+        private const val MEDIA_STALE_MS = 3_000L
         private const val RADIO_SETTLE_MS = 2_000L
         /** Restart discovery this often while no one is connected… */
         private const val LONELY_REFRESH_MS = 40_000L
