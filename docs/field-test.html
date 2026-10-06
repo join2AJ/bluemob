@@ -1,0 +1,285 @@
+<title>BlueMob Field Test 0.7</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a field log sheet. A sticky progress strip, then one card per category with tickable rows and pass/fail/note. */
+:root {
+  --bg: #f3f1ea; --card: #fffdf7; --ink: #1d2a24; --ink2: #56635c; --line: #dcd7c8;
+  --pine: #2f6f62; --pine-soft: #dcebe5; --ember: #c2621a; --fail: #b8323a; --fail-soft: #f6dfe0; --new: #8a5a00; --new-soft: #f7e7c2;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif; --body: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111815; --card: #18211d; --ink: #e8eee9; --ink2: #9aaba2; --line: #2b3832;
+  --pine: #6cc2ad; --pine-soft: #1f3a32; --ember: #e48a45; --fail: #ef7a80; --fail-soft: #3a2124; --new: #f0c46a; --new-soft: #3a3020; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #111815; --card: #18211d; --ink: #e8eee9; --ink2: #9aaba2; --line: #2b3832;
+  --pine: #6cc2ad; --pine-soft: #1f3a32; --ember: #e48a45; --fail: #ef7a80; --fail-soft: #3a2124; --new: #f0c46a; --new-soft: #3a3020; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); padding-inline: 16px; padding-block: 0 48px; }
+.wrap { max-width: 860px; margin: 0 auto; }
+header { padding-block: 28px 8px; }
+h1 { font: 700 2.4rem/1 var(--display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.lede { color: var(--ink2); max-width: 62ch; margin: 10px 0 0; }
+.phones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.phone { font: 500 12px var(--mono); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; background: var(--card); }
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.meter { flex: 1 1 200px; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; display: flex; }
+.meter i { display: block; height: 100%; }
+.counts { font: 500 13px var(--mono); color: var(--ink2); font-variant-numeric: tabular-nums; }
+button { font: 600 13px var(--body); border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover { border-color: var(--pine); }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--pine); outline-offset: 2px; }
+.primary { background: var(--pine); border-color: var(--pine); color: var(--bg); }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+section { margin-top: 22px; }
+.cat-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+h2 { font: 700 1.45rem/1.1 var(--display); letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+.cat-count { font: 500 12px var(--mono); color: var(--ink2); }
+.cat-why { color: var(--ink2); font-size: 13.5px; margin: 0 0 8px; max-width: 70ch; }
+.list { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.row { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row.pass { background: linear-gradient(90deg, var(--pine-soft), transparent 60%); }
+.row.fail { background: linear-gradient(90deg, var(--fail-soft), transparent 60%); }
+.id { font: 500 12px var(--mono); color: var(--ink2); padding-top: 2px; min-width: 3.2em; }
+.body { min-width: 0; }
+.step { margin: 0; }
+.expect { margin: 3px 0 0; color: var(--ink2); font-size: 13.5px; }
+.expect b { color: var(--ink); font-weight: 600; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.tag { font: 500 11px var(--mono); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--ink2); }
+.tag.new { background: var(--new-soft); color: var(--new); border-color: transparent; }
+.verdict { display: inline-flex; gap: 4px; margin-left: auto; }
+.verdict button { padding: 4px 10px; font-size: 12px; }
+.verdict .p[aria-pressed="true"] { background: var(--pine); border-color: var(--pine); color: var(--bg); }
+.verdict .f[aria-pressed="true"] { background: var(--fail); border-color: var(--fail); color: var(--bg); }
+.verdict .s[aria-pressed="true"] { background: var(--ink2); border-color: var(--ink2); color: var(--bg); }
+textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; resize: vertical; min-height: 36px; }
+.tips { margin-top: 28px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.tips h2 { font-size: 1.15rem; margin-bottom: 6px; }
+.tips ul { margin: 0; padding-left: 18px; color: var(--ink2); }
+.tips li { margin: 4px 0; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; }
+#out { width: 100%; min-height: 140px; margin-top: 10px; font: 12px var(--mono); }
+@media (max-width: 520px) { .verdict { margin-left: 0; } h1 { font-size: 2rem; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>BlueMob 0.7 field test</h1>
+    <p class="lede">Work through each category with your phones side by side, then apart. Mark each check Pass, Fail or Skip and add a note for anything odd. When you're done, tap <b>Copy results</b> and paste them to Claude. Your ticks are saved in this browser only.</p>
+    <div class="phones">
+      <span class="phone">Phone A · you</span><span class="phone">Phone B · friend</span><span class="phone">Phone C · relay (for 3-phone checks)</span>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="meter" aria-hidden="true"><i id="mPass" style="background:var(--pine)"></i><i id="mFail" style="background:var(--fail)"></i><i id="mSkip" style="background:var(--ink2)"></i></div>
+    <span class="counts" id="counts"></span>
+    <div class="filters" role="group" aria-label="Show">
+      <button type="button" data-f="all" aria-pressed="true">All</button>
+      <button type="button" data-f="new" aria-pressed="false">New in 0.7</button>
+      <button type="button" data-f="open" aria-pressed="false">Not done</button>
+      <button type="button" data-f="fail" aria-pressed="false">Failed</button>
+    </div>
+    <button type="button" class="primary" id="copy">Copy results</button>
+    <button type="button" id="reset">Reset</button>
+  </div>
+  <div id="resetConfirm" hidden style="padding-block:8px">
+    <span>Clear every tick and note?</span> <button type="button" id="resetYes">Clear all</button> <button type="button" id="resetNo">Keep</button>
+  </div>
+
+  <main id="cats"></main>
+  <textarea id="out" hidden readonly aria-label="Results to copy"></textarea>
+
+  <div class="tips">
+    <h2>Before you start</h2>
+    <ul>
+      <li>Install the same APK (0.7.0) on every phone. Check under You → About.</li>
+      <li>On each phone allow Nearby devices, Location, Notifications, and Microphone + Camera when asked for a call.</li>
+      <li>Turn Bluetooth and Location on. Wi-Fi on (no network needed). Mobile data off unless a check says otherwise.</li>
+      <li>Distances: "side by side" is under 2 m, "apart" is another room or 20–50 m outdoors, "out of range" is 150 m+ outdoors or several walls.</li>
+      <li>If something fails, note the time. Then on that phone open You → Connections → Mesh log and screenshot it.</li>
+    </ul>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const CATS = [
+  { k: "setup", name: "Setup & first launch", why: "Each phone, once.", items: [
+    ["Open the app on a fresh install.", "Intro screens show; no crash; you land on Nearby.", 1],
+    ["Set a name and avatar, finish the intro.", "You → profile shows them and your BlueMob ID (BM xxxx xxxx …).", 1],
+    ["Force-close and reopen the app.", "Opens normally; name, ID, chats are still there.", 1],
+  ]},
+  { k: "find", name: "Finding each other", why: "Discovery and auto-connect over Bluetooth / Wi-Fi.", items: [
+    ["A and B side by side, mesh on both.", "Each sees the other on Nearby within <b>30 s</b>, then <b>Online nearby</b> with a green dot.", 2],
+    ["Note which link Connections shows (Bluetooth or Wi-Fi).", "Link type is shown; tap Check link speed in chat gives a round-trip time.", 2],
+    ["Walk B out of range for 1 minute, then back.", "B goes offline, then reconnects by itself within <b>about 45 s</b> of coming back.", 2],
+    ["Turn the mesh off on B, then on.", "A shows B offline, then online again without touching A.", 2],
+  ]},
+  { k: "radio", name: "Bluetooth / Wi-Fi switched off and on", why: "The 0.6 bug: after Bluetooth went off and on, nothing sent or connected.", items: [
+    ["Connected. On A turn Bluetooth off, send B a message, then turn Bluetooth on.", "Message shows ⏳ while off. Within <b>about 30 s</b> of Bluetooth on, A and B reconnect and the message is delivered.", 2, 1],
+    ["Same with Wi-Fi off and on (Bluetooth stays on).", "Link stays or recovers; messages still go.", 2, 1],
+    ["Airplane mode on for 1 minute, then off (turn Bluetooth back on if Android turned it off).", "Phones find each other again without restarting the app.", 2, 1],
+    ["Turn Bluetooth off on B for 5 minutes with the app in the background, then on.", "Reconnects on its own; no need to open the app.", 2, 1],
+  ]},
+  { k: "chat", name: "Messages", why: "Direct, queued, receipts, and through a third phone.", items: [
+    ["A sends B three messages side by side.", "Arrive in order; ticks go sent → delivered → read when B opens the chat.", 2],
+    ["B out of range. A sends 2 messages, waits 2 minutes, B comes back.", "Messages stay in A's chat with ⏳, then deliver after reconnect. <b>No message disappears</b> from either chat.", 2, 1],
+    ["Tap a sent message.", "Info shows receipts and full history (written, sent over…, delivered…).", 2],
+    ["Three phones in a line: A ↔ C ↔ B (A and B out of range of each other). A messages B.", "B gets it through C; info shows it was passed on; B's reply reaches A.", 3],
+    ["New chat → message by ID: A types B's BM ID without having met.", "Message waits, then delivers when a route appears.", 2],
+    ["Restart A while a message is waiting.", "Message is still waiting after restart and still delivers.", 2],
+  ]},
+  { k: "sos", name: "SOS & rescue group", why: "Sending, receiving, passing on and cancelling.", items: [
+    ["A sends SOS with a note.", "B gets a full-screen alert with beeps, name, note, distance and star rating.", 2],
+    ["B taps I'm coming.", "Rescue group opens on B; A sees B is coming; group chat works both ways.", 2],
+    ["Three phones in a line: A ↔ C ↔ B. A sends SOS.", "B gets it, shown as passed on by 1 phone.", 3],
+    ["B in background / screen locked, A sends SOS.", "B gets a notification; the alert shows over the lock screen.", 2],
+    ["A taps I'm safe.", "B's alert clears and the group says the SOS ended.", 2],
+    ["SOS signal screen: flashlight, screen flash, sound.", "Each blinks ··· ––– ··· and stops when closed.", 1],
+  ]},
+  { k: "lost", name: "Lost mode & finding someone", why: "The 0.6 bug: position came 3–4 minutes late and wasn't precise enough to guide.", items: [
+    ["Outdoors. B turns on I'm lost. Time it.", "A sees B as lost with a position within <b>about 30 s</b> (GPS cold start can take up to a minute).", 2, 1],
+    ["A opens Compass and picks B.", "Shows arrow, distance, and <b>Position from N s ago · ±X m · their GPS</b>.", 2, 1],
+    ["B walks 30 m away while A watches.", "A's distance and age update about every <b>15 s</b>; age never grows past ~30 s while connected.", 2, 1],
+    ["While connected directly, read the hint under the compass.", "Says connected over Bluetooth, within about 10–100 m.", 2, 1],
+    ["A taps Ring their phone.", "B whistles and flashes for 20 s; B sees \"A is close and looking for you\"; A sees \"phone is whistling\".", 2, 1],
+    ["Ring someone who is not lost and has no SOS.", "Their phone stays silent; you're told they're not in lost mode.", 2, 1],
+    ["B turns lost mode off.", "A no longer shows B as lost.", 2],
+  ]},
+  { k: "nav", name: "Compass, trail & base camp", why: "The 0.6 bug: Set base camp did nothing without a GPS fix.", items: [
+    ["Indoors or in airplane mode, tap Set base camp here.", "Shows <b>Getting your position…</b>, then <b>Base camp saved, ±X m</b> or a clear reason. Never silent.", 1, 1],
+    ["Outdoors, tap Set base camp here.", "Saved within a few seconds with accuracy shown; ⛺ appears as a compass target.", 1, 1],
+    ["Tap + Save this spot, walk 50 m, pick the spot.", "Arrow points back; distance about right.", 1, 1],
+    ["Without location permission, tap Set base camp.", "Asks for location permission instead of a greyed-out button.", 1, 1],
+    ["Turn the trail on, walk 5 minutes.", "Trail points and distance appear; base camp distance shown.", 1],
+  ]},
+  { k: "games", name: "Games with people", why: "New: Tic-tac-toe and Connect 4 over the mesh.", items: [
+    ["A: Games → B appears under Play with someone nearby → Tic-tac-toe.", "B gets a <b>wants to play</b> pop-up within a few seconds.", 2, 1],
+    ["B taps Play. Play a full game.", "Moves show on both phones within ~1 s; you can't move out of turn; winner shown on both.", 2, 1],
+    ["Play again.", "New round; the other player starts; score carries over.", 2, 1],
+    ["Connect 4, full game.", "Discs drop to the right row on both phones; win line highlighted.", 2, 1],
+    ["B taps Not now on an invite.", "A sees \"said not now\".", 2, 1],
+    ["Mid-game, B taps Leave game.", "A sees \"left the game\".", 2, 1],
+    ["B in background when A invites.", "B gets a notification; tapping it opens Games with the invite.", 2, 1],
+    ["Play the computer with no one around.", "Still works offline.", 1],
+  ]},
+  { k: "voice", name: "Voice calls", why: "New: phone to phone, no internet. Needs a direct link.", items: [
+    ["A opens chat with B, taps 📞.", "Asks for microphone once. B rings with a full-screen Answer / Decline.", 2, 1],
+    ["B answers. Talk for 2 minutes side by side.", "Both hear each other clearly; delay under ~1 s; timer counts.", 2, 1],
+    ["Mute, then speaker, on each phone.", "Mute silences you; speaker switches to loudspeaker.", 2, 1],
+    ["Walk apart to the edge of range while talking.", "Audio may break up but recovers; if the link drops for 8 s the call ends with \"Lost the connection\".", 2, 1],
+    ["B declines a call. Then A calls and B doesn't answer for 45 s.", "A sees \"can't talk right now\", then \"No answer\"; B sees \"Missed call\".", 2, 1],
+    ["B's screen locked when A calls.", "B's screen turns on with the incoming call.", 2, 1],
+    ["Call someone who is out of range.", "Clear message that calls need them nearby; nothing hangs.", 2, 1],
+  ]},
+  { k: "video", name: "Video calls", why: "New: small frames, a few per second over Bluetooth, smoother over Wi-Fi.", items: [
+    ["A taps 🎥 in B's chat. B answers.", "Asks for camera once. Each sees the other's video and a small self-view.", 2, 1],
+    ["Note smoothness and the link type shown in Connections.", "Over Wi-Fi: several frames per second. Over Bluetooth: about 2 per second. Voice keeps working either way.", 2, 1],
+    ["Tap Flip, then Camera off.", "Switches to the back camera; camera off stops your video on the other phone.", 2, 1],
+    ["5-minute video call.", "No crash; phones get warm but not hot; battery drop noted in your note.", 2, 1],
+  ]},
+  { k: "trust", name: "Ratings & trust", why: "Stars, remarks and fake-SOS reports.", items: [
+    ["A opens B's profile, appreciates them with a remark.", "B's stars go up (max 5); B gets a notification with the remark.", 2],
+    ["A reports a fake SOS from B.", "B's stars drop; shown on B's SOS alerts to others.", 2],
+    ["C meets B later (A not around).", "C sees B's rating, passed on by phones.", 3],
+  ]},
+  { k: "security", name: "Security & audit trail", why: "Encrypted storage and a tamper-evident log.", items: [
+    ["You → Audit trail.", "Shows entries for this session's events (calls, games, SOS, base camp) and says <b>verified</b>.", 1],
+    ["Audit witnesses after meeting B.", "B shows as a witness of your trail.", 2],
+    ["You → Security status.", "Database encrypted; no plain settings files listed.", 1],
+  ]},
+  { k: "relay", name: "Over the internet (1000 km)", why: "Only after the relay server is deployed and built into the app.", items: [
+    ["A and B both on mobile data, far apart (or B with Bluetooth off).", "Messages deliver over the internet; info says through the BlueMob relay.", 2],
+    ["A online, B offline; B comes online later.", "B gets waiting messages when its internet returns.", 2],
+  ]},
+  { k: "bg", name: "Background, battery & stability", why: "Keep running and don't crash.", items: [
+    ["Keep running in background on. Lock A for 10 minutes; B sends a message.", "A gets a notification; the mesh notification stays.", 2],
+    ["Use the app for 1 hour with the mesh on.", "Note battery used per hour in the note.", 1],
+    ["Rotate, switch apps, come back during a call and a game.", "Nothing resets or crashes.", 2],
+    ["Any crash at all.", "Crash screen shows; tap Share and send it.", 1],
+  ]},
+];
+
+const KEY = "bluemob-field-test-0.7";
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { state = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+let filter = "all";
+try { filter = localStorage.getItem(KEY + "-f") || "all"; } catch (e) {}
+
+const all = [];
+CATS.forEach((c, ci) => c.items.forEach((it, ii) => all.push({ id: `${String.fromCharCode(65 + ci)}${ii + 1}`, cat: c, step: it[0], expect: it[1], phones: it[2], isNew: !!it[3] })));
+
+function render() {
+  const root = document.getElementById("cats");
+  root.innerHTML = "";
+  CATS.forEach((c, ci) => {
+    const items = all.filter(x => x.cat === c).filter(x => {
+      const v = state[x.id]?.v;
+      return filter === "all" || (filter === "new" && x.isNew) || (filter === "open" && !v) || (filter === "fail" && v === "fail");
+    });
+    if (!items.length) return;
+    const done = all.filter(x => x.cat === c && state[x.id]?.v).length;
+    const total = all.filter(x => x.cat === c).length;
+    const sec = document.createElement("section");
+    sec.innerHTML = `<div class="cat-head"><h2>${c.name}</h2><span class="cat-count">${done}/${total} done</span></div><p class="cat-why">${c.why}</p><div class="list"></div>`;
+    const list = sec.querySelector(".list");
+    items.forEach(x => {
+      const s = state[x.id] || {};
+      const row = document.createElement("div");
+      row.className = "row" + (s.v === "pass" ? " pass" : s.v === "fail" ? " fail" : "");
+      row.innerHTML = `<span class="id">${x.id}</span><div class="body">
+        <p class="step">${x.step}</p><p class="expect"><b>Expect:</b> ${x.expect}</p>
+        <div class="meta"><span class="tag">${x.phones} phone${x.phones > 1 ? "s" : ""}</span>${x.isNew ? '<span class="tag new">new in 0.7</span>' : ""}
+          <span class="verdict" role="group" aria-label="Result for ${x.id}">
+            <button type="button" class="p" aria-pressed="${s.v === "pass"}">Pass</button>
+            <button type="button" class="f" aria-pressed="${s.v === "fail"}">Fail</button>
+            <button type="button" class="s" aria-pressed="${s.v === "skip"}">Skip</button>
+          </span></div>
+        <textarea id="note-${x.id}" rows="1" placeholder="Note (what happened, time, phone)">${(s.n || "").replace(/</g, "&lt;")}</textarea></div>`;
+      const set = v => { state[x.id] = { ...(state[x.id] || {}), v: state[x.id]?.v === v ? undefined : v }; save(); render(); };
+      row.querySelector(".p").onclick = () => set("pass");
+      row.querySelector(".f").onclick = () => set("fail");
+      row.querySelector(".s").onclick = () => set("skip");
+      row.querySelector("textarea").oninput = e => { state[x.id] = { ...(state[x.id] || {}), n: e.target.value }; save(); };
+      list.appendChild(row);
+    });
+    root.appendChild(sec);
+  });
+  if (!root.children.length) root.innerHTML = `<p class="lede" style="margin-top:24px">Nothing here for this filter.</p>`;
+  const n = v => all.filter(x => state[x.id]?.v === v).length;
+  const p = n("pass"), f = n("fail"), s = n("skip");
+  document.getElementById("counts").textContent = `${p} pass · ${f} fail · ${s} skip · ${all.length - p - f - s} to do`;
+  document.getElementById("mPass").style.width = (100 * p / all.length) + "%";
+  document.getElementById("mFail").style.width = (100 * f / all.length) + "%";
+  document.getElementById("mSkip").style.width = (100 * s / all.length) + "%";
+  document.querySelectorAll(".filters button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.f === filter)));
+}
+
+document.querySelectorAll(".filters button").forEach(b => b.onclick = () => { filter = b.dataset.f; try { localStorage.setItem(KEY + "-f", filter); } catch (e) {} render(); });
+
+function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
+
+document.getElementById("copy").onclick = () => {
+  const lines = ["BlueMob 0.7 field test results"];
+  CATS.forEach(c => {
+    const rows = all.filter(x => x.cat === c && (state[x.id]?.v || state[x.id]?.n));
+    if (!rows.length) return;
+    lines.push("", c.name.toUpperCase());
+    rows.forEach(x => lines.push(`${x.id} ${(state[x.id].v || "not marked").toUpperCase()}: ${x.step}${state[x.id].n ? "\n   note: " + state[x.id].n : ""}`));
+  });
+  const text = lines.join("\n");
+  const out = document.getElementById("out");
+  out.value = text;
+  navigator.clipboard.writeText(text).then(() => { out.hidden = true; toast("Copied. Paste it to Claude."); })
+    .catch(() => { out.hidden = false; out.focus(); out.select(); toast("Select all and copy the text below."); });
+};
+document.getElementById("reset").onclick = () => { document.getElementById("resetConfirm").hidden = false; };
+document.getElementById("resetNo").onclick = () => { document.getElementById("resetConfirm").hidden = true; };
+document.getElementById("resetYes").onclick = () => { state = {}; save(); document.getElementById("resetConfirm").hidden = true; render(); toast("Cleared"); };
+render();
+</script>
