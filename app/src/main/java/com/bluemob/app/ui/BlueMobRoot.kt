@@ -298,7 +298,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             lastError = remember { vm.lastError() },
                             myStars = (trustScores[vm.nodeId] ?: vm.scoreFor(vm.nodeId)).stars, myRatingCount = trustScores[vm.nodeId]?.ratings ?: 0,
                             onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
-                            onGames = { push("games") }, onAccount = { push("account") }, sosContactCount = sosContacts.size,
+                            onGames = { push("games") }, onAccount = { push("account") }, onAutoStart = { push("autostart") }, sosContactCount = sosContacts.size,
                             background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
                         )
                     }
@@ -382,7 +382,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "games" -> {
                     val all by vm.matches.collectAsStateWithLifecycle()
                     GamesScreen(::pop, onPlay = { push("game:$it") },
-                        people = people.filter { it.presence == Presence.ONLINE },
+                        // Nearby now, or anyone you've met when this phone is on the internet relay.
+                        people = vm.liveConnected.collectAsStateWithLifecycle().value.let { live -> people.filter { it.presence == Presence.ONLINE || (live && it.lastSeen > 0) } },
                         matches = all.values.sortedByDescending { it.updatedAt },
                         onChallenge = { p, game -> vm.challenge(p.nodeId, p.name, game)?.let { push("match:$it") } },
                         onOpenMatch = { push("match:$it") }, onAccept = vm::acceptGame, onDecline = vm::declineGame)
@@ -393,8 +394,12 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     if (m == null) LaunchedEffect(Unit) { pop() }
                     else MatchScreen(m, ::pop, onPlay = { vm.playGame(m.id, it) }, onAgain = { vm.gameAgain(m.id) }, onLeave = { vm.leaveGame(m.id) })
                 }
-                route == "game:ttt" -> TicTacToeScreen(::pop)
-                route == "game:c4" -> ConnectFourScreen(::pop)
+                route.startsWith("game:") -> com.bluemob.app.ui.games.ComputerGameScreen(route.removePrefix("game:"), ::pop)
+                route == "autostart" -> com.bluemob.app.ui.system.AutoStartScreen(
+                    vm.autoMesh.collectAsStateWithLifecycle().value, vm.bluetoothPolicy.collectAsStateWithLifecycle().value,
+                    vm.wifiPolicy.collectAsStateWithLifecycle().value, vm.background.collectAsStateWithLifecycle().value, sharing,
+                    ::pop, vm::setMeshAtStart, vm::setBluetoothPolicy, vm::setWifiPolicy, vm::setBackground, toggleLocation,
+                )
                 route == "account" -> com.bluemob.app.ui.account.AccountScreen(
                     shortId = com.bluemob.app.util.formatId(vm.nodeId),
                     profile = vm.profile.collectAsStateWithLifecycle().value, hasPin = vm.pinSet.collectAsStateWithLifecycle().value,
@@ -422,6 +427,16 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 onProfile = { vm.dismissSosAlert(); push("person:" + sos.fromNodeId) },
             )
         }
+
+        val meshAsk by vm.meshAsk.collectAsStateWithLifecycle()
+        meshAsk?.let { ask ->
+            com.bluemob.app.ui.system.MeshAskDialog(ask, onAnswer = { on, remember ->
+                if (vm.answerMeshAsk(on, remember)) actions.switchRadio(
+                    if (ask == AppViewModel.MeshAsk.BLUETOOTH) com.bluemob.app.system.Radio.BLUETOOTH else com.bluemob.app.system.Radio.WIFI, true)
+            }, onDismiss = { vm.meshAsk.value = null })
+        }
+        // "Start the mesh when BlueMob opens", only if the user chose it.
+        LaunchedEffect(Unit) { if (vm.autoMesh.value && system.permissionsGranted && !running) vm.startMesh() }
 
         val locked by vm.locked.collectAsStateWithLifecycle()
         val biometricOn by vm.biometric.collectAsStateWithLifecycle()

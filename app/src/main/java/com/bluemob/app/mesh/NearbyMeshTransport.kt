@@ -124,8 +124,19 @@ class NearbyMeshTransport(
     private var watchdog: Job? = null
     private var restartJob: Job? = null
 
-    fun start() {
+    /** False while a radio the user hasn't allowed us to switch on is off: then the mesh waits instead of retrying. */
+    var radiosAllowed: () -> Boolean = { true }
+
+    /** Use Wi-Fi for faster links. When false, Nearby is told not to touch Wi-Fi (Bluetooth only). */
+    private var useWifi = true
+
+    private val _paused = MutableStateFlow(false)
+    /** The mesh is on but waiting for Bluetooth, which the user switched off. */
+    val paused: StateFlow<Boolean> = _paused.asStateFlow()
+
+    fun start(useWifi: Boolean = true) {
         if (_running.value) return
+        this.useWifi = useWifi
         _running.value = true
         log("Starting as \"${identity.displayName.value}\" (${identity.nodeId.take(6)})")
         beginAdvertising()
@@ -146,6 +157,7 @@ class NearbyMeshTransport(
 
     fun stop() {
         if (!_running.value) return
+        _paused.value = false
         watchdog?.cancel()
         restartJob?.cancel()
         client.stopAdvertising()
@@ -203,13 +215,15 @@ class NearbyMeshTransport(
     }
 
     private fun beginAdvertising() {
-        if (advertising || advertisingPending) return
+        if (advertising || advertisingPending || !mayUseRadios()) return
         advertisingPending = true
         scope.launch {
             try {
                 client.startAdvertising(
                     myEndpointName(), SERVICE_ID, connectionCallback,
-                    AdvertisingOptions.Builder().setStrategy(STRATEGY).build(),
+                    AdvertisingOptions.Builder().setStrategy(STRATEGY)
+                        .setConnectionType(if (useWifi) com.google.android.gms.nearby.connection.ConnectionType.BALANCED else com.google.android.gms.nearby.connection.ConnectionType.NON_DISRUPTIVE)
+                        .setDisruptiveUpgrade(useWifi).build(),
                 ).await()
                 advertising = true
                 log("Advertising: other phones can now see this one")
@@ -224,7 +238,7 @@ class NearbyMeshTransport(
     }
 
     private fun beginDiscovery() {
-        if (discovering || discoveryPending) return
+        if (discovering || discoveryPending || !mayUseRadios()) return
         discoveryPending = true
         lastDiscoveryStart = SystemClock.elapsedRealtime()
         scope.launch {
@@ -284,6 +298,17 @@ class NearbyMeshTransport(
         contacts.touch(p.nodeId, p.name)
         log("${p.name} stopped answering (out of range or Bluetooth off)")
         scope.launch { delay(RADIO_SETTLE_MS); refreshDiscovery() }
+    }
+
+    /**
+     * Starting advertising or discovery makes Android's Nearby service switch Bluetooth on. If the user switched it off
+     * (and hasn't allowed BlueMob to turn it on), we wait for them instead of quietly turning it back on.
+     */
+    private fun mayUseRadios(): Boolean {
+        val ok = radiosAllowed()
+        if (!ok && !_paused.value) log("Paused: Bluetooth is off. The mesh continues when you turn it on")
+        _paused.value = !ok
+        return ok
     }
 
     private fun checkHealth() {
@@ -909,7 +934,7 @@ class NearbyMeshTransport(
          * What this version can do, sent in every hello. Older phones ignore packet types they don't know, so new
          * features are added as new capabilities and new types, never by changing what existing packets mean.
          */
-        val CAPS = setOf("msg", "rcpt", "sos", "lost", "room", "rate", "audit", "app", "game", "call", "ring", "file", "ptt")
+        val CAPS = setOf("msg", "rcpt", "sos", "lost", "room", "rate", "audit", "app", "game", "games2", "call", "ring", "file", "ptt")
         private const val MAX_PAYLOAD = 32 * 1024
         private const val MAX_NOTE = 200
         private const val TYPE_SOS = "sos"

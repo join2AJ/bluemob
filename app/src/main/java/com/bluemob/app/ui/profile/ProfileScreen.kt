@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,12 +13,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.ToggleOn
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -100,12 +103,39 @@ fun ProfileScreen(
     onSosContacts: () -> Unit = {},
     onAudit: () -> Unit = {},
     onAccount: () -> Unit = {},
+    onAutoStart: () -> Unit = {},
     onGames: () -> Unit = {},
     sosContactCount: Int = 0,
     background: Boolean = true,
     onBackground: (Boolean) -> Unit = {},
 ) {
     var draft by remember(name) { mutableStateOf(name) }
+    var editing by rememberSaveable { mutableStateOf<String?>(null) }
+    when (editing) {
+        "name" -> androidx.compose.material3.AlertDialog(
+            onDismissRequest = { editing = null },
+            title = { Text("Your name") },
+            text = {
+                androidx.compose.material3.OutlinedTextField(draft, { draft = it.take(Identity.MAX_NAME_LENGTH) }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), supportingText = { Text("People nearby see this") })
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { if (draft.isNotBlank()) onName(draft.trim()); editing = null }, enabled = draft.isNotBlank()) { Text("Save") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { editing = null }) { Text("Cancel") } },
+        )
+        "clear" -> androidx.compose.material3.AlertDialog(
+            onDismissRequest = { editing = null },
+            title = { Text("Delete all messages?") },
+            text = { Text("Every chat on this phone is deleted, with its photos, documents and voice notes. You won't be able to get them back unless you have a backup (You → Backup).") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { onClearMessages(); editing = null }) { Text("Delete", color = Extra.rose) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { editing = null }) { Text("Keep them") } },
+        )
+        "avatar" -> androidx.compose.material3.AlertDialog(
+            onDismissRequest = { editing = null },
+            title = { Text("Pick your icon") },
+            text = { AvatarPicker(selected = avatar, onSelect = { onAvatar(it); editing = null }) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { editing = null }) { Text("Done") } },
+        )
+    }
     var showLog by rememberSaveable { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
@@ -117,36 +147,24 @@ fun ProfileScreen(
     ) {
         item {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(104.dp).rotate(-4f).clip(RoundedCornerShape(34.dp)).background(Gradients.horizon()), contentAlignment = Alignment.Center) {
-                    Text(avatar, fontSize = 52.sp)
+                // Tap the picture to change it, tap the name to rename: no big editor taking up the screen.
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    Box(Modifier.size(88.dp).rotate(-4f).clip(RoundedCornerShape(30.dp)).background(Gradients.horizon()).clickable { editing = "avatar" },
+                        contentAlignment = Alignment.Center) { Text(avatar, fontSize = 44.sp) }
+                    Text("✎", fontSize = 13.sp, modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surface).padding(horizontal = 7.dp, vertical = 3.dp))
                 }
-                Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 12.dp))
+                Row(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(12.dp)).clickable { draft = name; editing = "name" }.padding(horizontal = 8.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(name, style = MaterialTheme.typography.headlineSmall)
+                    Text("  ✎", style = MaterialTheme.typography.bodyMedium, color = Extra.ink3)
+                }
                 Text(
                     "BM · ${formatId(nodeId)}" + if (copied) "  ✓ copied" else "  ⧉",
                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                     color = Extra.ink2,
-                    modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface)
+                    modifier = Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface)
                         .clickable { clipboard.setText(AnnotatedString("BM-$nodeId")); copied = true }.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
-                Text("Your unique ID, given automatically to this phone", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 6.dp))
-            }
-        }
-
-        item { GroupLabel("Profile") }
-        item {
-            Group {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("NAME", style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
-                    Box(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(14.dp)) {
-                        BasicTextField(draft, {
-                            draft = it.take(Identity.MAX_NAME_LENGTH)
-                            if (draft.isNotBlank()) onName(draft)
-                        }, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            modifier = Modifier.fillMaxWidth())
-                    }
-                    AvatarPicker(selected = avatar, onSelect = onAvatar)
-                }
             }
         }
 
@@ -157,6 +175,7 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.LocationOn, Extra.sky, "Share my location", "Connected people see how far you are. GPS, no internet", divider = true) {
                     Switch(sharingLocation, onToggleLocation)
                 }
+                SettingRow(Icons.Outlined.ToggleOn, Extra.sky, "Turn on automatically", "Choose what BlueMob may switch on: mesh, Bluetooth, Wi-Fi", divider = true, onClick = onAutoStart) { chevron() }
                 SettingRow(Icons.Outlined.NotificationsActive, Extra.rose, "Stay on in the background",
                     if (background) "SOS and messages reach you with the screen off" else "Off: SOS and messages only arrive while BlueMob is open", divider = true) {
                     Switch(background, onBackground)
@@ -222,7 +241,7 @@ fun ProfileScreen(
             Group {
                 SettingRow(Icons.Outlined.Refresh, Color(0xFF7C6BD6), "Replay the intro", onClick = onReplayIntro) { chevron() }
                 SettingRow(Icons.Outlined.DeleteOutline, Extra.ember, "Forget people I've met", "Clears the list and last-seen history", divider = true, onClick = onForgetPeople)
-                SettingRow(Icons.Outlined.DeleteOutline, Extra.rose, "Delete all messages", "From this phone only. The audit trail is kept", divider = true, onClick = onClearMessages)
+                SettingRow(Icons.Outlined.DeleteOutline, Extra.rose, "Delete all messages", "From this phone only. The audit trail is kept", divider = true, onClick = { editing = "clear" })
             }
         }
 

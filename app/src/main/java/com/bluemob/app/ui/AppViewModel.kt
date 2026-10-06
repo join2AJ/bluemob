@@ -152,7 +152,64 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun finishOnboarding() = identity.setOnboardingDone(true)
     fun replayIntro() = identity.setOnboardingDone(false)
 
-    fun startMesh() = mesh.start()
+    /** What to ask before the mesh starts: a radio is off and the user hasn't decided whether BlueMob may turn it on. */
+    enum class MeshAsk { BLUETOOTH, WIFI }
+    val meshAsk = kotlinx.coroutines.flow.MutableStateFlow<MeshAsk?>(null)
+    /** Waiting for the user to switch a radio on in Android's prompt, then the mesh starts. */
+    private var pendingUntil = 0L
+    private var pendingWifi = false
+    val autoMesh = settings.meshAtStart
+    val bluetoothPolicy = settings.bluetoothPolicy
+    val wifiPolicy = settings.wifiPolicy
+    fun setMeshAtStart(on: Boolean) = settings.setMeshAtStart(on)
+    fun setBluetoothPolicy(p: com.bluemob.app.settings.RadioPolicy) = settings.setBluetoothPolicy(p)
+    fun setWifiPolicy(p: com.bluemob.app.settings.RadioPolicy) = settings.setWifiPolicy(p)
+
+    /** Starts the mesh, first asking about any radio that's off and that the user hasn't allowed BlueMob to turn on. */
+    fun startMesh() {
+        val r = blueMob.radios.state.value
+        val bt = settings.bluetoothPolicy.value
+        val wifi = settings.wifiPolicy.value
+        when {
+            !r.bluetooth && bt != com.bluemob.app.settings.RadioPolicy.ALLOW -> meshAsk.value = MeshAsk.BLUETOOTH
+            !r.wifi && wifi == com.bluemob.app.settings.RadioPolicy.ASK -> meshAsk.value = MeshAsk.WIFI
+            else -> { meshAsk.value = null; mesh.start(useWifi = r.wifi || wifi == com.bluemob.app.settings.RadioPolicy.ALLOW) }
+        }
+    }
+
+    /**
+     * The answer to [meshAsk]. [turnOn]: the user wants that radio on (Android shows its own prompt; the mesh starts once
+     * it's on). [remember]: don't ask again. Returns true if the screen should open Android's switch for that radio.
+     */
+    fun answerMeshAsk(turnOn: Boolean, remember: Boolean): Boolean {
+        val ask = meshAsk.value ?: return false
+        meshAsk.value = null
+        val p = com.bluemob.app.settings.RadioPolicy.ALLOW
+        val r = blueMob.radios.state.value
+        return when (ask) {
+            MeshAsk.BLUETOOTH -> when {
+                !turnOn -> false
+                remember -> { settings.setBluetoothPolicy(p); startMesh(); false }
+                else -> { pendingUntil = System.currentTimeMillis() + 90_000; true }
+            }
+            MeshAsk.WIFI -> {
+                if (remember) settings.setWifiPolicy(if (turnOn) p else com.bluemob.app.settings.RadioPolicy.NEVER)
+                if (turnOn && !remember) { pendingUntil = System.currentTimeMillis() + 90_000; pendingWifi = true; true }
+                else { mesh.start(useWifi = turnOn || r.wifi); false }
+            }
+        }
+    }
+
+    init {
+        // The user switched the radio on in Android's prompt: carry on starting the mesh.
+        viewModelScope.launch {
+            blueMob.radios.state.collect { r ->
+                if (pendingUntil > System.currentTimeMillis() && !mesh.running.value) {
+                    if (r.bluetooth && (!pendingWifi || r.wifi)) { pendingUntil = 0; pendingWifi = false; startMesh() }
+                }
+            }
+        }
+    }
     fun stopMesh() = mesh.stop()
     fun ping(nodeId: String) = mesh.ping(nodeId)
 
@@ -162,7 +219,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun unreadCount(all: Map<String, List<MessageEntity>>) = all.values.sumOf { list -> list.count { !it.fromMe && it.status == MessageStatus.RECEIVED } }
 
     fun forgetPeople() = blueMob.contacts.forgetAll()
-    fun clearMessages() = repo.clearAll()
+    fun clearMessages() { repo.clearAll(); blueMob.files.deleteAll(); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "All messages deleted from this phone") }
 
     fun sendSos(note: String): Int = sosManager.send(note)
     fun previewSosAlert() = sosManager.preview("Ravi")
@@ -183,7 +240,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setLost(on: Boolean) = if (on) lostMode.start() else lostMode.stop()
     fun ring(nodeId: String) { if (tooOld(nodeId, blueMob.contacts.contacts.value[nodeId]?.name ?: "They", "ring", "ringing")) return; if (!lostMode.ring(nodeId)) toast("No one is in range to pass this on. Get closer, or wait for the mesh to reconnect.") else toast("Ringing… ask everyone to be quiet and listen.") }
     fun setBaseCamp() = savePlace("Base camp", baseCamp = true)
-    fun refreshRadios() = blueMob.radios.refresh()
+    fun refreshRadios() {
+        blueMob.radios.refresh()
+        // Back from Android's Wi-Fi panel without turning it on: start over Bluetooth only, as they chose not to.
+        if (pendingWifi && !mesh.running.value) {
+            pendingWifi = false; pendingUntil = 0
+            if (!blueMob.radios.state.value.wifi) mesh.start(useWifi = false)
+        }
+    }
 
     /** Adds someone by ID so their chat can open. Uses the name they gave, or a short form of the ID. */
     fun startChatById(id: String, name: String) {
@@ -239,33 +303,42 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (!tracker.hasPermission()) return toast("Allow location first, then tap again")
         if (!blueMob.radios.state.value.location) return toast("Location (GPS) is off. Turn it on, then tap again")
         placing = viewModelScope.launch {
-            tracker.hold()
+            // Fast GPS while we work out where you are.
+            tracker.boost(true)
             try {
-                val good = { p: GeoPoint? -> p != null && System.currentTimeMillis() - p.time < FRESH_FIX_MS && p.accuracyM in 0f..GOOD_ACCURACY_M }
-                var best: GeoPoint? = myLocation.value?.takeIf(good) ?: tracker.lastKnown()?.takeIf(good)
+                val usable = { p: GeoPoint? -> p != null && System.currentTimeMillis() - p.time < FRESH_FIX_MS && p.accuracyM in 0f..USABLE_ACCURACY_M }
+                var best: GeoPoint? = myLocation.value?.takeIf(usable) ?: tracker.lastKnown()?.takeIf(usable)
                 if (best == null) {
-                    toast("Getting your position… Stand in the open, away from walls. This can take a minute.")
+                    toast("Getting your position… Stand in the open, away from walls.")
                     kotlinx.coroutines.withTimeoutOrNull(FIX_WAIT_MS) {
-                        myLocation.first { p ->
-                            if (p != null && (best == null || p.accuracyM < best!!.accuracyM)) best = p
-                            good(p)
-                        }
+                        myLocation.first { p -> if (p != null && (best == null || p.accuracyM < best!!.accuracyM)) best = p; usable(p) }
                     }
                 }
                 val here = best ?: tracker.lastKnown() ?: trail.snapshot()?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
                     ?: return@launch toast("Couldn't get a GPS fix. Go outside under open sky and try again.")
+                val id = if (baseCamp) Spot.BASE_CAMP_ID else "spot-" + UUID.randomUUID().toString().take(8)
+                fun save(p: GeoPoint) {
+                    if (baseCamp) settings.setBaseCamp(p.lat, p.lon)
+                    else { settings.removeSpot(id); settings.addSpot(Spot(id, name, p.lat, p.lon, System.currentTimeMillis())) }
+                }
+                save(here)
                 val ageMin = (System.currentTimeMillis() - here.time) / 60_000
                 val how = if (ageMin >= 2) "your last known position ($ageMin min old)" else "±${here.accuracyM.toInt()} m"
-                if (baseCamp) {
-                    settings.setBaseCamp(here.lat, here.lon)
-                    blueMob.audit.add(com.bluemob.app.audit.AuditKind.POSITION, "Base camp set at ${Geo.formatLatLon(here.lat, here.lon)}")
-                    toast("⛺ Base camp saved, $how")
-                } else {
-                    settings.addSpot(Spot("spot-" + UUID.randomUUID().toString().take(8), name, here.lat, here.lon, System.currentTimeMillis()))
-                    toast("📍 $name saved, $how")
+                toast(if (baseCamp) "⛺ Base camp saved, $how" else "📍 $name saved, $how")
+                if (baseCamp) blueMob.audit.add(com.bluemob.app.audit.AuditKind.POSITION, "Base camp set at ${Geo.formatLatLon(here.lat, here.lon)} (±${here.accuracyM.toInt()} m)")
+                // Saved straight away; keep listening a little longer and move it if GPS gets a clearly better fix.
+                var saved = here
+                kotlinx.coroutines.withTimeoutOrNull(REFINE_MS) {
+                    myLocation.first { p ->
+                        if (p != null && p.accuracyM > 0 && p.accuracyM < saved.accuracyM * 0.6f && System.currentTimeMillis() - p.time < 30_000) {
+                            saved = p; save(p)
+                        }
+                        saved.accuracyM <= GOOD_ACCURACY_M / 2
+                    }
                 }
+                if (saved !== here) toast((if (baseCamp) "⛺ Base camp" else "📍 $name") + " made more accurate: ±${saved.accuracyM.toInt()} m")
             } finally {
-                tracker.release(keepForSharing = shareLocation.value)
+                tracker.boost(false)
             }
         }
     }
@@ -325,7 +398,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun challenge(nodeId: String, name: String, game: String): String? =
-        if (tooOld(nodeId, name, "game", "games")) null else blueMob.matches.invite(nodeId, name, game)?.id ?: null.also { toast("$name isn't in range right now. Games need them nearby.") }
+        if (tooOld(nodeId, name, if (game == com.bluemob.app.games.Match.TTT || game == com.bluemob.app.games.Match.C4) "game" else "games2",
+                if (game == com.bluemob.app.games.Match.TTT || game == com.bluemob.app.games.Match.C4) "games" else "this game")) null else blueMob.matches.invite(nodeId, name, game)?.id ?: null.also { toast("$name isn't in range right now. Games need them nearby.") }
     fun acceptGame(id: String) = blueMob.matches.accept(id)
     fun declineGame(id: String) = blueMob.matches.decline(id)
     fun playGame(id: String, spot: Int) = blueMob.matches.play(id, spot)
@@ -381,7 +455,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val FRESH_FIX_MS = 2 * 60_000L
-        const val GOOD_ACCURACY_M = 60f
-        const val FIX_WAIT_MS = 90_000L
+        const val GOOD_ACCURACY_M = 30f
+        /** Good enough to save at once; it's refined afterwards. */
+        const val USABLE_ACCURACY_M = 100f
+        const val FIX_WAIT_MS = 60_000L
+        const val REFINE_MS = 60_000L
     }
 }

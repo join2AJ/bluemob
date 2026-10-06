@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -241,8 +242,11 @@ fun LockScreen(
     LaunchedEffect(Unit) { if (biometric) onBiometric() }
     LaunchedEffect(waitLeft) { if (waitLeft > 0) { delay(1_000); waitLeft -= 1; error = if (waitLeft > 0) "Too many wrong PINs. Try again in ${waitLeft}s." else null } }
     Box(Modifier.fillMaxSize().background(Gradients.dawn()).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) {}) {
-        Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(vertical = Space.lg),
-            horizontalAlignment = Alignment.CenterHorizontally) {
+        // Centred on the screen, whatever its height; scrolls only if it really doesn't fit (very large text).
+        val screen = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+        Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState())
+            .heightIn(min = screen - 48.dp).padding(vertical = Space.lg),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text(avatar, fontSize = 44.sp)
             Text(name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 4.dp))
             Text("BM $shortId", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, fontFamily = FontFamily.Monospace)

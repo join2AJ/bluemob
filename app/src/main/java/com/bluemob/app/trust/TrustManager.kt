@@ -62,6 +62,10 @@ class TrustManager(
     /** Gives a rating. One per person, kind and SOS/message: rating again replaces it. */
     fun rate(subject: String, kind: RatingKind, ctx: String, remark: String) {
         if (subject == identity.nodeId) return
+        // You can't both thank someone and call their SOS fake.
+        val mine = ratings.value.filter { it.rater == identity.nodeId && it.subject == subject }.map { it.kind }
+        if (kind == RatingKind.FAKE_SOS && (RatingKind.THANKS in mine || RatingKind.GENUINE_SOS in mine)) return
+        if ((kind == RatingKind.THANKS || kind == RatingKind.GENUINE_SOS) && RatingKind.FAKE_SOS in mine) return
         val body = JSONObject().put("subject", subject).put("kind", kind.code).put("ctx", ctx.take(64))
             .put("remark", remark.trim().take(MAX_REMARK)).put("at", System.currentTimeMillis()).put("name", identity.displayName.value)
         val json = Envelope.seal(NearbyMeshTransport.TYPE_RATE, body, identity.keys)

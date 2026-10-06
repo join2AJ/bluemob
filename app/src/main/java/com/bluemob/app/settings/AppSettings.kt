@@ -67,14 +67,30 @@ class AppSettings(context: Context) {
         saveSpots()
     }
 
-    private val _background = MutableStateFlow(prefs.getBoolean("background", true))
-    /** Keep the mesh running with the screen off (a foreground service with a notification). On by default: it's a safety app. */
+    private val _background = MutableStateFlow(prefs.getBoolean("background", false))
+    /** Keep the mesh running with the screen off (a foreground service with a notification). Off until the user turns it on. */
     val background: StateFlow<Boolean> = _background.asStateFlow()
 
     fun setBackground(on: Boolean) {
         prefs.edit().putBoolean("background", on).apply()
         _background.value = on
     }
+
+    private val _meshAtStart = MutableStateFlow(prefs.getBoolean("mesh_at_start", false))
+    /** Start the mesh when BlueMob opens. Off until the user chooses it. */
+    val meshAtStart: StateFlow<Boolean> = _meshAtStart.asStateFlow()
+    fun setMeshAtStart(on: Boolean) { prefs.edit().putBoolean("mesh_at_start", on).apply(); _meshAtStart.value = on }
+
+    private fun policy(key: String) = runCatching { RadioPolicy.valueOf(prefs.getString(key, null) ?: "") }.getOrDefault(RadioPolicy.ASK)
+    private val _bluetoothPolicy = MutableStateFlow(policy("policy_bluetooth"))
+    /** Whether the mesh may switch Bluetooth on (through Android's Nearby service) without asking first. */
+    val bluetoothPolicy: StateFlow<RadioPolicy> = _bluetoothPolicy.asStateFlow()
+    fun setBluetoothPolicy(p: RadioPolicy) { prefs.edit().putString("policy_bluetooth", p.name).apply(); _bluetoothPolicy.value = p }
+
+    private val _wifiPolicy = MutableStateFlow(policy("policy_wifi"))
+    /** Whether the mesh may use (and switch on) Wi-Fi for faster links: ask, allow, or never (Bluetooth only). */
+    val wifiPolicy: StateFlow<RadioPolicy> = _wifiPolicy.asStateFlow()
+    fun setWifiPolicy(p: RadioPolicy) { prefs.edit().putString("policy_wifi", p.name).apply(); _wifiPolicy.value = p }
 
     /** The relay built into this version of the app. Phones use it automatically. */
     val defaultBridgeUrl: String = com.bluemob.app.BuildConfig.DEFAULT_RELAY_URL.trimEnd('/')
@@ -140,3 +156,6 @@ class AppSettings(context: Context) {
         prefs.edit().putString("spots", a.toString()).apply()
     }
 }
+
+/** What BlueMob may switch on by itself. Everything starts at [ASK]. */
+enum class RadioPolicy { ASK, ALLOW, NEVER }

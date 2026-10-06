@@ -45,7 +45,8 @@ class MeshService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val app = application as BlueMobApp
         // After Android restarts the service (e.g. it was stopped for memory), bring the mesh back.
-        if (!app.mesh.running.value && MeshPermissions.allGranted(this)) app.mesh.start()
+        if (!app.mesh.running.value && MeshPermissions.allGranted(this) && app.mesh.radiosAllowed())
+            app.mesh.start(useWifi = app.radios.state.value.wifi || app.settings.wifiPolicy.value == com.bluemob.app.settings.RadioPolicy.ALLOW)
         return START_STICKY
     }
 

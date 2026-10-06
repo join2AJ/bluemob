@@ -248,6 +248,9 @@ class FileShare(
         mesh.sendApp(from, KIND, JSONObject().put("a", "ok").put("fid", fid))
     }
 
+    /** Deletes every attachment file on this phone (after "Delete all messages"). */
+    fun deleteAll() { store.listFiles()?.forEach { it.delete() }; openDir.listFiles()?.forEach { it.delete() } }
+
     // ---- Opening ----
 
     /** The file's contents, decrypted in memory. */

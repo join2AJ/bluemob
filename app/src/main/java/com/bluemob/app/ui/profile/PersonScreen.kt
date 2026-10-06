@@ -88,9 +88,13 @@ fun PersonScreen(
             item { GroupLabel("Rate ${name.substringBefore(" ")}") }
             item {
                 Group {
+                    // Thanking someone (or confirming their SOS) and calling their SOS fake contradict each other: only
+                    // the side you haven't taken is offered.
+                    val vouched = myRatings.any { it.kind == RatingKind.THANKS || it.kind == RatingKind.GENUINE_SOS }
+                    val flagged = myRatings.any { it.kind == RatingKind.FAKE_SOS }
                     val options = buildList {
-                        add(RatingKind.THANKS to "general")
-                        if (sosId != null) { add(RatingKind.GENUINE_SOS to sosId); add(RatingKind.FAKE_SOS to sosId) }
+                        if (!flagged) add(RatingKind.THANKS to "general")
+                        if (sosId != null) { if (!flagged) add(RatingKind.GENUINE_SOS to sosId); if (!vouched) add(RatingKind.FAKE_SOS to sosId) }
                         add(RatingKind.BAD_LANGUAGE to "general")
                     }
                     options.forEachIndexed { i, (kind, ctx) ->

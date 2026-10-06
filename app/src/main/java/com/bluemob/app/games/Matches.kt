@@ -14,8 +14,8 @@ import java.util.UUID
 enum class MatchState { INVITING, INVITED, PLAYING, DECLINED, LEFT, NO_ANSWER }
 
 /**
- * A game against a person over the mesh. The board is from this phone's side: 1 = me, 2 = them.
- * The inviter starts round 0, then players take turns starting each new round.
+ * A game against a person (nearby or over the internet), or the computer. The board is from this phone's side:
+ * 1 = me, 2 = them. The inviter starts round 0, then players take turns starting each new round.
  */
 data class Match(
     val id: String,
@@ -29,18 +29,29 @@ data class Match(
     val myScore: Int = 0,
     val theirScore: Int = 0,
     val updatedAt: Long = System.currentTimeMillis(),
+    /** Moves played this round. Each move carries its number, so repeats and out-of-order packets are ignored. */
+    val moveCount: Int = 0,
+    /** Whose turn: 1 = me, 2 = them. Null = whoever starts the round. */
+    val toMove: Int? = null,
 ) {
+    val engine: Engine get() = Engine.of(game) ?: TicTacToeEngine
     val iStart: Boolean get() = (round % 2 == 0) == iInvited
-    val moves: Int get() = board.count { it != 0 }
-    val winner: Pair<Int, List<Int>>? get() = if (game == C4) ConnectFour.winner(board) else TicTacToe.winner(board)
-    val over: Boolean get() = winner != null || (if (game == C4) ConnectFour.full(board) else TicTacToe.full(board))
-    val myTurn: Boolean get() = state == MatchState.PLAYING && !over && (moves % 2 == 0) == iStart
+    val turn: Int get() = toMove ?: if (iStart) 1 else 2
+    val winner: Pair<Int, List<Int>>? get() = if (game == SurvivalQuiz.code) quizWinner() else engine.winner(board)
+    val over: Boolean get() = engine.over(board) || winner != null
+    val myTurn: Boolean get() = state == MatchState.PLAYING && !over && (!engine.turnBased || turn == 1)
+
+    private fun quizWinner(): Pair<Int, List<Int>>? {
+        if (!engine.over(board)) return null
+        val (a, b) = SurvivalQuiz.score(board, SurvivalQuiz.questionsFor(id))
+        return when { a > b -> 1 to emptyList(); b > a -> 2 to emptyList(); else -> null }
+    }
 
     companion object {
         const val TTT = "ttt"
         const val C4 = "c4"
-        fun emptyBoard(game: String) = if (game == C4) ConnectFour.empty() else List(9) { 0 }
-        fun title(game: String) = if (game == C4) "Connect 4" else "Tic-tac-toe"
+        fun emptyBoard(game: String) = (Engine.of(game) ?: TicTacToeEngine).empty()
+        fun title(game: String) = (Engine.of(game) ?: TicTacToeEngine).title
     }
 }
 
@@ -49,16 +60,15 @@ data class Match(
  * new match, or the same one when the action doesn't apply (a duplicate packet, a move out of turn).
  */
 object MatchRules {
-    /** Places a piece for [who] (1 = me, 2 = them) as move number [n]. [spot] is a cell (tic-tac-toe) or column (Connect 4). */
+    /** Plays [spot] for [who] (1 = me, 2 = them) as move number [n] in [round]. */
     fun move(m: Match, who: Int, spot: Int, n: Int, round: Int): Match {
-        if (m.state != MatchState.PLAYING || round != m.round || m.over || n != m.moves + 1) return m
-        val mineToMove = (m.moves % 2 == 0) == m.iStart
-        if ((who == 1) != mineToMove) return m
-        val board = when (m.game) {
-            Match.C4 -> if (spot in 0 until ConnectFour.COLS) ConnectFour.drop(m.board, spot, who) else null
-            else -> if (spot in 0..8 && m.board[spot] == 0) m.board.toMutableList().also { it[spot] = who } else null
-        } ?: return m
-        val next = m.copy(board = board, updatedAt = System.currentTimeMillis())
+        if (m.state != MatchState.PLAYING || round != m.round || m.over) return m
+        val engine = m.engine
+        if (engine.turnBased && (n != m.moveCount + 1 || who != m.turn)) return m
+        val (board, again) = engine.play(m.board, who, spot, n) ?: return m
+        val next = m.copy(board = board, moveCount = m.moveCount + 1, toMove = if (again || !engine.turnBased) who else 3 - who,
+            updatedAt = System.currentTimeMillis())
+        if (m.over) return next
         return when (next.winner?.first) {
             1 -> next.copy(myScore = m.myScore + 1)
             2 -> next.copy(theirScore = m.theirScore + 1)
@@ -68,7 +78,8 @@ object MatchRules {
 
     /** Starts round [round] once the last one is over. */
     fun again(m: Match, round: Int): Match =
-        if (m.state == MatchState.PLAYING && round == m.round + 1 && m.over) m.copy(round = round, board = Match.emptyBoard(m.game), updatedAt = System.currentTimeMillis()) else m
+        if (m.state == MatchState.PLAYING && round == m.round + 1 && m.over)
+            m.copy(round = round, board = Match.emptyBoard(m.game), moveCount = 0, toMove = null, updatedAt = System.currentTimeMillis()) else m
 }
 
 /** Invites, moves and scores for games with people nearby. Packets are signed and pass through other phones if needed. */
@@ -114,10 +125,10 @@ class Matches(
 
     fun play(id: String, spot: Int) {
         val m = _all.value[id]?.takeIf { it.myTurn } ?: return
-        val next = MatchRules.move(m, 1, spot, m.moves + 1, m.round)
+        val next = MatchRules.move(m, 1, spot, m.moveCount + 1, m.round)
         if (next === m) return
         set(next)
-        send(m, "move", JSONObject().put("spot", spot).put("n", m.moves + 1).put("round", m.round))
+        send(m, "move", JSONObject().put("spot", spot).put("n", m.moveCount + 1).put("round", m.round))
     }
 
     fun again(id: String) {
@@ -143,7 +154,11 @@ class Matches(
         when (b.optString("a")) {
             "invite" -> {
                 if (existing != null) return
-                val game = b.optString("game").takeIf { it == Match.TTT || it == Match.C4 } ?: return
+                // A game this version doesn't know (from a newer phone) is turned down politely.
+                val game = b.optString("game").takeIf { Engine.of(it) != null } ?: run {
+                    mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("g", id).put("a", "decline"))
+                    return
+                }
                 val m = Match(id, game, e.fromNodeId, e.name.ifBlank { "Someone" }, iInvited = false, state = MatchState.INVITED)
                 _all.update { it + (id to m) }
                 onInvite(m)

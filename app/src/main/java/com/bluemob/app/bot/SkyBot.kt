@@ -50,7 +50,8 @@ object SkyBot {
         "heat" to listOf("heat stroke", "heatstroke", "sunstroke", "overheat", "too hot", "heat exhaustion"),
         "snake" to listOf("snake", "venom", "bitten"),
         "fracture" to listOf("broken", "fracture", "sprain", "bone", "ankle", "twisted", "splint"),
-        "find-water" to listOf("find water", "no water", "thirst", "dehydrat", "where to get water", "out of water", "water+find", "water+where", "water+running out", "water+collect"),
+        "find-water" to listOf("find water", "no water", "thirst", "dehydrat", "where to get water", "out of water", "water+find", "water+where", "water+running out", "water+collect",
+            "water+not", "water+don't have", "water+dont have", "water+no ", "without water", "water+what to do", "water+finished", "water+empty", "need water"),
         "purify" to listOf("purif", "boil water", "clean water", "safe water", "dirty water", "drink water", "drinking water", "safe to drink",
             "water+safe", "water+clean", "water+boil", "water+treat", "water+filter", "water+drinkable", "water+germs", "stream+drink", "river+drink"),
         "fire" to listOf("fire", "campfire", "matches", "lighter", "tinder", "keep+warm+wood"),
@@ -132,8 +133,11 @@ object SkyBot {
                 "Bad language reported by others, or an SOS reported as fake, takes stars away. When an SOS arrives you see the sender's stars, " +
                 "and a warning if people reported an earlier one as fake. Ratings are signed, so they can't be faked, and one person can only move them a little.",
             listOf(tab("you", "See your rating"))),
-        Help(listOf("split", "money", "upi", "expense", "owe", "game", "play"),
-            "Trip money and games are coming in the next BlueMob update. You can try them now in the web preview."),
+        Help(listOf("split", "money", "upi", "expense", "owe"),
+            "Splitting trip money is coming in a later BlueMob update. You can try it now in the web preview."),
+        Help(listOf("game", "play", "tic tac", "tic-tac", "connect 4"),
+            "Open Games to play with someone nearby over the mesh (or over the internet), or against the computer: Tic-tac-toe, Infinite tic-tac-toe, Connect 4 and more.",
+            listOf(SkyAction("Play a game", "games"))),
         Help(listOf("how does bluemob", "how bluemob works", "how it works", "how does it work", "how does this work", "how does the app", "mesh network", "without towers"),
             "Here's the magic ✨: phones running BlueMob find each other over Bluetooth and Wi-Fi and link up directly. No SIM, no towers, no internet.\n\n" +
                 "Messages go straight to people in range, or travel phone to phone to people further away, end-to-end encrypted and shown exactly once."),
@@ -182,9 +186,12 @@ object SkyBot {
                 "Asking an expert, and messaging family far away, arrive with the internet bridge in the next update.",
             listOf(SkyAction("🆘 SOS", "sos"), tab("guide", "Browse the guide")),
         )
-        chat.firstOrNull { (keys, _) -> keys.any { matches(t, it) } }?.let { (_, options) -> return SkyAnswer(options[turn % options.size]) }
+        // "Hey, water is not with me, what to do?" is a question, not a greeting: small talk only wins for short messages.
+        val words = t.split(Regex("[^\\p{L}\\p{N}']+")).count { it.isNotBlank() }
+        if (words <= 4) chat.firstOrNull { (keys, _) -> keys.any { matches(t, it) } }?.let { (_, options) -> return SkyAnswer(options[turn % options.size]) }
         // No keyword fits: look through every guide's words before giving up.
         searchGuides(t)?.let { return it }
+        chat.firstOrNull { (keys, _) -> keys.any { matches(t, it) } }?.let { (_, options) -> return SkyAnswer(options[turn % options.size]) }
         if (questionLike.containsMatchIn(t)) return SkyAnswer(
             "I don't have an answer for that yet. I'm best with first aid, water, fire, shelter, finding your way, signals, weather, disasters, " +
                 "phone battery, and how BlueMob works.",

@@ -141,6 +141,8 @@ class BlueMobApp : Application() {
         signals = SignalController(this)
         heading = HeadingSensor(this)
         radios = Radios(this)
+        // Nearby switches Bluetooth on when the mesh starts: only allowed if it's already on, or the user said so.
+        mesh.radiosAllowed = { radios.state.value.bluetooth || settings.bluetoothPolicy.value == com.bluemob.app.settings.RadioPolicy.ALLOW }
         CrashLog.step(this, "starting the audit trail, SOS and relay")
         audit = AuditLog(db.audit(), appScope, identity.keys, SecurePrefs.open(this, "audit"))
         witness = AuditWitness(identity.keys, SecurePrefs.open(this, "witness")) { contacts.contacts.value[it]?.name ?: "someone" }

@@ -10,21 +10,31 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -32,23 +42,35 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import com.bluemob.app.games.ConnectFour
+import com.bluemob.app.games.DotsAndBoxes
+import com.bluemob.app.games.Engine
+import com.bluemob.app.games.InfiniteTicTacToe
 import com.bluemob.app.games.Match
+import com.bluemob.app.games.MatchRules
 import com.bluemob.app.games.MatchState
-import com.bluemob.app.games.TicTacToe
+import com.bluemob.app.games.SurvivalQuiz
 import com.bluemob.app.ui.Person
-import com.bluemob.app.ui.components.Group
-import com.bluemob.app.ui.components.GroupLabel
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.TextButton
 import com.bluemob.app.ui.components.Chip
 import com.bluemob.app.ui.components.Gap
+import com.bluemob.app.ui.components.Group
+import com.bluemob.app.ui.components.GroupLabel
 import com.bluemob.app.ui.components.SubScreen
 import com.bluemob.app.ui.theme.Extra
 import com.bluemob.app.ui.theme.Palette
 import kotlinx.coroutines.delay
 
-/** Pick a game: challenge someone connected nearby, or play the computer. Open games and invites are listed first. */
+private val tileColors = mapOf(
+    Match.TTT to listOf(Palette.Pine, Color(0xFF0B3D2E)),
+    InfiniteTicTacToe.code to listOf(Color(0xFF3A5BD9), Color(0xFF1E2F7A)),
+    Match.C4 to listOf(Color(0xFFC2621A), Color(0xFF7A3A0E)),
+    DotsAndBoxes.code to listOf(Color(0xFF7B4FC9), Color(0xFF3D2470)),
+    SurvivalQuiz.code to listOf(Color(0xFFB8323A), Color(0xFF5E1519)),
+)
+
+/** Pick a game: challenge someone (nearby or over the internet), or play the computer. Open games and invites first. */
 @Composable
 fun GamesScreen(
     onBack: () -> Unit,
@@ -64,7 +86,7 @@ fun GamesScreen(
         item {
             Column(Modifier.padding(top = 8.dp)) {
                 Text("Games", style = MaterialTheme.typography.headlineMedium)
-                Text("Play with someone nearby over the mesh (no signal needed), or against the computer.",
+                Text("Play with someone nearby (no signal needed) or over the internet, or against the computer.",
                     style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
             }
         }
@@ -74,20 +96,16 @@ fun GamesScreen(
                 Group(Modifier.padding(bottom = 8.dp)) {
                     Row(Modifier.fillMaxWidth().clickable(enabled = m.state == MatchState.PLAYING) { onOpenMatch(m.id) }.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (m.game == Match.C4) "🔴" else "⭕", fontSize = 28.sp)
+                        Text(m.engine.emoji, fontSize = 28.sp)
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("${Match.title(m.game)} with ${m.opponentName}", style = MaterialTheme.typography.titleMedium)
+                            Text("${m.engine.title} with ${m.opponentName}", style = MaterialTheme.typography.titleMedium)
                             Text(when (m.state) {
                                 MatchState.INVITED -> "${m.opponentName} invited you"
                                 MatchState.INVITING -> "Waiting for ${m.opponentName} to accept…"
                                 MatchState.DECLINED -> "${m.opponentName} said not now"
                                 MatchState.LEFT -> "${m.opponentName} left the game"
-                                MatchState.NO_ANSWER -> "No answer. If they have BlueMob 0.6 or older, they need to update to play"
-                                MatchState.PLAYING -> "${m.myScore}–${m.theirScore} · " + when {
-                                    m.over -> "round over"
-                                    m.myTurn -> "your move"
-                                    else -> "their move"
-                                }
+                                MatchState.NO_ANSWER -> "No answer. If they have an older BlueMob, they need to update"
+                                MatchState.PLAYING -> "${m.myScore}–${m.theirScore} · " + when { m.over -> "round over"; m.myTurn -> "your move"; else -> "their move" }
                             }, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
                         }
                         if (m.state == MatchState.INVITED) {
@@ -100,50 +118,71 @@ fun GamesScreen(
                 }
             }
         }
-        item { GroupLabel("Play with someone nearby") }
+        item { GroupLabel("Play with someone") }
         if (people.isEmpty()) item {
-            Text("No one is connected right now. When someone with BlueMob is nearby, they show up here.",
+            Text("No one is reachable right now. People connected nearby show up here, and so does anyone online when the internet relay is on.",
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(bottom = 8.dp))
         }
         items(people, key = { "p" + it.nodeId }) { p ->
+            var menu by remember { mutableStateOf(false) }
             Group(Modifier.padding(bottom = 8.dp)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(p.avatar ?: "🙂", fontSize = 26.sp)
                     Text(p.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(start = 12.dp))
-                    TextButton(onClick = { onChallenge(p, Match.TTT) }) { Text("⭕ Tic-tac-toe") }
-                    TextButton(onClick = { onChallenge(p, Match.C4) }) { Text("🔴 Connect 4") }
+                    Box {
+                        Button(onClick = { menu = true }) { Text("Challenge ▾") }
+                        DropdownMenu(menu, { menu = false }) {
+                            Engine.ALL.forEach { e -> DropdownMenuItem(text = { Text("${e.emoji}  ${e.title}") }, onClick = { menu = false; onChallenge(p, e.code) }) }
+                        }
+                    }
                 }
             }
         }
         item { GroupLabel("Play the computer") }
-        item { GameTile("⭕", "Tic-tac-toe", "Three in a row. Easy or unbeatable.", listOf(Palette.Pine, Color(0xFF0B3D2E))) { onPlay("ttt") } }
-        item { Gap(12.dp) }
-        item { GameTile("🔴", "Connect 4", "Drop discs, line up four.", listOf(Color(0xFFC2621A), Color(0xFF7A3A0E))) { onPlay("c4") } }
+        Engine.ALL.forEach { e ->
+            item(key = "cpu-" + e.code) {
+                GameTile(e.emoji, e.title, e.blurb, tileColors[e.code] ?: tileColors.getValue(Match.TTT)) { onPlay(e.code) }
+                Gap(12.dp)
+            }
+        }
     }
 }
 
-/** A game against a person nearby. */
+/** The rules card, shown before someone's first game of each kind, and from "How to play". */
+@Composable
+fun RulesDialog(engine: Engine, onDone: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDone,
+        title = { Text("${engine.emoji}  How to play") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                engine.rules.forEachIndexed { i, (t, b) ->
+                    Row {
+                        Box(Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                            Text("${i + 1}", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                        }
+                        Column(Modifier.padding(start = 12.dp)) {
+                            Text(t, style = MaterialTheme.typography.titleSmall)
+                            Text(b, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = onDone) { Text("Got it") } },
+    )
+}
+
+/** A game against a person. */
 @Composable
 fun MatchScreen(m: Match, onBack: () -> Unit, onPlay: (Int) -> Unit, onAgain: () -> Unit, onLeave: () -> Unit) {
-    val win = m.winner
-    SubScreen(Match.title(m.game), onBack) {
+    var rules by rememberSaveable(m.game) { mutableStateOf(m.round == 0 && m.moveCount == 0) }
+    if (rules) RulesDialog(m.engine) { rules = false }
+    SubScreen(m.engine.title, onBack, actions = { TextButton(onClick = { rules = true }) { Text("How to play") } }) {
         item {
-            Score(m.myScore, m.theirScore, when {
-                m.state == MatchState.LEFT -> "${m.opponentName} left the game"
-                m.state == MatchState.INVITING -> "Waiting for ${m.opponentName} to accept…"
-                m.state == MatchState.DECLINED -> "${m.opponentName} said not now"
-                m.state == MatchState.NO_ANSWER -> "No answer. If ${m.opponentName} has BlueMob 0.6 or older, they need to update to play"
-                win?.first == 1 -> "You win! 🎉"
-                win?.first == 2 -> "${m.opponentName} wins"
-                m.over -> "Draw"
-                m.myTurn -> if (m.game == Match.C4) "Your move · tap a column" else "Your move · you're ✕"
-                else -> "${m.opponentName} is thinking…"
-            }, them = m.opponentName, themEmoji = "🙂")
+            Score(m.myScore, m.theirScore, status(m, m.opponentName), them = m.opponentName, themEmoji = "🙂")
         }
-        item {
-            val enabled = m.myTurn
-            if (m.game == Match.C4) C4Board(m.board, win?.second, enabled, onPlay) else TttBoard(m.board, win?.second, enabled, onPlay)
-        }
+        item { Board(m, onPlay) }
         item {
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.Center) {
                 if (m.over && m.state == MatchState.PLAYING) Button(onClick = onAgain) { Text("Play again") }
@@ -151,15 +190,44 @@ fun MatchScreen(m: Match, onBack: () -> Unit, onPlay: (Int) -> Unit, onAgain: ()
             }
         }
         item {
-            Text(if (m.game == Match.C4) "You're red, ${m.opponentName} is yellow. Moves go over the mesh, signed by each phone."
-                else "Moves go over the mesh, signed by each phone. Works with no signal.",
+            Text("Moves are signed by each phone and go over the mesh, or the internet when you're apart.",
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink3, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
         }
     }
 }
 
+private fun status(m: Match, them: String): String = when {
+    m.state == MatchState.LEFT -> "$them left the game"
+    m.state == MatchState.INVITING -> "Waiting for $them to accept…"
+    m.state == MatchState.DECLINED -> "$them said not now"
+    m.state == MatchState.NO_ANSWER -> "No answer from $them"
+    m.game == SurvivalQuiz.code -> SurvivalQuiz.score(m.board, SurvivalQuiz.questionsFor(m.id)).let { (a, b) ->
+        if (m.over) (if (a > b) "You win! 🎉 $a–$b" else if (b > a) "$them wins $b–$a" else "Draw, $a–$b") else "You $a · $them $b"
+    }
+    m.winner?.first == 1 -> "You win! 🎉"
+    m.winner?.first == 2 -> "$them wins"
+    m.over -> m.engine.points(m.board)?.let { (a, b) -> "Draw, $a–$b" } ?: "Draw"
+    m.myTurn -> "Your move" + (m.engine.points(m.board)?.let { (a, b) -> " · boxes $a–$b" } ?: "")
+    else -> "$them is thinking…" + (m.engine.points(m.board)?.let { (a, b) -> " · boxes $a–$b" } ?: "")
+}
+
+/** The board for any game; [onPlay] gets the move (cell, column, line or answer). */
 @Composable
-private fun TttBoard(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap: (Int) -> Unit) {
+private fun Board(m: Match, onPlay: (Int) -> Unit) {
+    val enabled = m.myTurn
+    val win = m.winner?.second
+    when (m.game) {
+        Match.C4 -> C4Board(m.board, win, enabled, onPlay)
+        InfiniteTicTacToe.code -> TttBoard(m.board.map { InfiniteTicTacToe.owner(it) }, win, enabled, onPlay,
+            fading = if (m.over) null else InfiniteTicTacToe.fading(m.board, m.turn))
+        DotsAndBoxes.code -> DotsBoard(m.board, enabled, onPlay)
+        SurvivalQuiz.code -> QuizBoard(m, onPlay)
+        else -> TttBoard(m.board, win, enabled, onPlay)
+    }
+}
+
+@Composable
+private fun TttBoard(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap: (Int) -> Unit, fading: Int? = null) {
     Column(Modifier.fillMaxWidth().padding(top = 16.dp, start = 24.dp, end = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         for (r in 0 until 3) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             for (c in 0 until 3) {
@@ -170,7 +238,7 @@ private fun TttBoard(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap
                     .clickable(enabled = enabled && board[i] == 0) { onTap(i) },
                     contentAlignment = Alignment.Center) {
                     Text(when (board[i]) { 1 -> "✕"; 2 -> "◯"; else -> "" }, fontSize = 40.sp, fontWeight = FontWeight.Bold,
-                        color = if (board[i] == 1) Palette.Pine else Extra.ember)
+                        color = if (board[i] == 1) Palette.Pine else Extra.ember, modifier = Modifier.alpha(if (i == fading) 0.3f else 1f))
                 }
             }
         }
@@ -194,11 +262,107 @@ private fun C4Board(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap:
     }
 }
 
+/** Dots and boxes: tap between two dots to draw a line; closed boxes are coloured by who took them. */
+@Composable
+private fun DotsBoard(board: List<Int>, enabled: Boolean, onTap: (Int) -> Unit) {
+    val n = DotsAndBoxes.N
+    val mine = Palette.Pine
+    val theirs = Extra.ember
+    val faint = Extra.line
+    val dot = MaterialTheme.colorScheme.onSurface
+    val tap by androidx.compose.runtime.rememberUpdatedState(onTap)
+    val canTap by androidx.compose.runtime.rememberUpdatedState(enabled)
+    val current by androidx.compose.runtime.rememberUpdatedState(board)
+    androidx.compose.foundation.Canvas(
+        Modifier.fillMaxWidth().padding(top = 20.dp, start = 12.dp, end = 12.dp).aspectRatio(1f)
+            .pointerInput(Unit) {
+                detectTapGestures { pos ->
+                    if (!canTap) return@detectTapGestures
+                    val pad = size.width * 0.08f
+                    val step = (size.width - 2 * pad) / n
+                    // The nearest line's middle, if the tap is close enough to it.
+                    val best = (0 until DotsAndBoxes.LINES).minByOrNull { l -> lineMid(l, pad, step).let { (x, y) -> (x - pos.x) * (x - pos.x) + (y - pos.y) * (y - pos.y) } }
+                    if (best != null && current[best] == 0) {
+                        val (x, y) = lineMid(best, pad, step)
+                        if ((x - pos.x) * (x - pos.x) + (y - pos.y) * (y - pos.y) < (step * 0.45f) * (step * 0.45f)) tap(best)
+                    }
+                }
+            },
+    ) {
+        val pad = size.width * 0.08f
+        val step = (size.width - 2 * pad) / n
+        for (r in 0 until n) for (c in 0 until n) {
+            val owner = board[DotsAndBoxes.LINES + r * n + c]
+            if (owner != 0) drawRect((if (owner == 1) mine else theirs).copy(alpha = 0.25f),
+                androidx.compose.ui.geometry.Offset(pad + c * step + 4, pad + r * step + 4), androidx.compose.ui.geometry.Size(step - 8, step - 8))
+        }
+        for (l in 0 until DotsAndBoxes.LINES) {
+            val (a, b) = lineEnds(l, pad, step)
+            val v = board[l]
+            drawLine(when (v) { 1 -> mine; 2 -> theirs; else -> faint }, a, b, strokeWidth = if (v != 0) 12f else 4f,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        }
+        for (r in 0..n) for (c in 0..n) drawCircle(dot, radius = 11f, center = androidx.compose.ui.geometry.Offset(pad + c * step, pad + r * step))
+    }
+}
+
+private fun lineEnds(l: Int, pad: Float, step: Float): Pair<androidx.compose.ui.geometry.Offset, androidx.compose.ui.geometry.Offset> {
+    val n = DotsAndBoxes.N
+    return if (l < DotsAndBoxes.H) {
+        val r = l / n; val c = l % n
+        androidx.compose.ui.geometry.Offset(pad + c * step, pad + r * step) to androidx.compose.ui.geometry.Offset(pad + (c + 1) * step, pad + r * step)
+    } else {
+        val k = l - DotsAndBoxes.H; val r = k / (n + 1); val c = k % (n + 1)
+        androidx.compose.ui.geometry.Offset(pad + c * step, pad + r * step) to androidx.compose.ui.geometry.Offset(pad + c * step, pad + (r + 1) * step)
+    }
+}
+
+private fun lineMid(l: Int, pad: Float, step: Float): Pair<Float, Float> = lineEnds(l, pad, step).let { (a, b) -> (a.x + b.x) / 2 to (a.y + b.y) / 2 }
+
+/** The quiz: the next question you haven't answered, then whether you were right and why. */
+@Composable
+private fun QuizBoard(m: Match, onAnswer: (Int) -> Unit) {
+    val qs = remember(m.id) { SurvivalQuiz.questionsFor(m.id) }
+    val next = qs.indices.firstOrNull { m.board[it * 2] == 0 }
+    var shown by remember(m.id, m.round) { mutableStateOf<Int?>(null) }
+    val q = shown ?: next
+    val theirDone = qs.indices.count { m.board[it * 2 + 1] != 0 }
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
+        Text("Their progress: $theirDone of ${qs.size} answered", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+        if (q == null) {
+            Text(if (m.over) "All done. Check the score above." else "You've answered everything. Waiting for them to finish…",
+                style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
+            return@Column
+        }
+        val question = qs[q]
+        val mine = m.board[q * 2] - 1
+        Text("Question ${q + 1} of ${qs.size}", style = MaterialTheme.typography.labelMedium, color = Extra.ink2, modifier = Modifier.padding(top = 12.dp))
+        Text(question.text, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 6.dp, bottom = 12.dp))
+        question.options.forEachIndexed { i, o ->
+            val answered = mine >= 0
+            val color = when {
+                answered && i == question.right -> Extra.pineTint
+                answered && i == mine -> Extra.emberTint
+                else -> MaterialTheme.colorScheme.surface
+            }
+            Box(Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(14.dp)).background(color).border(1.dp, Extra.line, RoundedCornerShape(14.dp))
+                .clickable(enabled = !answered) { shown = q; onAnswer(q * 4 + i) }.padding(14.dp)) {
+                Text(o + if (answered && i == question.right) "  ✓" else "", style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+        if (mine >= 0) {
+            Text(if (mine == question.right) "Right! 🎉" else "Not quite. The right answer is marked ✓.", style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 4.dp))
+            OutlinedButton(onClick = { shown = null }, modifier = Modifier.padding(top = 8.dp)) { Text(if (next != null) "Next question" else "See result") }
+        }
+    }
+}
+
 @Composable
 private fun GameTile(emoji: String, title: String, body: String, colors: List<Color>, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(colors)).clickable(onClick = onClick).padding(20.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(emoji, fontSize = 40.sp)
+        Text(emoji, fontSize = 36.sp)
         Column(Modifier.weight(1f).padding(start = 16.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White)
             Text(body, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
@@ -208,71 +372,60 @@ private fun GameTile(emoji: String, title: String, body: String, colors: List<Co
 }
 
 @Composable
-private fun Score(you: Int, cpu: Int, status: String, them: String = "Computer", themEmoji: String = "🤖") {
+private fun Score(you: Int, cpu: Int, status: String, them: String, themEmoji: String) {
     Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("🙂", fontSize = 30.sp); Text("You", style = MaterialTheme.typography.labelMedium, color = Extra.ink2) }
             Text("$you – $cpu", style = MaterialTheme.typography.displaySmall)
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(themEmoji, fontSize = 30.sp); Text(them, style = MaterialTheme.typography.labelMedium, color = Extra.ink2) }
         }
-        Text(status, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp))
+        Text(status, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 10.dp))
     }
 }
 
+/**
+ * Any game against the computer, on this phone. The computer is player 2; it moves after a short pause. In the quiz
+ * it answers too, getting about 6 in 10 right, so it can be beaten.
+ */
 @Composable
-fun TicTacToeScreen(onBack: () -> Unit) {
-    var board by rememberSaveable { mutableStateOf(List(9) { 0 }) }
+fun ComputerGameScreen(code: String, onBack: () -> Unit) {
+    val engine = Engine.of(code) ?: return
+    var m by remember(code) { mutableStateOf(Match("g-local-" + System.nanoTime().toString().takeLast(8), code, "computer", "Computer", iInvited = true, state = MatchState.PLAYING)) }
     var hard by rememberSaveable { mutableStateOf(false) }
-    var you by rememberSaveable { mutableIntStateOf(0) }
-    var cpu by rememberSaveable { mutableIntStateOf(0) }
-    var youStart by rememberSaveable { mutableStateOf(true) }
-    val win = TicTacToe.winner(board)
-    val over = win != null || TicTacToe.full(board)
-    val cpuTurn = !over && board.count { it == 1 } + (if (youStart) 0 else 1) == board.count { it == 2 } + 1
-    LaunchedEffect(board, cpuTurn) {
-        if (cpuTurn) {
-            delay(450)
-            TicTacToe.computerMove(board, 2, hard)?.let { board = board.toMutableList().also { b -> b[it] = 2 } }
+    var rules by rememberSaveable(code) { mutableStateOf(code != Match.TTT) }
+    if (rules) RulesDialog(engine) { rules = false }
+    // The computer's move.
+    LaunchedEffect(m.board, m.turn, m.round, m.over) {
+        if (m.over) return@LaunchedEffect
+        if (engine.turnBased && m.turn == 2) {
+            delay(500)
+            engine.computerMove(m.board, 2, hard)?.let { spot -> m = MatchRules.move(m, 2, spot, m.moveCount + 1, m.round) }
+        }
+        if (code == SurvivalQuiz.code) {
+            val qs = SurvivalQuiz.questionsFor(m.id)
+            val q = qs.indices.firstOrNull { m.board[it * 2 + 1] == 0 } ?: return@LaunchedEffect
+            delay(2_500)
+            val pick = if (kotlin.random.Random.nextInt(10) < 6) qs[q].right else (qs[q].right + 1 + kotlin.random.Random.nextInt(3)) % 4
+            m = MatchRules.move(m, 2, q * 4 + pick, m.moveCount + 1, m.round)
         }
     }
-    LaunchedEffect(win) { when (win?.first) { 1 -> you++; 2 -> cpu++ } }
-    SubScreen("Tic-tac-toe", onBack) {
-        item {
+    SubScreen(engine.title, onBack, actions = { TextButton(onClick = { rules = true }) { Text("How to play") } }) {
+        if (code == Match.TTT || code == InfiniteTicTacToe.code) item {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
                 Chip("Easy", !hard) { hard = false }
                 Box(Modifier.padding(4.dp))
-                Chip("Unbeatable", hard) { hard = true }
+                Chip(if (code == Match.TTT) "Unbeatable" else "Hard", hard) { hard = true }
             }
         }
-        item {
-            Score(you, cpu, when {
-                win?.first == 1 -> "You win! 🎉"
-                win?.first == 2 -> "Computer wins"
-                over -> "Draw"
-                cpuTurn -> "Computer is thinking…"
-                else -> "Your move · you're ✕"
-            })
-        }
-        item {
-            Column(Modifier.fillMaxWidth().padding(top = 16.dp, start = 24.dp, end = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                for (r in 0 until 3) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    for (c in 0 until 3) {
-                        val i = r * 3 + c
-                        val inLine = win?.second?.contains(i) == true
-                        val bg by animateColorAsState(if (inLine) Extra.pineTint else MaterialTheme.colorScheme.surface, label = "cell")
-                        Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(18.dp)).background(bg).border(1.dp, Extra.line, RoundedCornerShape(18.dp))
-                            .clickable(enabled = board[i] == 0 && !over && !cpuTurn) { board = board.toMutableList().also { it[i] = 1 } },
-                            contentAlignment = Alignment.Center) {
-                            Text(when (board[i]) { 1 -> "✕"; 2 -> "◯"; else -> "" }, fontSize = 40.sp, fontWeight = FontWeight.Bold,
-                                color = if (board[i] == 1) Palette.Pine else Extra.ember)
-                        }
-                    }
-                }
-            }
-        }
-        if (over) item {
+        item { Score(m.myScore, m.theirScore, status(m, "Computer"), them = "Computer", themEmoji = "🤖") }
+        item { Board(m) { spot -> m = MatchRules.move(m, 1, spot, m.moveCount + 1, m.round) } }
+        if (m.over) item {
             Box(Modifier.fillMaxWidth().padding(top = 20.dp), contentAlignment = Alignment.Center) {
-                Button(onClick = { youStart = !youStart; board = List(9) { 0 } }) { Text("Play again") }
+                Button(onClick = {
+                    m = if (code == SurvivalQuiz.code) Match("g-local-" + System.nanoTime().toString().takeLast(8), code, "computer", "Computer", iInvited = true,
+                        state = MatchState.PLAYING, myScore = m.myScore, theirScore = m.theirScore)
+                    else MatchRules.again(m, m.round + 1)
+                }) { Text("Play again") }
             }
         }
         item {
@@ -282,55 +435,6 @@ fun TicTacToeScreen(onBack: () -> Unit) {
     }
 }
 
-@Composable
-fun ConnectFourScreen(onBack: () -> Unit) {
-    var board by rememberSaveable { mutableStateOf(ConnectFour.empty()) }
-    var you by rememberSaveable { mutableIntStateOf(0) }
-    var cpu by rememberSaveable { mutableIntStateOf(0) }
-    var youStart by rememberSaveable { mutableStateOf(true) }
-    val win = ConnectFour.winner(board)
-    val over = win != null || ConnectFour.full(board)
-    val cpuTurn = !over && board.count { it == 1 } + (if (youStart) 0 else 1) == board.count { it == 2 } + 1
-    LaunchedEffect(board, cpuTurn) {
-        if (cpuTurn) {
-            delay(500)
-            ConnectFour.computerMove(board, 2)?.let { col -> ConnectFour.drop(board, col, 2)?.let { board = it } }
-        }
-    }
-    LaunchedEffect(win) { when (win?.first) { 1 -> you++; 2 -> cpu++ } }
-    SubScreen("Connect 4", onBack) {
-        item {
-            Score(you, cpu, when {
-                win?.first == 1 -> "You win! 🎉"
-                win?.first == 2 -> "Computer wins"
-                over -> "Draw"
-                cpuTurn -> "Computer is thinking…"
-                else -> "Your move · tap a column"
-            })
-        }
-        item {
-            Column(Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xFF1F5FA0)).padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (r in 0 until ConnectFour.ROWS) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (c in 0 until ConnectFour.COLS) {
-                        val i = r * ConnectFour.COLS + c
-                        val inLine = win?.second?.contains(i) == true
-                        Box(Modifier.weight(1f).aspectRatio(1f).clip(CircleShape)
-                            .background(when (board[i]) { 1 -> Extra.rose; 2 -> Color(0xFFF2C14E); else -> Color(0xFFEFF3EC) })
-                            .then(if (inLine) Modifier.border(3.dp, Color.White, CircleShape) else Modifier)
-                            .clickable(enabled = !over && !cpuTurn && ConnectFour.dropRow(board, c) != null) { ConnectFour.drop(board, c, 1)?.let { board = it } })
-                    }
-                }
-            }
-        }
-        item {
-            Text("You're red, the computer is yellow.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2,
-                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
-        }
-        if (over) item {
-            Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
-                Button(onClick = { youStart = !youStart; board = ConnectFour.empty() }) { Text("Play again") }
-            }
-        }
-    }
-}
+/** Kept for links from older screens: the classic games against the computer. */
+@Composable fun TicTacToeScreen(onBack: () -> Unit) = ComputerGameScreen(Match.TTT, onBack)
+@Composable fun ConnectFourScreen(onBack: () -> Unit) = ComputerGameScreen(Match.C4, onBack)
