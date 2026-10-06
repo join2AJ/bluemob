@@ -1,4 +1,4 @@
-<title>BlueMob Field Test 0.7</title>
+<title>BlueMob Field Test</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 /* Layout: a field log sheet. A sticky progress strip, then one card per category with tickable rows and pass/fail/note. */
@@ -67,7 +67,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
 
 <div class="wrap">
   <header>
-    <h1>BlueMob 0.7 field test</h1>
+    <h1>BlueMob 0.8 field test</h1>
     <p class="lede">Work through each category with your phones side by side, then apart. Mark each check Pass, Fail or Skip and add a note for anything odd. When you're done, tap <b>Copy results</b> and paste them to Claude. Your ticks are saved in this browser only.</p>
     <div class="phones">
       <span class="phone">Phone A · you</span><span class="phone">Phone B · friend</span><span class="phone">Phone C · relay (for 3-phone checks)</span>
@@ -79,7 +79,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
     <span class="counts" id="counts"></span>
     <div class="filters" role="group" aria-label="Show">
       <button type="button" data-f="all" aria-pressed="true">All</button>
-      <button type="button" data-f="new" aria-pressed="false">New in 0.7</button>
+      <button type="button" data-f="new" aria-pressed="false">New</button>
       <button type="button" data-f="open" aria-pressed="false">Not done</button>
       <button type="button" data-f="fail" aria-pressed="false">Failed</button>
     </div>
@@ -96,7 +96,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
   <div class="tips">
     <h2>Before you start</h2>
     <ul>
-      <li>Install the same APK (0.7.0) on every phone. Check under You → About.</li>
+      <li>Install the same APK (0.8.0) on every phone. Check under You → About.</li>
       <li>On each phone allow Nearby devices, Location, Notifications, and Microphone + Camera when asked for a call.</li>
       <li>Turn Bluetooth and Location on. Wi-Fi on (no network needed). Mobile data off unless a check says otherwise.</li>
       <li>Distances: "side by side" is under 2 m, "apart" is another room or 20–50 m outdoors, "out of range" is 150 m+ outdoors or several walls.</li>
@@ -108,10 +108,25 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
 
 <script>
 const CATS = [
-  { k: "setup", name: "Setup & first launch", why: "Each phone, once.", items: [
-    ["Open the app on a fresh install.", "Intro screens show; no crash; you land on Nearby.", 1],
-    ["Set a name and avatar, finish the intro.", "You → profile shows them and your BlueMob ID (BM xxxx xxxx …).", 1],
-    ["Force-close and reopen the app.", "Opens normally; name, ID, chats are still there.", 1],
+  { k: "setup", name: "Sign up & log in", why: "New in 0.8. Each phone.", items: [
+    ["Fresh install: go through the intro, pick a name.", "Then Create your account: PIN, fingerprint (if the phone has it), recovery code.", 1, 1],
+    ["Try 123456 or 111111 as the PIN.", "Refused as too easy to guess.", 1, 1],
+    ["Type a different PIN the second time.", "Says they didn't match and starts again.", 1, 1],
+    ["Recovery code screen: try Done without ticking \"I've written it down\".", "Done stays disabled until ticked. Write the code down for later.", 1, 1],
+    ["Upgrade a phone that had 0.7.", "Shows Secure your account (not Create); chats, contacts and ID unchanged.", 1, 1],
+    ["Leave BlueMob for 2 minutes, come back.", "Asks for PIN (or fingerprint). Wrong PIN shows tries left; 5 wrong starts a 30 s wait.", 1, 1],
+    ["While locked, have phone B message you and send SOS.", "Messages still arrive (notification); the SOS alert shows over the lock screen.", 2, 1],
+    ["On the lock screen, hold Emergency SOS for a second.", "SOS goes out without logging in; other phones get it.", 2, 1],
+    ["You → Account & login: change PIN, show recovery code, change lock time.", "Recovery code needs your PIN first and matches what you wrote down.", 1, 1],
+    ["Restore: uninstall (or use another phone), install, tap \"I already have a BlueMob ID\", type the code.", "App restarts with the same BM ID; friends' messages reach you on it.", 2, 1],
+    ["Restore with one character wrong.", "Says the code isn't right; doesn't restore a different ID.", 1, 1],
+  ]},
+  { k: "compat", name: "Different versions together", why: "New in 0.8. Keep one phone on 0.6.x or 0.7.0, update the other.", items: [
+    ["0.8 phone and 0.7/0.6 phone side by side.", "They find and connect to each other as before.", 2, 1],
+    ["Message both ways, send SOS both ways, lost mode both ways.", "All work between the versions.", 2, 1],
+    ["From 0.8, challenge the 0.6 phone to a game, call it, or ring it.", "Nothing hangs: after about 40 s (games), 45 s (calls) or 15 s (ring), 0.8 says there's no answer and that BlueMob 0.6 or older needs an update.", 2, 1],
+    ["0.8 and 0.7: game, voice call.", "Both work (0.7 already has them).", 2, 1],
+    ["If you have a phone with 0.4 or older, put it nearby.", "0.8 shows \"… is nearby on a different BlueMob version\" on Nearby.", 2, 1],
   ]},
   { k: "find", name: "Finding each other", why: "Discovery and auto-connect over Bluetooth / Wi-Fi.", items: [
     ["A and B side by side, mesh on both.", "Each sees the other on Nearby within <b>30 s</b>, then <b>Online nearby</b> with a green dot.", 2],
@@ -204,7 +219,7 @@ const CATS = [
   ]},
 ];
 
-const KEY = "bluemob-field-test-0.7";
+const KEY = "bluemob-field-test-0.8";
 let state = {};
 try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { state = {}; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
@@ -234,7 +249,7 @@ function render() {
       row.className = "row" + (s.v === "pass" ? " pass" : s.v === "fail" ? " fail" : "");
       row.innerHTML = `<span class="id">${x.id}</span><div class="body">
         <p class="step">${x.step}</p><p class="expect"><b>Expect:</b> ${x.expect}</p>
-        <div class="meta"><span class="tag">${x.phones} phone${x.phones > 1 ? "s" : ""}</span>${x.isNew ? '<span class="tag new">new in 0.7</span>' : ""}
+        <div class="meta"><span class="tag">${x.phones} phone${x.phones > 1 ? "s" : ""}</span>${x.isNew ? '<span class="tag new">new</span>' : ""}
           <span class="verdict" role="group" aria-label="Result for ${x.id}">
             <button type="button" class="p" aria-pressed="${s.v === "pass"}">Pass</button>
             <button type="button" class="f" aria-pressed="${s.v === "fail"}">Fail</button>
@@ -265,7 +280,7 @@ document.querySelectorAll(".filters button").forEach(b => b.onclick = () => { fi
 function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
 
 document.getElementById("copy").onclick = () => {
-  const lines = ["BlueMob 0.7 field test results"];
+  const lines = ["BlueMob 0.8 field test results"];
   CATS.forEach(c => {
     const rows = all.filter(x => x.cat === c && (state[x.id]?.v || state[x.id]?.n));
     if (!rows.length) return;

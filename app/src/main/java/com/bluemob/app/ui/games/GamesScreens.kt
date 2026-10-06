@@ -82,6 +82,7 @@ fun GamesScreen(
                                 MatchState.INVITING -> "Waiting for ${m.opponentName} to accept…"
                                 MatchState.DECLINED -> "${m.opponentName} said not now"
                                 MatchState.LEFT -> "${m.opponentName} left the game"
+                                MatchState.NO_ANSWER -> "No answer. If they have BlueMob 0.6 or older, they need to update to play"
                                 MatchState.PLAYING -> "${m.myScore}–${m.theirScore} · " + when {
                                     m.over -> "round over"
                                     m.myTurn -> "your move"
@@ -131,6 +132,7 @@ fun MatchScreen(m: Match, onBack: () -> Unit, onPlay: (Int) -> Unit, onAgain: ()
                 m.state == MatchState.LEFT -> "${m.opponentName} left the game"
                 m.state == MatchState.INVITING -> "Waiting for ${m.opponentName} to accept…"
                 m.state == MatchState.DECLINED -> "${m.opponentName} said not now"
+                m.state == MatchState.NO_ANSWER -> "No answer. If ${m.opponentName} has BlueMob 0.6 or older, they need to update to play"
                 win?.first == 1 -> "You win! 🎉"
                 win?.first == 2 -> "${m.opponentName} wins"
                 m.over -> "Draw"

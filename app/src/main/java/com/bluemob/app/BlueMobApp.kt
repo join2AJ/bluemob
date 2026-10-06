@@ -72,6 +72,7 @@ class BlueMobApp : Application() {
     lateinit var trust: TrustManager private set
     lateinit var matches: com.bluemob.app.games.Matches private set
     lateinit var calls: com.bluemob.app.call.CallManager private set
+    lateinit var lock: com.bluemob.app.account.AppLock private set
     private var ratingPackets: List<org.json.JSONObject> = emptyList()
     private var auditEntries: List<com.bluemob.app.data.AuditEntry> = emptyList()
     private var auditHead: com.bluemob.app.data.AuditEntry? = null
@@ -117,6 +118,7 @@ class BlueMobApp : Application() {
         })
         CrashLog.step(this, "unlocking your identity (Android Keystore)")
         identity = Identity(this)
+        lock = com.bluemob.app.account.AppLock(this)
         CrashLog.step(this, "unlocking encrypted contacts")
         contacts = ContactsStore(this)
         // Robolectric (the app-startup test) can't load SQLCipher's native library; real phones always encrypt.

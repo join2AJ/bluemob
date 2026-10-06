@@ -23,3 +23,13 @@ class EndpointInfoTest {
         assertNull(EndpointInfo.decode("BM2||name"))
     }
 }
+
+class EndpointVersionTest {
+    @Test fun recognisesEveryBlueMobVersionButOnlyLinksWithOurs() {
+        assertEquals(1 to "Ravi", EndpointInfo.version("BM1|abc|Ravi"))
+        assertEquals(3 to "Asha", EndpointInfo.version("BM3|abc|Asha"))
+        assertEquals(2 to "Asha", EndpointInfo.version(EndpointInfo.encode("abc", "Asha")))
+        assertNull(EndpointInfo.version("SomeOtherApp|x|y"))
+        assertNull(EndpointInfo.version("BMX|x|y"))
+    }
+}

@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
 
-enum class MatchState { INVITING, INVITED, PLAYING, DECLINED, LEFT }
+enum class MatchState { INVITING, INVITED, PLAYING, DECLINED, LEFT, NO_ANSWER }
 
 /**
  * A game against a person over the mesh. The board is from this phone's side: 1 = me, 2 = them.
@@ -74,7 +74,7 @@ object MatchRules {
 /** Invites, moves and scores for games with people nearby. Packets are signed and pass through other phones if needed. */
 class Matches(
     private val mesh: NearbyMeshTransport,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     /** Called when someone invites us, so the app can notify while it's in the background. */
     private val onInvite: (Match) -> Unit = {},
 ) {
@@ -92,6 +92,11 @@ class Matches(
         val m = Match("g-" + UUID.randomUUID().toString().take(10), game, nodeId, name, iInvited = true, state = MatchState.INVITING)
         if (!send(m, "invite", JSONObject().put("game", game))) return null
         _all.update { it + (m.id to m) }
+        // No reply: they may be on a version without games (0.6 or older can't answer at all).
+        scope.launch {
+            kotlinx.coroutines.delay(INVITE_TIMEOUT_MS)
+            change(m.id) { x -> if (x.state == MatchState.INVITING) x.copy(state = MatchState.NO_ANSWER) else x }
+        }
         return m
     }
 
@@ -143,7 +148,7 @@ class Matches(
                 _all.update { it + (id to m) }
                 onInvite(m)
             }
-            "accept" -> change(id) { m -> if (m.state == MatchState.INVITING) m.copy(state = MatchState.PLAYING) else m }
+            "accept" -> change(id) { m -> if (m.state == MatchState.INVITING || m.state == MatchState.NO_ANSWER) m.copy(state = MatchState.PLAYING) else m }
             "decline" -> change(id) { m -> if (m.state == MatchState.INVITING) m.copy(state = MatchState.DECLINED) else m }
             "leave" -> change(id) { m -> m.copy(state = MatchState.LEFT) }
             "move" -> change(id) { m -> MatchRules.move(m, 2, b.optInt("spot", -1), b.optInt("n"), b.optInt("round")) }
@@ -159,5 +164,6 @@ class Matches(
 
     companion object {
         const val KIND = "game"
+        const val INVITE_TIMEOUT_MS = 40_000L
     }
 }

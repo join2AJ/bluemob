@@ -71,7 +71,7 @@ fun NewChatScreen(
                     Text("YOUR BLUEMOB ID", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.8f))
                     Text("BM " + formatId(myId), style = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace), color = Color.White,
                         modifier = Modifier.padding(top = 4.dp))
-                    Text("Give it to anyone, at home or on the trail. They can message you with it: no phone number, no internet. It can't be copied by another phone.",
+                    Text("Give it to anyone, at home or on the trail. They can message you with it: no phone number, no internet. It's tied to your phone's key: only your recovery code can move it to a new phone.",
                         style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.padding(top = 6.dp))
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { clipboard.setText(AnnotatedString("BM " + formatId(myId))); copied = true },

@@ -21,7 +21,14 @@ data class Peer(
     val quality: LinkQuality? = null,
     /** True once the phone proved it owns its ID (signed hello). */
     val verified: Boolean = false,
+    /** Features their BlueMob has (from its hello). Null for versions before 0.7, which didn't say. */
+    val caps: Set<String>? = null,
+    /** Their BlueMob version, e.g. "0.8.0", if they said. */
+    val app: String? = null,
 )
+
+/** A BlueMob phone nearby that speaks a different protocol, so the two can't link. */
+data class OtherVersion(val name: String, val protocol: Int, val seenAt: Long)
 
 data class LogLine(val timeMillis: Long, val text: String)
 

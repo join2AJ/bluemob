@@ -33,6 +33,35 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.8: login, recovery code, mixed versions
+
+- **Sign up**: choose a name, create a 6-digit PIN, optionally turn on fingerprint/face unlock, and write down your
+  recovery code. There's no server account: your account is your BlueMob ID and its key, kept on the phone.
+- **Log in**: PIN or fingerprint when BlueMob opens, and again after it's been in the background (you choose:
+  right away, 1, 5 or 30 minutes). Five wrong PINs start a wait that doubles up to 15 minutes. The PIN is stored
+  only as a salted PBKDF2 hash. The mesh keeps running while locked, and **SOS works from the lock screen**
+  (hold the button for a second).
+- **Recovery code**: 28 characters for new accounts (a 120-bit seed the key is derived from), 56 for accounts made
+  before 0.8 (the key itself). It's the only way to move a BlueMob ID to a new phone, and is shown only after the PIN.
+- **Mixed versions**: see *Compatibility* below.
+
+## Compatibility between versions
+
+| Feature | Works between |
+|---|---|
+| Finding each other, messages, receipts, message by ID, SOS, lost mode, rescue groups, ratings | 0.5 and every newer version |
+| "Ring their phone", games with people, voice and video calls | 0.7 and newer on both phones |
+| Login, recovery code | Per phone (nothing to agree on) |
+
+0.4 and older use an unsigned protocol (`BM1`) and can't link with 0.5+. Instead of ignoring them silently, newer
+phones show "*name* is nearby on a different BlueMob version". When a feature needs a newer version on the other
+phone, BlueMob says so ("Asha has BlueMob 0.6… ask them to update") instead of waiting forever.
+
+Rules that keep this working: every hello carries the app version and a list of capabilities; new features add new
+packet types and capabilities and never change what existing packets mean; unknown packet types and fields are
+ignored; the protocol number in the endpoint name (`BM2`) changes only when old phones truly can't understand new
+ones.
+
 ## Android 0.6: encrypted storage, internet bridge, star ratings
 
 - **Everything on the phone is encrypted.** The database (messages, rescue groups, trail, audit trail, ratings) uses

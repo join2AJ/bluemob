@@ -103,7 +103,7 @@ class CallManager(
         if (!signal(c, "invite", JSONObject().put("video", video))) return "Couldn't reach $name"
         _call.value = c
         ringback()
-        timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == c.id && _call.value?.phase == CallPhase.OUTGOING) { signal(c, "end"); finish("No answer") } }
+        timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == c.id && _call.value?.phase == CallPhase.OUTGOING) { signal(c, "end"); finish(if (mesh.mayBeOld(c.peer)) "No answer. If ${c.name} has BlueMob 0.6 or older, they need to update for calls" else "No answer") } }
         audit.add(AuditKind.MESH, "${if (video) "Video" else "Voice"} call to $name")
         return null
     }

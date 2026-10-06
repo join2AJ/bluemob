@@ -12,6 +12,16 @@ object EndpointInfo {
 
     fun encode(nodeId: String, name: String): String = "$PREFIX|$nodeId|${name.replace("|", " ")}"
 
+    /**
+     * The protocol number of any BlueMob phone (`BM1`, `BM2`, `BM3`…), even one we can't link with, and the name
+     * it shows. Lets us tell the user "Ravi has an older BlueMob" instead of silently ignoring them.
+     */
+    fun version(endpointName: String): Pair<Int, String>? {
+        val parts = endpointName.split("|")
+        val n = parts[0].removePrefix("BM").takeIf { parts[0].startsWith("BM") }?.toIntOrNull() ?: return null
+        return n to (parts.lastOrNull()?.takeIf { parts.size >= 3 && it.isNotBlank() } ?: "Someone")
+    }
+
     /** Returns (nodeId, name), or null if this is not a BlueMob endpoint. */
     fun decode(endpointName: String): Pair<String, String>? {
         val parts = endpointName.split("|", limit = 3)

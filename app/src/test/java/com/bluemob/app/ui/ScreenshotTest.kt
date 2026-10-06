@@ -250,6 +250,19 @@ class ScreenshotTest {
         com.bluemob.app.ui.games.MatchScreen(com.bluemob.app.games.Match("g-1", "c4", "b7e4", "Ravi", iInvited = true,
             state = com.bluemob.app.games.MatchState.PLAYING, board = b, myScore = 1), {}, {}, {}, {})
     }
+    @Test fun lockScreen() = shot(tall = true) {
+        com.bluemob.app.ui.account.LockScreen("Arjun", "🦅", "5742 99A8", true, { com.bluemob.app.account.PinResult.Wrong(3) }, {}, { 2 }, false)
+    }
+    @Test fun signUpPin() = shot {
+        com.bluemob.app.ui.account.AccountSetup(false, true, false, { "" }, {}, {}, {})
+    }
+    @Test fun recoveryCode() = shot(tall = true) {
+        com.bluemob.app.ui.account.AccountSetup(true, false, true, { "7KQ2-M9XA-T4PB-0RCE-W3HD-NF6Y-JS8G" }, {}, {}, {})
+    }
+    @Test fun accountSettings() = shot(tall = true) {
+        com.bluemob.app.ui.account.AccountScreen("5742 99A8", true, true, 60_000, false, {}, {}, {}, {}, { com.bluemob.app.account.PinResult.Ok }, {}, { "" }, {})
+    }
+    @Test fun restore() = shot { com.bluemob.app.ui.account.RestoreScreen({}) { null } }
     @Test fun incomingCall() = shot {
         com.bluemob.app.ui.call.CallScreen(com.bluemob.app.call.Call("c-1", "a1c2", "Asha", true, com.bluemob.app.call.CallPhase.INCOMING),
             null, null, false, {}, {}, {}, {}, {}, { false }, {})

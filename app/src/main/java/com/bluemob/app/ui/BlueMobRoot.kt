@@ -116,6 +116,11 @@ class SystemActions(
     val shareId: () -> Unit = {},
     /** Asks for the microphone (and camera for video), then runs the callback whatever the answer. */
     val requestCallPermissions: (Boolean, () -> Unit) -> Unit = { _, then -> then() },
+    val canUseBiometric: () -> Boolean = { false },
+    /** Shows the phone's fingerprint / face prompt and calls back on success. */
+    val biometricUnlock: (() -> Unit) -> Unit = {},
+    val restartApp: () -> Unit = {},
+    val leaveApp: () -> Unit = {},
 )
 
 @Composable
@@ -125,14 +130,34 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
     val avatar by vm.avatar.collectAsStateWithLifecycle()
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        AnimatedContent(onboarded, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "root") { done ->
-            if (!done) {
-                OnboardingScreen(initialName = name, initialAvatar = avatar, onFinish = { n, a ->
+        val pinSet by vm.pinSet.collectAsStateWithLifecycle()
+        val recoverySaved by vm.recoverySaved.collectAsStateWithLifecycle()
+        var restoring by rememberSaveable { mutableStateOf(false) }
+        // People who had BlueMob before accounts existed see "Secure your account" instead of "Create".
+        val upgrading = rememberSaveable { onboarded && !pinSet }
+        val stage = when {
+            !onboarded && restoring -> "restore"
+            !onboarded -> "intro"
+            !pinSet || !recoverySaved -> "account"
+            else -> "app"
+        }
+        AnimatedContent(stage, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "root") { s ->
+            when (s) {
+                "restore" -> {
+                    BackHandler { restoring = false }
+                    com.bluemob.app.ui.account.RestoreScreen(onBack = { restoring = false }, onRestore = { code ->
+                        vm.restore(code).also { if (it == null) actions.restartApp() }
+                    })
+                }
+                "intro" -> OnboardingScreen(initialName = name, initialAvatar = avatar, onFinish = { n, a ->
                     vm.setName(n); vm.setAvatar(a); vm.finishOnboarding()
                     if (!system.permissionsGranted) actions.requestMeshPermissions() else vm.startMesh()
-                })
-            } else {
-                MainShell(vm, system, actions)
+                }, onRestore = { restoring = true })
+                "account" -> com.bluemob.app.ui.account.AccountSetup(
+                    upgrading = upgrading, canUseBiometric = remember { actions.canUseBiometric() }, startAtCode = pinSet,
+                    recoveryCode = vm::recoveryCode, onPin = vm::setPin, onBiometric = vm::setBiometric, onDone = vm::setRecoverySaved,
+                )
+                else -> MainShell(vm, system, actions)
             }
         }
     }
@@ -208,7 +233,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == null -> Tabs(tab, vm.unreadCount(conversations), onTab = { tab = it }, onSos = { push("sos") }) { padding ->
                     when (tab) {
                         Tab.NEARBY -> NearbyScreen(
-                            NearbyState(name, running, people, system.permissionsGranted, system.locationServicesOff, sharing, myFix != null, online, radios),
+                            NearbyState(name, running, people, system.permissionsGranted, system.locationServicesOff, sharing, myFix != null, online, radios,
+                                vm.otherVersions.collectAsStateWithLifecycle().value.values.map { it.name }),
                             padding, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onRequestPermissions = actions.requestMeshPermissions, onOpenLocationSettings = actions.openLocationSettings,
                             onShareLocation = { toggleLocation(true) }, onOpenChat = { push("chat:$it") },
@@ -239,7 +265,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             lastError = remember { vm.lastError() },
                             myStars = (trustScores[vm.nodeId] ?: vm.scoreFor(vm.nodeId)).stars, myRatingCount = trustScores[vm.nodeId]?.ratings ?: 0,
                             onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
-                            onGames = { push("games") }, sosContactCount = sosContacts.size,
+                            onGames = { push("games") }, onAccount = { push("account") }, sosContactCount = sosContacts.size,
                             background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
                         )
                     }
@@ -327,6 +353,14 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 }
                 route == "game:ttt" -> TicTacToeScreen(::pop)
                 route == "game:c4" -> ConnectFourScreen(::pop)
+                route == "account" -> com.bluemob.app.ui.account.AccountScreen(
+                    shortId = com.bluemob.app.util.formatId(vm.nodeId).take(9),
+                    biometric = vm.biometric.collectAsStateWithLifecycle().value, canUseBiometric = remember { actions.canUseBiometric() },
+                    lockAfterMs = vm.lockAfterMs.collectAsStateWithLifecycle().value, recoverySaved = vm.recoverySaved.collectAsStateWithLifecycle().value,
+                    onBack = ::pop, onBiometric = { on -> if (on) actions.biometricUnlock { vm.setBiometric(true) } else vm.setBiometric(false) },
+                    onLockAfter = vm::setLockAfter, onLockNow = vm::lockNow, checkPin = vm::checkPin, onNewPin = vm::setPin,
+                    recoveryCode = vm::recoveryCode, onRecoverySaved = vm::setRecoverySaved,
+                )
                 route == "signal" -> SosSignalScreen(signalDefault, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = ::pop)
             }
         }
@@ -345,8 +379,19 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             )
         }
 
+        val locked by vm.locked.collectAsStateWithLifecycle()
+        val biometricOn by vm.biometric.collectAsStateWithLifecycle()
+        if (locked) {
+            BackHandler { actions.leaveApp() }
+            com.bluemob.app.ui.account.LockScreen(
+                name, avatar, com.bluemob.app.util.formatId(vm.nodeId).take(9), biometricOn,
+                onPin = vm::checkPin, onBiometric = { actions.biometricUnlock { vm.unlockedByBiometric() } },
+                onSos = { vm.sendSos("") }, sosActive = mySos != null,
+            )
+        }
+
         val matchesNow by vm.matches.collectAsStateWithLifecycle()
-        matchesNow.values.firstOrNull { it.state == com.bluemob.app.games.MatchState.INVITED }?.takeIf { top != "games" }?.let { m ->
+        matchesNow.values.firstOrNull { it.state == com.bluemob.app.games.MatchState.INVITED }?.takeIf { top != "games" && !locked }?.let { m ->
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = {},
                 title = { Text("${m.opponentName} wants to play") },
@@ -369,7 +414,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             )
         }
 
-        notice?.takeIf { top != "rescue:" + it.room }?.let { n ->
+        notice?.takeIf { top != "rescue:" + it.room && !locked }?.let { n ->
             Surface(
                 onClick = { notice = null; push("rescue:" + n.room) }, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp,
                 modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp).fillMaxWidth(),

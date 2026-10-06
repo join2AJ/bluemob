@@ -29,7 +29,7 @@ import com.bluemob.app.ui.SystemActions
 import com.bluemob.app.ui.SystemStatus
 import com.bluemob.app.ui.theme.BlueMobTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
 
     private val viewModel: AppViewModel by viewModels()
     private val systemStatus = mutableStateOf(SystemStatus(false, false, false, false))
@@ -55,6 +55,33 @@ class MainActivity : ComponentActivity() {
     private var afterCallPermissions: (() -> Unit)? = null
     private val callPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { afterCallPermissions?.invoke(); afterCallPermissions = null }
+
+    private val biometricKinds = androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
+
+    private fun canUseBiometric() =
+        androidx.biometric.BiometricManager.from(this).canAuthenticate(biometricKinds) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
+
+    private fun biometricUnlock(onSuccess: () -> Unit) {
+        if (!canUseBiometric()) return
+        val prompt = androidx.biometric.BiometricPrompt(this, ContextCompat.getMainExecutor(this), object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: androidx.biometric.BiometricPrompt.AuthenticationResult) = onSuccess()
+        })
+        runCatching {
+            prompt.authenticate(androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Unlock BlueMob").setSubtitle("Or use your PIN")
+                .setNegativeButtonText("Use PIN").setAllowedAuthenticators(biometricKinds).build())
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        (application as BlueMobApp).takeIf { it.startupError == null }?.lock?.onForeground()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        (application as BlueMobApp).takeIf { it.startupError == null }?.lock?.onBackground()
+    }
 
     private fun requestCallPermissions(video: Boolean, then: () -> Unit) {
         val want = listOfNotNull(Manifest.permission.RECORD_AUDIO, if (video) Manifest.permission.CAMERA else null)
@@ -91,6 +118,10 @@ class MainActivity : ComponentActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) stepPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
             },
             requestCallPermissions = ::requestCallPermissions,
+            canUseBiometric = ::canUseBiometric,
+            biometricUnlock = ::biometricUnlock,
+            restartApp = ::restart,
+            leaveApp = { moveTaskToBack(true) },
         )
         handleRoute(intent)
         // Show over the lock screen only while an SOS alert is up, never for chats.

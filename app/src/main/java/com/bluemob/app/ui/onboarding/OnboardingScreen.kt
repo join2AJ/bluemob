@@ -89,6 +89,8 @@ fun OnboardingScreen(
     initialName: String,
     initialAvatar: String,
     onFinish: (name: String, avatar: String) -> Unit,
+    /** "I already have a BlueMob ID": restore one with a recovery code. */
+    onRestore: () -> Unit = {},
 ) {
     val pageCount = slides.size + 1
     val pager = rememberPagerState { pageCount }
@@ -107,6 +109,8 @@ fun OnboardingScreen(
                 Spacer(Modifier.weight(1f))
                 if (!isLast) {
                     TextButton(onClick = { scope.launch { pager.animateScrollToPage(pageCount - 1) } }) { Text("Skip") }
+                } else {
+                    TextButton(onClick = onRestore) { Text("I already have a BlueMob ID") }
                 }
             }
 

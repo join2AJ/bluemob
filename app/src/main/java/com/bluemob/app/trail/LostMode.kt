@@ -121,11 +121,20 @@ class LostMode(
     /** Asks a lost or SOS person's phone to whistle and flash so we can find them. False if no one is in range. */
     fun ring(nodeId: String): Boolean {
         val sent = mesh.sendApp(nodeId, RING)
-        if (sent) audit.add(AuditKind.POSITION, "Asked ${mesh.nameOf(nodeId)}'s phone to ring and flash")
+        if (sent) {
+            audit.add(AuditKind.POSITION, "Asked ${mesh.nameOf(nodeId)}'s phone to ring and flash")
+            awaitingReply += nodeId
+            scope.launch {
+                delay(RING_REPLY_WAIT_MS)
+                if (awaitingReply.remove(nodeId)) say("No reply from ${mesh.nameOf(nodeId)}'s phone yet." +
+                    if (mesh.mayBeOld(nodeId)) " If they have BlueMob 0.6 or older, ringing needs an update." else " They may be out of range: try again closer.")
+            }
+        }
         return sent
     }
 
     private var ringJob: Job? = null
+    private val awaitingReply = mutableSetOf<String>()
     private var lastRing = 0L
 
     private fun onApp(e: MeshEvent.App) {
@@ -153,7 +162,7 @@ class LostMode(
                     } finally { signals?.torch(false) }
                 }
             }
-            RING_REPLY -> say(
+            RING_REPLY -> if (awaitingReply.remove(e.fromNodeId)) say(
                 if (e.body.optBoolean("ok")) "🔔 ${e.name}'s phone is whistling and flashing now. Listen and look around."
                 else "${e.name} isn't in lost mode or SOS, so their phone won't ring. Message them instead."
             )
@@ -170,5 +179,6 @@ class LostMode(
         const val TICK_MS = 3_000L
         const val RING_MS = 20_000L
         const val RING_GAP_MS = 8_000L
+        const val RING_REPLY_WAIT_MS = 15_000L
     }
 }

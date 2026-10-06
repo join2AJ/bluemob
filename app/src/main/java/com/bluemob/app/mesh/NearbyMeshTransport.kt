@@ -408,6 +408,25 @@ class NearbyMeshTransport(
         return true
     }
 
+    private val _otherVersions = MutableStateFlow<Map<String, OtherVersion>>(emptyMap())
+    /** BlueMob phones nearby on a protocol we can't link with (very old or much newer versions). */
+    val otherVersions: StateFlow<Map<String, OtherVersion>> = _otherVersions.asStateFlow()
+
+    /**
+     * Null if [nodeId]'s BlueMob can do [cap], or we can't tell. Otherwise their version, in words, for a
+     * message like "Asha has BlueMob 0.9-lite: ask them to update". Messages, SOS and lost mode work with every version.
+     */
+    fun featureGap(nodeId: String, cap: String): String? {
+        val peer = _peers.value.values.firstOrNull { it.nodeId == nodeId && it.state == PeerState.CONNECTED && it.verified } ?: return null
+        // 0.7 has games, calls and ringing but didn't list its features; 0.6 and older have none of them.
+        val caps = peer.caps ?: return null
+        return if (cap in caps) null else "BlueMob ${peer.app ?: "(older)"}"
+    }
+
+    /** True when [nodeId] is connected but didn't list its features: BlueMob 0.7 or older. */
+    fun mayBeOld(nodeId: String): Boolean =
+        _peers.value.values.any { it.nodeId == nodeId && it.state == PeerState.CONNECTED && it.verified && it.caps == null }
+
     /** Human words for the link to someone, e.g. "Bluetooth" or "Wi-Fi". */
     override fun neighbors(): List<String> = connectedNodes()
     override fun send(nodeId: String, packet: JSONObject) { connectedEndpointFor(nodeId)?.let { sendTo(it, packet) } }
@@ -455,6 +474,8 @@ class NearbyMeshTransport(
     /** Our profile, our public key, and a signature over this connection's token: proof we own our ID. */
     private fun helloJson(endpointId: String? = null) = JSONObject()
         .put("t", TYPE_HELLO).put("v", PROTOCOL)
+        .put("app", com.bluemob.app.BuildConfig.VERSION_NAME)
+        .put("caps", org.json.JSONArray(CAPS.toList()))
         .put("name", identity.displayName.value)
         .put("avatar", identity.avatar.value)
         .put("pk", identity.keys.publicB64)
@@ -471,7 +492,14 @@ class NearbyMeshTransport(
 
     private val discoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            val (nodeId, name) = EndpointInfo.decode(info.endpointName) ?: return
+            val (nodeId, name) = EndpointInfo.decode(info.endpointName) ?: run {
+                // Another BlueMob version we can't link with: say so, rather than ignoring them.
+                EndpointInfo.version(info.endpointName)?.takeIf { it.first != PROTOCOL }?.let { (proto, who) ->
+                    _otherVersions.update { it + (endpointId to OtherVersion(who.take(Identity.MAX_NAME_LENGTH), proto, System.currentTimeMillis())) }
+                    log("Found $who with ${if (proto < PROTOCOL) "an older" else "a newer"} BlueMob that can't link with this one")
+                }
+                return
+            }
             if (nodeId == identity.nodeId) return
             // Found again after discovery restarted, but we're already linked: keep the live link as it is.
             if (_peers.value.values.any { it.nodeId == nodeId && it.state != PeerState.DISCOVERED }) return
@@ -486,6 +514,7 @@ class NearbyMeshTransport(
         }
 
         override fun onEndpointLost(endpointId: String) {
+            _otherVersions.update { it - endpointId }
             val peer = _peers.value[endpointId] ?: return
             if (peer.state == PeerState.DISCOVERED) {
                 _peers.update { it - endpointId }
@@ -585,7 +614,9 @@ class NearbyMeshTransport(
                     if (!verifyHello(endpointId, peer, json)) return
                     val name = json.optString("name").replace("|", " ").trim().take(Identity.MAX_NAME_LENGTH).ifBlank { peer.name }
                     val avatar = json.optString("avatar").take(8).ifBlank { null }
-                    _peers.update { it + (endpointId to peer.copy(name = name, verified = true)) }
+                    val caps = json.optJSONArray("caps")?.let { a -> (0 until minOf(a.length(), 64)).map { a.optString(it).take(16) }.toSet() }
+                    val app = json.optString("app").take(16).ifBlank { null }
+                    _peers.update { it + (endpointId to peer.copy(name = name, verified = true, caps = caps, app = app)) }
                     contacts.upsert(peer.nodeId) { c ->
                         c?.copy(name = name, avatar = avatar, lastSeen = System.currentTimeMillis())
                             ?: Contact(peer.nodeId, name, avatar, System.currentTimeMillis())
@@ -721,6 +752,11 @@ class NearbyMeshTransport(
         private const val TYPE_LOC = "loc"
         /** Bumped when packets change in ways older versions can't read. Matches the endpoint prefix. */
         const val PROTOCOL = 2
+        /**
+         * What this version can do, sent in every hello. Older phones ignore packet types they don't know, so new
+         * features are added as new capabilities and new types, never by changing what existing packets mean.
+         */
+        val CAPS = setOf("msg", "rcpt", "sos", "lost", "room", "rate", "audit", "app", "game", "call", "ring")
         private const val MAX_PAYLOAD = 32 * 1024
         private const val MAX_NOTE = 200
         private const val TYPE_SOS = "sos"

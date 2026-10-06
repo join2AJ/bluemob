@@ -85,6 +85,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val compassAvailable = blueMob.heading.available
     val sosContacts = settings.sosContacts
     val radios = blueMob.radios.state
+    val otherVersions = mesh.otherVersions
     val trailOn = trail.enabled
     val trailPoints = trail.points
     val estimate = trail.estimate
@@ -180,7 +181,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun clearTrail() = trail.clear()
     fun onStepPermission() = trail.onStepPermission()
     fun setLost(on: Boolean) = if (on) lostMode.start() else lostMode.stop()
-    fun ring(nodeId: String) { if (!lostMode.ring(nodeId)) toast("No one is in range to pass this on. Get closer, or wait for the mesh to reconnect.") else toast("Ringing… ask everyone to be quiet and listen.") }
+    fun ring(nodeId: String) { if (tooOld(nodeId, blueMob.contacts.contacts.value[nodeId]?.name ?: "They", "ring", "ringing")) return; if (!lostMode.ring(nodeId)) toast("No one is in range to pass this on. Get closer, or wait for the mesh to reconnect.") else toast("Ringing… ask everyone to be quiet and listen.") }
     fun setBaseCamp() = savePlace("Base camp", baseCamp = true)
     fun refreshRadios() = blueMob.radios.refresh()
 
@@ -276,9 +277,37 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun isBot(nodeId: String) = nodeId == SkyBot.NODE_ID
 
+    private val lock = blueMob.lock
+    val pinSet = lock.pinSet
+    val locked = lock.locked
+    val biometric = lock.biometric
+    val lockAfterMs = lock.lockAfterMs
+    val recoverySaved = lock.recoverySaved
+    fun setPin(pin: String) { val first = !lock.hasPin; lock.setPin(pin); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, if (first) "Account PIN created" else "Account PIN changed") }
+    fun checkPin(pin: String) = lock.check(pin).also { if (it is com.bluemob.app.account.PinResult.Wait) blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Several wrong PINs: login paused") }
+    fun unlockedByBiometric() = lock.unlockedByBiometric()
+    fun setBiometric(on: Boolean) = lock.setBiometric(on)
+    fun setLockAfter(ms: Long) = lock.setLockAfter(ms)
+    fun lockNow() = lock.lockNow()
+    fun recoveryCode(): String = identity.recoveryCode()
+    fun setRecoverySaved() { lock.setRecoverySaved(); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Recovery code saved") }
+    /** Restores an ID from a recovery code. Returns an error to show, or null when the app should restart. */
+    fun restore(code: String): String? {
+        val id = identity.restore(code) ?: return "That code isn't right. Check each group of 4, especially 0/O and 1/I."
+        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "BlueMob ID restored from a recovery code: BM ${com.bluemob.app.util.formatId(id)}")
+        return null
+    }
+
     val matches = blueMob.matches.all
+    /** Tells the user when the other phone's BlueMob is too old for a feature. True if it is. */
+    private fun tooOld(nodeId: String, name: String, cap: String, what: String): Boolean {
+        val theirs = mesh.featureGap(nodeId, cap) ?: return false
+        toast("$name has $theirs, which can't do $what yet. Ask them to update BlueMob. Messages and SOS still work between you.")
+        return true
+    }
+
     fun challenge(nodeId: String, name: String, game: String): String? =
-        blueMob.matches.invite(nodeId, name, game)?.id ?: null.also { toast("$name isn't in range right now. Games need them nearby.") }
+        if (tooOld(nodeId, name, "game", "games")) null else blueMob.matches.invite(nodeId, name, game)?.id ?: null.also { toast("$name isn't in range right now. Games need them nearby.") }
     fun acceptGame(id: String) = blueMob.matches.accept(id)
     fun declineGame(id: String) = blueMob.matches.decline(id)
     fun playGame(id: String, spot: Int) = blueMob.matches.play(id, spot)
@@ -289,7 +318,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val call = calls.call
     val remoteFrame = calls.remoteFrame
     val localFrame = calls.localFrame
-    fun startCall(nodeId: String, name: String, video: Boolean) { calls.start(nodeId, name, video)?.let(::toast) }
+    fun startCall(nodeId: String, name: String, video: Boolean) { if (tooOld(nodeId, name, "call", "calls")) return; calls.start(nodeId, name, video)?.let(::toast) }
     fun acceptCall() = calls.accept()
     fun hangUp() = calls.hangUp()
     fun toggleMute() = calls.toggleMute()

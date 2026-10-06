@@ -72,6 +72,8 @@ data class NearbyState(
     val hasMyFix: Boolean,
     val online: Boolean,
     val radios: RadioState? = null,
+    /** Names of BlueMob users nearby whose version can't link with this one. */
+    val otherVersions: List<String> = emptyList(),
 )
 
 @Composable
@@ -104,6 +106,16 @@ fun NearbyScreen(
             item { RadioStrip(radios, state.online, onConnections, Modifier.padding(bottom = 12.dp)) }
             radios.firstProblem()?.let { problem ->
                 if (state.permissionsGranted) item { RadioBanner(problem, onFix = { onFixRadio(problem.first) }, onOpen = onConnections, modifier = Modifier.padding(bottom = 12.dp)) }
+            }
+        }
+        if (state.otherVersions.isNotEmpty()) item {
+            Surface(shape = MaterialTheme.shapes.large, color = Extra.sand2, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("${state.otherVersions.distinct().joinToString()} ${if (state.otherVersions.distinct().size == 1) "is" else "are"} nearby on a different BlueMob version",
+                        style = MaterialTheme.typography.titleSmall)
+                    Text("Your phones can't link until you're both on BlueMob 0.5 or newer. Ask them to update, then you'll see each other here.",
+                        style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
+                }
             }
         }
         list.filter { it.lost != null }.forEach { p ->

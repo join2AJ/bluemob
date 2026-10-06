@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -98,6 +99,7 @@ fun ProfileScreen(
     lastError: String? = null,
     onSosContacts: () -> Unit = {},
     onAudit: () -> Unit = {},
+    onAccount: () -> Unit = {},
     onGames: () -> Unit = {},
     sosContactCount: Int = 0,
     background: Boolean = true,
@@ -191,6 +193,13 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.StarOutline, com.bluemob.app.ui.components.StarGold, "Your rating",
                     if (myRatingCount == 0) "4 stars to start. Help people and they can thank you" else "%.1f out of 5 · %d rating%s".format(myStars, myRatingCount, if (myRatingCount == 1) "" else "s"),
                     onClick = onMyRating) { com.bluemob.app.ui.components.StarRow(myStars, 14.dp) }
+            }
+        }
+
+        item { GroupLabel("Account") }
+        item {
+            Group {
+                SettingRow(Icons.Outlined.Key, Color(0xFF2F6F62), "Account & login", "PIN, fingerprint, recovery code", onClick = onAccount) { chevron() }
             }
         }
 

@@ -43,9 +43,39 @@ class Identity(context: Context) {
         if (pub != null && priv != null) {
             runCatching { return KeyPair(Crypto.publicKey(pub)!!, Crypto.privateKey(priv)) }
         }
-        val pair = Crypto.generate()
-        prefs.edit().putString(KEY_PUBLIC, Crypto.encode(pair.public.encoded)).putString(KEY_PRIVATE, Crypto.encode(wrap(pair.private.encoded))).apply()
+        // New accounts come from a short seed, so the recovery code is short.
+        val seed = Recovery.newSeed()
+        val pair = Recovery.keysFromSeed(seed)
+        save(pair, seed).apply()
         return pair
+    }
+
+    private fun save(pair: KeyPair, seed: ByteArray?) = prefs.edit()
+        .putString(KEY_PUBLIC, Crypto.encode(pair.public.encoded))
+        .putString(KEY_PRIVATE, Crypto.encode(wrap(pair.private.encoded)))
+        .also { e -> if (seed != null) e.putString(KEY_SEED, Crypto.encode(wrap(seed))) else e.remove(KEY_SEED) }
+
+    /**
+     * The code that moves this BlueMob ID to another phone. Short for accounts made from a seed, longer for
+     * accounts made before 0.8 (their key was random). Anyone with it can use your ID, so it's shown only after
+     * your PIN.
+     */
+    fun recoveryCode(): String {
+        val seed = prefs.getString(KEY_SEED, null)?.let(Crypto::decode)?.let(::unwrap)
+        if (seed != null && seed.size == Recovery.SEED_BYTES) return Recovery.seedCode(seed)
+        return Recovery.keyCode(keys.keyPair.private as java.security.interfaces.ECPrivateKey)
+    }
+
+    /**
+     * Replaces this phone's ID with the one in [code]. Returns the restored ID, or null if the code is wrong.
+     * The app must restart afterwards: everything running still uses the old keys.
+     */
+    fun restore(code: String): String? {
+        val parsed = Recovery.parse(code) ?: return null
+        val pair = Recovery.keysFor(parsed)
+        val id = Crypto.idFor(pair.public.encoded)
+        save(pair, (parsed as? Recovery.Parsed.Seed)?.seed).putString(KEY_NODE_ID, id).commit()
+        return id
     }
 
     /** AES-GCM with a Keystore key. Falls back to storing the key as is if the Keystore isn't usable on this phone. */
@@ -110,6 +140,7 @@ class Identity(context: Context) {
         private const val KEY_NODE_ID = "node_id"
         private const val KEY_PUBLIC = "public_key"
         private const val KEY_PRIVATE = "private_key_wrapped"
+        private const val KEY_SEED = "seed_wrapped"
         private const val WRAP_ALIAS = "bluemob_identity_wrap"
         private const val KEY_NAME = "display_name"
         private const val KEY_AVATAR = "avatar"
