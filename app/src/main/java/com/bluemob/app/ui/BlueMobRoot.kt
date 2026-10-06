@@ -301,7 +301,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "bridge" -> {
                     val st by vm.bridgeStatus.collectAsStateWithLifecycle()
                     val url by vm.bridgeUrl.collectAsStateWithLifecycle()
-                    BridgeScreen(st, url, ::pop, onSave = vm::setBridgeUrl)
+                    BridgeScreen(st, url, ::pop, onSave = vm::setBridgeUrl, builtIn = vm.builtInRelay)
                 }
                 route == "games" -> GamesScreen(::pop) { push("game:$it") }
                 route == "game:ttt" -> TicTacToeScreen(::pop)

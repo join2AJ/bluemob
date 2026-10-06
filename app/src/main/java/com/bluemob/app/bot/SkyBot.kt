@@ -57,11 +57,13 @@ object SkyBot {
         "shelter" to listOf("shelter", "sleep outside", "sleep in the open", "stay dry", "build a hut", "sleep+night+outside", "rain+sleep"),
         "help-sos" to listOf("someone sent an sos", "someone sent sos", "received an sos", "got an sos", "sos from", "help someone", "someone needs help", "friend needs help"),
         "north" to listOf("north", "direction", "which way", "without a compass", "navigate", "stars", "shadow stick", "shadow", "polaris", "north star", "southern cross", "sunrise", "sunset"),
-        "lost" to listOf("lost", "can't find my way", "cant find my way", "stranded", "where am i", "way+back"),
+        "lost" to listOf("lost", "can't find my way", "cant find my way", "stranded", "where am i", "way+back", "get down", "way down", "getting down",
+            "down the mountain", "down from", "descend", "find my way", "way out", "get out of", "stuck on", "stuck in the", "trail+back", "mountain+down",
+            "don't know where", "dont know where", "don't know the way", "dont know the way", "how to get back", "how do i get back"),
         "signals" to listOf("rescue", "signal", "helicopter", "whistle", "get found", "be found", "attract attention"),
         "lightning" to listOf("lightning", "thunder", "storm"),
         "quake" to listOf("earthquake", "quake", "tremor"),
-        "flood" to listOf("flood", "river rising", "water rising"),
+        "flood" to listOf("flood", "river rising", "water rising", "river+rising", "water+rising", "river+swollen", "flash flood", "water+coming in"),
         "battery-low" to listOf("low battery", "battery low", "battery critical", "critical battery", "battery dying", "battery is dying", "phone dying", "phone is dying",
             "battery discharg", "battery+die", "battery+dead", "battery+%", "battery+save", "battery+last", "battery+empty", "battery+drain", "phone+switch off"),
         "recharge" to listOf("recharge", "charge my phone", "charge the phone", "charging", "power bank", "powerbank", "solar", "no charger", "regain battery",
@@ -173,12 +175,44 @@ object SkyBot {
             listOf(SkyAction("🆘 SOS", "sos"), tab("guide", "Browse the guide")),
         )
         chat.firstOrNull { (keys, _) -> keys.any { matches(t, it) } }?.let { (_, options) -> return SkyAnswer(options[turn % options.size]) }
+        // No keyword fits: look through every guide's words before giving up.
+        searchGuides(t)?.let { return it }
         if (questionLike.containsMatchIn(t)) return SkyAnswer(
             "I don't have an answer for that yet. I'm best with first aid, water, fire, shelter, finding your way, signals, weather, disasters, " +
                 "phone battery, and how BlueMob works.",
             listOf(tab("guide", "Browse the guide")),
         )
         return SkyAnswer(fallback[turn % fallback.size])
+    }
+
+    private val stopWords = setOf("what", "when", "where", "which", "while", "with", "without", "would", "could", "should", "there", "their", "they",
+        "this", "that", "these", "have", "from", "your", "about", "into", "know", "dont", "don't", "does", "doing", "how", "the", "and", "for", "you",
+        "are", "can", "not", "but", "was", "will", "just", "only", "told", "tell", "please", "help", "need", "want", "get", "got", "some", "any")
+
+    /**
+     * Free-text search across all guides (title, intro, steps), for questions no keyword covers. Words are matched by
+     * their first 5 letters, so "bleeding" finds "bleed"; title words count three times. Returns null if nothing fits well.
+     */
+    fun searchGuides(t: String): SkyAnswer? {
+        val words = Regex("[a-z]+").findAll(t.lowercase()).map { it.value }.filter { it.length >= 4 && it !in stopWords }.map { it.take(5) }.toSet()
+        if (words.isEmpty()) return null
+        var best: com.bluemob.app.guide.Article? = null
+        var bestScore = 0
+        for (a in GuideContent.articles) {
+            val title = Regex("[a-z]+").findAll(a.title.lowercase()).map { it.value.take(5) }.toSet()
+            val body = Regex("[a-z]+").findAll((a.intro + " " + a.steps.joinToString(" ")).lowercase()).map { it.value.take(5) }.toSet()
+            val score: Int = words.sumOf { w: String -> if (w in title) 3 else if (w in body) 1 else 0.toInt() }
+            if (score > bestScore) { bestScore = score; best = a }
+        }
+        // At least a title word, or three words found in the text.
+        if (best == null || bestScore < 3) return null
+        return guideAnswer(best, prefix = "This guide looks closest")
+    }
+
+    private fun guideAnswer(a: com.bluemob.app.guide.Article, prefix: String): SkyAnswer {
+        val steps = a.steps.take(4).mapIndexed { i, s -> "${i + 1}. $s" }.joinToString("\n")
+        val more = if (a.steps.size > 4) "\n…plus ${a.steps.size - 4} more step${if (a.steps.size - 4 > 1) "s" else ""} in the guide." else ""
+        return SkyAnswer("$prefix: ${a.title}\n${a.intro}\n\n$steps$more", listOf(SkyAction("Open full guide", "guide:${a.id}")))
     }
 
     /** The guide that best fits some text (a question, or an SOS note like "twisted ankle"), if any. */
@@ -210,6 +244,15 @@ object SkyBot {
     }
 
     private fun live(t: String, f: SkyFacts): SkyAnswer? = when {
+        listOf("what's happening", "whats happening", "what is happening", "what's going on", "whats going on", "around me", "around you", "status", "what's up around").any { atWord(t, it) } ->
+            SkyAnswer(buildString {
+                append("Right now on your phone:\n")
+                append("• Mesh: " + if (!f.meshOn) "off. Switch it on in Nearby to find people\n" else if (f.nearby.isEmpty()) "on, no one connected yet\n" else "${f.nearby.size} connected: ${f.nearby.joinToString(", ") { it.substringBefore(":") }}\n")
+                append("• Internet: " + if (f.thisPhoneOnline) "yes, this phone can be a bridge\n" else "none. BlueMob works phone to phone\n")
+                f.batteryPct?.let { append("• Battery: $it%\n") }
+                append("• Messages: " + (if (f.waitingMessages == 0) "all delivered" else "${f.waitingMessages} waiting to reach someone") + (if (f.unread > 0) ", ${f.unread} unread" else "") + "\n")
+                append("• SOS: " + if (f.sosActive) "yours is active" else "none from you")
+            }, listOf(tab("nearby", "Open Nearby")))
         listOf("who is nearby", "who's nearby", "whos nearby", "who is around", "anyone nearby", "who's online", "who is online", "anyone around").any { atWord(t, it) } -> when {
             !f.meshOn -> SkyAnswer("The mesh is off, so I can't see anyone. Switch it on in the Nearby tab.", listOf(tab("nearby", "Open Nearby")))
             f.nearby.isEmpty() -> SkyAnswer("No one is connected yet. People appear as they open BlueMob near you.")

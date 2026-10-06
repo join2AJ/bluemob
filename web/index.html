@@ -2609,11 +2609,13 @@ button.set:hover { background: var(--sand); }
     shelter: ["shelter", "sleep outside", "sleep in the open", "stay dry", "build a hut", "sleep+night+outside", "rain+sleep"],
     "help-sos": ["someone sent an sos", "someone sent sos", "received an sos", "got an sos", "sos from", "help someone", "someone needs help", "friend needs help"],
     north: ["north", "direction", "which way", "without a compass", "navigate", "stars", "shadow stick", "shadow", "polaris", "north star", "southern cross", "sunrise", "sunset"],
-    lost: ["lost", "can't find my way", "cant find my way", "stranded", "where am i", "way+back"],
+    lost: ["lost", "can't find my way", "cant find my way", "stranded", "where am i", "way+back", "get down", "way down", "getting down",
+      "down the mountain", "down from", "descend", "find my way", "way out", "get out of", "stuck on", "stuck in the", "trail+back", "mountain+down",
+      "don't know where", "dont know where", "don't know the way", "dont know the way", "how to get back", "how do i get back"],
     signals: ["rescue", "signal", "helicopter", "whistle", "get found", "be found", "attract attention"],
     lightning: ["lightning", "thunder", "storm"],
     quake: ["earthquake", "quake", "tremor"],
-    flood: ["flood", "river rising", "water rising"],
+    flood: ["flood", "river rising", "water rising", "river+rising", "water+rising", "river+swollen", "flash flood", "water+coming in"],
     "battery-low": ["low battery", "battery low", "battery critical", "critical battery", "battery dying", "battery is dying", "phone dying", "phone is dying",
       "battery discharg", "battery+die", "battery+dead", "battery+%", "battery+save", "battery+last", "battery+empty", "battery+drain", "phone+switch off"],
     recharge: ["recharge", "charge my phone", "charge the phone", "charging", "power bank", "powerbank", "solar", "no charger", "regain battery",
@@ -3264,6 +3266,15 @@ button.set:hover { background: var(--sand); }
 
   // Live answers, read from the app's own state on this phone.
   const SKY_LIVE = [
+    { keys: ["what's happening", "whats happening", "what is happening", "what's going on", "whats going on", "around me", "around you", "status"],
+      answer: () => {
+        const on = nearby().filter((p) => p.presence === "online");
+        const waiting = Object.values(S.convos).reduce((n, c) => n + c.messages.filter((m) => m.me && (m.status === "pending" || m.status === "sent")).length, 0);
+        return { text: "Right now on your phone:\n• Mesh: " + (!S.mesh ? "off. Switch it on in Nearby to find people" : on.length ? on.length + " connected: " + on.map((p) => p.name).join(", ") : "on, no one connected yet") +
+          "\n• Internet: " + (bridgeOnline() ? "Meera nearby has it, so she's your bridge" : "none. BlueMob works phone to phone") +
+          "\n• Battery: " + S.batteryPct + "%\n• Messages: " + (waiting ? waiting + " waiting to reach someone" : "all delivered") +
+          "\n• SOS: " + (S.sos ? "yours is active" : "none from you"), actions: [{ label: "Open Nearby", act: "go-tab", v: "radar" }] };
+      } },
     { keys: ["who is nearby", "who's nearby", "whos nearby", "who is around", "anyone nearby", "who's online", "who is online", "anyone around"],
       answer: () => {
         const on = nearby().filter((p) => p.presence === "online");

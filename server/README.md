@@ -19,17 +19,29 @@ PORT=9000 DATA_DIR=/var/lib/bluemob node server/relay.js
 node --test server/relay.test.js
 ```
 
-## Deploy
+## Deploy (once, by the BlueMob team, not by users)
 
-Any host that runs a container and gives it HTTPS works. For example, Google Cloud Run:
+The relay address is **built into the app**: users never type it. Deploy the relay once, then put its address in
+`gradle.properties` (`relayUrl=https://…`) and build; every phone then connects to it automatically.
+
+**Easiest, free: Render** (no command line):
+1. Sign in at https://render.com with the GitHub account that has this repository.
+2. **New → Blueprint**, pick this repository. Render reads `render.yaml` and creates `bluemob-relay`.
+3. When it's live, copy its address (like `https://bluemob-relay.onrender.com`) and check `…/health` shows `{"ok":true…}`.
+
+The free plan sleeps after 15 minutes without traffic (the first sync after that takes up to a minute) and doesn't keep
+files across restarts, so messages waiting on the relay can be lost when it restarts. That's fine for testing; for real
+use pick a paid plan with a disk mounted at `/data`, or:
+
+**Google Cloud Run** (`asia-south1` is Mumbai):
 
 ```
 cd server
 gcloud run deploy bluemob-relay --source . --region asia-south1 --allow-unauthenticated
 ```
 
-Or Fly.io, Render or Railway, using the `Dockerfile`. Mount a volume at `/data` so stored messages survive restarts.
-Then, on each phone: **You → Internet bridge → Relay address**, and enter the `https://` address.
+Fly.io and Railway also work with the `Dockerfile`; mount a volume at `/data`.
+Anyone can still point a phone at a different relay: **You → Internet bridge → Use a different relay (advanced)**.
 
 ## API
 

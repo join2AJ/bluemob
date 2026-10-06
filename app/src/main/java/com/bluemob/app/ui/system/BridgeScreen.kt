@@ -34,8 +34,9 @@ import com.bluemob.app.util.TimeText
 
 /** Set up and watch the internet bridge: how people far apart keep talking. */
 @Composable
-fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: (String) -> Unit) {
+fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: (String) -> Unit, builtIn: String = "") {
     var draft by rememberSaveable(url) { mutableStateOf(url) }
+    var advanced by rememberSaveable { mutableStateOf(builtIn.isEmpty() || url != builtIn) }
     val working = status.configured && status.online && status.lastError == null && status.lastSync != null
     SubScreen("Internet bridge", onBack) {
         item {
@@ -51,7 +52,7 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                 Column(Modifier.padding(16.dp)) {
                     Text(
                         when {
-                            !status.configured -> "Not set up yet"
+                            !status.configured -> "Not available in this version"
                             !status.online -> "No internet right now"
                             status.lastError != null -> "Can't reach the relay"
                             status.lastSync == null -> "Connecting…"
@@ -60,10 +61,10 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                     )
                     Text(
                         when {
-                            !status.configured -> "Add your relay's address below. Without it, messages still travel phone to phone over Bluetooth and Wi-Fi."
+                            !status.configured -> "This test version has no relay built in yet. Messages still travel phone to phone over Bluetooth and Wi-Fi."
                             !status.online -> "Messages wait and go the moment this phone, or any phone near it, has internet."
                             status.lastError != null -> status.lastError
-                            else -> "Last synced ${TimeText.ago(status.lastSync ?: 0)}."
+                            else -> "Connected automatically" + (if (url == builtIn) " to the BlueMob relay" else "") + ". Last synced ${TimeText.ago(status.lastSync ?: 0)}."
                         }, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp),
                     )
                 }
@@ -77,8 +78,11 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                 SettingRow(null, Extra.sand, "Waiting to upload", "${status.queued}", divider = true)
             }
         }
-        item { GroupLabel("Relay address") }
-        item {
+        if (!advanced) item {
+            androidx.compose.material3.TextButton(onClick = { advanced = true }, modifier = Modifier.padding(top = 8.dp)) { Text("Use a different relay (advanced)") }
+        }
+        if (advanced) item { GroupLabel("Relay address") }
+        if (advanced) item {
             Group {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(12.dp)) {
@@ -89,7 +93,10 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                     }
                     val valid = draft.isBlank() || draft.startsWith("https://") || draft.startsWith("http://")
                     if (!valid) Text("The address starts with https://", style = MaterialTheme.typography.bodySmall, color = Extra.rose)
-                    Row { Button(onClick = { onSave(draft) }, enabled = valid && draft.trim() != url) { Text("Save") } }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { onSave(draft) }, enabled = valid && draft.trim() != url) { Text("Save") }
+                        if (builtIn.isNotEmpty() && url != builtIn) androidx.compose.material3.OutlinedButton(onClick = { onSave("") }) { Text("Use the built-in relay") }
+                    }
                 }
             }
         }

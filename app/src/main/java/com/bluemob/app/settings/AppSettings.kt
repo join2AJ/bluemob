@@ -76,14 +76,18 @@ class AppSettings(context: Context) {
         _background.value = on
     }
 
-    private val _bridgeUrl = MutableStateFlow(prefs.getString("bridge_url", "") ?: "")
-    /** The BlueMob relay this phone uses when it has internet (see server/README.md). Empty = not set up. */
+    /** The relay built into this version of the app. Phones use it automatically. */
+    val defaultBridgeUrl: String = com.bluemob.app.BuildConfig.DEFAULT_RELAY_URL.trimEnd('/')
+
+    private val _bridgeUrl = MutableStateFlow(prefs.getString("bridge_url", null) ?: defaultBridgeUrl)
+    /** The BlueMob relay this phone uses when it has internet: the built-in one, unless the user picked another. */
     val bridgeUrl: StateFlow<String> = _bridgeUrl.asStateFlow()
 
+    /** Uses another relay. Blank (or the built-in address) goes back to the built-in relay. */
     fun setBridgeUrl(url: String) {
         val clean = url.trim().trimEnd('/')
-        prefs.edit().putString("bridge_url", clean).apply()
-        _bridgeUrl.value = clean
+        if (clean.isEmpty() || clean == defaultBridgeUrl) prefs.edit().remove("bridge_url").apply() else prefs.edit().putString("bridge_url", clean).apply()
+        _bridgeUrl.value = clean.ifEmpty { defaultBridgeUrl }
     }
 
     val bridgeCursor: Long get() = prefs.getLong("bridge_cursor", 0)

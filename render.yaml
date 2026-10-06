@@ -1,0 +1,10 @@
+# One-click deploy of the BlueMob relay on Render (https://render.com): New → Blueprint → pick this repository.
+services:
+  - type: web
+    name: bluemob-relay
+    runtime: docker
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    healthCheckPath: /health

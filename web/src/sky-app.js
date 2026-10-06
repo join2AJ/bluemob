@@ -58,6 +58,15 @@
 
   // Live answers, read from the app's own state on this phone.
   const SKY_LIVE = [
+    { keys: ["what's happening", "whats happening", "what is happening", "what's going on", "whats going on", "around me", "around you", "status"],
+      answer: () => {
+        const on = nearby().filter((p) => p.presence === "online");
+        const waiting = Object.values(S.convos).reduce((n, c) => n + c.messages.filter((m) => m.me && (m.status === "pending" || m.status === "sent")).length, 0);
+        return { text: "Right now on your phone:\n• Mesh: " + (!S.mesh ? "off. Switch it on in Nearby to find people" : on.length ? on.length + " connected: " + on.map((p) => p.name).join(", ") : "on, no one connected yet") +
+          "\n• Internet: " + (bridgeOnline() ? "Meera nearby has it, so she's your bridge" : "none. BlueMob works phone to phone") +
+          "\n• Battery: " + S.batteryPct + "%\n• Messages: " + (waiting ? waiting + " waiting to reach someone" : "all delivered") +
+          "\n• SOS: " + (S.sos ? "yours is active" : "none from you"), actions: [{ label: "Open Nearby", act: "go-tab", v: "radar" }] };
+      } },
     { keys: ["who is nearby", "who's nearby", "whos nearby", "who is around", "anyone nearby", "who's online", "who is online", "anyone around"],
       answer: () => {
         const on = nearby().filter((p) => p.presence === "online");

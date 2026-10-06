@@ -13,11 +13,14 @@ android {
     defaultConfig {
         applicationId = "com.bluemob.app"
         minSdk = 26
+        // The BlueMob relay every phone uses for the internet bridge, built in so nobody has to type it.
+        // Set `relayUrl=https://…` in gradle.properties once the relay is deployed (see server/README.md).
+        buildConfigField("String", "DEFAULT_RELAY_URL", "\"" + ((project.findProperty("relayUrl") as String?) ?: "") + "\"")
         // Optional: `-PonlyAbi=arm64-v8a` builds for one phone type only (a smaller APK to share for testing).
         (project.findProperty("onlyAbi") as String?)?.let { ndk { abiFilters += it } }
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.6.1"
+        versionCode = 8
+        versionName = "0.6.2"
     }
 
     buildTypes {
@@ -42,6 +45,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

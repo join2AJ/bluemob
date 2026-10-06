@@ -48,6 +48,10 @@ class SkyBotTest {
         "I'm bored" to "free time",
         "can I message someone by their unique number?" to "BlueMob ID",
         "how do stars work" to "5 stars",
+        "What to do on a mountain don't know how to get down" to "If you are lost",
+        "What's happening around you" to "Right now on your phone",
+        "my friend has a fever and is shivering in the tent" to "guide",
+        "the river is rising fast near our camp" to "Flood",
         "what if someone sends a fake sos" to "5 stars",
     )
 

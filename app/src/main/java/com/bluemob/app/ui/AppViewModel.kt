@@ -201,6 +201,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val bridgeStatus = blueMob.bridge.status
     val bridgeUrl = settings.bridgeUrl
+    val builtInRelay: String get() = settings.defaultBridgeUrl
     fun setBridgeUrl(url: String) { settings.setBridgeUrl(url); blueMob.bridge.reconfigure() }
 
     fun lastError(): String? = com.bluemob.app.util.CrashLog.lastNonFatal(getApplication())

@@ -20,8 +20,9 @@ object UrlHttp : Http {
     private fun call(url: String, method: String, body: String?): Pair<Int, String>? = runCatching {
         val c = URL(url).openConnection() as HttpURLConnection
         c.requestMethod = method
-        c.connectTimeout = 10_000
-        c.readTimeout = 15_000
+        // Generous: a free-tier relay can take up to a minute to wake up after being idle.
+        c.connectTimeout = 20_000
+        c.readTimeout = 70_000
         if (body != null) {
             c.doOutput = true
             c.setRequestProperty("content-type", "application/json")
