@@ -82,6 +82,15 @@ class Notifier(private val context: Context) {
         .setContentIntent(open("rescue:$room", room.hashCode() + 7))
         .build())
 
+    /** Anything else worth knowing right away: someone ringing to find us, a game invite, a missed call. */
+    fun note(title: String, text: String, route: String? = null, id: Int = title.hashCode() + 11) = post(id, NotificationCompat.Builder(context, CH_RESCUE)
+        .setSmallIcon(R.drawable.ic_stat_bluemob)
+        .setContentTitle(title).setContentText(text)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setColor(0xFF2F6F62.toInt()).setAutoCancel(true)
+        .setContentIntent(open(route, id))
+        .build())
+
     private fun post(id: Int, n: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return

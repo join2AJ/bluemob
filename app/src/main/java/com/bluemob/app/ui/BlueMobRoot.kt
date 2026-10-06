@@ -74,6 +74,7 @@ import com.bluemob.app.ui.compass.TrailActions
 import com.bluemob.app.ui.compass.TrailUi
 import com.bluemob.app.ui.games.ConnectFourScreen
 import com.bluemob.app.ui.games.GamesScreen
+import com.bluemob.app.ui.games.MatchScreen
 import com.bluemob.app.ui.games.TicTacToeScreen
 import com.bluemob.app.ui.profile.AuditScreen
 import com.bluemob.app.ui.profile.PersonScreen
@@ -113,6 +114,8 @@ class SystemActions(
     val textSos: (List<String>, String) -> Unit = { _, _ -> },
     val requestSteps: () -> Unit = {},
     val shareId: () -> Unit = {},
+    /** Asks for the microphone (and camera for video), then runs the callback whatever the answer. */
+    val requestCallPermissions: (Boolean, () -> Unit) -> Unit = { _, then -> then() },
 )
 
 @Composable
@@ -217,13 +220,14 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
-                            onSaveSpot = { vm.saveSpot("Spot ${spots.count { !it.isBaseCamp } + 1}") }, onRemoveSpot = vm::removeSpot,
+                            onSaveSpot = { if (!system.locationPermission) actions.requestLocation() else vm.saveSpot("Spot ${spots.count { !it.isBaseCamp } + 1}") }, onRemoveSpot = vm::removeSpot,
                             trail = TrailUi(trailOn, trailPoints, estimate, lostOn, vm.hasStepPermission() && vm.stepCounterAvailable, vm.stepCounterAvailable),
                             trailActions = TrailActions(
                                 onTrail = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setTrail(on) },
                                 onLost = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setLost(on) },
-                                onBaseCamp = { vm.setBaseCamp() }, onClear = vm::clearTrail, onAllowSteps = actions.requestSteps,
+                                onBaseCamp = { if (!system.locationPermission) actions.requestLocation() else vm.setBaseCamp() }, onClear = vm::clearTrail, onAllowSteps = actions.requestSteps,
                             ),
+                            onRing = vm::ring,
                         )
                         Tab.GUIDE -> GuideScreen(bookmarks, padding, onOpen = { push("article:$it") }, onSos = { push("sos") })
                         Tab.YOU -> ProfileScreen(
@@ -246,6 +250,10 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         nodeId = id, person = people.firstOrNull { it.nodeId == id }, messages = conversations[id].orEmpty(), typing = id in typing,
                         meshEvents = vm.meshEvents, myName = name, myId = vm.nodeId, onBack = ::pop, onSend = { vm.send(id, it) },
                         onPing = { vm.ping(id) }, onInfo = { push("info:$it") }, onPerson = { if (id != SkyBot.NODE_ID) push("person:$id") }, onAction = onSkyAction,
+                        onCall = { video ->
+                            val who = people.firstOrNull { it.nodeId == id }?.name ?: "them"
+                            actions.requestCallPermissions(video) { vm.startCall(id, who, video) }
+                        },
                     )
                 }
                 route.startsWith("info:") -> {
@@ -303,7 +311,20 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     val url by vm.bridgeUrl.collectAsStateWithLifecycle()
                     BridgeScreen(st, url, ::pop, onSave = vm::setBridgeUrl, builtIn = vm.builtInRelay)
                 }
-                route == "games" -> GamesScreen(::pop) { push("game:$it") }
+                route == "games" -> {
+                    val all by vm.matches.collectAsStateWithLifecycle()
+                    GamesScreen(::pop, onPlay = { push("game:$it") },
+                        people = people.filter { it.presence == Presence.ONLINE },
+                        matches = all.values.sortedByDescending { it.updatedAt },
+                        onChallenge = { p, game -> vm.challenge(p.nodeId, p.name, game)?.let { push("match:$it") } },
+                        onOpenMatch = { push("match:$it") }, onAccept = vm::acceptGame, onDecline = vm::declineGame)
+                }
+                route.startsWith("match:") -> {
+                    val all by vm.matches.collectAsStateWithLifecycle()
+                    val m = all[route.removePrefix("match:")]
+                    if (m == null) LaunchedEffect(Unit) { pop() }
+                    else MatchScreen(m, ::pop, onPlay = { vm.playGame(m.id, it) }, onAgain = { vm.gameAgain(m.id) }, onLeave = { vm.leaveGame(m.id) })
+                }
                 route == "game:ttt" -> TicTacToeScreen(::pop)
                 route == "game:c4" -> ConnectFourScreen(::pop)
                 route == "signal" -> SosSignalScreen(signalDefault, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = ::pop)
@@ -321,6 +342,30 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 coming = rescues.firstOrNull { it.id == sos.id }?.coming?.map { it.name }.orEmpty(),
                 trust = if (preview) null else (trustScores[sos.fromNodeId] ?: vm.scoreFor(sos.fromNodeId)),
                 onProfile = { vm.dismissSosAlert(); push("person:" + sos.fromNodeId) },
+            )
+        }
+
+        val matchesNow by vm.matches.collectAsStateWithLifecycle()
+        matchesNow.values.firstOrNull { it.state == com.bluemob.app.games.MatchState.INVITED }?.takeIf { top != "games" }?.let { m ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = {},
+                title = { Text("${m.opponentName} wants to play") },
+                text = { Text("${com.bluemob.app.games.Match.title(m.game)} over the mesh, phone to phone.") },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.acceptGame(m.id); push("match:" + m.id) }) { Text("Play") } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { vm.declineGame(m.id) }) { Text("Not now") } },
+            )
+        }
+
+        val call by vm.call.collectAsStateWithLifecycle()
+        call?.let { c ->
+            val remote by vm.remoteFrame.collectAsStateWithLifecycle()
+            val local by vm.localFrame.collectAsStateWithLifecycle()
+            BackHandler { }
+            com.bluemob.app.ui.call.CallScreen(
+                c, remote, local, canUseCamera = vm.canUseCamera(),
+                onAccept = { actions.requestCallPermissions(c.video) { vm.acceptCall() } },
+                onDecline = vm::hangUp, onMute = vm::toggleMute, onSpeaker = vm::toggleSpeaker, onCamera = vm::toggleCamera,
+                wantsFrame = vm::wantsFrame, onFrame = vm::onCameraFrame,
             )
         }
 

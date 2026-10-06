@@ -49,6 +49,11 @@ sealed interface MeshEvent {
     data class RoomReceived(val msg: RoomPayload) : MeshEvent
     /** We just learned [nodeId]'s public key, so messages waiting for it can go. */
     data class KeyLearned(val nodeId: String) : MeshEvent
+    /**
+     * A signed packet addressed to us ([kind]: game moves, call set-up, "ring my phone"). [direct] when the sender
+     * is connected straight to this phone (calls need that).
+     */
+    data class App(val fromNodeId: String, val name: String, val kind: String, val body: org.json.JSONObject, val hops: Int, val direct: Boolean) : MeshEvent
     /** A packet type handled outside the transport (audit witness notes, ratings). */
     data class Extra(val fromNodeId: String, val type: String, val json: org.json.JSONObject) : MeshEvent
 }

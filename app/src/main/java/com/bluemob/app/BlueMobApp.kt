@@ -70,6 +70,8 @@ class BlueMobApp : Application() {
     lateinit var witness: AuditWitness private set
     lateinit var bridge: InternetBridge private set
     lateinit var trust: TrustManager private set
+    lateinit var matches: com.bluemob.app.games.Matches private set
+    lateinit var calls: com.bluemob.app.call.CallManager private set
     private var ratingPackets: List<org.json.JSONObject> = emptyList()
     private var auditEntries: List<com.bluemob.app.data.AuditEntry> = emptyList()
     private var auditHead: com.bluemob.app.data.AuditEntry? = null
@@ -150,8 +152,14 @@ class BlueMobApp : Application() {
         audit.add(AuditKind.APP, "BlueMob started · ID BM ${formatId(identity.nodeId)}")
         identity.previousNodeId?.let { audit.add(AuditKind.APP, "BlueMob ID changed from BM ${formatId(it)} to a key-based ID that can't be copied") }
         trail = TrailRecorder(this, location, heading, db.trail(), settings, audit, appScope) { identity.shareLocation.value }
-        lost = LostMode(mesh, identity, trail, audit, appScope)
         sos = SosManager(this, mesh, identity, trail, signals, audit, appScope)
+        lost = LostMode(mesh, identity, trail, audit, appScope, location, signals, sosActive = { sos.mine.value != null }, say = ::say)
+        matches = com.bluemob.app.games.Matches(mesh, appScope) { m ->
+            if (!inForeground) notifier.note("${m.opponentName} wants to play", "${com.bluemob.app.games.Match.title(m.game)} over the mesh. Tap to answer.", "games")
+        }
+        calls = com.bluemob.app.call.CallManager(this, mesh, audit, appScope) { c ->
+            if (!inForeground) notifier.note("${c.name} is calling", "${if (c.video) "Video" else "Voice"} call from someone nearby. Tap to answer.", "call", id = 7_007)
+        }
         bridge = InternetBridge(settings, identity, keyBook, mesh, connectivity, audit, appScope)
         trust = TrustManager(db.ratings(), identity, mesh, bridge.client, contacts, audit, appScope)
         // Ratings travel as people meet: each phone gives the ones it holds to every phone it connects to.
@@ -177,6 +185,16 @@ class BlueMobApp : Application() {
                 if (keep) MeshService.start(this@BlueMobApp) else MeshService.stop(this@BlueMobApp)
             }
         }
+        // Bluetooth or Wi-Fi switched off and on: Nearby doesn't recover by itself, so restart the mesh.
+        appScope.launch {
+            var before = radios.state.value
+            radios.state.collect { now ->
+                val back = (now.bluetooth && !before.bluetooth) || (now.wifi && !before.wifi) || (!now.airplane && before.airplane)
+                val gone = !now.bluetooth && before.bluetooth
+                if (back || gone) mesh.onRadiosChanged(now.bluetooth)
+                before = now
+            }
+        }
         // People who message us by our ID, without having met: add them so they show up in Chats.
         appScope.launch {
             mesh.router.events.collect { e ->
@@ -194,7 +212,7 @@ class BlueMobApp : Application() {
 
         // Share our GPS position with connected phones only while the user allows it.
         appScope.launch {
-            identity.shareLocation.collect { share -> if (share) location.start() else location.stop() }
+            identity.shareLocation.collect { share -> location.setSharing(share) }
         }
         appScope.launch {
             combine(identity.shareLocation, location.location) { share, loc -> if (share) loc else null }
@@ -203,6 +221,12 @@ class BlueMobApp : Application() {
         appScope.launch {
             combine(identity.displayName, identity.avatar) { _, _ -> }.drop(1).collect { mesh.broadcastProfile() }
         }
+    }
+
+    /** A short note for the user: a toast while BlueMob is open, a notification while it's in the background. */
+    fun say(text: String) {
+        if (inForeground) android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_LONG).show()
+        else notifier.note("BlueMob", text)
     }
 
     /** Public keys we've learned, saved so we can message people later without asking the mesh again. */

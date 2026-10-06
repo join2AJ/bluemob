@@ -3,6 +3,7 @@ package com.bluemob.app.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.bluemob.app.BlueMobApp
 import com.bluemob.app.bot.SkyBot
 import com.bluemob.app.contacts.GeoPoint
@@ -18,6 +19,7 @@ import com.bluemob.app.trail.PositionEstimate
 import com.bluemob.app.util.Geo
 import com.bluemob.app.util.shortId
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -178,12 +180,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun clearTrail() = trail.clear()
     fun onStepPermission() = trail.onStepPermission()
     fun setLost(on: Boolean) = if (on) lostMode.start() else lostMode.stop()
-    fun setBaseCamp(): Boolean {
-        val here = trail.snapshot() ?: return false
-        settings.setBaseCamp(here.lat, here.lon)
-        blueMob.audit.add(com.bluemob.app.audit.AuditKind.POSITION, "Base camp set at ${Geo.formatLatLon(here.lat, here.lon)}")
-        return true
-    }
+    fun ring(nodeId: String) { if (!lostMode.ring(nodeId)) toast("No one is in range to pass this on. Get closer, or wait for the mesh to reconnect.") else toast("Ringing… ask everyone to be quiet and listen.") }
+    fun setBaseCamp() = savePlace("Base camp", baseCamp = true)
     fun refreshRadios() = blueMob.radios.refresh()
 
     /** Adds someone by ID so their chat can open. Uses the name they gave, or a short form of the ID. */
@@ -224,15 +222,86 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun batteryPct(): Int? = sosManager.batteryPct()
 
     fun toggleBookmark(articleId: String) = settings.toggleBookmark(articleId)
-    fun saveSpot(name: String): Boolean {
-        val here = myLocation.value ?: blueMob.location.lastKnown() ?: return false
-        settings.addSpot(Spot("spot-" + UUID.randomUUID().toString().take(8), name, here.lat, here.lon, System.currentTimeMillis()))
-        return true
+    fun saveSpot(name: String) = savePlace(name, baseCamp = false)
+
+    private var placing: kotlinx.coroutines.Job? = null
+
+    /**
+     * Saves where we are as a spot or the base camp. GPS may need a minute for its first fix (longer indoors or
+     * in airplane mode), so this keeps GPS on and waits for a good fix, telling the user what's happening.
+     */
+    private fun savePlace(name: String, baseCamp: Boolean) {
+        if (placing?.isActive == true) return toast("Still getting your position…")
+        val tracker = blueMob.location
+        if (!tracker.hasPermission()) return toast("Allow location first, then tap again")
+        if (!blueMob.radios.state.value.location) return toast("Location (GPS) is off. Turn it on, then tap again")
+        placing = viewModelScope.launch {
+            tracker.hold()
+            try {
+                val good = { p: GeoPoint? -> p != null && System.currentTimeMillis() - p.time < FRESH_FIX_MS && p.accuracyM in 0f..GOOD_ACCURACY_M }
+                var best: GeoPoint? = myLocation.value?.takeIf(good) ?: tracker.lastKnown()?.takeIf(good)
+                if (best == null) {
+                    toast("Getting your position… Stand in the open, away from walls. This can take a minute.")
+                    kotlinx.coroutines.withTimeoutOrNull(FIX_WAIT_MS) {
+                        myLocation.first { p ->
+                            if (p != null && (best == null || p.accuracyM < best!!.accuracyM)) best = p
+                            good(p)
+                        }
+                    }
+                }
+                val here = best ?: tracker.lastKnown() ?: trail.snapshot()?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
+                    ?: return@launch toast("Couldn't get a GPS fix. Go outside under open sky and try again.")
+                val ageMin = (System.currentTimeMillis() - here.time) / 60_000
+                val how = if (ageMin >= 2) "your last known position ($ageMin min old)" else "±${here.accuracyM.toInt()} m"
+                if (baseCamp) {
+                    settings.setBaseCamp(here.lat, here.lon)
+                    blueMob.audit.add(com.bluemob.app.audit.AuditKind.POSITION, "Base camp set at ${Geo.formatLatLon(here.lat, here.lon)}")
+                    toast("⛺ Base camp saved, $how")
+                } else {
+                    settings.addSpot(Spot("spot-" + UUID.randomUUID().toString().take(8), name, here.lat, here.lon, System.currentTimeMillis()))
+                    toast("📍 $name saved, $how")
+                }
+            } finally {
+                tracker.release(keepForSharing = shareLocation.value)
+            }
+        }
     }
+
+    private fun toast(text: String) = android.widget.Toast.makeText(getApplication(), text, android.widget.Toast.LENGTH_LONG).show()
+
     fun removeSpot(id: String) = settings.removeSpot(id)
     fun holdLocation() = blueMob.location.hold()
     fun releaseLocation() = blueMob.location.release(keepForSharing = shareLocation.value)
     fun hasLocationPermission() = blueMob.location.hasPermission()
 
     fun isBot(nodeId: String) = nodeId == SkyBot.NODE_ID
+
+    val matches = blueMob.matches.all
+    fun challenge(nodeId: String, name: String, game: String): String? =
+        blueMob.matches.invite(nodeId, name, game)?.id ?: null.also { toast("$name isn't in range right now. Games need them nearby.") }
+    fun acceptGame(id: String) = blueMob.matches.accept(id)
+    fun declineGame(id: String) = blueMob.matches.decline(id)
+    fun playGame(id: String, spot: Int) = blueMob.matches.play(id, spot)
+    fun gameAgain(id: String) = blueMob.matches.again(id)
+    fun leaveGame(id: String) = blueMob.matches.leave(id)
+
+    private val calls = blueMob.calls
+    val call = calls.call
+    val remoteFrame = calls.remoteFrame
+    val localFrame = calls.localFrame
+    fun startCall(nodeId: String, name: String, video: Boolean) { calls.start(nodeId, name, video)?.let(::toast) }
+    fun acceptCall() = calls.accept()
+    fun hangUp() = calls.hangUp()
+    fun toggleMute() = calls.toggleMute()
+    fun toggleSpeaker() = calls.toggleSpeaker()
+    fun toggleCamera() = calls.toggleCamera()
+    fun canUseCamera() = calls.hasCamera()
+    fun wantsFrame() = calls.wantsFrame()
+    fun onCameraFrame(frame: android.graphics.Bitmap) = calls.onCameraFrame(frame)
+
+    private companion object {
+        const val FRESH_FIX_MS = 2 * 60_000L
+        const val GOOD_ACCURACY_M = 60f
+        const val FIX_WAIT_MS = 90_000L
+    }
 }

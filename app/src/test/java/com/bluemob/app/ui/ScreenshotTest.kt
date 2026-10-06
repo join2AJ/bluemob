@@ -238,7 +238,30 @@ class ScreenshotTest {
         CrashScreen(true, "BlueMob 0.6.1 · Android 14 (API 34) · samsung SM-A546E · arm64-v8a\nWhile: opening the encrypted database (SQLCipher)\n\n" +
             "java.lang.IllegalStateException: example error\n\tat com.bluemob.app.data.BlueMobDatabase.create(Database.kt:212)", {}, {}, {}, {})
     }
-    @Test fun games() = shot { GamesScreen({}, {}) }
+    @Test fun games() = shot(tall = true) {
+        GamesScreen({}, {}, people = people.take(2), matches = listOf(
+            com.bluemob.app.games.Match("g-1", "c4", "b7e4", "Ravi", iInvited = false, state = com.bluemob.app.games.MatchState.INVITED),
+            com.bluemob.app.games.Match("g-2", "ttt", "a1c2", "Asha", iInvited = true, state = com.bluemob.app.games.MatchState.PLAYING, myScore = 2, theirScore = 1),
+        ))
+    }
+    @Test fun matchConnectFour() = shot {
+        var b = com.bluemob.app.games.ConnectFour.empty()
+        for ((who, col) in listOf(1 to 3, 2 to 3, 1 to 2, 2 to 4, 1 to 4)) b = com.bluemob.app.games.ConnectFour.drop(b, col, who)!!
+        com.bluemob.app.ui.games.MatchScreen(com.bluemob.app.games.Match("g-1", "c4", "b7e4", "Ravi", iInvited = true,
+            state = com.bluemob.app.games.MatchState.PLAYING, board = b, myScore = 1), {}, {}, {}, {})
+    }
+    @Test fun incomingCall() = shot {
+        com.bluemob.app.ui.call.CallScreen(com.bluemob.app.call.Call("c-1", "a1c2", "Asha", true, com.bluemob.app.call.CallPhase.INCOMING),
+            null, null, false, {}, {}, {}, {}, {}, { false }, {})
+    }
+    @Test fun activeCall() = shot {
+        com.bluemob.app.ui.call.CallScreen(com.bluemob.app.call.Call("c-1", "a1c2", "Asha", false, com.bluemob.app.call.CallPhase.ACTIVE, startedAt = now - 83_000, muted = true),
+            null, null, false, {}, {}, {}, {}, {}, { false }, {})
+    }
+    @Test fun compassLostPerson() = shot(tall = true) {
+        val pos = com.bluemob.app.trail.PositionEstimate(30.0837, 78.2663, false, 30.0840, 78.2660, now - 6 * 60_000, 12f, 120.0, 200.0, 190f, 45.0, now - 40_000)
+        CompassScreen(listOf(people[1].copy(lost = pos, quality = LinkQuality.LOW)), emptyList(), me, flowOf(20f), true, true, "b7e4", pad, {}, {}, {}, {}, {})
+    }
     @Test fun ticTacToe() = shot { TicTacToeScreen {} }
     @Test fun profile() = shot(tall = true) {
         ProfileScreen("Arjun", "🦅", "3f9a1c2b7d4e8a01", true, false, false, SignalMode.ALL, listOf(LogLine(now, "Connected to Asha")), pad,

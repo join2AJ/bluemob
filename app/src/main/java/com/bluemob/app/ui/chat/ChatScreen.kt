@@ -33,6 +33,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.NetworkCheck
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,6 +93,8 @@ fun ChatScreen(
     onInfo: (String) -> Unit,
     onPerson: () -> Unit,
     onAction: (String) -> Unit,
+    /** Starts a voice (false) or video (true) call. */
+    onCall: (Boolean) -> Unit = {},
 ) {
     val isBot = nodeId == SkyBot.NODE_ID
     val name = if (isBot) SkyBot.NAME else person?.name ?: "Someone"
@@ -135,6 +139,10 @@ fun ChatScreen(
                                 color = if (typing || presence == Presence.ONLINE) MaterialTheme.colorScheme.primary else Extra.ink2,
                             )
                         }
+                    }
+                    if (!isBot) {
+                        IconButton(onClick = { onCall(false) }) { Icon(Icons.Outlined.Call, "Voice call") }
+                        IconButton(onClick = { onCall(true) }) { Icon(Icons.Outlined.Videocam, "Video call") }
                     }
                     if (presence == Presence.ONLINE) IconButton(onClick = { onPing() }) { Icon(Icons.Outlined.NetworkCheck, "Check link speed") }
                 }

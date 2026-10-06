@@ -45,11 +45,32 @@ class LocationTracker(context: Context) {
     fun start() {
         if (active || manager == null || !hasPermission()) return
         active = true
+        register()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun register() {
+        val m = manager ?: return
+        val fast = boosts > 0
         for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
-            if (!manager.allProviders.contains(provider)) continue
-            manager.getLastKnownLocation(provider)?.let(listener::onLocationChanged)
-            manager.requestLocationUpdates(provider, UPDATE_INTERVAL_MS, UPDATE_DISTANCE_M, listener, Looper.getMainLooper())
+            if (!m.allProviders.contains(provider)) continue
+            runCatching { m.getLastKnownLocation(provider) }.getOrNull()?.let(listener::onLocationChanged)
+            runCatching {
+                m.requestLocationUpdates(provider, if (fast) FAST_INTERVAL_MS else UPDATE_INTERVAL_MS, if (fast) 0f else UPDATE_DISTANCE_M, listener, Looper.getMainLooper())
+            }
         }
+    }
+
+    /**
+     * Fast, continuous GPS while someone may be searching for us (lost mode): a fix every couple of seconds
+     * instead of every 15 s. Uses more battery, so it's only on while needed. Calls nest.
+     */
+    private var boosts = 0
+    fun boost(on: Boolean) {
+        val before = boosts > 0
+        boosts = (boosts + if (on) 1 else -1).coerceAtLeast(0)
+        if (on) hold() else release(keepForSharing = false)
+        if (active && before != (boosts > 0)) { manager?.removeUpdates(listener); register() }
     }
 
     /** The phone's last known position, without starting GPS. Used for SOS and the compass. */
@@ -66,7 +87,11 @@ class LocationTracker(context: Context) {
     /** Screens such as the compass can hold GPS on while visible, even when not sharing. */
     private var holds = 0
     fun hold() { holds++; start() }
-    fun release(keepForSharing: Boolean) { holds = (holds - 1).coerceAtLeast(0); if (holds == 0 && !keepForSharing) stop() }
+    fun release(keepForSharing: Boolean) { holds = (holds - 1).coerceAtLeast(0); if (holds == 0 && !keepForSharing && !sharing) stop() }
+
+    /** True while the user shares their position: GPS then stays on when screens let go of it. */
+    private var sharing = false
+    fun setSharing(on: Boolean) { sharing = on; if (on) start() else if (holds == 0) stop() }
 
     fun stop() {
         if (!active) return
@@ -77,6 +102,7 @@ class LocationTracker(context: Context) {
 
     private companion object {
         const val UPDATE_INTERVAL_MS = 15_000L
+        const val FAST_INTERVAL_MS = 2_000L
         const val UPDATE_DISTANCE_M = 5f
     }
 }

@@ -94,6 +94,14 @@ object SkyBot {
         Help(listOf("receive an sos", "get an sos", "someone sends sos", "someone sends an sos", "when i get an sos"),
             "When someone nearby sends an SOS, BlueMob opens a full-screen alert with who it is, how far away they are and their message. Tap \"I'm coming\" so they know, \"Show me the way\" to follow the compass, or \"How to help\".",
             listOf(SkyAction("How to help guide", "guide:help-sos"))),
+        Help(listOf("voice call", "video call", "make a call", "call someone", "phone call", "how do i call", "can i call", "talk to someone", "facetime"),
+            "Open a chat with someone nearby and tap 📞 for a voice call or 🎥 for video. Calls go straight from phone to phone over Bluetooth or Wi-Fi, with no internet or SIM.\n\n" +
+                "They need to be connected directly (\"Online nearby\"). Video is a few frames a second over Bluetooth and smoother over Wi-Fi. Messages still reach people further away through other phones.",
+            listOf(tab("chats", "Open Chats"))),
+        Help(listOf("ring their phone", "find a lost person", "can't find them", "cant find them", "locate them", "where are they exactly"),
+            "Open the Compass and pick them. You'll see how old their position is and whether it's GPS or estimated. If they're in lost mode or sent an SOS, tap \"Ring their phone\": it whistles and flashes for 20 seconds so you can hear and see them.\n\n" +
+                "When you're connected to them directly over Bluetooth, they're usually within 10–100 m: stop, call out and listen.",
+            listOf(tab("compass", "Open Compass"))),
         Help(listOf("tick", "receipt", "read receipt", "delivered mean", "circles", "was it delivered", "did they get", "did it reach"),
             "Under each message you send:\n• clock: waiting (they're not in range yet)\n• one circle: sent\n• two circles: delivered\n• two filled circles: read\n\nTap any message you sent to see its receipts and its full history."),
         Help(listOf("out of range", "not in range", "message waiting", "why waiting", "stuck", "not delivered", "pending", "store and forward"),
@@ -164,7 +172,7 @@ object SkyBot {
         live(t, facts)?.let { return it }
         appHelp.firstOrNull { h -> h.keys.any { atWord(t, it) } }?.let { return SkyAnswer(it.text, it.actions) }
         if (freeTime.containsMatchIn(t)) return SkyAnswer(
-            "Some ideas for free time out here 🌿\n• Play a game with someone nearby, or against the computer if no one's around\n" +
+            "Some ideas for free time out here 🌿\n• Play Tic-tac-toe or Connect 4 with someone nearby over the mesh, or against the computer if no one's around\n" +
                 "• Learn a guide or two from the survival guide\n• Check who's around on the radar and say hi",
             listOf(SkyAction("Play a game", "games"), tab("guide", "Browse the guide"), tab("nearby", "Open Nearby")),
         )

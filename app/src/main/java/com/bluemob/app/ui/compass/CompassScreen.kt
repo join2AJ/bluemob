@@ -65,7 +65,7 @@ import com.bluemob.app.util.cardinal
 import kotlinx.coroutines.flow.Flow
 import kotlin.math.roundToInt
 
-private data class Target(val id: String, val name: String, val emoji: String, val point: GeoPoint)
+private data class Target(val id: String, val name: String, val emoji: String, val point: GeoPoint, val person: Person? = null)
 
 @Composable
 fun CompassScreen(
@@ -84,6 +84,8 @@ fun CompassScreen(
     onRemoveSpot: (String) -> Unit,
     trail: TrailUi = TrailUi(),
     trailActions: TrailActions = TrailActions(),
+    /** Asks a lost or SOS person's phone to whistle and flash. */
+    onRing: (String) -> Unit = {},
 ) {
     DisposableEffect(hasLocationPermission) {
         if (hasLocationPermission) onHoldLocation()
@@ -91,7 +93,7 @@ fun CompassScreen(
     }
     val heading by remember(headings) { headings }.collectAsStateWithLifecycle(initialValue = 0f)
     val targets = spots.map { Target(it.id, it.name, if (it.isBaseCamp) "⛺" else "📍", GeoPoint(it.lat, it.lon, 0f, it.time)) } +
-        people.mapNotNull { p -> p.location?.let { Target(p.nodeId, if (p.lost != null) "${p.name} (lost)" else p.name, p.avatar ?: "🙂", it) } }
+        people.mapNotNull { p -> p.location?.let { Target(p.nodeId, if (p.lost != null) "${p.name} (lost)" else p.name, p.avatar ?: "🙂", it, p) } }
     var selected by rememberSaveable { mutableStateOf(initialTarget) }
     val target = targets.firstOrNull { it.id == selected } ?: targets.firstOrNull()
     val bearing = if (myLocation != null && target != null) Geo.bearingDeg(myLocation, target.point).toFloat() else null
@@ -142,10 +144,11 @@ fun CompassScreen(
                 style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
             )
         }
+        target?.person?.let { p -> item { PersonFix(p, target.point, distance, onRing) } }
         item {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
-                TextButton(onClick = onSaveSpot, enabled = hasLocationPermission) { Text("+ Save this spot") }
-                TextButton(onClick = trailActions.onBaseCamp, enabled = hasLocationPermission) { Text("⛺ Set base camp here") }
+                TextButton(onClick = onSaveSpot) { Text("+ Save this spot") }
+                TextButton(onClick = trailActions.onBaseCamp) { Text("⛺ Set base camp here") }
             }
         }
         item { GroupLabel("Trail & lost mode") }
@@ -222,3 +225,57 @@ private fun Dial(heading: Float, bearing: Float?, modifier: Modifier) {
     }
 }
 
+
+/**
+ * How good the position we're steering to is, and what else helps find them: how old it is, whether it's GPS
+ * or estimated from their steps, whether they're within radio range right now, and a button to ring their phone.
+ */
+@Composable
+private fun PersonFix(p: Person, point: GeoPoint, distance: Double?, onRing: (String) -> Unit) {
+    val now by androidx.compose.runtime.produceState(System.currentTimeMillis()) {
+        while (true) { kotlinx.coroutines.delay(5_000); value = System.currentTimeMillis() }
+    }
+    val lost = p.lost
+    val age = now - (lost?.at ?: point.time)
+    val acc = lost?.uncertaintyM?.roundToInt() ?: point.accuracyM.roundToInt()
+    val source = when {
+        lost == null -> "their GPS"
+        lost.gps -> "their GPS"
+        else -> "estimated from their steps since GPS dropped ${agoShort(lost.fixAt, now)}"
+    }
+    val stale = age > 2 * 60_000
+    Group {
+        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+            Text(
+                "Position from ${agoShort(lost?.at ?: point.time, now)} · ±$acc m · $source",
+                style = MaterialTheme.typography.bodyMedium, color = if (stale) MaterialTheme.colorScheme.error else Extra.ink2,
+            )
+            if (stale) Text(
+                "This is old. They may have moved; it updates every 15 s while they're in lost mode and in range of someone.",
+                style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp),
+            )
+            if (p.presence == com.bluemob.app.ui.Presence.ONLINE) Text(
+                "📶 Connected to them directly" + when (p.quality) {
+                    com.bluemob.app.mesh.LinkQuality.HIGH -> " over Wi-Fi: they're within about 100–200 m."
+                    else -> " over Bluetooth: they're within about 10–100 m. Call out and listen."
+                },
+                style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp),
+            ) else if (distance != null && distance < 30) Text(
+                "You're within GPS accuracy of them. Stop, look around and call their name.",
+                style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp),
+            )
+            if (p.lost != null || p.sos) Button(onClick = { onRing(p.nodeId) }, modifier = Modifier.padding(top = 10.dp).fillMaxWidth()) {
+                Text("🔔 Ring their phone (whistle + flash)")
+            }
+        }
+    }
+}
+
+private fun agoShort(then: Long, now: Long): String {
+    val sec = ((now - then) / 1000).coerceAtLeast(0)
+    return when {
+        sec < 10 -> "a few seconds ago"
+        sec < 60 -> "$sec s ago"
+        else -> com.bluemob.app.util.TimeText.ago(then, now)
+    }
+}

@@ -28,6 +28,8 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -113,47 +115,153 @@ class NearbyMeshTransport(
     /** Our latest position, if the user shares it. Sent to everyone we connect to. */
     private var myLocation: GeoPoint? = null
 
+    /** Whether advertising / discovery are actually running. Both stop when Bluetooth is switched off. */
+    private var advertising = false
+    private var discovering = false
+    private var advertisingPending = false
+    private var discoveryPending = false
+    private var lastDiscoveryStart = 0L
+    private var watchdog: Job? = null
+    private var restartJob: Job? = null
+
     fun start() {
         if (_running.value) return
         _running.value = true
         log("Starting as \"${identity.displayName.value}\" (${identity.nodeId.take(6)})")
-
-        scope.launch {
-            try {
-                client.startAdvertising(
-                    myEndpointName(), SERVICE_ID, connectionCallback,
-                    AdvertisingOptions.Builder().setStrategy(STRATEGY).build(),
-                ).await()
-                log("Advertising: other phones can now see this one")
-            } catch (e: Exception) {
-                log("Advertising failed: ${describe(e)}")
-            }
-        }
-        scope.launch {
-            try {
-                client.startDiscovery(
-                    SERVICE_ID, discoveryCallback,
-                    DiscoveryOptions.Builder().setStrategy(STRATEGY).build(),
-                ).await()
-                log("Scanning for nearby phones…")
-            } catch (e: Exception) {
-                log("Discovery failed: ${describe(e)}")
+        beginAdvertising()
+        beginDiscovery()
+        // Advertising and discovery quietly die when a radio goes off, and a failed connection is never retried
+        // by Nearby itself. This keeps both alive and retries until the phones find each other again.
+        watchdog?.cancel()
+        watchdog = scope.launch {
+            while (isActive) {
+                delay(WATCHDOG_MS)
+                if (_running.value) checkHealth()
             }
         }
     }
 
     fun stop() {
         if (!_running.value) return
+        watchdog?.cancel()
+        restartJob?.cancel()
         client.stopAdvertising()
         client.stopDiscovery()
         client.stopAllEndpoints()
+        advertising = false
+        discovering = false
+        dropAllPeers()
+        _running.value = false
+        log("Stopped")
+    }
+
+    /**
+     * Starts advertising and discovery from scratch, e.g. after Bluetooth or Wi-Fi was switched off and on.
+     * Nearby doesn't recover from that by itself: the phone stays invisible and finds no one.
+     */
+    fun restart(reason: String) {
+        if (!_running.value) return
+        log("Restarting the mesh: $reason")
+        client.stopAdvertising()
+        client.stopDiscovery()
+        client.stopAllEndpoints()
+        advertising = false
+        discovering = false
+        dropAllPeers()
+        beginAdvertising()
+        beginDiscovery()
+    }
+
+    /** Called when Bluetooth or Wi-Fi changes. Waits for the radio to settle, then restarts the mesh. */
+    fun onRadiosChanged(bluetoothOn: Boolean) {
+        if (!_running.value) return
+        restartJob?.cancel()
+        restartJob = scope.launch {
+            if (!bluetoothOn) {
+                // Links over Bluetooth are gone; Nearby doesn't always say so. Wi-Fi links may survive, so only
+                // mark the radios as needing a restart and let the watchdog retry until Bluetooth is back.
+                advertising = false
+                discovering = false
+                log("Bluetooth is off: nearby phones can't find this one until it's back on")
+                return@launch
+            }
+            delay(RADIO_SETTLE_MS)
+            restart("a radio was switched back on")
+        }
+    }
+
+    private fun dropAllPeers() {
         val now = System.currentTimeMillis()
         _peers.value.values.filter { it.state == PeerState.CONNECTED }
             .forEach { contacts.touch(it.nodeId, it.name, now) }
         _peers.value = emptyMap()
+        authTokens.clear()
         pendingPings.clear()
-        _running.value = false
-        log("Stopped")
+    }
+
+    private fun beginAdvertising() {
+        if (advertising || advertisingPending) return
+        advertisingPending = true
+        scope.launch {
+            try {
+                client.startAdvertising(
+                    myEndpointName(), SERVICE_ID, connectionCallback,
+                    AdvertisingOptions.Builder().setStrategy(STRATEGY).build(),
+                ).await()
+                advertising = true
+                log("Advertising: other phones can now see this one")
+            } catch (e: Exception) {
+                val code = (e as? ApiException)?.statusCode
+                advertising = code == ConnectionsStatusCodes.STATUS_ALREADY_ADVERTISING
+                if (!advertising) log("Advertising failed: ${describe(e)}. Trying again soon")
+            } finally {
+                advertisingPending = false
+            }
+        }
+    }
+
+    private fun beginDiscovery() {
+        if (discovering || discoveryPending) return
+        discoveryPending = true
+        lastDiscoveryStart = SystemClock.elapsedRealtime()
+        scope.launch {
+            try {
+                client.startDiscovery(
+                    SERVICE_ID, discoveryCallback,
+                    DiscoveryOptions.Builder().setStrategy(STRATEGY).build(),
+                ).await()
+                discovering = true
+                log("Scanning for nearby phones…")
+            } catch (e: Exception) {
+                val code = (e as? ApiException)?.statusCode
+                discovering = code == ConnectionsStatusCodes.STATUS_ALREADY_DISCOVERING
+                if (!discovering) log("Discovery failed: ${describe(e)}. Trying again soon")
+            } finally {
+                discoveryPending = false
+            }
+        }
+    }
+
+    /**
+     * Stops and starts discovery. Nearby reports each phone once per discovery session, so a phone that
+     * disconnected (walked away, Bluetooth toggled) is often never "found" again until discovery restarts.
+     */
+    private fun refreshDiscovery() {
+        if (!_running.value || discoveryPending) return
+        client.stopDiscovery()
+        discovering = false
+        _peers.update { peers -> peers.filterValues { it.state != PeerState.DISCOVERED } }
+        beginDiscovery()
+    }
+
+    private fun checkHealth() {
+        if (!advertising) beginAdvertising()
+        if (!discovering) { beginDiscovery(); return }
+        // Found but never connected (both dialled at once, or the attempt failed): try again.
+        _peers.value.values.filter { it.state == PeerState.DISCOVERED }.forEach { autoConnect(it.endpointId, it.nodeId) }
+        val alone = _peers.value.values.none { it.state == PeerState.CONNECTED }
+        val since = SystemClock.elapsedRealtime() - lastDiscoveryStart
+        if ((alone && since > LONELY_REFRESH_MS) || since > REFRESH_MS) refreshDiscovery()
     }
 
     fun connect(endpointId: String) {
@@ -251,6 +359,55 @@ class NearbyMeshTransport(
         connectedEndpoints().forEach { sendTo(it, json) }
     }
 
+    /**
+     * Sends a signed packet to one person: straight to them when connected, otherwise to everyone connected, who
+     * pass it on (up to [SOS_MAX_HOPS] hops). Returns false if no one at all is connected.
+     */
+    fun sendApp(to: String, kind: String, body: JSONObject = JSONObject()): Boolean {
+        val id = "a-" + java.util.UUID.randomUUID().toString().take(13)
+        val b = JSONObject(body.toString()).put("id", id).put("to", to).put("k", kind)
+            .put("name", identity.displayName.value).put("at", System.currentTimeMillis())
+        val json = Envelope.seal(TYPE_APP, b, identity.keys)
+        seenSos += TYPE_APP + id
+        connectedEndpointFor(to)?.let { sendTo(it, json); return true }
+        val targets = connectedEndpoints()
+        targets.forEach { sendTo(it, json) }
+        return targets.isNotEmpty()
+    }
+
+    private fun handleApp(fromEndpoint: String, json: JSONObject) {
+        val o = Envelope.open(json) ?: return
+        val to = o.body.optString("to")
+        if (!seenSos.add(TYPE_APP + o.body.optString("id"))) return
+        if (to == identity.nodeId) {
+            if (o.from == identity.nodeId) return
+            keyBook.add(o.publicB64)
+            val direct = _peers.value[fromEndpoint]?.nodeId == o.from
+            _events.tryEmit(MeshEvent.App(o.from, o.body.optString("name").take(Identity.MAX_NAME_LENGTH), o.body.optString("k"), o.body, o.hops + 1, direct))
+            return
+        }
+        val hops = o.hops + 1
+        if (hops >= SOS_MAX_HOPS) return
+        val forward = JSONObject(json.toString()).put("h", hops)
+        val direct = connectedEndpointFor(to)
+        if (direct != null) sendTo(direct, forward)
+        else connectedEndpoints().filter { it != fromEndpoint }.forEach { sendTo(it, forward) }
+    }
+
+    private val _media = MutableSharedFlow<Media>(extraBufferCapacity = 32, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    /** Live call audio and video frames from directly connected phones. */
+    val media: SharedFlow<Media> = _media.asSharedFlow()
+
+    /** A chunk of call audio or a video frame. The first byte says which ([Media.AUDIO] or [Media.VIDEO]). */
+    class Media(val fromNodeId: String, val bytes: ByteArray)
+
+    /** Sends call audio or video straight to a connected phone. Returns false if they aren't connected. */
+    fun sendMedia(nodeId: String, bytes: ByteArray): Boolean {
+        val endpointId = connectedEndpointFor(nodeId) ?: return false
+        client.sendPayload(endpointId, Payload.fromBytes(bytes))
+        return true
+    }
+
     /** Human words for the link to someone, e.g. "Bluetooth" or "Wi-Fi". */
     override fun neighbors(): List<String> = connectedNodes()
     override fun send(nodeId: String, packet: JSONObject) { connectedEndpointFor(nodeId)?.let { sendTo(it, packet) } }
@@ -316,6 +473,8 @@ class NearbyMeshTransport(
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             val (nodeId, name) = EndpointInfo.decode(info.endpointName) ?: return
             if (nodeId == identity.nodeId) return
+            // Found again after discovery restarted, but we're already linked: keep the live link as it is.
+            if (_peers.value.values.any { it.nodeId == nodeId && it.state != PeerState.DISCOVERED }) return
             _peers.update { peers ->
                 // Drop stale entries for the same phone under an old endpoint ID.
                 peers.filterValues { it.nodeId != nodeId || it.state != PeerState.DISCOVERED } +
@@ -391,6 +550,8 @@ class NearbyMeshTransport(
             authTokens.remove(endpointId)
             contacts.touch(peer.nodeId, peer.name)
             log("${peer.name} disconnected")
+            // So they're found again as soon as they're back in range.
+            scope.launch { delay(RADIO_SETTLE_MS); refreshDiscovery() }
         }
 
         override fun onBandwidthChanged(endpointId: String, info: BandwidthInfo) {
@@ -409,6 +570,12 @@ class NearbyMeshTransport(
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             val bytes = payload.asBytes() ?: return
+            if (bytes.isNotEmpty() && (bytes[0] == MEDIA_AUDIO || bytes[0] == MEDIA_VIDEO)) {
+                // Call media only from a phone that proved its ID, and only within the size of a frame.
+                val peer = _peers.value[endpointId]?.takeIf { it.verified } ?: return
+                if (bytes.size <= MAX_MEDIA) _media.tryEmit(Media(peer.nodeId, bytes))
+                return
+            }
             if (bytes.size > MAX_PAYLOAD) return log("Ignored an oversized packet")
             val json = runCatching { JSONObject(String(bytes)) }.getOrNull() ?: return
             val peer = _peers.value[endpointId] ?: return
@@ -441,6 +608,7 @@ class NearbyMeshTransport(
                 TYPE_SOS -> handleSos(endpointId, json)
                 TYPE_LOST -> handleLost(endpointId, json)
                 TYPE_ROOM -> handleRoom(endpointId, json)
+                TYPE_APP -> handleApp(endpointId, json)
                 TYPE_PING -> {
                     log("Ping from ${peer.name}")
                     sendTo(endpointId, JSONObject().put("t", TYPE_PONG).put("id", json.optString("id")))
@@ -542,6 +710,12 @@ class NearbyMeshTransport(
         private const val SERVICE_ID = "com.bluemob.mesh"
         private val STRATEGY = Strategy.P2P_CLUSTER
         private const val AUTO_CONNECT_BACKOFF_MS = 4_000L
+        private const val WATCHDOG_MS = 15_000L
+        private const val RADIO_SETTLE_MS = 2_000L
+        /** Restart discovery this often while no one is connected… */
+        private const val LONELY_REFRESH_MS = 40_000L
+        /** …and now and then anyway, to find newcomers Nearby missed. */
+        private const val REFRESH_MS = 5 * 60_000L
         private const val MAX_LOG_LINES = 200
         private const val TYPE_HELLO = "hello"
         private const val TYPE_LOC = "loc"
@@ -552,6 +726,11 @@ class NearbyMeshTransport(
         private const val TYPE_SOS = "sos"
         private const val TYPE_LOST = "lost"
         private const val TYPE_ROOM = "room"
+        private const val TYPE_APP = "app"
+        const val MEDIA_AUDIO: Byte = 'A'.code.toByte()
+        const val MEDIA_VIDEO: Byte = 'V'.code.toByte()
+        /** Nearby's limit for one BYTES payload. */
+        const val MAX_MEDIA = 32 * 1024
         const val TYPE_RATE = "rate"
         const val SOS_MAX_HOPS = 5
         private const val TYPE_PING = "ping"

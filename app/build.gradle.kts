@@ -19,8 +19,8 @@ android {
         // Optional: `-PonlyAbi=arm64-v8a` builds for one phone type only (a smaller APK to share for testing).
         (project.findProperty("onlyAbi") as String?)?.let { ndk { abiFilters += it } }
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.6.2"
+        versionCode = 9
+        versionName = "0.7.0"
     }
 
     buildTypes {
@@ -69,6 +69,9 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.sqlcipher)
     implementation(libs.androidx.sqlite)
+    // Video calls: camera frames for the low-bandwidth video sent over the mesh.
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
     testImplementation("org.json:json:20240303")
     testImplementation(libs.robolectric)
     testImplementation(libs.junit)

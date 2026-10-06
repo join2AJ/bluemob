@@ -52,6 +52,18 @@ class MainActivity : ComponentActivity() {
     private val stepPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) viewModel.onStepPermission() }
 
+    private var afterCallPermissions: (() -> Unit)? = null
+    private val callPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { afterCallPermissions?.invoke(); afterCallPermissions = null }
+
+    private fun requestCallPermissions(video: Boolean, then: () -> Unit) {
+        val want = listOfNotNull(Manifest.permission.RECORD_AUDIO, if (video) Manifest.permission.CAMERA else null)
+            .filter { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+        if (want.isEmpty()) return then()
+        afterCallPermissions = then
+        callPermissionLauncher.launch(want.toTypedArray())
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -78,12 +90,14 @@ class MainActivity : ComponentActivity() {
             requestSteps = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) stepPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
             },
+            requestCallPermissions = ::requestCallPermissions,
         )
         handleRoute(intent)
         // Show over the lock screen only while an SOS alert is up, never for chats.
         lifecycleScope.launch {
-            viewModel.sosAlert.collect { alert ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) { setShowWhenLocked(alert != null); setTurnScreenOn(alert != null) }
+            // …or while someone is calling.
+            kotlinx.coroutines.flow.combine(viewModel.sosAlert, viewModel.call) { alert, call -> alert != null || call?.phase == com.bluemob.app.call.CallPhase.INCOMING }.collect { show ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) { setShowWhenLocked(show); setTurnScreenOn(show) }
             }
         }
         setContent {
@@ -103,7 +117,7 @@ class MainActivity : ComponentActivity() {
 
     /** A notification asked to open a chat or rescue group. */
     private fun handleRoute(intent: Intent?) {
-        intent?.getStringExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)?.let { viewModel.pendingRoute.value = it.replace("person:me", "person:" + viewModel.nodeId) }
+        intent?.getStringExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)?.takeIf { it != "call" }?.let { viewModel.pendingRoute.value = it.replace("person:me", "person:" + viewModel.nodeId) }
         intent?.removeExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)
     }
 
