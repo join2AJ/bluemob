@@ -32,7 +32,8 @@ class LiveLink(
     private val keys: DeviceKeys,
     private val scope: CoroutineScope,
     private val online: () -> Boolean,
-    private val http: OkHttpClient = OkHttpClient.Builder().pingInterval(25, TimeUnit.SECONDS).connectTimeout(20, TimeUnit.SECONDS).build(),
+    private val http: OkHttpClient = OkHttpClient.Builder().pingInterval(25, TimeUnit.SECONDS).connectTimeout(20, TimeUnit.SECONDS)
+        .dns(SafeDns).build(),
 ) {
     private val _connected = MutableStateFlow(false)
     /** Signed in to the relay right now. */
@@ -127,5 +128,17 @@ class LiveLink(
 
     private companion object {
         val ID = Regex("^[0-9a-f]{16}$")
+    }
+
+    /**
+     * Android throws SecurityException (not an IOException) when network access is refused, e.g. by a firewall app or
+     * a "no internet" profile. OkHttp would let that crash its thread; report it as a normal failed lookup instead.
+     */
+    private object SafeDns : okhttp3.Dns {
+        override fun lookup(hostname: String): List<java.net.InetAddress> = try {
+            okhttp3.Dns.SYSTEM.lookup(hostname)
+        } catch (e: SecurityException) {
+            throw java.net.UnknownHostException("Network access refused: ${e.message}")
+        }
     }
 }

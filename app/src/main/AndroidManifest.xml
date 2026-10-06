@@ -41,6 +41,8 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <!-- To show whether this phone has internet (it could act as a bridge for others) -->
+    <!-- The internet relay: messages, calls and guide downloads for people far apart (only when online) -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- Voice and video calls with people nearby (asked for only when starting or answering a call) -->
