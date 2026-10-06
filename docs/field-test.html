@@ -67,7 +67,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
 
 <div class="wrap">
   <header>
-    <h1>BlueMob 0.8 field test</h1>
+    <h1>BlueMob 0.9 field test</h1>
     <p class="lede">Work through each category with your phones side by side, then apart. Mark each check Pass, Fail or Skip and add a note for anything odd. When you're done, tap <b>Copy results</b> and paste them to Claude. Your ticks are saved in this browser only.</p>
     <div class="phones">
       <span class="phone">Phone A · you</span><span class="phone">Phone B · friend</span><span class="phone">Phone C · relay (for 3-phone checks)</span>
@@ -96,7 +96,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
   <div class="tips">
     <h2>Before you start</h2>
     <ul>
-      <li>Install the same APK (0.8.0) on every phone. Check under You → About.</li>
+      <li>Install the same APK (0.9.0) on every phone. Check under You → About.</li>
       <li>On each phone allow Nearby devices, Location, Notifications, and Microphone + Camera when asked for a call.</li>
       <li>Turn Bluetooth and Location on. Wi-Fi on (no network needed). Mobile data off unless a check says otherwise.</li>
       <li>Distances: "side by side" is under 2 m, "apart" is another room or 20–50 m outdoors, "out of range" is 150 m+ outdoors or several walls.</li>
@@ -108,18 +108,23 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
 
 <script>
 const CATS = [
-  { k: "setup", name: "Sign up & log in", why: "New in 0.8. Each phone.", items: [
-    ["Fresh install: go through the intro, pick a name.", "Then Create your account: PIN, fingerprint (if the phone has it), recovery code.", 1, 1],
-    ["Try 123456 or 111111 as the PIN.", "Refused as too easy to guess.", 1, 1],
-    ["Type a different PIN the second time.", "Says they didn't match and starts again.", 1, 1],
-    ["Recovery code screen: try Done without ticking \"I've written it down\".", "Done stays disabled until ticked. Write the code down for later.", 1, 1],
-    ["Upgrade a phone that had 0.7.", "Shows Secure your account (not Create); chats, contacts and ID unchanged.", 1, 1],
-    ["Leave BlueMob for 2 minutes, come back.", "Asks for PIN (or fingerprint). Wrong PIN shows tries left; 5 wrong starts a 30 s wait.", 1, 1],
-    ["While locked, have phone B message you and send SOS.", "Messages still arrive (notification); the SOS alert shows over the lock screen.", 2, 1],
-    ["On the lock screen, hold Emergency SOS for a second.", "SOS goes out without logging in; other phones get it.", 2, 1],
-    ["You → Account & login: change PIN, show recovery code, change lock time.", "Recovery code needs your PIN first and matches what you wrote down.", 1, 1],
-    ["Restore: uninstall (or use another phone), install, tap \"I already have a BlueMob ID\", type the code.", "App restarts with the same BM ID; friends' messages reach you on it.", 2, 1],
-    ["Restore with one character wrong.", "Says the code isn't right; doesn't restore a different ID.", 1, 1],
+  { k: "setup", name: "Sign up", why: "New in 0.9. Each phone.", items: [
+    ["Fresh install: intro, then Sign up. Enter a mobile number.", "A wrong Indian number (9 digits, or starting with 1–5) is refused with a reason.", 1, 1],
+    ["Send code, then type 000000.", "Says the code isn't right. Resend is available after 30 s.", 1, 1],
+    ["Type 123456.", "Moves on to About you: name, avatar, age, blood group.", 1, 1],
+    ["Pick a blood group (or Don't know) and create the account.", "The app opens with no PIN. You → Account shows the number (✓ verified), age and blood group.", 1, 1],
+    ["Upgrade a phone that had 0.8.", "Asks to verify the number once, with your name filled in; chats and ID unchanged.", 1, 1],
+    ["You → Account: turn on PIN lock, leave for 2 min, come back, then turn it off.", "Asks for the PIN only while it's on; SOS still works from the lock screen.", 1, 1],
+    ["Phone A sends an SOS. Look at it on phone B.", "B's alert shows A's blood group and age; so does the rescue group after I'm coming.", 2, 1],
+  ]},
+  { k: "files", name: "Photos, documents & voice notes", why: "New in 0.9. Phones side by side first.", items: [
+    ["A: 📎 → Photo, pick a picture.", "B gets it within seconds with a progress %; tap opens it full screen (pinch to zoom).", 2, 1],
+    ["A: 📎 → Document, pick a PDF.", "B taps it and it opens in a PDF app.", 2, 1],
+    ["Hold 🎤 for 5 seconds, let go.", "B gets a voice note and can play it; tap again stops it.", 2, 1],
+    ["Hold 🎤 and slide your finger away before letting go.", "Nothing is sent.", 1, 1],
+    ["B out of range. A sends a photo. B comes back.", "The message arrives; the photo follows once they're connected directly.", 2, 1],
+    ["Tap the gallery icon at the top of the chat.", "Media, docs & voice: filters for Photos, Videos, Documents, Voice with counts.", 2, 1],
+    ["Send a photo to a phone on 0.8 or older.", "They see a line saying to update BlueMob to open it.", 2, 1],
   ]},
   { k: "compat", name: "Different versions together", why: "New in 0.8. Keep one phone on 0.6.x or 0.7.0, update the other.", items: [
     ["0.8 phone and 0.7/0.6 phone side by side.", "They find and connect to each other as before.", 2, 1],
@@ -185,7 +190,11 @@ const CATS = [
   { k: "voice", name: "Voice calls", why: "New: phone to phone, no internet. Needs a direct link.", items: [
     ["A opens chat with B, taps 📞.", "Asks for microphone once. B rings with a full-screen Answer / Decline.", 2, 1],
     ["B answers. Talk for 2 minutes side by side.", "Both hear each other clearly; delay under ~1 s; timer counts.", 2, 1],
-    ["Mute, then speaker, on each phone.", "Mute silences you; speaker switches to loudspeaker.", 2, 1],
+    ["Mute, then speaker, on each phone.", "Mute silences you and the other phone says you muted; speaker switches to loudspeaker.", 2, 1],
+    ["Tap Walkie-talkie on both phones, hold to talk in turns.", "Clear voice, a click on press and release; the other phone shows \"… is talking\".", 2, 1],
+    ["Chats → Calls.", "Every call listed: in/out, answered with duration, missed in red. Tap one to call back.", 2, 1],
+    ["Miss a call with the app in the background.", "A \"Missed call from …\" notification.", 2, 1],
+    ["Make 4 calls in a row between the same phones.", "Voice works on every call, not just the first.", 2, 1],
     ["Walk apart to the edge of range while talking.", "Audio may break up but recovers; if the link drops for 8 s the call ends with \"Lost the connection\".", 2, 1],
     ["B declines a call. Then A calls and B doesn't answer for 45 s.", "A sees \"can't talk right now\", then \"No answer\"; B sees \"Missed call\".", 2, 1],
     ["B's screen locked when A calls.", "B's screen turns on with the incoming call.", 2, 1],
@@ -219,7 +228,7 @@ const CATS = [
   ]},
 ];
 
-const KEY = "bluemob-field-test-0.8";
+const KEY = "bluemob-field-test-0.9";
 let state = {};
 try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { state = {}; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
@@ -280,7 +289,7 @@ document.querySelectorAll(".filters button").forEach(b => b.onclick = () => { fi
 function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
 
 document.getElementById("copy").onclick = () => {
-  const lines = ["BlueMob 0.8 field test results"];
+  const lines = ["BlueMob 0.9 field test results"];
   CATS.forEach(c => {
     const rows = all.filter(x => x.cat === c && (state[x.id]?.v || state[x.id]?.n));
     if (!rows.length) return;
