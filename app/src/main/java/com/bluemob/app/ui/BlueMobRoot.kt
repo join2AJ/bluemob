@@ -123,6 +123,8 @@ class SystemActions(
     /** Asks for the microphone (and camera for video), then runs the callback whatever the answer. */
     val requestCallPermissions: (Boolean, () -> Unit) -> Unit = { _, then -> then() },
     val canUseBiometric: () -> Boolean = { false },
+    /** Sends and checks sign-up codes: real SMS when Firebase is set up, otherwise the test code. */
+    val phoneVerifier: () -> com.bluemob.app.account.PhoneVerifier = { com.bluemob.app.account.TestVerifier },
     /** Shows the phone's fingerprint / face prompt and calls back on success. */
     val biometricUnlock: (() -> Unit) -> Unit = {},
     val restartApp: () -> Unit = {},
@@ -167,6 +169,7 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
                     upgrading = upgrading, initialName = if (upgrading) name else "", initialAvatar = avatar,
                     bluemobId = com.bluemob.app.util.formatId(vm.nodeId),
                     onRestore = if (upgrading) null else ({ restoring = true }),
+                    verifier = remember { actions.phoneVerifier() },
                     onDone = { r ->
                         vm.completeSignup(r)
                         if (!system.permissionsGranted) actions.requestMeshPermissions() else vm.startMesh()

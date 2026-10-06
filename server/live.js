@@ -8,7 +8,12 @@
 //    Text  {t:"presence", ids}    → {t:"presence", online:[...], via:{id: gatewayId}}
 //    Text  {t:"via", ids}         → this phone carries these IDs (phones near it with no internet of their own)
 //    Binary [8-byte target ID | payload] → delivered as [8-byte sender ID | payload]   (call audio and video)
+//    Text  {t:"push", token}      → this phone's Firebase token, to wake it when it isn't connected
 //    Server → phone {t:"poke"}    → a message for you (or a phone you carry) was stored: pull now
+//
+// Wake-ups: when someone calls or messages a phone that isn't connected (and nobody carries it), and the server has
+// that phone's Firebase token, it sends a content-free push ("a call", "a message") so the phone wakes, connects and
+// fetches it. Needs FCM_SERVICE_ACCOUNT (see push.js); otherwise nothing changes.
 //
 // Gateways: a phone with internet tells the server which nearby phones it can reach ("via"). Anything for one of those
 // phones, while it isn't signed in itself, goes to the gateway, which hands it on over Bluetooth / Wi-Fi. Binary frames
@@ -99,7 +104,7 @@ class Socket {
 }
 
 /** Adds the live channel to an http server. Returns the table of connected phones (for tests and /health). */
-function attachLive(server, { now = () => Date.now(), store = null } = {}) {
+function attachLive(server, { now = () => Date.now(), store = null, pusher = null } = {}) {
   const online = new Map(); // id -> Socket
   const carriers = new Map(); // phone without internet -> gateway id that carries it
   const carried = new Map(); // gateway id -> Set of ids it carries
@@ -110,8 +115,21 @@ function attachLive(server, { now = () => Date.now(), store = null } = {}) {
   /** Who to hand something for [to] to: the phone itself, or the gateway carrying it. */
   const route = (to) => online.get(to) || (carriers.has(to) ? online.get(carriers.get(to)) : undefined);
   const poke = (to) => { const ws = route(to); if (ws) ws.text({ t: "poke" }); };
-  if (store) store.onPut = poke;
+  // Wake a phone that isn't connected, at most once per kind every few seconds.
+  const lastWake = new Map();
+  const wake = (to, data, every = 8e3) => {
+    if (!pusher || !pusher.configured || !store) return false;
+    const token = store.pushTokens.get(to);
+    if (!token) return false;
+    const key = to + "|" + data.k;
+    if (now() - (lastWake.get(key) || 0) < every) return true;
+    lastWake.set(key, now());
+    Promise.resolve(pusher.send(token, data)).then((r) => { if (r === "gone") store.setPushToken(to, null); }).catch(() => {});
+    return true;
+  };
+  if (store) store.onPut = (to, info = {}) => { if (route(to)) poke(to); else if (info.type === "rmsg") wake(to, { k: "msg", name: info.name || "" }, 30e3); };
   online.poke = poke;
+  online.wake = wake;
   online.carriers = carriers;
   server.on("upgrade", (req, sock) => {
     const url = new URL(req.url, "http://relay");
@@ -156,12 +174,26 @@ function attachLive(server, { now = () => Date.now(), store = null } = {}) {
           let p = null; try { p = JSON.parse(m.data); } catch {}
           if (p && (p.t === "rmsg" || p.t === "rrcpt")) { const saved = store.onPut; store.onPut = null; try { store.put(p); } finally { store.onPut = saved; } }
         }
-        if (!peer) ws.text({ t: "offline", to: m.to });
+        if (!peer) {
+          // A call for a phone that's asleep: wake it, so it connects while the caller keeps ringing.
+          let woke = false;
+          try {
+            const p = JSON.parse(m.data);
+            if (p && p.t === "app") {
+              const o = require("./relay").openEnvelope(p);
+              const b = o && o.from === id ? o.body : null;
+              if (b && b.to === m.to && b.k === "call" && b.a === "invite") woke = wake(m.to, { k: "call", from: id, name: String(b.name || "").slice(0, 40), video: String(!!b.video), cid: String(b.cid || "") });
+            }
+          } catch {}
+          ws.text({ t: "offline", to: m.to, waking: woke });
+        }
       } else if (m.t === "presence" && Array.isArray(m.ids)) {
         const ids = m.ids.slice(0, 50);
         const via = {};
         for (const x of ids) if (!online.has(x) && carriers.has(x) && online.has(carriers.get(x))) via[x] = carriers.get(x);
         ws.text({ t: "presence", online: ids.filter((x) => online.has(x)), via });
+      } else if (m.t === "push" && typeof m.token === "string" && m.token.length < 4096 && store) {
+        store.setPushToken(id, m.token);
       } else if (m.t === "via" && Array.isArray(m.ids)) {
         forget(id);
         const set = new Set(m.ids.filter((x) => typeof x === "string" && /^[0-9a-f]{16}$/.test(x) && x !== id).slice(0, MAX_VIA));

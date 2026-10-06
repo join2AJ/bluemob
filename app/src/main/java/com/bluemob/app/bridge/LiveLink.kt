@@ -43,8 +43,15 @@ class LiveLink(
     var onText: (from: String, data: String) -> Unit = { _, _ -> }
     /** Call audio or video from [from]. Called on OkHttp's thread. */
     var onBinary: (from: String, bytes: ByteArray) -> Unit = { _, _ -> }
-    /** The relay says [to] isn't signed in. */
-    var onOffline: (to: String) -> Unit = {}
+    /** The relay says [to] isn't signed in ([waking]: it sent their phone a wake-up, so they may be on soon). */
+    var onOffline: (to: String, waking: Boolean) -> Unit = { _, _ -> }
+
+    /** Firebase token, sent to the relay so it can wake this phone when it isn't connected. */
+    @Volatile private var pushToken: String? = null
+    fun setPushToken(token: String) {
+        pushToken = token
+        ws?.takeIf { _connected.value }?.send(JSONObject().put("t", "push").put("token", token).toString())
+    }
     /** The relay stored a message for us (or a phone we carry): fetch it now instead of at the next sync. */
     var onPoke: () -> Unit = {}
 
@@ -100,7 +107,10 @@ class LiveLink(
                         val sig = Crypto.encode(keys.sign("bluemob-live|${m.optString("n")}".toByteArray()))
                         webSocket.send(JSONObject().put("t", "auth").put("pk", keys.publicB64).put("sig", sig).toString())
                     }
-                    "ok" -> if (m.optString("id") == keys.nodeId) { lastVia = emptySet(); _connected.value = true }
+                    "ok" -> if (m.optString("id") == keys.nodeId) {
+                        lastVia = emptySet(); _connected.value = true
+                        pushToken?.let { webSocket.send(JSONObject().put("t", "push").put("token", it).toString()) }
+                    }
                     "poke" -> onPoke()
                     "presence" -> {
                         val on = m.optJSONArray("online")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { ID.matches(it) }.toSet() }.orEmpty()
@@ -108,7 +118,7 @@ class LiveLink(
                         _presence.value = Presence(on, via, System.currentTimeMillis())
                     }
                     "msg" -> m.optString("from").takeIf { ID.matches(it) }?.let { onText(it, m.optString("data")) }
-                    "offline" -> onOffline(m.optString("to"))
+                    "offline" -> onOffline(m.optString("to"), m.optBoolean("waking"))
                 }
             }
 

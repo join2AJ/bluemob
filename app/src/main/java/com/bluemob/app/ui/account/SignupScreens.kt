@@ -77,6 +77,8 @@ fun SignupFlow(
     bluemobId: String,
     onRestore: (() -> Unit)?,
     onDone: (SignupResult) -> Unit,
+    /** Real SMS (Firebase) when configured, otherwise the test code. */
+    verifier: com.bluemob.app.account.PhoneVerifier = com.bluemob.app.account.TestVerifier,
 ) {
     var step by rememberSaveable { mutableIntStateOf(0) }
     var cc by rememberSaveable { mutableStateOf("+91") }
@@ -92,11 +94,17 @@ fun SignupFlow(
             StepBar(step)
             Spacer(Modifier.height(20.dp))
             when (step) {
-                0 -> PhoneStep(upgrading, cc, number, onCc = { cc = it }, onNumber = { number = it }, onRestore = onRestore) {
+                0 -> PhoneStep(upgrading, cc, number, onCc = { cc = it }, onNumber = { number = it }, onRestore = onRestore, verifier = verifier) { onSent ->
                     phone = PhoneNumbers.e164(cc, number) ?: return@PhoneStep
-                    step = 1
+                    verifier.send(phone, resend = false) { e ->
+                        when (e) {
+                            com.bluemob.app.account.VerifyEvent.CodeSent -> { onSent(null); step = 1 }
+                            com.bluemob.app.account.VerifyEvent.Verified -> { onSent(null); step = 2 }
+                            is com.bluemob.app.account.VerifyEvent.Error -> onSent(e.message)
+                        }
+                    }
                 }
-                1 -> OtpStep(phone) { step = 2 }
+                1 -> OtpStep(phone, verifier) { step = 2 }
                 else -> DetailsStep(upgrading, initialName, initialAvatar, bluemobId) { name, avatar, age, blood ->
                     onDone(SignupResult(phone, name, avatar, age, blood))
                 }
@@ -116,8 +124,11 @@ private fun StepBar(step: Int) {
 }
 
 @Composable
-private fun PhoneStep(upgrading: Boolean, cc: String, number: String, onCc: (String) -> Unit, onNumber: (String) -> Unit, onRestore: (() -> Unit)?, onNext: () -> Unit) {
+private fun PhoneStep(upgrading: Boolean, cc: String, number: String, onCc: (String) -> Unit, onNumber: (String) -> Unit, onRestore: (() -> Unit)?,
+    verifier: com.bluemob.app.account.PhoneVerifier, onNext: (onSent: (String?) -> Unit) -> Unit) {
     var tried by remember { mutableStateOf(false) }
+    var sending by remember { mutableStateOf(false) }
+    var sendError by remember { mutableStateOf<String?>(null) }
     val problem = PhoneNumbers.problem(cc, number)
     Text(if (upgrading) "Verify your mobile number" else "Sign up with your mobile number", style = MaterialTheme.typography.headlineSmall)
     Text(
@@ -139,8 +150,12 @@ private fun PhoneStep(upgrading: Boolean, cc: String, number: String, onCc: (Str
             modifier = Modifier.weight(1f),
         )
     }
-    Button(onClick = { tried = true; if (problem == null) onNext() }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("Send code") }
-    TestModeNote()
+    Button(onClick = {
+        tried = true
+        if (problem == null && !sending) { sending = true; sendError = null; onNext { err -> sending = false; sendError = err } }
+    }, enabled = !sending, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text(if (sending) "Sending…" else "Send code") }
+    sendError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
+    if (!verifier.real) TestModeNote()
     if (onRestore != null) TextButton(onClick = onRestore, modifier = Modifier.padding(top = 8.dp)) { Text("I already have a BlueMob ID (recovery code)") }
 }
 
@@ -153,7 +168,7 @@ private fun TestModeNote() {
 }
 
 @Composable
-private fun OtpStep(phone: String, onVerified: () -> Unit) {
+private fun OtpStep(phone: String, verifier: com.bluemob.app.account.PhoneVerifier, onVerified: () -> Unit) {
     var code by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var resendIn by remember { mutableIntStateOf(Otp.RESEND_AFTER_S) }
@@ -166,7 +181,13 @@ private fun OtpStep(phone: String, onVerified: () -> Unit) {
         value = code,
         onValueChange = { v ->
             code = v.filter { it.isDigit() }.take(Otp.LENGTH); error = null
-            if (code.length == Otp.LENGTH) { if (Otp.check(code)) onVerified() else error = "That code isn't right. Check the SMS and try again." }
+            if (code.length == Otp.LENGTH) verifier.check(code) { e ->
+                when (e) {
+                    com.bluemob.app.account.VerifyEvent.Verified -> onVerified()
+                    is com.bluemob.app.account.VerifyEvent.Error -> error = e.message
+                    else -> Unit
+                }
+            }
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         textStyle = TextStyle(fontSize = 1.sp),
@@ -188,9 +209,12 @@ private fun OtpStep(phone: String, onVerified: () -> Unit) {
     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
     Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (resendIn > 0) Text("Resend code in ${resendIn}s", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
-        else TextButton(onClick = { resendIn = Otp.RESEND_AFTER_S; code = ""; error = null }) { Text("Resend code") }
+        else TextButton(onClick = {
+            resendIn = Otp.RESEND_AFTER_S; code = ""; error = null
+            verifier.send(phone, resend = true) { e -> when (e) { is com.bluemob.app.account.VerifyEvent.Error -> error = e.message; com.bluemob.app.account.VerifyEvent.Verified -> onVerified(); else -> Unit } }
+        }) { Text("Resend code") }
     }
-    TestModeNote()
+    if (!verifier.real) TestModeNote()
 }
 
 @OptIn(ExperimentalLayoutApi::class)

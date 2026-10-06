@@ -16,11 +16,29 @@ android {
         // The BlueMob relay every phone uses for the internet bridge, built in so nobody has to type it.
         // Set `relayUrl=https://…` in gradle.properties once the relay is deployed (see server/README.md).
         buildConfigField("String", "DEFAULT_RELAY_URL", "\"" + ((project.findProperty("relayUrl") as String?) ?: "") + "\"")
+        // Firebase (optional): wakes the phone for calls and messages when BlueMob is closed, and sends real SMS codes
+        // at sign-up. Fill these in gradle.properties from the Firebase console (see docs/firebase.md); left empty,
+        // BlueMob works as before with the test code 123456.
+        listOf("firebaseAppId", "firebaseApiKey", "firebaseProjectId", "firebaseSenderId").forEach { key ->
+            buildConfigField("String", key.replaceFirstChar { it.uppercase() }.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase(),
+                "\"" + ((project.findProperty(key) as String?) ?: "") + "\"")
+        }
         // Optional: `-PonlyAbi=arm64-v8a` builds for one phone type only (a smaller APK to share for testing).
         (project.findProperty("onlyAbi") as String?)?.let { ndk { abiFilters += it } }
         targetSdk = 35
-        versionCode = 17
-        versionName = "0.12.0"
+        versionCode = 18
+        versionName = "0.13.0"
+    }
+
+    signingConfigs {
+        // Test builds are signed with this debug key, kept in the repo so every build (from any machine) installs over the
+        // last one and keeps the same fingerprint for Firebase. Debug/test only: release builds need their own key.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -77,6 +95,10 @@ dependencies {
     implementation(libs.okhttp)
     // Scheduled encrypted backups.
     implementation(libs.work.runtime)
+    // Optional wake-ups for calls and messages when closed, and real SMS codes (only used when configured).
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.auth)
     implementation(libs.camerax.lifecycle)
     testImplementation("org.json:json:20240303")
     testImplementation(libs.robolectric)

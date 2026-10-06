@@ -87,6 +87,15 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 
+        <!-- Wake-ups from the relay (Firebase), only when the build has a Firebase project -->
+        <service
+            android:name=".push.PushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <service
             android:name=".service.CallService"
             android:exported="false"

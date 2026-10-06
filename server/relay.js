@@ -47,6 +47,7 @@ class Store {
     this.packets = new Map(); // key -> {seq, key, to, packet, expiresAt}
     this.keys = new Map();    // id -> public key (base64)
     this.ratings = new Map(); // subject -> Map(ratingKey -> packet)
+    this.pushTokens = new Map(); // id -> Firebase device token, for waking a phone that isn't connected
     if (file) this.load();
   }
   load() {
@@ -61,10 +62,12 @@ class Store {
     if (r.op === "put") { this.seq = Math.max(this.seq, r.seq); this.packets.set(r.key, r); }
     else if (r.op === "del") this.packets.delete(r.key);
     else if (r.op === "key") this.keys.set(r.id, r.pk);
+    else if (r.op === "push") { if (r.token) this.pushTokens.set(r.id, r.token); else this.pushTokens.delete(r.id); }
     else if (r.op === "rate") { if (!this.ratings.has(r.subject)) this.ratings.set(r.subject, new Map()); this.ratings.get(r.subject).set(r.key, r.packet); }
     if (persist) this.log(r);
   }
   learnKey(id, pk) { if (this.keys.get(id) !== pk) this.apply({ op: "key", id, pk }); }
+  setPushToken(id, token) { if ((this.pushTokens.get(id) || null) !== (token || null)) this.apply({ op: "push", id, token: token || null }); }
 
   /** Stores a verified packet. Returns false if it's a duplicate or not storable. */
   put(p, now = Date.now()) {
@@ -87,7 +90,7 @@ class Store {
     if (o.type === "rrcpt" && b.k === "d") { const mk = "rmsg:" + b.mid; if (this.packets.has(mk)) this.apply({ op: "del", key: mk }); }
     const clean = { t: p.t, b: p.b, pk: p.pk, s: p.s, h: Number(p.h) || 0, net: 1 };
     this.apply({ op: "put", seq: ++this.seq, key, to: b.to, packet: clean, expiresAt: Math.min(b.x, now + TTL_MS) });
-    if (this.onPut) this.onPut(b.to); // tell the phone (or its gateway) over the live channel: pull now
+    if (this.onPut) this.onPut(b.to, { type: o.type, name: typeof b.name === "string" ? b.name.slice(0, 40) : "" }); // tell the phone: pull now
     return "ok";
   }
   /** Packets for each ID after that ID's cursor (a phone pulls for itself and the phones around it). */
@@ -279,6 +282,9 @@ if (require.main === module) {
   const blobs = new Blobs(path.join(dataDir, "blobs"));
   setInterval(() => blobs.prune(), 3600e3).unref();
   const server = createServer(store, loadGuides(), blobs);
-  require("./live").attachLive(server, { store });
+  const { createPusher, loadAccount } = require("./push");
+  const pusher = createPusher(loadAccount());
+  if (pusher.configured) console.log("Firebase wake-ups on");
+  require("./live").attachLive(server, { store, pusher });
   server.listen(port, () => console.log(`BlueMob relay listening on :${port}`));
 }

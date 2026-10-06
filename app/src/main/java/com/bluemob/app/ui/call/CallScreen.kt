@@ -150,7 +150,11 @@ fun CallScreen(
                     Text(call.name, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 22.dp))
                     Text(
                         when (call.phase) {
-                            CallPhase.OUTGOING -> if (call.waiting) "Waiting for ${call.name} to come online…" else "Ringing…"
+                            CallPhase.OUTGOING -> when {
+                                call.waking -> "Ringing ${call.name}'s phone (BlueMob was closed)…"
+                                call.waiting -> "Waiting for ${call.name} to come online…"
+                                else -> "Ringing…"
+                            }
                             CallPhase.INCOMING -> if (call.video) "Incoming video call" else "Incoming voice call"
                             CallPhase.ACTIVE -> "%d:%02d".format(elapsed / 60, elapsed % 60) + (if (call.video && remote == null) " · waiting for video…" else "")
                             CallPhase.ENDED -> call.ended ?: "Call ended"

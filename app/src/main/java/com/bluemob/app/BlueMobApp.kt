@@ -189,6 +189,10 @@ class BlueMobApp : Application() {
         live = com.bluemob.app.bridge.LiveLink({ settings.bridgeUrl.value }, identity.keys, appScope, { connectivity.online.value })
         mesh.live = live
         live.onPoke = { bridge.syncNow() }
+        // Firebase wake-ups (when configured): register this phone's token with the relay.
+        if (com.bluemob.app.push.Push.init(this)) com.bluemob.app.push.Push.token { live.setPushToken(it) }
+        // The ringing notification goes once the call is answered, declined or over.
+        appScope.launch { calls.call.collect { c -> if (c?.phase != com.bluemob.app.call.CallPhase.INCOMING) notifier.cancel(com.bluemob.app.service.Notifier.INCOMING_CALL_ID) } }
         bridge.client.liveSend = { to, packet -> live.sendText(to, packet) }
         live.start()
         // Who's online over the internet, for chats and calls: the people we talk to, every 15 seconds.

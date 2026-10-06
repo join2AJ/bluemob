@@ -35,6 +35,13 @@ class Notifier(private val context: Context) {
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
         nm.createNotificationChannel(NotificationChannel(CH_MSG, "Messages", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel(CH_CALLS, "Incoming calls", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Rings when someone calls you, even with BlueMob closed"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 800, 600, 800, 600, 800)
+            setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+        })
         nm.createNotificationChannel(NotificationChannel(CH_RESCUE, "Rescue groups", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Who's coming to help, and messages in rescue groups"
         })
@@ -97,6 +104,22 @@ class Notifier(private val context: Context) {
         runCatching { manager.notify(id, n) }
     }
 
+    /**
+     * Someone is calling while BlueMob was closed: rings and opens over the lock screen like a phone call. Opening it
+     * starts BlueMob, which connects and picks up the call (the caller keeps ringing meanwhile).
+     */
+    fun incomingCall(name: String, video: Boolean) = post(INCOMING_CALL_ID, NotificationCompat.Builder(context, CH_CALLS)
+        .setSmallIcon(R.drawable.ic_stat_bluemob)
+        .setContentTitle("$name is calling")
+        .setContentText("${if (video) "Video" else "Voice"} call on BlueMob · tap to answer")
+        .setCategory(NotificationCompat.CATEGORY_CALL).setPriority(NotificationCompat.PRIORITY_MAX)
+        .setAutoCancel(true).setTimeoutAfter(45_000)
+        .setContentIntent(open("call", 10))
+        .setFullScreenIntent(open("call", 11), true)
+        .build())
+
+    fun cancel(id: Int) { runCatching { manager.cancel(id) } }
+
     /** Opens BlueMob on the call that's going on. */
     fun openCall(): PendingIntent = open("call", 9)
 
@@ -111,6 +134,9 @@ class Notifier(private val context: Context) {
         const val EXTRA_ROUTE = "route"
         const val CH_MESH = "mesh"
         const val CALL_ID = 1002
+        /** Same ID as the in-app incoming-call note, so one replaces the other. */
+        const val INCOMING_CALL_ID = 7_007
+        private const val CH_CALLS = "calls"
         private const val CH_SOS = "sos"
         private const val CH_MSG = "messages"
         private const val CH_RESCUE = "rescue"

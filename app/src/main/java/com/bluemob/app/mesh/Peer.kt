@@ -66,7 +66,7 @@ sealed interface MeshEvent {
         /** Came over the internet, through the relay's live link. */
         val viaInternet: Boolean = false) : MeshEvent
     /** The relay says [nodeId] isn't online right now. */
-    data class Unreachable(val nodeId: String) : MeshEvent
+    data class Unreachable(val nodeId: String, val waking: Boolean = false) : MeshEvent
     /** A packet type handled outside the transport (audit witness notes, ratings). */
     data class Extra(val fromNodeId: String, val type: String, val json: org.json.JSONObject) : MeshEvent
 }

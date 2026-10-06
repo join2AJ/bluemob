@@ -63,6 +63,8 @@ data class Call(
     val e2e: Boolean = false,
     /** Ringing them, but their phone isn't online yet: we keep trying for a little while. */
     val waiting: Boolean = false,
+    /** Their phone was asleep and the relay woke it: it rings there as BlueMob starts. */
+    val waking: Boolean = false,
 )
 
 /**
@@ -125,7 +127,10 @@ class CallManager(
                 if (e is MeshEvent.App && e.kind == KIND) onSignal(e)
                 if (e is MeshEvent.Unreachable) _call.value?.takeIf { it.peer == e.nodeId && it.phase == CallPhase.OUTGOING && !mesh.isConnected(it.peer) }?.let { c ->
                     // Their phone may be reconnecting (switching networks, waking up): keep ringing for a while.
-                    if (System.currentTimeMillis() - c.createdAt < UNREACHABLE_GRACE_MS) {
+                    // Their phone was woken up (BlueMob closed): give it longer to start and connect.
+                    if (e.waking && !c.waking) _call.update { it?.copy(waking = true) }
+                    val grace = if (e.waking || c.waking) WAKING_GRACE_MS else UNREACHABLE_GRACE_MS
+                    if (System.currentTimeMillis() - c.createdAt < grace) {
                         if (!c.waiting) _call.update { it?.copy(waiting = true) }
                         if (retryJob?.isActive != true) retryJob = scope.launch {
                             delay(RETRY_MS)
@@ -437,6 +442,8 @@ class CallManager(
         /** Keep ringing someone whose phone is offline this long, in case it's just reconnecting. */
         const val UNREACHABLE_GRACE_MS = 20_000L
         const val RETRY_MS = 4_000L
+        /** When the relay woke their phone (BlueMob was closed), wait this long for it to start and connect. */
+        const val WAKING_GRACE_MS = 45_000L
 
         /** Video over the internet, best first: picked by how fast frames actually leave the phone. */
         class VideoQuality(val size: Int, val quality: Int, val fps: Int)

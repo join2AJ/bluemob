@@ -474,7 +474,7 @@ class NearbyMeshTransport(
                     bytes.size <= MAX_MEDIA && isCallFrame(bytes[0]) -> _media.tryEmit(Media(from, bytes))
                 }
             }
-            value?.onOffline = { to -> _events.tryEmit(MeshEvent.Unreachable(to)) }
+            value?.onOffline = { to, waking -> _events.tryEmit(MeshEvent.Unreachable(to, waking)) }
         }
 
     /** How a call's audio and video get to someone right now. */

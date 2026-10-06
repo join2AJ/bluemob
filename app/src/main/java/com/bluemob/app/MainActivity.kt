@@ -140,6 +140,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             },
             requestCallPermissions = ::requestCallPermissions,
             canUseBiometric = ::canUseBiometric,
+            phoneVerifier = { if (com.bluemob.app.push.Push.ready) com.bluemob.app.account.FirebaseVerifier(this) else com.bluemob.app.account.TestVerifier },
             biometricUnlock = ::biometricUnlock,
             restartApp = ::restart,
             leaveApp = { moveTaskToBack(true) },
