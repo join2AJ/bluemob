@@ -127,6 +127,9 @@ class SystemActions(
     val biometricUnlock: (() -> Unit) -> Unit = {},
     val restartApp: () -> Unit = {},
     val leaveApp: () -> Unit = {},
+    /** Shares a file (e.g. a trip as GPX) through Android's share sheet. */
+    val shareFile: (java.io.File, String) -> Unit = { _, _ -> },
+    val backup: com.bluemob.app.ui.system.BackupActions = com.bluemob.app.ui.system.BackupActions({}, { _, _ -> }, {}, {}),
     /** Opens the phone's picker: "photo", "video" or "doc". */
     val pickFile: (String, (android.net.Uri) -> Unit) -> Unit = { _, _ -> },
     /** Opens a (decrypted, temporary) file in another app. */
@@ -285,10 +288,11 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                                 onTrail = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setTrail(on) },
                                 onLost = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setLost(on) },
                                 onBaseCamp = { if (!system.locationPermission) actions.requestLocation() else vm.setBaseCamp() }, onClear = vm::clearTrail, onAllowSteps = actions.requestSteps,
+                                onTrips = { push("trips") },
                             ),
                             onRing = vm::ring,
                         )
-                        Tab.GUIDE -> GuideScreen(bookmarks, padding, onOpen = { push("article:$it") }, onSos = { push("sos") })
+                        Tab.GUIDE -> GuideScreen(bookmarks, padding, onOpen = { push("article:$it") }, onSos = { push("sos") }, onMore = { push("guide-packs") })
                         Tab.YOU -> ProfileScreen(
                             name, avatar, vm.nodeId, running, sharing, system.keepsRunning, signalDefault, log, padding,
                             onName = vm::setName, onAvatar = vm::setAvatar, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
@@ -298,7 +302,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             lastError = remember { vm.lastError() },
                             myStars = (trustScores[vm.nodeId] ?: vm.scoreFor(vm.nodeId)).stars, myRatingCount = trustScores[vm.nodeId]?.ratings ?: 0,
                             onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
-                            onGames = { push("games") }, onAccount = { push("account") }, onAutoStart = { push("autostart") }, sosContactCount = sosContacts.size,
+                            onGames = { push("games") }, onAccount = { push("account") }, onAutoStart = { push("autostart") }, onBackup = { push("backup") }, sosContactCount = sosContacts.size,
                             background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
                         )
                     }
@@ -395,6 +399,22 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     else MatchScreen(m, ::pop, onPlay = { vm.playGame(m.id, it) }, onAgain = { vm.gameAgain(m.id) }, onLeave = { vm.leaveGame(m.id) })
                 }
                 route.startsWith("game:") -> com.bluemob.app.ui.games.ComputerGameScreen(route.removePrefix("game:"), ::pop)
+                route == "trips" -> com.bluemob.app.ui.compass.TripsScreen(vm.trips.collectAsStateWithLifecycle().value, vm.currentTrip.collectAsStateWithLifecycle().value,
+                    ::pop, onOpen = { push("trip:$it") }, onNewTrip = { if (!system.locationPermission) actions.requestLocation(); vm.startNewTrip(it) })
+                route.startsWith("trip:") -> {
+                    val id = route.removePrefix("trip:")
+                    val trip = vm.trips.collectAsStateWithLifecycle().value.firstOrNull { it.id == id }
+                    val current = vm.currentTrip.collectAsStateWithLifecycle().value
+                    val live by vm.trailPoints.collectAsStateWithLifecycle()
+                    val stored = com.bluemob.app.ui.chat.rememberLoaded(id, trip?.points) { vm.pointsOf(id) }
+                    if (trip == null) LaunchedEffect(Unit) { pop() }
+                    else com.bluemob.app.ui.compass.TripScreen(trip, if (id == current) live else stored.orEmpty(), spots, id == current, ::pop,
+                        onRename = { vm.renameTrip(id, it) }, onDelete = { vm.deleteTrip(id) },
+                        onShareGpx = { scope.launch { vm.tripGpxFile(id)?.let { actions.shareFile(it, "application/gpx+xml") } } })
+                }
+                route == "backup" -> com.bluemob.app.ui.system.BackupScreen(vm.backups, vm.backups.status.collectAsStateWithLifecycle().value,
+                    vm.backups.every.collectAsStateWithLifecycle().value, vm.backups.folder.collectAsStateWithLifecycle().value, actions.backup, ::pop)
+                route == "guide-packs" -> com.bluemob.app.ui.guide.GuidePacksScreen(vm.bridgeUrl.collectAsStateWithLifecycle().value, online, ::pop)
                 route == "autostart" -> com.bluemob.app.ui.system.AutoStartScreen(
                     vm.autoMesh.collectAsStateWithLifecycle().value, vm.bluetoothPolicy.collectAsStateWithLifecycle().value,
                     vm.wifiPolicy.collectAsStateWithLifecycle().value, vm.background.collectAsStateWithLifecycle().value, sharing,

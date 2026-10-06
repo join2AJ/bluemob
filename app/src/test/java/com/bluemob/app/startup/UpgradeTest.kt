@@ -42,6 +42,8 @@ class UpgradeTest {
             "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'hash-of-0.5')",
             "INSERT INTO messages VALUES('m1','a1c2',1,'Meet at the stream?',1,'DELIVERED','DELIVERED','UNAVAILABLE',1,2,'Wi-Fi',NULL,0,'','')",
             "INSERT INTO audit VALUES(1,1,'APP','BlueMob started','0','h1')",
+            "INSERT INTO trail (time, lat, lon, accuracyM, estimated) VALUES (5, 30.08, 78.26, 5.0, 0)",
+            "INSERT INTO trail (time, lat, lon, accuracyM, estimated) VALUES (9, 30.09, 78.27, 8.0, 1)",
             "INSERT INTO audit VALUES(2,2,'SOS','SOS sent','h1','h2')",
             "CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT, 'audit trail is read-only'); END",
             "CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, 'audit trail is read-only'); END",
@@ -61,6 +63,11 @@ class UpgradeTest {
         // 0.9: messages gain attachment columns (empty for old ones), and the call history table exists.
         assertEquals("", db.messages().get("m1")?.att)
         assertEquals(0, db.calls().observe().first().size)
+        // 0.11: the trail recorded before trips existed becomes one "Earlier trail" trip, with all its points.
+        val trips = db.trips().all()
+        assertEquals(listOf("Earlier trail"), trips.map { it.name })
+        assertEquals(5L, trips[0].startedAt)
+        assertEquals(2, db.trail().pointsOf(trips[0].id).size)
         db.close()
     }
 

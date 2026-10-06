@@ -1,0 +1,22 @@
+{
+  "id": "mountains", "version": 1, "emoji": "🏔️", "title": "Mountains & snow",
+  "about": "Altitude sickness, cold, frostbite and snow safety for treks in the Himalaya and other high places.",
+  "articles": [
+    { "id": "altitude-sickness", "category": "FIRST_AID", "title": "Altitude sickness (AMS)", "minutes": 3,
+      "intro": "Above about 2,500 m, the body needs time to adjust. Anyone can get sick, even fit people.",
+      "steps": ["Know the signs: headache plus any of nausea, tiredness, dizziness or poor sleep.", "Don't go higher with symptoms. Rest at the same height until they're gone.", "If symptoms get worse, go down at least 300 to 500 m. Going down is the main treatment.", "Drink enough water, eat, and avoid alcohol.", "Above 3,000 m, sleep no more than about 300 to 500 m higher each night, with a rest day every 3 to 4 days."],
+      "avoid": ["Confusion, stumbling, or breathlessness at rest are emergencies (HACE / HAPE): go down now, with help, even at night.", "Don't leave a sick person alone or let them go down alone."] },
+    { "id": "hypothermia", "category": "FIRST_AID", "title": "Hypothermia", "minutes": 2,
+      "intro": "When the body loses heat faster than it makes it. Wet and wind make it worse.",
+      "steps": ["Signs: shivering, slurred speech, clumsy hands, confusion, sleepiness.", "Get them out of wind and wet. Replace wet clothes with dry ones.", "Insulate from the ground: sit or lie on a mat, pack or branches.", "Warm the body's core: sleeping bag, shared body heat, warm (not hot) sweet drinks if they can swallow.", "Handle gently. Get help if they stop shivering or become confused."],
+      "avoid": ["Don't rub limbs or give alcohol.", "Don't put very hot water bottles straight on the skin."] },
+    { "id": "frostbite", "category": "FIRST_AID", "title": "Frostbite", "minutes": 2,
+      "intro": "Freezing of skin, usually fingers, toes, nose and ears.",
+      "steps": ["Early signs: cold, numb, white or greyish skin that feels hard or waxy.", "Get out of the cold. Warm the area against warm skin (armpit, stomach).", "If you can keep it warm afterwards, rewarm in warm water (about 37–39 °C, comfortable to your elbow) for 20–30 minutes.", "Cover loosely with dry, clean cloth. Keep blisters intact.", "Get medical help."],
+      "avoid": ["Don't rewarm if it might freeze again before you reach shelter: freezing twice does more damage.", "Don't rub with snow or massage the area. Don't walk on frozen feet if you can avoid it."] },
+    { "id": "snow-safety", "category": "WEATHER", "title": "Snow and avalanche basics", "minutes": 3,
+      "intro": "Most avalanches are set off by the people caught in them.",
+      "steps": ["Ask locals and guides about recent snowfall and slopes to avoid.", "Avoid steep open slopes (30–45°) after fresh snow, rain or quick warming.", "Cross risky slopes one at a time, with others watching from a safe place.", "Travel early in the day when snow is firmer.", "If caught: shout, try to move to the side, and fight to stay on the surface. As it stops, make an air space in front of your face."],
+      "avoid": ["Don't walk under overhanging snow (cornices) or below other groups on a slope.", "Don't rely on old tracks meaning a slope is safe."] }
+  ]
+}

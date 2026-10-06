@@ -55,3 +55,22 @@ test("expired messages are refused and pruned", () => {
   const s = new Store(null), a = device(), c = device();
   assert.equal(s.put(seal(a, "rmsg", { id: "m4", to: c.id, at: 1, x: Date.now() - 1 })), "expired");
 });
+
+test("serves the guide packs for offline download", async () => {
+  const { createServer, Store, loadGuides } = require("./relay");
+  const guides = loadGuides();
+  assert.ok(guides.size >= 4);
+  for (const p of guides.values()) for (const a of p.articles) {
+    assert.ok(a.id && a.title && a.intro && a.steps.length >= 2, p.id + "/" + a.id);
+    assert.ok(["FIRST_AID", "WATER", "FIRE", "SHELTER", "NAVIGATION", "SIGNALS", "WEATHER", "DISASTERS", "BASICS"].includes(a.category), a.category);
+  }
+  const server = createServer(new Store(null), guides);
+  await new Promise((r) => server.listen(0, r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const list = await (await fetch(base + "/v1/guides")).json();
+  assert.ok(list.packs.some((p) => p.id === "mountains" && p.articles === 4));
+  const pack = await (await fetch(base + "/v1/guides/mountains")).json();
+  assert.equal(pack.articles[0].id, "altitude-sickness");
+  assert.equal((await fetch(base + "/v1/guides/nope")).status, 404);
+  server.close();
+});

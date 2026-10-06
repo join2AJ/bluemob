@@ -1,0 +1,22 @@
+{
+  "id": "wildlife", "version": 1, "emoji": "🐍", "title": "Wildlife & bites (India)",
+  "about": "Snakebite, dog bites and rabies, bees and wasps, and meeting large animals.",
+  "articles": [
+    { "id": "snakebite", "category": "FIRST_AID", "title": "Snakebite", "minutes": 3,
+      "intro": "Most bites can be treated with anti-venom at a hospital. Getting there fast matters most.",
+      "steps": ["Move away from the snake. Keep the person calm and still.", "Remove rings, watches and tight things near the bite.", "Keep the bitten limb still and at about heart level, like a broken bone, with a splint if you can.", "Go to the nearest hospital with anti-venom as fast as possible. Carry them if you can.", "Note the time of the bite and the snake's look, only if safe (a photo from a distance)."],
+      "avoid": ["Don't cut, suck, burn or apply ice to the bite.", "Don't tie a tight tourniquet.", "Don't waste time on local remedies or trying to catch the snake."] },
+    { "id": "dog-bite", "category": "FIRST_AID", "title": "Dog and animal bites (rabies)", "minutes": 2,
+      "intro": "Rabies is almost always fatal once symptoms start, and fully preventable before.",
+      "steps": ["Wash the wound with soap and running water for 15 minutes, straight away.", "Then apply an antiseptic like povidone-iodine if you have it.", "Go to a health centre the same day for the rabies vaccine (and immunoglobulin if advised), even for scratches.", "Also for monkey and bat bites or scratches."],
+      "avoid": ["Don't wait to see if the animal gets sick.", "Don't put chilli, oil or other home remedies on the wound."] },
+    { "id": "bees", "category": "FIRST_AID", "title": "Bee and wasp stings", "minutes": 2,
+      "intro": "Usually painful, not dangerous, unless there are many stings or an allergy.",
+      "steps": ["If a swarm attacks, run away and get indoors or into a vehicle. Cover your face.", "Scrape out bee stings sideways with a fingernail or card.", "Cool with a cold cloth.", "Severe allergy (swelling of face or throat, trouble breathing, fainting): use their adrenaline pen if they have one and get help immediately."],
+      "avoid": ["Don't jump into water to escape bees: they wait.", "Don't squeeze the sting."] },
+    { "id": "large-animals", "category": "BASICS", "title": "Meeting elephants, leopards or bears", "minutes": 2,
+      "intro": "Most animals avoid people. Give them space and a way out.",
+      "steps": ["Stop, stay calm and back away slowly. Never get between a mother and young.", "Elephant: keep a big distance, especially from a lone male or a herd with calves. Move away downwind, out of its path.", "Leopard or big cat: don't run. Face it, make yourself look big, and back away slowly.", "Bear (sloth bear): talk loudly as you walk in bear areas. If one charges, stand your ground; if attacked, protect your head and neck.", "Report sightings to forest staff."],
+      "avoid": ["Don't run from big cats or bears.", "Don't approach for photos, feed animals, or walk in forests at dusk and dawn without a guide."] }
+  ]
+}

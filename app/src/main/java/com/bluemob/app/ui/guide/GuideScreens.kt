@@ -29,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,22 +56,36 @@ import com.bluemob.app.ui.theme.Extra
 import com.bluemob.app.ui.theme.Space
 
 @Composable
-fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (String) -> Unit, onSos: () -> Unit) {
+fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (String) -> Unit, onSos: () -> Unit, onMore: () -> Unit = {}) {
+    // Recompose when packs are downloaded or removed.
+    val packs by com.bluemob.app.guide.GuidePacks.installed.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf<GuideCategory?>(null) }
     var savedOnly by rememberSaveable { mutableStateOf(false) }
     val q = query.trim().lowercase()
-    val list = GuideContent.articles.filter { a ->
+    val list = GuideContent.all().filter { a ->
         (!savedOnly || a.id in bookmarks) && (category == null || a.category == category) &&
             (q.isEmpty() || (a.title + " " + a.intro + " " + a.steps.joinToString(" ")).lowercase().contains(q))
     }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 120.dp)) {
-        item { LargeTitle("Survival guide", over = "${GuideContent.articles.size} guides · stored on your phone") }
+        item { LargeTitle("Survival guide", over = "${GuideContent.all().size} guides · stored on your phone") }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 QuickCard("SOS", "Nearby now", Extra.rose, Color.White, Icons.Outlined.WarningAmber, Modifier.weight(1f), onSos)
                 QuickCard("I'm lost", "Stop, think, plan", Extra.emberTint, MaterialTheme.colorScheme.onSurface, Icons.Outlined.Explore, Modifier.weight(1f)) { onOpen("lost") }
+            }
+        }
+        item {
+            androidx.compose.material3.Surface(onClick = onMore, shape = MaterialTheme.shapes.large, color = Extra.pineTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("⬇️", fontSize = 22.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Download more guides", style = MaterialTheme.typography.titleSmall)
+                        Text(if (packs.isEmpty()) "Mountains, monsoon, heat, wildlife… for your trip" else "${packs.size} pack${if (packs.size == 1) "" else "s"} on this phone · get more",
+                            style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                }
             }
         }
         item {

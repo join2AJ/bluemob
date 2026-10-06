@@ -46,6 +46,7 @@ class MessageRepositoryTest {
         }
         override suspend fun update(message: MessageEntity) { rows.value = rows.value.map { if (it.id == message.id) message else it } }
         override suspend fun clear() { rows.value = emptyList() }
+        override suspend fun all() = rows.value
         override suspend fun filesToSend(peer: String) = rows.value.filter { it.peer == peer && it.fromMe && it.att.isNotEmpty() && it.attState != 3 }
         override suspend fun byFile(fid: String) = rows.value.firstOrNull { it.att.contains("\"fid\":\"$fid\"") }
         override suspend fun markSeen(seen: SeenId): Long = if (this.seen.add(seen.id)) 1 else -1

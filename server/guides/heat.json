@@ -1,0 +1,18 @@
+{
+  "id": "heat", "version": 1, "emoji": "☀️", "title": "Heat & desert",
+  "about": "Heat exhaustion and heatstroke, water in the heat, and travelling in hot dry places.",
+  "articles": [
+    { "id": "heatstroke", "category": "FIRST_AID", "title": "Heat exhaustion and heatstroke", "minutes": 3,
+      "intro": "Heatstroke is an emergency. Cool first, then get help.",
+      "steps": ["Heat exhaustion: heavy sweating, weakness, headache, nausea, cramps. Move to shade, loosen clothes, sip water with salt and sugar, rest.", "Heatstroke: very hot skin, confusion, fainting, fits, sometimes no sweating.", "For heatstroke, cool them fast: shade, wet the skin and fan them, cold packs in armpits and groin, or soak in cool water.", "Keep cooling until they're alert. Get medical help even if they recover."],
+      "avoid": ["Don't give drinks to someone who isn't fully awake.", "Don't wait to see if heatstroke gets better on its own."] },
+    { "id": "heat-water", "category": "WATER", "title": "Water in the heat", "minutes": 2,
+      "intro": "In hot weather you can lose more than a litre of sweat an hour.",
+      "steps": ["Plan at least 4 to 6 litres a day in desert heat, more when working.", "Drink small amounts often. Add a pinch of salt and sugar (or ORS) on long hot days.", "Travel early morning and evening; rest in shade at midday.", "Cover up with loose, light clothes and a hat: it keeps more water in than bare skin."],
+      "avoid": ["Don't ration water to the point of feeling unwell: drink it, and find more.", "Avoid alcohol and lots of caffeine."] },
+    { "id": "desert-travel", "category": "NAVIGATION", "title": "Lost in the heat", "minutes": 2,
+      "intro": "Stay put unless you know exactly where help is.",
+      "steps": ["Stay with your vehicle: it's easier to spot than a person.", "Make shade before anything else.", "Signal with a mirror, bright cloth or SOS on the ground. Send a BlueMob SOS.", "Move only at night or early morning, and leave a note of your direction."],
+      "avoid": ["Don't walk off in the midday heat.", "Don't drink radiator water or urine."] }
+  ]
+}

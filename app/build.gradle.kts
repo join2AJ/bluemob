@@ -19,8 +19,8 @@ android {
         // Optional: `-PonlyAbi=arm64-v8a` builds for one phone type only (a smaller APK to share for testing).
         (project.findProperty("onlyAbi") as String?)?.let { ndk { abiFilters += it } }
         targetSdk = 35
-        versionCode = 13
-        versionName = "0.10.0"
+        versionCode = 14
+        versionName = "0.11.0"
     }
 
     buildTypes {
@@ -75,6 +75,8 @@ dependencies {
     implementation(libs.androidx.biometric)
     // Internet calls: a WebSocket to the BlueMob relay.
     implementation(libs.okhttp)
+    // Scheduled encrypted backups.
+    implementation(libs.work.runtime)
     implementation(libs.camerax.lifecycle)
     testImplementation("org.json:json:20240303")
     testImplementation(libs.robolectric)

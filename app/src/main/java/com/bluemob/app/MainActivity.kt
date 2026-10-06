@@ -56,6 +56,17 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     private val callPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { afterCallPermissions?.invoke(); afterCallPermissions = null }
 
+    private var onFolder: ((String?) -> Unit)? = null
+    private val folderLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        // Keep access across restarts, so scheduled backups can write there.
+        uri?.let { runCatching { contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) } }
+        onFolder?.invoke(uri?.toString()); onFolder = null
+    }
+    private var onCreated: ((android.net.Uri?) -> Unit)? = null
+    private val createLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { onCreated?.invoke(it); onCreated = null }
+    private var onOpened: ((android.net.Uri?) -> Unit)? = null
+    private val openLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { onOpened?.invoke(it); onOpened = null }
+
     private var onPicked: ((android.net.Uri) -> Unit)? = null
     private val pickLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { onPicked?.invoke(it) }; onPicked = null }
 
@@ -134,6 +145,18 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             leaveApp = { moveTaskToBack(true) },
             pickFile = { kind, then -> onPicked = then; runCatching { pickLauncher.launch(when (kind) { "photo" -> "image/*"; "video" -> "video/*"; else -> "*/*" }) } },
             openFile = ::openFile,
+            backup = com.bluemob.app.ui.system.BackupActions(
+                pickFolder = { then -> onFolder = then; runCatching { folderLauncher.launch(null) } },
+                createFile = { name, then -> onCreated = then; runCatching { createLauncher.launch(name) } },
+                openFile = { then -> onOpened = then; runCatching { openLauncher.launch(arrayOf("*/*")) } },
+                restart = ::restart,
+            ),
+            shareFile = { file, mime ->
+                runCatching {
+                    val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", file)
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share trip"))
+                }
+            },
         )
         handleRoute(intent)
         // Show over the lock screen only while an SOS alert is up, never for chats.

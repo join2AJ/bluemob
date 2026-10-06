@@ -8,6 +8,7 @@
 //   POST /v1/pull    {ids:[...], since:{id:seq}, proof}       fetch packets addressed to these IDs, after each ID's cursor
 //   GET  /v1/key?id=ID                                      a device's public key, so others can encrypt to it
 //   GET  /v1/ratings?subject=ID                             signed ratings about a device
+//   GET  /v1/guides  /v1/guides/<id>                      survival-guide packs phones can download for offline use
 //   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
@@ -113,7 +114,20 @@ function checkProof(proof, ids, now = Date.now()) {
   } catch { return null; }
 }
 
-function createServer(store) {
+/** Guide packs from ./guides/*.json, loaded once. */
+function loadGuides(dir = path.join(__dirname, "guides")) {
+  const packs = new Map();
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith(".json")) continue;
+      const p = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+      if (p.id && Array.isArray(p.articles)) packs.set(p.id, p);
+    }
+  } catch {}
+  return packs;
+}
+
+function createServer(store, guides = loadGuides()) {
   const hits = new Map(); // device or IP -> {hour, n}
   const limited = (who) => {
     const hour = Math.floor(Date.now() / 3600e3);
@@ -126,6 +140,14 @@ function createServer(store) {
     const url = new URL(req.url, "http://relay");
     const ip = req.socket.remoteAddress || "?";
     if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, packets: store.packets.size });
+    if (req.method === "GET" && url.pathname === "/v1/guides") {
+      return send(res, 200, { packs: [...guides.values()].map((p) => ({ id: p.id, version: p.version || 1, emoji: p.emoji || "📘", title: p.title, about: p.about || "",
+        articles: p.articles.length, bytes: Buffer.byteLength(JSON.stringify(p)) })) });
+    }
+    if (req.method === "GET" && url.pathname.startsWith("/v1/guides/")) {
+      const p = guides.get(url.pathname.slice("/v1/guides/".length));
+      return p ? send(res, 200, p) : send(res, 404, { error: "no such pack" });
+    }
     if (req.method === "GET" && url.pathname === "/v1/key") {
       const pk = store.keys.get(url.searchParams.get("id") || "");
       return pk ? send(res, 200, { pk }) : send(res, 404, { error: "unknown id" });
@@ -164,7 +186,7 @@ function createServer(store) {
   });
 }
 
-module.exports = { createServer, Store, openEnvelope, idFor };
+module.exports = { createServer, Store, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);

@@ -75,6 +75,9 @@ interface CallLogDao {
     @Query("SELECT * FROM calls ORDER BY startedAt DESC LIMIT 500")
     fun observe(): Flow<List<CallLogEntry>>
 
+    @Query("SELECT * FROM calls ORDER BY startedAt")
+    suspend fun all(): List<CallLogEntry>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: CallLogEntry)
 
@@ -90,6 +93,9 @@ data class SeenId(@PrimaryKey val id: String, val at: Long)
 interface MessageDao {
     @Query("SELECT * FROM messages ORDER BY createdAt")
     fun observeAll(): Flow<List<MessageEntity>>
+
+    @Query("SELECT * FROM messages ORDER BY createdAt")
+    suspend fun all(): List<MessageEntity>
 
     @Query("SELECT * FROM messages WHERE id = :id")
     suspend fun get(id: String): MessageEntity?
@@ -168,10 +174,53 @@ data class TrailPoint(
     val lon: Double,
     val accuracyM: Float,
     val estimated: Boolean,
+    /** The trip this point belongs to ("" for points recorded before trips existed). */
+    @ColumnInfo(defaultValue = "''") val tripId: String = "",
+)
+
+/** One trip: a trail recorded from "start" to "stop", kept on the phone as long as the user wants. */
+@Entity(tableName = "trips")
+data class Trip(
+    @PrimaryKey val id: String,
+    val name: String,
+    val startedAt: Long,
+    val endedAt: Long? = null,
+    val distanceM: Double = 0.0,
+    val points: Int = 0,
 )
 
 @Dao
+interface TripDao {
+    @Query("SELECT * FROM trips ORDER BY startedAt DESC")
+    fun observeAll(): Flow<List<Trip>>
+
+    @Query("SELECT * FROM trips ORDER BY startedAt")
+    suspend fun all(): List<Trip>
+
+    @Query("SELECT * FROM trips WHERE id = :id")
+    suspend fun get(id: String): Trip?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun put(trip: Trip)
+
+    @Query("DELETE FROM trips WHERE id = :id")
+    suspend fun delete(id: String)
+}
+
+@Dao
 interface TrailDao {
+    @Query("SELECT * FROM trail WHERE tripId = :tripId ORDER BY time")
+    fun observeTrip(tripId: String): Flow<List<TrailPoint>>
+
+    @Query("SELECT * FROM trail WHERE tripId = :tripId ORDER BY time")
+    suspend fun pointsOf(tripId: String): List<TrailPoint>
+
+    @Query("SELECT * FROM trail ORDER BY time")
+    suspend fun all(): List<TrailPoint>
+
+    @Query("DELETE FROM trail WHERE tripId = :tripId")
+    suspend fun deleteTrip(tripId: String)
+
     @Insert
     suspend fun insert(point: TrailPoint)
 
@@ -267,7 +316,7 @@ interface RatingDao {
     suspend fun recent(limit: Int): List<RatingRow>
 }
 
-@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class, CallLogEntry::class], version = 6, exportSchema = false)
+@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class, CallLogEntry::class, Trip::class], version = 7, exportSchema = false)
 abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun messages(): MessageDao
     abstract fun audit(): AuditDao
@@ -276,6 +325,7 @@ abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun relay(): RelayDao
     abstract fun ratings(): RatingDao
     abstract fun calls(): CallLogDao
+    abstract fun trips(): TripDao
 
     companion object {
         /** Opens the database encrypted with SQLCipher (AES-256). An older plain database is encrypted first. */
@@ -288,7 +338,7 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 builder.openHelperFactory(net.zetetic.database.sqlcipher.SupportOpenHelperFactory(pass))
             }
             return builder
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)
                 })
@@ -344,6 +394,19 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `calls` (`id` TEXT NOT NULL, `peer` TEXT NOT NULL, `name` TEXT NOT NULL, `video` INTEGER NOT NULL, " +
                     "`outgoing` INTEGER NOT NULL, `outcome` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `durationS` INTEGER NOT NULL, PRIMARY KEY(`id`))")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calls_startedAt` ON `calls` (`startedAt`)")
+            }
+        }
+
+        /** Trips: every trail point belongs to one, so past trips stay on the phone. */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `trail` ADD COLUMN `tripId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `trips` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `endedAt` INTEGER, " +
+                    "`distanceM` REAL NOT NULL, `points` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                // Points recorded before trips existed become one "Earlier trail" trip.
+                db.execSQL("INSERT INTO `trips` (`id`, `name`, `startedAt`, `endedAt`, `distanceM`, `points`) " +
+                    "SELECT 'earlier', 'Earlier trail', mn, mx, 0, c FROM (SELECT MIN(`time`) AS mn, MAX(`time`) AS mx, COUNT(*) AS c FROM `trail`) WHERE c > 0")
+                db.execSQL("UPDATE `trail` SET `tripId` = 'earlier' WHERE `tripId` = ''")
             }
         }
 

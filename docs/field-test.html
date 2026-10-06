@@ -67,7 +67,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
 
 <div class="wrap">
   <header>
-    <h1>BlueMob 0.9 field test</h1>
+    <h1>BlueMob 0.11 field test</h1>
     <p class="lede">Work through each category with your phones side by side, then apart. Mark each check Pass, Fail or Skip and add a note for anything odd. When you're done, tap <b>Copy results</b> and paste them to Claude. Your ticks are saved in this browser only.</p>
     <div class="phones">
       <span class="phone">Phone A · you</span><span class="phone">Phone B · friend</span><span class="phone">Phone C · relay (for 3-phone checks)</span>
@@ -96,7 +96,7 @@ textarea { width: 100%; margin-top: 8px; font: 13px var(--body); color: var(--in
   <div class="tips">
     <h2>Before you start</h2>
     <ul>
-      <li>Install the same APK (0.9.0) on every phone. Check under You → About.</li>
+      <li>Install the same APK (0.11.0) on every phone. Check under You → About.</li>
       <li>On each phone allow Nearby devices, Location, Notifications, and Microphone + Camera when asked for a call.</li>
       <li>Turn Bluetooth and Location on. Wi-Fi on (no network needed). Mobile data off unless a check says otherwise.</li>
       <li>Distances: "side by side" is under 2 m, "apart" is another room or 20–50 m outdoors, "out of range" is 150 m+ outdoors or several walls.</li>
@@ -132,6 +132,12 @@ const CATS = [
     ["From 0.8, challenge the 0.6 phone to a game, call it, or ring it.", "Nothing hangs: after about 40 s (games), 45 s (calls) or 15 s (ring), 0.8 says there's no answer and that BlueMob 0.6 or older needs an update.", 2, 1],
     ["0.8 and 0.7: game, voice call.", "Both work (0.7 already has them).", 2, 1],
     ["If you have a phone with 0.4 or older, put it nearby.", "0.8 shows \"… is nearby on a different BlueMob version\" on Nearby.", 2, 1],
+  ]},
+  { k: "consent", name: "Nothing turns on by itself", why: "New in 0.11.", items: [
+    ["Bluetooth off. Turn the mesh on.", "BlueMob asks first: Turn on Bluetooth / Not now. 'Not now' leaves Bluetooth off.", 1, 1],
+    ["Mesh running. Switch Bluetooth off in quick settings, wait 2 minutes.", "Bluetooth stays off. Nearby says the mesh is paused; it continues when you turn Bluetooth on.", 1, 1],
+    ["Wi-Fi off. Turn the mesh on.", "Asks: Turn on Wi-Fi / Bluetooth only. 'Bluetooth only' never turns Wi-Fi on.", 1, 1],
+    ["You → Turn on automatically.", "Everything off by default. Choose 'Start the mesh' and Bluetooth 'Turn it on without asking': then it starts by itself next time.", 1, 1],
   ]},
   { k: "find", name: "Finding each other", why: "Discovery and auto-connect over Bluetooth / Wi-Fi.", items: [
     ["A and B side by side, mesh on both.", "Each sees the other on Nearby within <b>30 s</b>, then <b>Online nearby</b> with a green dot.", 2],
@@ -170,22 +176,32 @@ const CATS = [
     ["Ring someone who is not lost and has no SOS.", "Their phone stays silent; you're told they're not in lost mode.", 2, 1],
     ["B turns lost mode off.", "A no longer shows B as lost.", 2],
   ]},
-  { k: "nav", name: "Compass, trail & base camp", why: "The 0.6 bug: Set base camp did nothing without a GPS fix.", items: [
-    ["Indoors or in airplane mode, tap Set base camp here.", "Shows <b>Getting your position…</b>, then <b>Base camp saved, ±X m</b> or a clear reason. Never silent.", 1, 1],
-    ["Outdoors, tap Set base camp here.", "Saved within a few seconds with accuracy shown; ⛺ appears as a compass target.", 1, 1],
-    ["Tap + Save this spot, walk 50 m, pick the spot.", "Arrow points back; distance about right.", 1, 1],
-    ["Without location permission, tap Set base camp.", "Asks for location permission instead of a greyed-out button.", 1, 1],
-    ["Turn the trail on, walk 5 minutes.", "Trail points and distance appear; base camp distance shown.", 1],
+  { k: "nav", name: "Compass, base camp & trips", why: "Updated in 0.11.", items: [
+    ["Outdoors, tap Set base camp here.", "Saved within seconds once accuracy is ±100 m or better; a minute later it may say 'made more accurate: ±X m'.", 1, 1],
+    ["Turn the trail on, walk 10 minutes, turn it off.", "Compass → All trips lists it with date, time and distance.", 1, 1],
+    ["Open the trip.", "The trail drawn to scale with a grid and scale bar; dashed where estimated; distance, time, GPS %.", 1, 1],
+    ["Share as GPX and open it in Organic Maps or OsmAnd.", "The trail shows on their offline map.", 1, 1],
+    ["All trips → start a new trip with a name.", "The old one ends; the new one records.", 1, 1],
   ]},
-  { k: "games", name: "Games with people", why: "New: Tic-tac-toe and Connect 4 over the mesh.", items: [
-    ["A: Games → B appears under Play with someone nearby → Tic-tac-toe.", "B gets a <b>wants to play</b> pop-up within a few seconds.", 2, 1],
-    ["B taps Play. Play a full game.", "Moves show on both phones within ~1 s; you can't move out of turn; winner shown on both.", 2, 1],
-    ["Play again.", "New round; the other player starts; score carries over.", 2, 1],
-    ["Connect 4, full game.", "Discs drop to the right row on both phones; win line highlighted.", 2, 1],
-    ["B taps Not now on an invite.", "A sees \"said not now\".", 2, 1],
-    ["Mid-game, B taps Leave game.", "A sees \"left the game\".", 2, 1],
-    ["B in background when A invites.", "B gets a notification; tapping it opens Games with the invite.", 2, 1],
-    ["Play the computer with no one around.", "Still works offline.", 1],
+  { k: "backup", name: "Backup & restore", why: "New in 0.11.", items: [
+    ["You → Backup → set a password, Back up now.", "File appears in Downloads/BlueMob; 'Last backup' shows size.", 1, 1],
+    ["Save a backup to… → Google Drive.", "The file is in Drive. Opening it in Drive shows unreadable data.", 1, 1],
+    ["Pick a folder…, choose Weekly.", "Backups go there automatically (keeps the newest 5).", 1, 1],
+    ["On another phone (or after clearing chats), Restore from a backup… with a wrong password, then the right one.", "Wrong password refused; right one shows what's inside, then restores messages, files, trips and calls.", 1, 1],
+    ["Delete all messages.", "Warns that they can't be recovered without a backup.", 1, 1],
+  ]},
+  { k: "guides", name: "Guides & Sky", why: "New in 0.11.", items: [
+    ["Online with relay set: Guide → Download more guides.", "Mountains, Monsoon, Heat, Wildlife packs; download one.", 1, 1],
+    ["Go offline and open the downloaded guides.", "They open with no signal; Sky answers e.g. 'what to do for snake bite'.", 1, 1],
+    ["Ask Sky: 'Hey water is not with me what to do?'", "Finding water guide, not a greeting.", 1, 1],
+  ]},
+  { k: "games", name: "Games", why: "Updated in 0.11: more games, against the computer and people.", items: [
+    ["Play Infinite tic-tac-toe against the computer.", "Rules card first. Only 3 marks each; your oldest shows faded and disappears when you place a 4th. No draws.", 1, 1],
+    ["Play Dots & Boxes against the computer.", "Closing a box colours it and gives you another turn; most boxes wins.", 1, 1],
+    ["Play the Survival quiz.", "6 questions; after each, right/wrong with the correct answer; score at the end.", 1, 1],
+    ["Challenge ▾ someone nearby to each game.", "Invite pops up on their phone; moves appear on both within ~1 s.", 2, 1],
+    ["With the relay set, challenge someone far away.", "Works over the internet like nearby.", 2, 1],
+    ["Challenge a phone on 0.10 to Dots & Boxes.", "Says they need to update; classic games still work with them.", 2, 1],
   ]},
   { k: "voice", name: "Voice calls", why: "New: phone to phone, no internet. Needs a direct link.", items: [
     ["A opens chat with B, taps 📞.", "Asks for microphone once. B rings with a full-screen Answer / Decline.", 2, 1],
@@ -208,6 +224,7 @@ const CATS = [
   ]},
   { k: "trust", name: "Ratings & trust", why: "Stars, remarks and fake-SOS reports.", items: [
     ["A opens B's profile, appreciates them with a remark.", "B's stars go up (max 5); B gets a notification with the remark.", 2],
+    ["After appreciating B, look for 'SOS was fake' on B's profile.", "Not offered (you can't do both).", 2, 1],
     ["A reports a fake SOS from B.", "B's stars drop; shown on B's SOS alerts to others.", 2],
     ["C meets B later (A not around).", "C sees B's rating, passed on by phones.", 3],
   ]},
@@ -228,7 +245,7 @@ const CATS = [
   ]},
 ];
 
-const KEY = "bluemob-field-test-0.9";
+const KEY = "bluemob-field-test-0.11";
 let state = {};
 try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { state = {}; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
@@ -289,7 +306,7 @@ document.querySelectorAll(".filters button").forEach(b => b.onclick = () => { fi
 function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
 
 document.getElementById("copy").onclick = () => {
-  const lines = ["BlueMob 0.9 field test results"];
+  const lines = ["BlueMob 0.11 field test results"];
   CATS.forEach(c => {
     const rows = all.filter(x => x.cat === c && (state[x.id]?.v || state[x.id]?.n));
     if (!rows.length) return;

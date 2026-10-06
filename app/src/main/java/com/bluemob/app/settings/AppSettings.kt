@@ -76,6 +76,11 @@ class AppSettings(context: Context) {
         _background.value = on
     }
 
+    private val _currentTrip = MutableStateFlow(prefs.getString("current_trip", null))
+    /** The trip the trail is recording into, or null when it's off. */
+    val currentTrip: StateFlow<String?> = _currentTrip.asStateFlow()
+    fun setCurrentTrip(id: String?) { prefs.edit().apply { if (id == null) remove("current_trip") else putString("current_trip", id) }.apply(); _currentTrip.value = id }
+
     private val _meshAtStart = MutableStateFlow(prefs.getBoolean("mesh_at_start", false))
     /** Start the mesh when BlueMob opens. Off until the user chooses it. */
     val meshAtStart: StateFlow<Boolean> = _meshAtStart.asStateFlow()

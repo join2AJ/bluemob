@@ -213,7 +213,7 @@ object SkyBot {
         if (words.isEmpty()) return null
         var best: com.bluemob.app.guide.Article? = null
         var bestScore = 0
-        for (a in GuideContent.articles) {
+        for (a in GuideContent.all()) {
             val title = Regex("[a-z]+").findAll(a.title.lowercase()).map { it.value.take(5) }.toSet()
             val body = Regex("[a-z]+").findAll((a.intro + " " + a.steps.joinToString(" ")).lowercase()).map { it.value.take(5) }.toSet()
             val score: Int = words.sumOf { w: String -> if (w in title) 3 else if (w in body) 1 else 0.toInt() }

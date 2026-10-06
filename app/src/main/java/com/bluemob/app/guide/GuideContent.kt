@@ -391,5 +391,7 @@ object GuideContent {
         ),
     )
 
-    fun byId(id: String): Article? = articles.firstOrNull { it.id == id }
+    /** Built-in guides plus the packs downloaded on this phone. */
+    fun all(): List<Article> = articles + GuidePacks.installedArticles
+    fun byId(id: String): Article? = all().firstOrNull { it.id == id }
 }

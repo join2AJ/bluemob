@@ -67,6 +67,7 @@ class TrailActions(
     val onBaseCamp: () -> Unit = {},
     val onClear: () -> Unit = {},
     val onAllowSteps: () -> Unit = {},
+    val onTrips: () -> Unit = {},
 )
 
 /** Trail off: explain it, and let the user opt in. */
@@ -130,7 +131,8 @@ fun TrailCard(ui: TrailUi, spots: List<Spot>, me: GeoPoint?, actions: TrailActio
             if (ui.canCountSteps) TextButton(onClick = actions.onAllowSteps) { Text("Allow") }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = actions.onClear) { Text("Clear trail", color = Extra.ink3) }
+            TextButton(onClick = actions.onTrips) { Text("All trips") }
+            TextButton(onClick = actions.onClear) { Text("Clear this trip", color = Extra.ink3) }
         }
     }
 }

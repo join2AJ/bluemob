@@ -33,6 +33,16 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.11: consent, trips, backup, more games, guide packs
+
+- **Nothing turns on by itself**: the mesh asks before starting with Bluetooth or Wi-Fi off, pauses when Bluetooth is
+  switched off (instead of letting Nearby switch it back on), and "Turn on automatically" lets people choose defaults.
+- **Trips**: every trail is a trip with its own history and a to-scale map; share as GPX for offline map apps.
+- **Backup**: one compressed file, AES-256-GCM with the user's password; saved to the phone, a picked folder, or any
+  app via "Save to…" (Google Drive, OneDrive); daily / weekly / monthly; restore merges into the phone.
+- **Games**: Infinite tic-tac-toe, Dots & Boxes and a Survival quiz, against the computer or people (nearby or online).
+- **Guide packs**: download extra guides (mountains, monsoon, heat, wildlife) from the relay; they work offline.
+
 ## Android 0.8: login, recovery code, mixed versions
 
 - **Sign up**: choose a name, create a 6-digit PIN, optionally turn on fingerprint/face unlock, and write down your

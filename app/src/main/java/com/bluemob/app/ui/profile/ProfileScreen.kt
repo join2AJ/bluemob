@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.ToggleOn
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.StarOutline
@@ -104,6 +105,7 @@ fun ProfileScreen(
     onAudit: () -> Unit = {},
     onAccount: () -> Unit = {},
     onAutoStart: () -> Unit = {},
+    onBackup: () -> Unit = {},
     onGames: () -> Unit = {},
     sosContactCount: Int = 0,
     background: Boolean = true,
@@ -225,7 +227,8 @@ fun ProfileScreen(
         item { GroupLabel("Records") }
         item {
             Group {
-                SettingRow(Icons.Outlined.Lock, Color(0xFF3A4A44), "Audit trail", "Read-only, tamper-evident record of SOS, messages and positions", onClick = onAudit) { chevron() }
+                SettingRow(Icons.Outlined.CloudUpload, Extra.sky, "Backup", "Encrypted copy of chats, trips and calls, saved where you choose", onClick = onBackup) { chevron() }
+                SettingRow(Icons.Outlined.Lock, Color(0xFF3A4A44), "Audit trail", "Read-only, tamper-evident record of SOS, messages and positions", divider = true, onClick = onAudit) { chevron() }
             }
         }
 

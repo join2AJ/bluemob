@@ -306,6 +306,16 @@ class ScreenshotTest {
         CompassScreen(listOf(people[1].copy(lost = pos, quality = LinkQuality.LOW)), emptyList(), me, flowOf(20f), true, true, "b7e4", pad, {}, {}, {}, {}, {})
     }
     @Test fun ticTacToe() = shot { TicTacToeScreen {} }
+    @Test fun dotsAndBoxes() = shot {
+        var m = com.bluemob.app.games.Match("g-x", com.bluemob.app.games.DotsAndBoxes.code, "a1c2", "Asha", iInvited = true, state = com.bluemob.app.games.MatchState.PLAYING)
+        listOf(0, 3, 12, 13, 1, 4, 16).forEachIndexed { i, l -> m = com.bluemob.app.games.MatchRules.move(m, m.turn, l, i + 1, 0) }
+        com.bluemob.app.ui.games.MatchScreen(m, {}, {}, {}, {})
+    }
+    @Test fun tripMap() = shot(tall = true) {
+        val pts = (0 until 40).map { i -> com.bluemob.app.data.TrailPoint(i.toLong(), now - (40 - i) * 60_000L, 30.08 + i * 0.0004 + kotlin.math.sin(i / 4.0) * 0.0003, 78.26 + i * 0.0006, 8f, i in 20..26, "t-1") }
+        com.bluemob.app.ui.compass.TripScreen(com.bluemob.app.data.Trip("t-1", "Kedarkantha day 1", now - 2_400_000, now, 2400.0, 40), pts,
+            listOf(Spot(Spot.BASE_CAMP_ID, "Base camp", 30.08, 78.26, now)), false, {}, {}, {}, {})
+    }
     @Test fun profile() = shot(tall = true) {
         ProfileScreen("Arjun", "🦅", "3f9a1c2b7d4e8a01", true, false, false, SignalMode.ALL, listOf(LogLine(now, "Connected to Asha")), pad,
             {}, {}, {}, {}, {}, {}, {}, {}, {}, {})

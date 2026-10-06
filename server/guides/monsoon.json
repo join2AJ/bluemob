@@ -1,0 +1,22 @@
+{
+  "id": "monsoon", "version": 1, "emoji": "🌧️", "title": "Monsoon & floods",
+  "about": "Flash floods, river crossings, landslides and staying healthy in the rains.",
+  "articles": [
+    { "id": "flash-flood", "category": "DISASTERS", "title": "Flash floods", "minutes": 2,
+      "intro": "Water can rise in minutes, even if it isn't raining where you are.",
+      "steps": ["Watch for rising or muddy water, floating debris, or a roaring sound upstream.", "Move to higher ground at once. Don't wait to pack.", "Camp well above the high-water mark, never on dry riverbeds or sandbanks.", "If water is rising around you, climb to the highest point and signal for help."],
+      "avoid": ["Never walk or drive through flowing water: 15 cm can knock you over, 60 cm can sweep a car away.", "Don't go back to the river until it has clearly gone down."] },
+    { "id": "river-crossing", "category": "NAVIGATION", "title": "Crossing a stream", "minutes": 2,
+      "intro": "The safest crossing is often the one you don't make. Wait or find a bridge if you can.",
+      "steps": ["Cross at the widest, shallowest point, away from bends and rapids.", "Unclip your backpack hip belt so you can drop it if you fall.", "Face upstream and move one foot at a time, using a stick as a third leg.", "Groups can link arms and cross together.", "If swept away: float on your back, feet first and downstream, and steer to the bank."],
+      "avoid": ["Don't cross water above your knees if it's fast.", "Don't cross after heavy rain upstream: wait, levels often drop in hours."] },
+    { "id": "landslide", "category": "DISASTERS", "title": "Landslides", "minutes": 2,
+      "intro": "Common on hill roads and trails during and after heavy rain.",
+      "steps": ["Warning signs: new cracks, tilting trees or poles, small falling stones, sudden muddy streams.", "Move away from the slide's path quickly, sideways rather than downhill.", "Stay away from slopes and streams below them during heavy rain.", "After a slide, keep clear: more may follow. Report blocked roads."],
+      "avoid": ["Don't stop under steep cut slopes on mountain roads in heavy rain.", "Don't cross a fresh slide on foot."] },
+    { "id": "monsoon-health", "category": "WATER", "title": "Staying healthy in the rains", "minutes": 2,
+      "intro": "Flood water and standing water spread illness.",
+      "steps": ["Drink only boiled, filtered or sealed water.", "Wash hands before eating. Keep cuts clean and covered.", "Avoid wading in flood water: it can carry sewage and leptospirosis.", "Use mosquito repellent and nets: dengue and malaria rise in the monsoon.", "Remove leeches with a fingernail at the head end, or salt. Clean the bite."],
+      "avoid": ["Don't eat food that has been in flood water.", "Don't pull leeches off hard or burn them."] }
+  ]
+}

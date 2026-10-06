@@ -235,6 +235,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setTrail(on: Boolean) = trail.setEnabled(on)
+    val trips = trail.allTrips
+    val backups = blueMob.backups
+    val currentTrip = trail.currentTrip
+    fun startNewTrip(name: String) = trail.startNewTrip(name)
+    suspend fun pointsOf(id: String) = trail.pointsOf(id)
+    fun renameTrip(id: String, name: String) = viewModelScope.launch { trail.renameTrip(id, name) }
+    fun deleteTrip(id: String) = viewModelScope.launch { trail.deleteTrip(id) }
+    /** The trip as a GPX file in the temporary share folder. */
+    suspend fun tripGpxFile(id: String): java.io.File? {
+        val t = trips.value.firstOrNull { it.id == id } ?: return null
+        val gpx = com.bluemob.app.ui.compass.tripGpx(t, trail.pointsOf(id))
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            java.io.File(getApplication<android.app.Application>().cacheDir, "open").apply { mkdirs() }
+                .resolve(com.bluemob.app.files.Attachment.safeName(t.name) + ".gpx").apply { writeText(gpx) }
+        }
+    }
     fun clearTrail() = trail.clear()
     fun onStepPermission() = trail.onStepPermission()
     fun setLost(on: Boolean) = if (on) lostMode.start() else lostMode.stop()
