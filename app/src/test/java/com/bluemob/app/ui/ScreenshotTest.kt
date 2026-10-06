@@ -116,7 +116,7 @@ class ScreenshotTest {
 
     private val nearby = NearbyState("Arjun", true, people, true, false, true, true, false)
 
-    @Test fun onboarding() = shot { OnboardingScreen("Arjun", "🦅") { _, _ -> } }
+    @Test fun onboarding() = shot { OnboardingScreen("Arjun", "🦅", onFinish = { _, _ -> }) }
     @Test fun nearby() = shot(tall = true) { NearbyScreen(nearby, pad, {}, {}, {}, {}, {}, {}, {}, {}) }
     @Test fun nearbyDark() = shot(dark = true) { NearbyScreen(nearby, pad, {}, {}, {}, {}, {}, {}, {}, {}) }
     @Test fun chats() = shot { ChatsScreen(people, mapOf("a1c2" to chat, SkyBot.NODE_ID to sky), emptySet(), pad) {} }
