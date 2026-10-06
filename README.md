@@ -10,6 +10,9 @@ the others' messages to the outside world.
 
 ## Web preview
 
+> **Frozen at the 0.6 feature set.** New features are built for Android only; the web preview stays as a clickable
+> demo of the idea and isn't updated with each release.
+
 `web/index.html` is a clickable web version of the app with the same screens and design. Browsers
 can't link phones over Bluetooth, so nearby people (Asha, Ravi, Meera, Kabir) are simulated there.
 It also plays out the internet-bridge idea: message Dee, 2,000 km away, and watch the message hop

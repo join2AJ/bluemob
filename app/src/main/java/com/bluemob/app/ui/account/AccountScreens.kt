@@ -331,6 +331,9 @@ fun AccountScreen(
     onTurnOffPin: () -> Unit,
     recoveryCode: () -> String,
     onRecoverySaved: () -> Unit,
+    /** Opens Backup: account and backup live together, both are about not losing your BlueMob. */
+    onBackup: () -> Unit = {},
+    backupSummary: String = "",
 ) {
     // What the PIN pad is for: null, "code" (show recovery code), "change" (change PIN) or "off" (turn the lock off).
     var asking by rememberSaveable { mutableStateOf<String?>(null) }
@@ -340,7 +343,7 @@ fun AccountScreen(
     var pinError by remember { mutableStateOf<String?>(null) }
     var round by remember { mutableIntStateOf(0) }
     var note by remember { mutableStateOf<String?>(null) }
-    SubScreen("Account", onBack) {
+    SubScreen("Account & backup", onBack) {
         when {
             asking != null -> item {
                 PinPad("Enter your PIN", when (asking) { "code" -> "To show your recovery code."; "off" -> "To turn the PIN lock off."; else -> "To change your PIN." }, pinError,
@@ -421,9 +424,17 @@ fun AccountScreen(
                         }
                     }
                 }
-                item { GroupLabel("New phone") }
+                item { GroupLabel("Backup & new phone") }
                 item {
                     Group {
+                        Row(Modifier.fillMaxWidth().clickable(onClick = onBackup).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Backup", style = MaterialTheme.typography.bodyLarge)
+                                Text(backupSummary.ifBlank { "Encrypted copy of chats, files, trips and calls, on this phone, a folder, Drive, or BlueMob Cloud" },
+                                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                            }
+                            Text("›", color = Extra.ink3)
+                        }
                         Row(Modifier.fillMaxWidth().clickable { if (hasPin) { asking = "code"; round++ } else showCode = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Recovery code", style = MaterialTheme.typography.bodyLarge)

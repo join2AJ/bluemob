@@ -99,6 +99,8 @@ fun ChatScreen(
     /** Starts a voice (false) or video (true) call. */
     onCall: (Boolean) -> Unit = {},
     files: ChatFiles = ChatFiles(),
+    /** Link-speed check and the route strip: for testers (You → Diagnostics). */
+    techDetails: Boolean = false,
 ) {
     val isBot = nodeId == SkyBot.NODE_ID
     val name = if (isBot) SkyBot.NAME else person?.name ?: "Someone"
@@ -150,9 +152,9 @@ fun ChatScreen(
                         IconButton(onClick = { onCall(false) }) { Icon(Icons.Outlined.Call, "Voice call") }
                         IconButton(onClick = { onCall(true) }) { Icon(Icons.Outlined.Videocam, "Video call") }
                     }
-                    if (presence == Presence.ONLINE) IconButton(onClick = { onPing() }) { Icon(Icons.Outlined.NetworkCheck, "Check link speed") }
+                    if (techDetails && presence == Presence.ONLINE) IconButton(onClick = { onPing() }) { Icon(Icons.Outlined.NetworkCheck, "Check link speed") }
                 }
-                if (!isBot) RouteStrip(messages.lastOrNull { it.fromMe }, myName, myId, name, nodeId, onInfo)
+                if (!isBot && techDetails) RouteStrip(messages.lastOrNull { it.fromMe }, myName, myId, name, nodeId, onInfo)
                 HorizontalDivider(color = Extra.line)
             }
 

@@ -76,6 +76,15 @@ class AppSettings(context: Context) {
         _background.value = on
     }
 
+    private val _techDetails = MutableStateFlow(prefs.getBoolean("tech_details", false))
+    /** Show link checks and routing details in chats (for testers). Off for everyone else. */
+    val techDetails: StateFlow<Boolean> = _techDetails.asStateFlow()
+
+    fun setTechDetails(on: Boolean) {
+        prefs.edit().putBoolean("tech_details", on).apply()
+        _techDetails.value = on
+    }
+
     private val _currentTrip = MutableStateFlow(prefs.getString("current_trip", null))
     /** The trip the trail is recording into, or null when it's off. */
     val currentTrip: StateFlow<String?> = _currentTrip.asStateFlow()

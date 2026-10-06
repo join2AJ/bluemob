@@ -293,7 +293,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             ),
                             onRing = vm::ring,
                         )
-                        Tab.GUIDE -> GuideScreen(bookmarks, padding, onOpen = { push("article:$it") }, onSos = { push("sos") }, onMore = { push("guide-packs") })
+                        Tab.GUIDE -> GuideScreen(bookmarks, padding, onOpen = { push("article:$it") }, onSos = { push("sos") }, onMore = { push("guide-packs") },
+                            onAskSky = { push("chat:" + SkyBot.NODE_ID) })
                         Tab.YOU -> ProfileScreen(
                             name, avatar, vm.nodeId, running, sharing, system.keepsRunning, signalDefault, log, padding,
                             onName = vm::setName, onAvatar = vm::setAvatar, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
@@ -305,6 +306,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
                             onGames = { push("games") }, onAccount = { push("account") }, onAutoStart = { push("autostart") }, onBackup = { push("backup") }, sosContactCount = sosContacts.size,
                             background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
+                            onStorage = { push("storage") }, onDiagnostics = { push("diagnostics") },
                         )
                     }
                 }
@@ -314,7 +316,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         nodeId = id, person = people.firstOrNull { it.nodeId == id }, messages = conversations[id].orEmpty(), typing = id in typing,
                         meshEvents = vm.meshEvents, myName = name, myId = vm.nodeId, onBack = ::pop, onSend = { vm.send(id, it) },
                         onPing = { vm.ping(id) }, onInfo = { push("info:$it") }, onPerson = { if (id != SkyBot.NODE_ID) push("person:$id") }, onAction = onSkyAction,
-                        files = chatFiles(id),
+                        files = chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
                         onCall = { video ->
                             val who = people.firstOrNull { it.nodeId == id }?.name ?: "them"
                             actions.requestCallPermissions(video) { vm.startCall(id, who, video) }
@@ -420,6 +422,17 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     vm.autoMesh.collectAsStateWithLifecycle().value, vm.bluetoothPolicy.collectAsStateWithLifecycle().value,
                     vm.wifiPolicy.collectAsStateWithLifecycle().value, vm.background.collectAsStateWithLifecycle().value, sharing,
                     ::pop, vm::setMeshAtStart, vm::setBluetoothPolicy, vm::setWifiPolicy, vm::setBackground, toggleLocation,
+                    running = running, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
+                    keepsRunning = system.keepsRunning, onKeepRunning = actions.askKeepRunning,
+                    onConnections = { push("connections") }, onBatterySaver = actions.openBatterySaver,
+                )
+                route == "storage" -> com.bluemob.app.ui.profile.StorageScreen(
+                    messages = conversations.values.sumOf { it.size }, files = conversations.values.sumOf { l -> l.count { it.att.isNotEmpty() } }, people = people.size,
+                    onBack = ::pop, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages, onBackup = { push("backup") },
+                )
+                route == "diagnostics" -> com.bluemob.app.ui.profile.DiagnosticsScreen(
+                    vm.techDetails.collectAsStateWithLifecycle().value, vm::setTechDetails, log, remember { vm.lastError() },
+                    onBack = ::pop, onBridge = { push("bridge") }, onAudit = { push("audit") },
                 )
                 route == "account" -> com.bluemob.app.ui.account.AccountScreen(
                     shortId = com.bluemob.app.util.formatId(vm.nodeId),
@@ -430,6 +443,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     onBack = ::pop, onBiometric = { on -> if (on) actions.biometricUnlock { vm.setBiometric(true) } else vm.setBiometric(false) },
                     onLockAfter = vm::setLockAfter, onLockNow = vm::lockNow, checkPin = vm::checkPin, onNewPin = vm::setPin,
                     recoveryCode = vm::recoveryCode, onRecoverySaved = vm::setRecoverySaved,
+                    onBackup = { push("backup") },
                 )
                 route == "signal" -> SosSignalScreen(signalDefault, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = ::pop)
             }

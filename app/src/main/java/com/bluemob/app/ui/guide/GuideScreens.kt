@@ -60,7 +60,7 @@ import com.bluemob.app.ui.theme.Space
 private enum class GuideSort(val label: String) { RELEVANT("Suggested"), AZ("A–Z"), QUICK("Quickest"), UNREAD("Not read yet"), NEW("New first") }
 
 @Composable
-fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (String) -> Unit, onSos: () -> Unit, onMore: () -> Unit = {}) {
+fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (String) -> Unit, onSos: () -> Unit, onMore: () -> Unit = {}, onAskSky: () -> Unit = {}) {
     // Recompose when packs are downloaded or removed, and as guides are read.
     val packs by com.bluemob.app.guide.GuidePacks.installed.collectAsStateWithLifecycle()
     val read by com.bluemob.app.guide.GuidePacks.read.collectAsStateWithLifecycle()
@@ -93,6 +93,19 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 QuickCard("SOS", "Nearby now", Extra.rose, Color.White, Icons.Outlined.WarningAmber, Modifier.weight(1f), onSos)
                 QuickCard("I'm lost", "Stop, think, plan", Extra.emberTint, MaterialTheme.colorScheme.onSurface, Icons.Outlined.Explore, Modifier.weight(1f)) { onOpen("lost") }
+            }
+        }
+        // Sky lives here now: ask in your own words, it answers from these guides, offline.
+        item {
+            androidx.compose.material3.Surface(onClick = onAskSky, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(com.bluemob.app.bot.SkyBot.AVATAR, fontSize = 26.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Ask Sky", style = MaterialTheme.typography.titleSmall)
+                        Text("\"No water, what do I do?\" · answers from these guides, offline", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text("›", color = Extra.ink3, fontSize = 20.sp)
+                }
             }
         }
         // Dashboard: how much is here, what's new, what you've read.

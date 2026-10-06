@@ -90,7 +90,8 @@ fun ChatsScreen(
     var filter by rememberSaveable { mutableStateOf(ChatFilter.ALL) }
     val lastTime = { id: String -> conversations[id]?.lastOrNull()?.createdAt ?: 0L }
     val entries = buildList {
-        add(Entry(SkyBot.NODE_ID, SkyBot.NAME, SkyBot.AVATAR, Presence.ONLINE, false, "Lives on your phone · works offline", true))
+        // Sky lives in the Guide tab now; its chat shows here only once you've talked to it.
+        if (conversations[SkyBot.NODE_ID].orEmpty().isNotEmpty()) add(Entry(SkyBot.NODE_ID, SkyBot.NAME, SkyBot.AVATAR, Presence.ONLINE, false, "Lives on your phone · works offline", true))
         people.sortedByDescending { lastTime(it.nodeId) }.forEach { add(Entry(it.nodeId, it.name, it.avatar, it.presence, it.sharesName, statusLine(it), false)) }
     }.filter { e ->
         val msgs = conversations[e.id].orEmpty()

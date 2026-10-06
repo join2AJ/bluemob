@@ -304,6 +304,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val background = settings.background
     fun setBackground(on: Boolean) = settings.setBackground(on)
+    val techDetails = settings.techDetails
+    fun setTechDetails(on: Boolean) = settings.setTechDetails(on)
 
     /** A screen to open, e.g. from a notification. The UI opens it and clears it. */
     val pendingRoute = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)

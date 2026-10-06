@@ -34,17 +34,54 @@ fun AutoStartScreen(
     meshAtStart: Boolean, bluetooth: RadioPolicy, wifi: RadioPolicy, background: Boolean, sharing: Boolean,
     onBack: () -> Unit, onMeshAtStart: (Boolean) -> Unit, onBluetooth: (RadioPolicy) -> Unit, onWifi: (RadioPolicy) -> Unit,
     onBackground: (Boolean) -> Unit, onSharing: (Boolean) -> Unit,
+    running: Boolean = false, onToggleMesh: (Boolean) -> Unit = {},
+    /** Android lets BlueMob run with Battery Saver on (battery optimisation exemption granted). */
+    keepsRunning: Boolean = true, onKeepRunning: () -> Unit = {},
+    onConnections: () -> Unit = {}, onBatterySaver: () -> Unit = {},
 ) {
-    SubScreen("Turn on automatically", onBack) {
+    SubScreen("Connections & power", onBack) {
         item {
-            Text("BlueMob turns nothing on unless you choose it here. Anything not chosen, it asks first.",
+            Text("Everything about staying reachable, in one place. BlueMob turns nothing on unless you choose it here; anything not chosen, it asks first.",
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 8.dp))
+        }
+        item { GroupLabel("Right now") }
+        item {
+            Group {
+                SwitchRow("Mesh", if (running) "On: finding and being found by phones nearby" else "Off: people nearby can't reach you", running, onToggleMesh)
+                Row(Modifier.fillMaxWidth().clickable(onClick = onConnections).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Bluetooth, Wi-Fi, GPS, internet", style = MaterialTheme.typography.bodyLarge)
+                        Text("See what's on and switch it", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    Text("›", color = Extra.ink3)
+                }
+            }
+        }
+        item { GroupLabel("When BlueMob is closed") }
+        item {
+            // One switch for what used to be two: the background service, and Android letting it run with Battery Saver on.
+            val reachable = background && keepsRunning
+            Group {
+                SwitchRow("Reachable when closed",
+                    when {
+                        reachable -> "SOS, messages and calls reach you with the screen off or BlueMob closed"
+                        background -> "Almost: allow BlueMob to run with Battery Saver on (tap to finish)"
+                        else -> "Off: SOS, messages and calls only arrive while BlueMob is open"
+                    },
+                    reachable) { on -> onBackground(on); if (on && !keepsRunning) onKeepRunning() }
+                Row(Modifier.fillMaxWidth().clickable(onClick = onBatterySaver).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Phone Battery Saver", style = MaterialTheme.typography.bodyLarge)
+                        Text("Slows every other app to save battery. Opens Android settings", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    Text("›", color = Extra.ink3)
+                }
+            }
         }
         item { GroupLabel("When BlueMob opens") }
         item {
             Group {
                 SwitchRow("Start the mesh", "Find and be found by people nearby as soon as you open BlueMob", meshAtStart, onMeshAtStart)
-                SwitchRow("Stay on in the background", "SOS and messages reach you with the screen off (shows a notification)", background, onBackground)
                 SwitchRow("Share my location", "People connected to you see how far you are", sharing, onSharing)
             }
         }

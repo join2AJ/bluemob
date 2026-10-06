@@ -110,6 +110,8 @@ fun ProfileScreen(
     sosContactCount: Int = 0,
     background: Boolean = true,
     onBackground: (Boolean) -> Unit = {},
+    onStorage: () -> Unit = {},
+    onDiagnostics: () -> Unit = {},
 ) {
     var draft by remember(name) { mutableStateOf(name) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
@@ -124,13 +126,6 @@ fun ProfileScreen(
             confirmButton = { androidx.compose.material3.TextButton(onClick = { if (draft.isNotBlank()) onName(draft.trim()); editing = null }, enabled = draft.isNotBlank()) { Text("Save") } },
             dismissButton = { androidx.compose.material3.TextButton(onClick = { editing = null }) { Text("Cancel") } },
         )
-        "clear" -> androidx.compose.material3.AlertDialog(
-            onDismissRequest = { editing = null },
-            title = { Text("Delete all messages?") },
-            text = { Text("Every chat on this phone is deleted, with its photos, documents and voice notes. You won't be able to get them back unless you have a backup (You → Backup).") },
-            confirmButton = { androidx.compose.material3.TextButton(onClick = { onClearMessages(); editing = null }) { Text("Delete", color = Extra.rose) } },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { editing = null }) { Text("Keep them") } },
-        )
         "avatar" -> androidx.compose.material3.AlertDialog(
             onDismissRequest = { editing = null },
             title = { Text("Pick your icon") },
@@ -138,7 +133,6 @@ fun ProfileScreen(
             confirmButton = { androidx.compose.material3.TextButton(onClick = { editing = null }) { Text("Done") } },
         )
     }
-    var showLog by rememberSaveable { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     val chevron: @Composable () -> Unit = { Icon(Icons.Outlined.ChevronRight, null, tint = Extra.ink3) }
@@ -170,105 +164,45 @@ fun ProfileScreen(
             }
         }
 
-        item { GroupLabel("Connections") }
+        item { GroupLabel("Staying reachable") }
         item {
             Group {
-                SettingRow(Icons.Outlined.Hub, MaterialTheme.colorScheme.primary, "Mesh", "Find and be found by nearby phones") { Switch(running, onToggleMesh) }
-                SettingRow(Icons.Outlined.LocationOn, Extra.sky, "Share my location", "Connected people see how far you are. GPS, no internet", divider = true) {
-                    Switch(sharingLocation, onToggleLocation)
-                }
-                SettingRow(Icons.Outlined.ToggleOn, Extra.sky, "Turn on automatically", "Choose what BlueMob may switch on: mesh, Bluetooth, Wi-Fi", divider = true, onClick = onAutoStart) { chevron() }
-                SettingRow(Icons.Outlined.NotificationsActive, Extra.rose, "Stay on in the background",
-                    if (background) "SOS and messages reach you with the screen off" else "Off: SOS and messages only arrive while BlueMob is open", divider = true) {
-                    Switch(background, onBackground)
-                }
-                SettingRow(Icons.Outlined.Public, Extra.sky, "Internet bridge", "Keep talking when you're far apart, through the BlueMob relay",
-                    divider = true, onClick = onBridge) { chevron() }
-                SettingRow(Icons.Outlined.SettingsInputAntenna, Extra.ember, "Bluetooth, Wi-Fi, GPS, internet", "See what's on and switch it, in one place",
-                    divider = true, onClick = onConnections) { chevron() }
-            }
-        }
-
-        item { GroupLabel("Battery") }
-        item {
-            Group {
-                SettingRow(Icons.Outlined.BatterySaver, Color(0xFF3A9A5B), "Phone Battery Saver", "Slows every other app. Opens Android settings", onClick = onBatterySaver) { chevron() }
-                SettingRow(Icons.Outlined.PowerSettingsNew, MaterialTheme.colorScheme.primary, "Keep BlueMob running",
-                    if (keepsRunning) "Done: BlueMob stays awake while Battery Saver is on" else "So messages and SOS still reach you with Battery Saver on",
-                    divider = true, onClick = if (keepsRunning) null else onKeepRunning) { if (!keepsRunning) chevron() else Text("✓", color = MaterialTheme.colorScheme.primary) }
+                SettingRow(Icons.Outlined.Hub, MaterialTheme.colorScheme.primary, "Connections & power",
+                    (if (running) "Mesh on" else "Mesh off") + " · " + if (background && keepsRunning) "reachable when closed" else "only while open",
+                    onClick = onAutoStart) { chevron() }
             }
         }
 
         item { GroupLabel("Safety") }
         item {
             Group {
-                SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS", "Default signal: ${signalDefault.emoji} ${signalDefault.label}", onClick = onSos) { chevron() }
-                SettingRow(Icons.Outlined.Contacts, Extra.sky, "SOS contacts",
-                    if (sosContactCount == 0) "None yet. Add family to text when you send an SOS" else "$sosContactCount saved", divider = true, onClick = onSosContacts) { chevron() }
-            }
-        }
-
-        item { GroupLabel("Your standing") }
-        item {
-            Group {
+                SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS",
+                    "Signal ${signalDefault.emoji} ${signalDefault.label} · " + if (sosContactCount == 0) "no SOS contacts yet" else "$sosContactCount SOS contact${if (sosContactCount == 1) "" else "s"}",
+                    onClick = onSos) { chevron() }
                 SettingRow(Icons.Outlined.StarOutline, com.bluemob.app.ui.components.StarGold, "Your rating",
                     if (myRatingCount == 0) "4 stars to start. Help people and they can thank you" else "%.1f out of 5 · %d rating%s".format(myStars, myRatingCount, if (myRatingCount == 1) "" else "s"),
-                    onClick = onMyRating) { com.bluemob.app.ui.components.StarRow(myStars, 14.dp) }
+                    divider = true, onClick = onMyRating) { com.bluemob.app.ui.components.StarRow(myStars, 14.dp) }
             }
         }
 
         item { GroupLabel("Account") }
         item {
             Group {
-                SettingRow(Icons.Outlined.Key, Color(0xFF2F6F62), "Account", "Number, age, blood group, PIN lock, recovery code", onClick = onAccount) { chevron() }
+                SettingRow(Icons.Outlined.Key, Color(0xFF2F6F62), "Account & backup", "Number, blood group, PIN, recovery code, backups", onClick = onAccount) { chevron() }
+                SettingRow(Icons.Outlined.DeleteOutline, Extra.ember, "Storage & data", "What's kept on this phone, and clearing it", divider = true, onClick = onStorage) { chevron() }
             }
         }
 
-        item { GroupLabel("Records") }
-        item {
-            Group {
-                SettingRow(Icons.Outlined.CloudUpload, Extra.sky, "Backup", "Encrypted copy of chats, trips and calls, saved where you choose", onClick = onBackup) { chevron() }
-                SettingRow(Icons.Outlined.Lock, Color(0xFF3A4A44), "Audit trail", "Read-only, tamper-evident record of SOS, messages and positions", divider = true, onClick = onAudit) { chevron() }
-            }
-        }
-
-        item { GroupLabel("Play") }
+        item { GroupLabel("More") }
         item {
             Group {
                 SettingRow(Icons.Outlined.SportsEsports, Extra.ember, "Games", "5 games, against the computer or people nearby", onClick = onGames) { chevron() }
-            }
-        }
-
-        item { GroupLabel("App") }
-        item {
-            Group {
-                SettingRow(Icons.Outlined.Refresh, Color(0xFF7C6BD6), "Replay the intro", onClick = onReplayIntro) { chevron() }
-                SettingRow(Icons.Outlined.DeleteOutline, Extra.ember, "Forget people I've met", "Clears the list and last-seen history", divider = true, onClick = onForgetPeople)
-                SettingRow(Icons.Outlined.DeleteOutline, Extra.rose, "Delete all messages", "From this phone only. The audit trail is kept", divider = true, onClick = { editing = "clear" })
-            }
-        }
-
-        item { GroupLabel("For testers") }
-        item {
-            Group {
-                if (lastError != null) {
-                    var errCopied by remember { mutableStateOf(false) }
-                    SettingRow(Icons.Outlined.Terminal, Extra.rose, "Last background error", if (errCopied) "Copied ✓ Send it to the BlueMob team" else lastError.lines().getOrNull(3)?.take(80) ?: "Tap to copy",
-                        onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(lastError)); errCopied = true })
-                }
-                SettingRow(Icons.Outlined.Terminal, Color(0xFF3A4A44), "Mesh activity log", "What the mesh is doing, step by step", onClick = { showLog = !showLog }) {
-                    Icon(Icons.Outlined.ChevronRight, null, tint = Extra.ink3, modifier = Modifier.rotate(if (showLog) 90f else 0f))
-                }
-                if (showLog) Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    if (log.isEmpty()) Text("Nothing yet", style = MaterialTheme.typography.bodySmall)
-                    log.take(80).forEach {
-                        Text("${logTime.format(Date(it.timeMillis))}  ${it.text}", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = Extra.ink2)
-                    }
-                }
+                SettingRow(Icons.Outlined.Refresh, Color(0xFF7C6BD6), "Replay the intro", "How BlueMob works, in a minute", divider = true, onClick = onReplayIntro) { chevron() }
+                SettingRow(Icons.Outlined.Terminal, Color(0xFF3A4A44), "Diagnostics", "Audit trail, relay, logs, technical details", divider = true, onClick = onDiagnostics) { chevron() }
             }
         }
         item {
-            Text("BlueMob 0.3 · made for the open sky", style = MaterialTheme.typography.bodySmall, color = Extra.ink3,
+            Text("BlueMob ${com.bluemob.app.BuildConfig.VERSION_NAME} · made for the open sky", style = MaterialTheme.typography.bodySmall, color = Extra.ink3,
                 textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 24.dp))
         }
     }
