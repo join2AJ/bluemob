@@ -404,18 +404,43 @@ class NearbyMeshTransport(
         connectedEndpointFor(to)?.let { sendTo(it, json); return true }
         val targets = connectedEndpoints()
         targets.forEach { sendTo(it, json) }
-        return targets.isNotEmpty()
+        // Not nearby: also try the internet. The same packet may arrive both ways; the ID stops doubles.
+        val online = live?.sendText(to, json.toString()) == true
+        return targets.isNotEmpty() || online
     }
 
-    private fun handleApp(fromEndpoint: String, json: JSONObject) {
+    /** The internet link for calls with people far away. Set by the app; null when there's no relay. */
+    var live: com.bluemob.app.bridge.LiveLink? = null
+        set(value) {
+            field = value
+            value?.onText = { from, data ->
+                val json = runCatching { JSONObject(data) }.getOrNull()
+                if (json != null && json.optString("t") == TYPE_APP) scope.launch { handleApp(null, json, viaInternetFrom = from) }
+            }
+            value?.onBinary = { from, bytes ->
+                if (bytes.isNotEmpty() && bytes.size <= MAX_MEDIA && (bytes[0] == MEDIA_AUDIO || bytes[0] == MEDIA_VIDEO)) _media.tryEmit(Media(from, bytes))
+            }
+            value?.onOffline = { to -> _events.tryEmit(MeshEvent.Unreachable(to)) }
+        }
+
+    /** True when we can reach [nodeId] live: connected nearby, or signed in to the relay over the internet. */
+    fun canReachLive(nodeId: String) = isConnected(nodeId) || live?.connected?.value == true
+
+    /** "Wi-Fi" / "Bluetooth" when they're nearby, "Internet" when the call goes through the relay. */
+    fun callLink(nodeId: String) = if (isConnected(nodeId)) linkName(nodeId) else "Internet"
+
+    private fun handleApp(fromEndpoint: String?, json: JSONObject, viaInternetFrom: String? = null) {
         val o = Envelope.open(json) ?: return
         val to = o.body.optString("to")
+        // Over the internet, the relay vouches for who sent it; the signature must agree.
+        if (viaInternetFrom != null && (o.from != viaInternetFrom || to != identity.nodeId)) return
         if (!seenSos.add(TYPE_APP + o.body.optString("id"))) return
         if (to == identity.nodeId) {
             if (o.from == identity.nodeId) return
             keyBook.add(o.publicB64)
-            val direct = _peers.value[fromEndpoint]?.nodeId == o.from
-            _events.tryEmit(MeshEvent.App(o.from, o.body.optString("name").take(Identity.MAX_NAME_LENGTH), o.body.optString("k"), o.body, o.hops + 1, direct))
+            val direct = fromEndpoint != null && _peers.value[fromEndpoint]?.nodeId == o.from
+            _events.tryEmit(MeshEvent.App(o.from, o.body.optString("name").take(Identity.MAX_NAME_LENGTH), o.body.optString("k"), o.body, o.hops + 1, direct,
+                viaInternet = viaInternetFrom != null))
             return
         }
         val hops = o.hops + 1
@@ -435,7 +460,7 @@ class NearbyMeshTransport(
 
     /** Sends call audio or video straight to a connected phone. Returns false if they aren't connected. */
     fun sendMedia(nodeId: String, bytes: ByteArray): Boolean {
-        val endpointId = connectedEndpointFor(nodeId) ?: return false
+        val endpointId = connectedEndpointFor(nodeId) ?: return live?.sendBinary(nodeId, bytes) == true
         val payload = Payload.fromBytes(bytes)
         inFlight[payload.id] = InFlight(endpointId, bytes.size, bytes[0], SystemClock.elapsedRealtime())
         client.sendPayload(endpointId, payload).addOnFailureListener { inFlight.remove(payload.id) }
@@ -482,7 +507,9 @@ class NearbyMeshTransport(
      * quickly if we send more than the link carries; calls use it to hold back video and drop stale audio.
      */
     fun mediaBacklog(nodeId: String, kind: Byte? = null): Int {
-        val endpointId = connectedEndpointFor(nodeId) ?: return 0
+        // Over the internet we can't tell audio from video in the queue. Video waits for an empty queue; voice only
+        // counts as behind once more than about one video frame is waiting.
+        val endpointId = connectedEndpointFor(nodeId) ?: return (live?.backlog() ?: 0L).toInt().let { if (kind == MEDIA_AUDIO) (it - 32_000).coerceAtLeast(0) else it }
         val now = SystemClock.elapsedRealtime()
         var total = 0
         val it = inFlight.entries.iterator()

@@ -34,7 +34,9 @@ import com.bluemob.app.util.TimeText
 
 /** Set up and watch the internet bridge: how people far apart keep talking. */
 @Composable
-fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: (String) -> Unit, builtIn: String = "") {
+fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: (String) -> Unit, builtIn: String = "",
+    /** Signed in to the relay's live link, so calls work with people far away. */
+    liveConnected: Boolean = false) {
     var draft by rememberSaveable(url) { mutableStateOf(url) }
     var advanced by rememberSaveable { mutableStateOf(builtIn.isEmpty() || url != builtIn) }
     val working = status.configured && status.online && status.lastError == null && status.lastSync != null
@@ -67,6 +69,20 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                             else -> "Connected automatically" + (if (url == builtIn) " to the BlueMob relay" else "") + ". Last synced ${TimeText.ago(status.lastSync ?: 0)}."
                         }, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp),
                     )
+                }
+            }
+        }
+        item {
+            androidx.compose.material3.Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                color = if (liveConnected) com.bluemob.app.ui.theme.Extra.pineTint else com.bluemob.app.ui.theme.Extra.sand2, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(if (liveConnected) "📞 Internet calls: ready" else "📞 Internet calls: not connected", style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
+                    Text(when {
+                        liveConnected -> "You can call people who are far away, and they can call you, as long as both phones have internet."
+                        url.isBlank() -> "Set the relay address below to call people who aren't nearby."
+                        !status.online -> "This phone has no internet right now. Calls with people nearby still work."
+                        else -> "Connecting to the relay… A free relay can take up to a minute to wake up."
+                    }, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                 }
             }
         }

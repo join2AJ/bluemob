@@ -16,7 +16,7 @@ Node 18 or newer, no dependencies:
 ```
 node server/relay.js            # listens on :8080, stores data in server/data/relay.jsonl
 PORT=9000 DATA_DIR=/var/lib/bluemob node server/relay.js
-node --test server/relay.test.js
+node --test server/relay.test.js server/live.test.js
 ```
 
 ## Deploy (once, by the BlueMob team, not by users)
@@ -51,9 +51,14 @@ Anyone can still point a phone at a different relay: **You â†’ Internet bridge â
 | `POST /v1/pull {ids, since, proof}` | Packets for up to 50 IDs, after each ID's cursor. `proof` is a signature over `bluemob-pull|at|ids` (at most 5 minutes old); pulling also registers your key. |
 | `GET /v1/key?id=` | A device's public key, so others can encrypt to it. |
 | `GET /v1/ratings?subject=` | Signed ratings about a device. |
+| `GET /v1/live` (WebSocket) | Real-time link for calls (`live.js`). The phone signs in by signing a challenge with its device key; then call set-up (the app's signed packets) and voice/video frames (`[8-byte ID | data]`) pass between two signed-in phones. Nothing is stored. |
 | `GET /health` | Status. |
 
-Limits: 600 requests per device per hour, 256 KB per request, messages kept at most 7 days.
+Limits: 600 requests per device per hour, 256 KB per request, messages kept at most 7 days. Live link: 64 KB per
+frame, 512 KB/s per phone, and frames are dropped (not queued) when the receiving phone falls behind.
+
+**Internet calls** use the live link: about 64 kbit/s each way for voice, more with video. On Render's free plan the
+relay sleeps after 15 minutes with no one connected; phones keep it awake while they're signed in.
 
 ## Before a real launch
 

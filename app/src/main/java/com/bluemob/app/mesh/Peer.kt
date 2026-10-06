@@ -62,7 +62,11 @@ sealed interface MeshEvent {
      * A signed packet addressed to us ([kind]: game moves, call set-up, "ring my phone"). [direct] when the sender
      * is connected straight to this phone (calls need that).
      */
-    data class App(val fromNodeId: String, val name: String, val kind: String, val body: org.json.JSONObject, val hops: Int, val direct: Boolean) : MeshEvent
+    data class App(val fromNodeId: String, val name: String, val kind: String, val body: org.json.JSONObject, val hops: Int, val direct: Boolean,
+        /** Came over the internet, through the relay's live link. */
+        val viaInternet: Boolean = false) : MeshEvent
+    /** The relay says [nodeId] isn't online right now. */
+    data class Unreachable(val nodeId: String) : MeshEvent
     /** A packet type handled outside the transport (audit witness notes, ratings). */
     data class Extra(val fromNodeId: String, val type: String, val json: org.json.JSONObject) : MeshEvent
 }

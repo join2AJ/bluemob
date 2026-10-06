@@ -77,6 +77,8 @@ class CallManager(
     private val onIncoming: (Call) -> Unit = {},
     /** Saves each call to the call history. */
     private val log: suspend (com.bluemob.app.data.CallLogEntry) -> Unit = {},
+    /** True when a BlueMob relay is set, so calls can go over the internet. */
+    private val relaySet: () -> Boolean = { false },
 ) {
     private val app = context.applicationContext
     private val _call = MutableStateFlow<Call?>(null)
@@ -102,7 +104,14 @@ class CallManager(
     @Volatile private var encoding = false
 
     init {
-        scope.launch { mesh.events.collect { e -> if (e is MeshEvent.App && e.kind == KIND) onSignal(e) } }
+        scope.launch {
+            mesh.events.collect { e ->
+                if (e is MeshEvent.App && e.kind == KIND) onSignal(e)
+                if (e is MeshEvent.Unreachable) _call.value?.takeIf { it.peer == e.nodeId && it.phase == CallPhase.OUTGOING && !mesh.isConnected(it.peer) }?.let {
+                    finish("${it.name} isn't online right now. Try again later, or send a message: it waits for them.", "NO_ANSWER")
+                }
+            }
+        }
         scope.launch {
             mesh.media.collect { m ->
                 val c = _call.value ?: return@collect
@@ -121,8 +130,11 @@ class CallManager(
     /** Calls someone. Returns why it can't, or null when it's ringing. */
     fun start(peer: String, name: String, video: Boolean): String? {
         _call.value?.takeIf { it.phase != CallPhase.ENDED }?.let { return "You're already in a call with ${it.name}" }
-        if (!mesh.isConnected(peer)) return "Calls need $name to be nearby and connected directly. Messages still work through other phones."
-        val c = Call("c-" + UUID.randomUUID().toString().take(10), peer, name, video, CallPhase.OUTGOING, outgoing = true, link = mesh.linkName(peer))
+        if (!mesh.canReachLive(peer)) return when {
+            !relaySet() -> "$name isn't nearby. Calls over the internet need the BlueMob relay: set it in You → Internet bridge."
+            else -> "$name isn't nearby, and this phone isn't connected to the internet relay yet. Check mobile data or Wi-Fi and try again."
+        }
+        val c = Call("c-" + UUID.randomUUID().toString().take(10), peer, name, video, CallPhase.OUTGOING, outgoing = true, link = mesh.callLink(peer))
         if (!signal(c, "invite", JSONObject().put("video", video))) return "Couldn't reach $name"
         _call.value = c
         ringback()
@@ -191,7 +203,8 @@ class CallManager(
         return mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_VIDEO) == 0 && mesh.mediaBacklog(c.peer, NearbyMeshTransport.MEDIA_AUDIO) < AUDIO_BACKLOG_MAX / 2
     }
 
-    private fun wifi(c: Call) = mesh.linkName(c.peer) == "Wi-Fi"
+    /** Wi-Fi nearby, or the internet: room for bigger, more frequent video frames than Bluetooth. */
+    private fun wifi(c: Call) = mesh.callLink(c.peer).let { it == "Wi-Fi" || it == "Internet" }
 
     /**
      * A camera frame, already upright. Sent only as often as the link can take: about [FPS_WIFI] frames a second
@@ -201,7 +214,7 @@ class CallManager(
         val c = _call.value ?: return
         if (c.phase != CallPhase.ACTIVE || !c.cameraOn || encoding) return
         val now = SystemClock.elapsedRealtime()
-        val fps = if (mesh.linkName(c.peer) == "Wi-Fi") FPS_WIFI else FPS_BLUETOOTH
+        val fps = if (wifi(c)) FPS_WIFI else FPS_BLUETOOTH
         if (now - lastFrameSent < 1000 / fps) return
         lastFrameSent = now
         encoding = true
@@ -221,12 +234,13 @@ class CallManager(
         val current = _call.value
         when (b.optString("a")) {
             "invite" -> {
-                if (!e.direct) return
+                // Calls need a live link: straight to us nearby, or over the internet relay.
+                if (!e.direct && !e.viaInternet) return
                 if (current != null && current.phase != CallPhase.ENDED) {
                     mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("cid", id).put("a", "busy"))
                     return
                 }
-                val c = Call(id, e.fromNodeId, e.name.ifBlank { "Someone" }, b.optBoolean("video"), CallPhase.INCOMING, link = mesh.linkName(e.fromNodeId))
+                val c = Call(id, e.fromNodeId, e.name.ifBlank { "Someone" }, b.optBoolean("video"), CallPhase.INCOMING, link = if (e.direct) mesh.linkName(e.fromNodeId) else "Internet")
                 _call.value = c
                 ring()
                 timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == id && _call.value?.phase == CallPhase.INCOMING) finish("Missed call") }
@@ -263,9 +277,10 @@ class CallManager(
             var gone = 0
             while (_call.value?.id == c.id && _call.value?.phase == CallPhase.ACTIVE) {
                 delay(1_000)
-                gone = if (mesh.isConnected(c.peer)) 0 else gone + 1
+                // Nearby or over the internet; if they come into range mid-call, voice moves to the direct link by itself.
+                gone = if (mesh.canReachLive(c.peer)) 0 else gone + 1
                 if (gone >= LINK_GRACE_S) finish("Lost the connection with ${c.name}")
-                val link = mesh.linkName(c.peer)
+                val link = mesh.callLink(c.peer)
                 if (gone == 0 && _call.value?.link != link) _call.update { it?.copy(link = link) }
                 val now = _call.value
                 // Quiet is expected when they've muted, or use walkie-talkie and aren't holding the button.

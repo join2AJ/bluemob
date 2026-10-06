@@ -377,7 +377,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "bridge" -> {
                     val st by vm.bridgeStatus.collectAsStateWithLifecycle()
                     val url by vm.bridgeUrl.collectAsStateWithLifecycle()
-                    BridgeScreen(st, url, ::pop, onSave = vm::setBridgeUrl, builtIn = vm.builtInRelay)
+                    BridgeScreen(st, url, ::pop, onSave = vm::setBridgeUrl, builtIn = vm.builtInRelay, liveConnected = vm.liveConnected.collectAsStateWithLifecycle().value)
                 }
                 route == "games" -> {
                     val all by vm.matches.collectAsStateWithLifecycle()

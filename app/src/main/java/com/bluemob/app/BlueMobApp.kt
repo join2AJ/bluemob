@@ -77,6 +77,7 @@ class BlueMobApp : Application() {
     lateinit var files: com.bluemob.app.files.FileShare private set
     lateinit var voiceNotes: com.bluemob.app.files.VoiceNotes private set
     lateinit var callLog: com.bluemob.app.data.CallLogDao private set
+    lateinit var live: com.bluemob.app.bridge.LiveLink private set
     private var ratingPackets: List<org.json.JSONObject> = emptyList()
     private var auditEntries: List<com.bluemob.app.data.AuditEntry> = emptyList()
     private var auditHead: com.bluemob.app.data.AuditEntry? = null
@@ -166,11 +167,15 @@ class BlueMobApp : Application() {
         }
         calls = com.bluemob.app.call.CallManager(this, mesh, audit, appScope, onIncoming = { c ->
             if (!inForeground) notifier.note("${c.name} is calling", "${if (c.video) "Video" else "Voice"} call from someone nearby. Tap to answer.", "call", id = 7_007)
-        }, log = { entry ->
+        }, relaySet = { settings.bridgeUrl.value.isNotBlank() }, log = { entry ->
             db.calls().insert(entry)
             if (entry.outcome == "MISSED" && !inForeground) notifier.note("Missed call from ${entry.name}", "${if (entry.video) "Video" else "Voice"} call. Tap to call back.", "calls", id = 7_008)
         })
         bridge = InternetBridge(settings, identity, keyBook, mesh, connectivity, audit, appScope)
+        // Live link to the relay for internet calls: stays signed in while there's internet and a relay is set.
+        live = com.bluemob.app.bridge.LiveLink({ settings.bridgeUrl.value }, identity.keys, appScope, { connectivity.online.value })
+        mesh.live = live
+        live.start()
         trust = TrustManager(db.ratings(), identity, mesh, bridge.client, contacts, audit, appScope)
         // Ratings travel as people meet: each phone gives the ones it holds to every phone it connects to.
         appScope.launch { trust.ratings.collect { ratingPackets = trust.packetsToShare() } }

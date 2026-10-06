@@ -8,6 +8,7 @@
 //   POST /v1/pull    {ids:[...], since:{id:seq}, proof}       fetch packets addressed to these IDs, after each ID's cursor
 //   GET  /v1/key?id=ID                                      a device's public key, so others can encrypt to it
 //   GET  /v1/ratings?subject=ID                             signed ratings about a device
+//   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
 const http = require("http");
@@ -171,5 +172,7 @@ if (require.main === module) {
   fs.mkdirSync(dataDir, { recursive: true });
   const store = new Store(path.join(dataDir, "relay.jsonl"));
   setInterval(() => store.prune(), 3600e3).unref();
-  createServer(store).listen(port, () => console.log(`BlueMob relay listening on :${port}`));
+  const server = createServer(store);
+  require("./live").attachLive(server);
+  server.listen(port, () => console.log(`BlueMob relay listening on :${port}`));
 }
