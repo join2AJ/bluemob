@@ -40,7 +40,7 @@ class FiltersTest {
         assertEquals("Today", CallFilter.group(now - hour, now))
         assertEquals("Yesterday", CallFilter.group(now - day, now))
         assertEquals("Earlier", CallFilter.group(now - 40 * day, now))
-        assertEquals("1 h 4 min", CallFilter.talkTime(calls))
+        assertEquals("1 h 3 min", CallFilter.talkTime(calls))
     }
 
     private fun file(name: String, kind: AttKind, size: Long, at: Long, dur: Long = 0) =

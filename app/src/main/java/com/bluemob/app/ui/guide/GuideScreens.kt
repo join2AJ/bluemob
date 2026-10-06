@@ -435,11 +435,13 @@ fun rememberSpeaker(): Speaker {
                 }
             }.getOrNull()
             Speaker(created).also { sp ->
-                created?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-                    override fun onStart(id: String?) {}
-                    override fun onDone(id: String?) { sp.speaking = false }
-                    @Deprecated("Deprecated in Java") override fun onError(id: String?) { sp.speaking = false }
-                })
+                runCatching {
+                    created?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                        override fun onStart(id: String?) {}
+                        override fun onDone(id: String?) { sp.speaking = false }
+                        @Deprecated("Deprecated in Java") override fun onError(id: String?) { sp.speaking = false }
+                    })
+                }
             }
         }
     }
