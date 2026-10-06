@@ -84,9 +84,9 @@ fun AttachmentContent(m: MessageEntity, att: Attachment, name: String, files: Ch
     val status = when {
         progress != null -> (if (m.fromMe) "Sending " else "Receiving ") + "${(progress * 100).toInt()}%"
         m.fromMe && m.attState == AttState.DONE -> "Delivered"
-        m.fromMe && m.attState == AttState.SENDING -> "Sending…"
-        m.fromMe -> "Goes the next time you're in range of $name"
-        m.attState != AttState.DONE -> "Arrives when you're in range of $name"
+        m.fromMe && m.attState == AttState.SENDING -> "Sent · waiting for $name to fetch it"
+        m.fromMe -> "Goes when you're online or in range of $name"
+        m.attState != AttState.DONE -> "Arrives when you're online or in range of $name"
         else -> null
     }
     Column(Modifier.width(240.dp)) {

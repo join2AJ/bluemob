@@ -210,6 +210,10 @@ class BlueMobApp : Application() {
         bridge.client.ratingSubjects = { mesh.connectedNodes() + sos.received.value.keys + contacts.contacts.value.keys.take(20) }
         rescue = RescueManager(mesh, identity, db.rescue(), trail, location, sos, audit, appScope)
         files = com.bluemob.app.files.FileShare(this, mesh, db.messages(), audit, appScope)
+        // Files for people who aren't nearby go through the relay, encrypted as they are.
+        files.net = com.bluemob.app.bridge.RelayFiles({ settings.bridgeUrl.value.takeIf { it.isNotBlank() } }, identity.keys)
+        files.netUp = { connectivity.online.value && settings.bridgeUrl.value.isNotBlank() }
+        appScope.launch { live.connected.collect { if (it) files.pushAllOnline() } }
         voiceNotes = com.bluemob.app.files.VoiceNotes(this, appScope)
         callLog = db.calls()
         backups = com.bluemob.app.backup.BackupManager(this)

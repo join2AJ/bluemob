@@ -128,6 +128,10 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE peer = :peer AND fromMe = 1 AND att != '' AND attState != 3")
     suspend fun filesToSend(peer: String): List<MessageEntity>
 
+    /** Our files not yet delivered, to anyone: sent over the internet when it comes back. */
+    @Query("SELECT * FROM messages WHERE fromMe = 1 AND att != '' AND attState != 3")
+    suspend fun pendingFiles(): List<MessageEntity>
+
     /** The message carrying file [fid] (its details include `"fid":"…"`). */
     @Query("SELECT * FROM messages WHERE att LIKE '%\"fid\":\"' || :fid || '\"%' LIMIT 1")
     suspend fun byFile(fid: String): MessageEntity?

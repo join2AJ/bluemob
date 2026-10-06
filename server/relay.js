@@ -9,6 +9,8 @@
 //   GET  /v1/key?id=ID                                      a device's public key, so others can encrypt to it
 //   GET  /v1/ratings?subject=ID                             signed ratings about a device
 //   GET  /v1/guides  /v1/guides/<id>                      survival-guide packs phones can download for offline use
+//   PUT  /v1/blob/<fid>      (signed by the sender)        a chat attachment, already encrypted on the phone
+//   GET  /v1/blob/<fid>?id&at&sig  (signed by the recipient)  download it; POST /v1/blob/<fid>/done deletes it
 //   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
@@ -128,7 +130,45 @@ function loadGuides(dir = path.join(__dirname, "guides")) {
   return packs;
 }
 
-function createServer(store, guides = loadGuides()) {
+/**
+ * Chat attachments for people who aren't nearby. Files arrive already encrypted with a key only the two phones have,
+ * so the relay holds bytes it can't read. Only the phone the file is addressed to can download it. Kept 7 days at
+ * most, deleted once the recipient has it.
+ */
+class Blobs {
+  constructor(dir, { maxBytes = 26 * 1024 * 1024, totalBytes = 1024 * 1024 * 1024, perDevicePerDay = 300 * 1024 * 1024, ttlMs = 7 * 24 * 3600e3 } = {}) {
+    this.dir = dir; this.maxBytes = maxBytes; this.totalBytes = totalBytes; this.perDevicePerDay = perDevicePerDay; this.ttlMs = ttlMs;
+    this.meta = new Map(); // fid -> {to, from, size, at}
+    this.used = new Map(); // device|day -> bytes
+    if (dir) { fs.mkdirSync(dir, { recursive: true }); for (const f of fs.readdirSync(dir)) if (f.endsWith(".bin")) fs.rmSync(path.join(dir, f), { force: true }); }
+  }
+  total() { let n = 0; for (const m of this.meta.values()) n += m.size; return n; }
+  file(fid) { return path.join(this.dir, fid + ".bin"); }
+  allow(from, size) {
+    const key = from + "|" + Math.floor(Date.now() / 86400e3);
+    const used = (this.used.get(key) || 0) + size;
+    if (used > this.perDevicePerDay || this.total() + size > this.totalBytes) return false;
+    this.used.set(key, used);
+    return true;
+  }
+  put(fid, meta, buf) { fs.writeFileSync(this.file(fid), buf); this.meta.set(fid, { ...meta, size: buf.length, at: Date.now() }); }
+  get(fid) { const m = this.meta.get(fid); return m && fs.existsSync(this.file(fid)) ? { meta: m, buf: fs.readFileSync(this.file(fid)) } : null; }
+  del(fid) { this.meta.delete(fid); fs.rmSync(this.file(fid), { force: true }); }
+  prune(now = Date.now()) { for (const [fid, m] of this.meta) if (now - m.at > this.ttlMs) this.del(fid); }
+}
+
+const FID = /^f-[0-9a-z]{8,40}$/;
+
+/** Checks a signature over [text] by the key [pk]; returns the signer's ID or null. */
+function signer(pk, text, sig) {
+  try {
+    const der = Buffer.from(pk, "base64");
+    const key = crypto.createPublicKey({ key: der, format: "der", type: "spki" });
+    return crypto.verify("sha256", Buffer.from(text), key, Buffer.from(sig, "base64")) ? idFor(der) : null;
+  } catch { return null; }
+}
+
+function createServer(store, guides = loadGuides(), blobs = new Blobs(null)) {
   const hits = new Map(); // device or IP -> {hour, n}
   const limited = (who) => {
     const hour = Math.floor(Date.now() / 3600e3);
@@ -156,6 +196,47 @@ function createServer(store, guides = loadGuides()) {
     if (req.method === "GET" && url.pathname === "/v1/ratings") {
       const m = store.ratings.get(url.searchParams.get("subject") || "");
       return send(res, 200, { ratings: m ? [...m.values()] : [] });
+    }
+    const blob = url.pathname.match(/^\/v1\/blob\/([^/]+)(\/done)?$/);
+    if (blob && blobs.dir) {
+      const fid = blob[1];
+      if (!FID.test(fid)) return send(res, 400, { error: "bad id" });
+      if (req.method === "PUT") {
+        // Signed by the sender over the file's hash, its ID, the recipient and the time.
+        const to = String(req.headers["x-to"] || ""), at = Number(req.headers["x-at"]), pk = String(req.headers["x-pk"] || ""), sig = String(req.headers["x-sig"] || "");
+        if (!/^[0-9a-f]{16}$/.test(to) || Math.abs(Date.now() - at) > 10 * 60e3) return send(res, 400, { error: "bad request" });
+        const size = Number(req.headers["content-length"] || 0);
+        if (!(size > 0) || size > blobs.maxBytes) return send(res, 413, { error: "too large" });
+        const chunks = []; let got = 0;
+        req.on("data", (c) => { got += c.length; if (got > blobs.maxBytes) { send(res, 413, { error: "too large" }); req.destroy(); } else chunks.push(c); });
+        req.on("end", () => {
+          if (res.writableEnded) return;
+          const buf = Buffer.concat(chunks);
+          const hash = crypto.createHash("sha256").update(buf).digest("hex");
+          const from = signer(pk, ["bluemob-blob", fid, to, at, hash].join("|"), sig);
+          if (!from) return send(res, 401, { error: "bad signature" });
+          if (blobs.meta.has(fid)) return send(res, 200, { ok: true, duplicate: true });
+          if (!blobs.allow(from, buf.length)) return send(res, 429, { error: "storage limit reached, try later" });
+          blobs.put(fid, { to, from }, buf);
+          store.learnKey(from, pk);
+          return send(res, 200, { ok: true });
+        });
+        return;
+      }
+      // Downloading or deleting needs the recipient's signature over the file ID and the time.
+      const id = url.searchParams.get("id") || "", at = Number(url.searchParams.get("at")), sig = url.searchParams.get("sig") || "";
+      const m = blobs.meta.get(fid);
+      if (!m) return send(res, 404, { error: "not here (expired, or not uploaded yet)" });
+      const pk = store.keys.get(id);
+      if (id !== m.to || !pk || Math.abs(Date.now() - at) > 10 * 60e3 || signer(pk, ["bluemob-blob-get", fid, at].join("|"), sig) !== id) return send(res, 403, { error: "not yours" });
+      if (req.method === "GET" && !blob[2]) {
+        const b = blobs.get(fid);
+        if (!b) return send(res, 404, { error: "gone" });
+        res.writeHead(200, { "content-type": "application/octet-stream", "content-length": b.buf.length, "cache-control": "no-store" });
+        return res.end(b.buf);
+      }
+      if (req.method === "POST" && blob[2]) { blobs.del(fid); return send(res, 200, { ok: true }); }
+      return send(res, 405, { error: "method" });
     }
     if (req.method !== "POST") return send(res, 404, { error: "not found" });
     let size = 0;
@@ -187,7 +268,7 @@ function createServer(store, guides = loadGuides()) {
   });
 }
 
-module.exports = { createServer, Store, openEnvelope, idFor, loadGuides };
+module.exports = { createServer, Store, Blobs, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
@@ -195,7 +276,9 @@ if (require.main === module) {
   fs.mkdirSync(dataDir, { recursive: true });
   const store = new Store(path.join(dataDir, "relay.jsonl"));
   setInterval(() => store.prune(), 3600e3).unref();
-  const server = createServer(store);
+  const blobs = new Blobs(path.join(dataDir, "blobs"));
+  setInterval(() => blobs.prune(), 3600e3).unref();
+  const server = createServer(store, loadGuides(), blobs);
   require("./live").attachLive(server, { store });
   server.listen(port, () => console.log(`BlueMob relay listening on :${port}`));
 }

@@ -74,3 +74,35 @@ test("serves the guide packs for offline download", async () => {
   assert.equal((await fetch(base + "/v1/guides/nope")).status, 404);
   server.close();
 });
+
+test("files: only the sender can upload, only the recipient can download, and it's deleted after", async () => {
+  const os = require("os"), path = require("path"), fs = require("fs");
+  const { createServer, Blobs } = require("./relay");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "blobs-"));
+  const store = new Store(null);
+  const srv = createServer(store, new Map(), new Blobs(dir, { maxBytes: 1024 * 1024 }));
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const a = device(), b = device(), evil = device();
+  store.learnKey(b.id, b.pk); store.learnKey(evil.id, evil.pk);
+  const body = crypto.randomBytes(5000), fid = "f-abc123def456";
+  const put = (signerDev, data = body) => {
+    const at = Date.now(), hash = crypto.createHash("sha256").update(data).digest("hex");
+    const sig = crypto.sign("sha256", Buffer.from(["bluemob-blob", fid, b.id, at, hash].join("|")), signerDev.privateKey).toString("base64");
+    return fetch(`${base}/v1/blob/${fid}`, { method: "PUT", body: data, headers: { "x-to": b.id, "x-at": String(at), "x-pk": a.pk, "x-sig": sig } });
+  };
+  assert.equal((await put(evil)).status, 401); // signed with another key than the one it claims
+  assert.equal((await put(a)).status, 200);
+  const get = (dev, method = "GET", suffix = "") => {
+    const at = Date.now();
+    const sig = crypto.sign("sha256", Buffer.from(["bluemob-blob-get", fid, at].join("|")), dev.privateKey).toString("base64");
+    return fetch(`${base}/v1/blob/${fid}${suffix}?id=${dev.id}&at=${at}&sig=${encodeURIComponent(sig)}`, { method });
+  };
+  assert.equal((await get(evil)).status, 403);
+  const r = await get(b);
+  assert.equal(r.status, 200);
+  assert.deepEqual(Buffer.from(await r.arrayBuffer()), body);
+  assert.equal((await get(b, "POST", "/done")).status, 200);
+  assert.equal((await get(b)).status, 404);
+  srv.close();
+});

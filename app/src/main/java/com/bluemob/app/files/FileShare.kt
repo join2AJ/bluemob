@@ -36,7 +36,8 @@ import java.util.UUID
  * - Sending: the file is read, photos are resized (which also drops their hidden GPS data), then it's encrypted with a
  *   fresh key and saved in BlueMob's private folder. The key travels inside the end-to-end encrypted chat message.
  * - The encrypted file goes straight to the other phone over Bluetooth / Wi-Fi when they're in range (Wi-Fi is much
- *   faster for big files). If they're not, it waits and goes the next time you meet.
+ *   faster for big files). If they're not and this phone has internet, it goes through the relay ([RelayFiles]):
+ *   the relay holds the encrypted bytes until the other phone downloads them. Otherwise it waits until you meet.
  * - Receiving: the file stays encrypted on the phone. It's decrypted only to show or open it, into a temporary
  *   folder that's emptied every time BlueMob starts.
  */
@@ -63,6 +64,15 @@ class FileShare(
     private val sending = mutableMapOf<Pair<String, Long>, String>()
     private val lock = Mutex()
     private val thumbs = LruCache<String, Bitmap>(40)
+
+    /** The relay, for files to and from people who aren't nearby. Set by the app. */
+    @Volatile var net: com.bluemob.app.bridge.RelayFiles? = null
+    /** True while this phone can reach the relay. */
+    @Volatile var netUp: () -> Boolean = { false }
+    private val netLock = Mutex()
+    /** Files we've uploaded this run (the relay keeps them until the other phone has them). */
+    private val uploaded = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    private val downloading = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
     init {
         scope.launch {
@@ -139,8 +149,38 @@ class FileShare(
         if (deg == 0) bmp else Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, android.graphics.Matrix().apply { postRotate(deg.toFloat()) }, true)
     }.getOrDefault(bmp)
 
-    /** Sends every file still waiting for [peer], if they're connected directly and their BlueMob takes files. */
-    suspend fun push(peer: String) = lock.withLock {
+    /** Sends every file still waiting for [peer]: directly if they're nearby, otherwise through the relay. */
+    suspend fun push(peer: String) {
+        if (mesh.isConnected(peer)) pushNearby(peer) else pushOnline(peer)
+    }
+
+    /** After the internet comes back: every file still waiting goes through the relay. */
+    suspend fun pushAllOnline() {
+        if (!netUp()) return
+        dao.pendingFiles().map { it.peer }.distinct().filter { !mesh.isConnected(it) }.forEach { pushOnline(it) }
+    }
+
+    /** Uploads [peer]'s waiting files to the relay (encrypted as they are) and tells them to fetch each one. */
+    private suspend fun pushOnline(peer: String) = netLock.withLock {
+        val relay = net ?: return@withLock
+        if (!netUp()) return@withLock
+        dao.filesToSend(peer).forEach { m ->
+            val att = Attachment.fromJson(m.att) ?: return@forEach
+            if (att.fid in uploaded) return@forEach
+            val file = m.attPath?.let(::File)?.takeIf { it.exists() } ?: return@forEach
+            dao.update(m.copy(attState = AttState.SENDING))
+            val ok = withContext(Dispatchers.IO) { relay.upload(att.fid, peer, file) { p -> _progress.update { it + (att.fid to p) } } }
+            _progress.update { it - att.fid }
+            val now = dao.byFile(att.fid) ?: return@forEach
+            if (!ok) { dao.update(now.copy(attState = AttState.WAITING)); return@forEach }
+            uploaded += att.fid
+            dao.update(now.copy(history = now.history + com.bluemob.app.chat.MessageRepository.event(System.currentTimeMillis(), "File sent to the BlueMob relay (encrypted)")))
+            mesh.sendApp(peer, KIND, JSONObject().put("a", "net").put("fid", att.fid))
+        }
+    }
+
+    /** Sends every file still waiting for [peer] straight to them, if they're connected and their BlueMob takes files. */
+    private suspend fun pushNearby(peer: String) = lock.withLock {
         // Phones before 0.9 can't take files (0.7 and older don't say what they support).
         if (!mesh.isConnected(peer) || mesh.featureGap(peer, "file") != null || mesh.mayBeOld(peer)) return@withLock
         dao.filesToSend(peer).forEach { m ->
@@ -159,10 +199,30 @@ class FileShare(
     suspend fun onMessage(m: MessageEntity) {
         if (m.fromMe) { push(m.peer); return }
         val att = Attachment.fromJson(m.att) ?: return
-        lock.withLock {
-            val key = expected.entries.firstOrNull { it.value == att.fid && it.key.first == m.peer }?.key ?: return@withLock
+        val matched = lock.withLock {
+            val key = expected.entries.firstOrNull { it.value == att.fid && it.key.first == m.peer }?.key ?: return@withLock false
             early.remove(key)?.let { saveArrived(key, att.fid, it) }
+            true
         }
+        // Not nearby: it may be waiting on the relay already.
+        if (!matched && !mesh.isConnected(m.peer)) scope.launch { fetchOnline(m.peer, att.fid) }
+    }
+
+    /** Downloads a file the relay holds for us, then treats it like one that arrived over the mesh. */
+    private suspend fun fetchOnline(from: String, fid: String) {
+        val relay = net ?: return
+        if (!netUp() || !downloading.add(fid)) return
+        try {
+            if (dao.byFile(fid)?.attState == AttState.DONE) return
+            val tmp = File(store, "net-$fid.part")
+            val ok = withContext(Dispatchers.IO) { relay.download(fid, tmp) { p -> _progress.update { it + (fid to p) } } }
+            if (!ok) { tmp.delete(); _progress.update { it - fid }; return }
+            lock.withLock {
+                val key = from to NET_TRANSFER
+                expected[key] = fid
+                saveArrived(key, fid, tmp)
+            }
+        } finally { downloading.remove(fid) }
     }
 
     // ---- Receiving ----
@@ -176,11 +236,13 @@ class FileShare(
                 expected[key] = fid
                 early.remove(key)?.let { saveArrived(key, fid, it) }
             }
+            "net" -> b.optString("fid").takeIf { it.startsWith("f-") && it.length <= 40 }?.let { fid -> scope.launch { fetchOnline(e.fromNodeId, fid) } }
             "ok" -> {
                 val fid = b.optString("fid")
                 val m = dao.byFile(fid)?.takeIf { it.fromMe && it.peer == e.fromNodeId } ?: return
+                val via = if (fid in uploaded || !mesh.isConnected(e.fromNodeId)) "the internet" else mesh.linkName(e.fromNodeId)
                 dao.update(m.copy(attState = AttState.DONE, history = m.history + com.bluemob.app.chat.MessageRepository.event(System.currentTimeMillis(),
-                    "File delivered over ${mesh.linkName(e.fromNodeId)}")))
+                    "File delivered over $via")))
                 _progress.update { it - fid }
             }
         }
@@ -246,6 +308,8 @@ class FileShare(
         dao.update(m.copy(attPath = dest.path, attState = AttState.DONE))
         _progress.update { it - fid }
         mesh.sendApp(from, KIND, JSONObject().put("a", "ok").put("fid", fid))
+        // Came through the relay: it can delete its copy now.
+        if (key.second == NET_TRANSFER) { expected.remove(key); net?.let { r -> scope.launch(Dispatchers.IO) { r.done(fid) } } }
     }
 
     /** Deletes every attachment file on this phone (after "Delete all messages"). */
@@ -285,6 +349,8 @@ class FileShare(
 
     companion object {
         const val KIND = "file"
+        /** Transfer ID used for files that came through the relay rather than over Nearby. */
+        private const val NET_TRANSFER = -1L
         private const val TAG = "BlueMobFiles"
         private const val PHOTO_MAX = 1600
     }
