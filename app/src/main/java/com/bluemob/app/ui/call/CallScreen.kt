@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -79,8 +78,12 @@ fun CallScreen(
                     .clip(RoundedCornerShape(14.dp)).border(2.dp, Color.White.copy(alpha = 0.7f), RoundedCornerShape(14.dp)), contentScale = ContentScale.Crop)
             }
         }
-        val elapsed by produceState(0L, call.phase, call.startedAt) {
-            while (call.phase == CallPhase.ACTIVE) { value = (System.currentTimeMillis() - call.startedAt) / 1000; kotlinx.coroutines.delay(1_000) }
+        var elapsed by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+        androidx.compose.runtime.LaunchedEffect(call.phase, call.startedAt) {
+            while (call.phase == CallPhase.ACTIVE) {
+                elapsed = (System.currentTimeMillis() - call.startedAt) / 1000
+                kotlinx.coroutines.delay(1_000)
+            }
         }
         val showFace = !(call.phase == CallPhase.ACTIVE && remote != null)
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = if (showFace) 72.dp else 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
