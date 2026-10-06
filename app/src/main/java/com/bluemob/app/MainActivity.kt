@@ -56,6 +56,16 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     private val callPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { afterCallPermissions?.invoke(); afterCallPermissions = null }
 
+    private var onPicked: ((android.net.Uri) -> Unit)? = null
+    private val pickLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { onPicked?.invoke(it) }; onPicked = null }
+
+    private fun openFile(file: java.io.File, mime: String) {
+        runCatching {
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", file)
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Open with"))
+        }.onFailure { android.widget.Toast.makeText(this, "No app on this phone can open this file", android.widget.Toast.LENGTH_LONG).show() }
+    }
+
     private val biometricKinds = androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 
     private fun canUseBiometric() =
@@ -122,6 +132,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             biometricUnlock = ::biometricUnlock,
             restartApp = ::restart,
             leaveApp = { moveTaskToBack(true) },
+            pickFile = { kind, then -> onPicked = then; runCatching { pickLauncher.launch(when (kind) { "photo" -> "image/*"; "video" -> "video/*"; else -> "*/*" }) } },
+            openFile = ::openFile,
         )
         handleRoute(intent)
         // Show over the lock screen only while an SOS alert is up, never for chats.

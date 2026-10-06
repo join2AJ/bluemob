@@ -33,6 +33,8 @@ class SosManager(
     private val signals: SignalController,
     private val audit: AuditLog,
     scope: CoroutineScope,
+    /** Age and blood group to send with our SOS. */
+    private val medical: () -> Pair<Int?, String?> = { null to null },
 ) {
     private val battery = context.getSystemService(BatteryManager::class.java)
 
@@ -79,6 +81,7 @@ class SosManager(
         val sos = SosSignal(
             id = "sos-" + UUID.randomUUID().toString().take(12), fromNodeId = identity.nodeId, name = identity.displayName.value,
             note = note.trim(), lat = here?.lat, lon = here?.lon, battery = batteryPct(), at = System.currentTimeMillis(), hops = 0, pos = here,
+            age = medical().first, bloodGroup = medical().second,
         )
         _mine.value = sos
         val reached = mesh.broadcastSos(sos)
@@ -102,7 +105,7 @@ class SosManager(
         val now = System.currentTimeMillis()
         val (lat, lon) = com.bluemob.app.util.Geo.offset(30.0869, 78.2676, 215.0, 330.0)
         val pos = com.bluemob.app.trail.PositionEstimate(lat, lon, false, 30.0869, 78.2676, now - 18 * 60_000, 8f, 340.0, 215.0, 230f, 61.0, now)
-        _alert.value = SosSignal(PREVIEW_ID, "preview", name, "Twisted my ankle near the stream. Can't walk", lat, lon, 23, now, 2, pos = pos)
+        _alert.value = SosSignal(PREVIEW_ID, "preview", name, "Twisted my ankle near the stream. Can't walk", lat, lon, 23, now, 2, pos = pos, bloodGroup = "B+", age = 34)
     }
 
     companion object {

@@ -199,7 +199,7 @@ fun ProfileScreen(
         item { GroupLabel("Account") }
         item {
             Group {
-                SettingRow(Icons.Outlined.Key, Color(0xFF2F6F62), "Account & login", "PIN, fingerprint, recovery code", onClick = onAccount) { chevron() }
+                SettingRow(Icons.Outlined.Key, Color(0xFF2F6F62), "Account", "Number, age, blood group, PIN lock, recovery code", onClick = onAccount) { chevron() }
             }
         }
 

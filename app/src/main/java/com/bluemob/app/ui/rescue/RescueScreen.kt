@@ -101,7 +101,9 @@ private val VICTIM_REPLIES = listOf("I can hear you!", "I can see your light", "
  * The person in need sees who's coming and how far away they are.
  */
 @Composable
-fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<Float>, actions: RescueActions, rated: Set<String> = emptySet()) {
+fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<Float>, actions: RescueActions, rated: Set<String> = emptySet(),
+    /** The person in trouble's blood group and age, from their SOS, e.g. "🩸 B+ · age 34". */
+    medical: String? = null) {
     val heading by remember(headings) { headings }.collectAsStateWithLifecycle(initialValue = 0f)
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
@@ -133,7 +135,7 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
         LazyColumn(Modifier.weight(1f), state = list, contentPadding = PaddingValues(16.dp)) {
             if (room.ended) item { RateRescue(room, myId, rated, actions) }
             item {
-                if (room.mine) VictimCard(room, actions) else TargetCard(room, me, heading, guideId, actions)
+                if (room.mine) VictimCard(room, actions) else TargetCard(room, me, heading, guideId, actions, medical)
             }
             item { GroupLabel(if (room.mine) "Who's coming" else "Who's helping") }
             item { HelpersCard(room, myId) }
@@ -188,7 +190,7 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
 
 /** For helpers: where the person is, how to get there, and what to bring. */
 @Composable
-private fun TargetCard(room: RescueRoom, me: GeoPoint?, heading: Float, guideId: String?, actions: RescueActions) {
+private fun TargetCard(room: RescueRoom, me: GeoPoint?, heading: Float, guideId: String?, actions: RescueActions, medical: String? = null) {
     val target = room.victimPos
     val there = target?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
     val dist = if (me != null && there != null) Geo.distanceM(me, there) else null
@@ -201,6 +203,7 @@ private fun TargetCard(room: RescueRoom, me: GeoPoint?, heading: Float, guideId:
                     Text("${room.victimName} needs help", style = MaterialTheme.typography.titleLarge)
                     Text("SOS ${TimeText.ago(room.startedAt)}" + (room.battery?.let { " · their battery $it%" } ?: ""),
                         style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    medical?.let { Text(it, style = MaterialTheme.typography.titleSmall, color = Extra.rose, modifier = Modifier.padding(top = 2.dp)) }
                 }
             }
             if (room.note.isNotBlank()) Text("“${room.note}”", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),

@@ -39,6 +39,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -121,6 +127,10 @@ class SystemActions(
     val biometricUnlock: (() -> Unit) -> Unit = {},
     val restartApp: () -> Unit = {},
     val leaveApp: () -> Unit = {},
+    /** Opens the phone's picker: "photo", "video" or "doc". */
+    val pickFile: (String, (android.net.Uri) -> Unit) -> Unit = { _, _ -> },
+    /** Opens a (decrypted, temporary) file in another app. */
+    val openFile: (java.io.File, String) -> Unit = { _, _ -> },
 )
 
 @Composable
@@ -130,15 +140,15 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
     val avatar by vm.avatar.collectAsStateWithLifecycle()
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        val pinSet by vm.pinSet.collectAsStateWithLifecycle()
-        val recoverySaved by vm.recoverySaved.collectAsStateWithLifecycle()
+        val profile by vm.profile.collectAsStateWithLifecycle()
         var restoring by rememberSaveable { mutableStateOf(false) }
-        // People who had BlueMob before accounts existed see "Secure your account" instead of "Create".
-        val upgrading = rememberSaveable { onboarded && !pinSet }
+        var introSeen by rememberSaveable { mutableStateOf(false) }
+        // People who used BlueMob before sign-up existed verify their number once, with their name filled in.
+        val upgrading = rememberSaveable { onboarded && !profile.verified }
         val stage = when {
-            !onboarded && restoring -> "restore"
-            !onboarded -> "intro"
-            !pinSet || !recoverySaved -> "account"
+            restoring && !profile.verified -> "restore"
+            !onboarded && !introSeen -> "intro"
+            !profile.verified -> "signup"
             else -> "app"
         }
         AnimatedContent(stage, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "root") { s ->
@@ -149,13 +159,15 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
                         vm.restore(code).also { if (it == null) actions.restartApp() }
                     })
                 }
-                "intro" -> OnboardingScreen(initialName = name, initialAvatar = avatar, onFinish = { n, a ->
-                    vm.setName(n); vm.setAvatar(a); vm.finishOnboarding()
-                    if (!system.permissionsGranted) actions.requestMeshPermissions() else vm.startMesh()
-                }, onRestore = { restoring = true })
-                "account" -> com.bluemob.app.ui.account.AccountSetup(
-                    upgrading = upgrading, canUseBiometric = remember { actions.canUseBiometric() }, startAtCode = pinSet,
-                    recoveryCode = vm::recoveryCode, onPin = vm::setPin, onBiometric = vm::setBiometric, onDone = vm::setRecoverySaved,
+                "intro" -> OnboardingScreen(initialName = name, initialAvatar = avatar, onFinish = { _, _ -> introSeen = true }, onRestore = { restoring = true })
+                "signup" -> com.bluemob.app.ui.account.SignupFlow(
+                    upgrading = upgrading, initialName = if (upgrading) name else "", initialAvatar = avatar,
+                    bluemobId = com.bluemob.app.util.formatId(vm.nodeId),
+                    onRestore = if (upgrading) null else ({ restoring = true }),
+                    onDone = { r ->
+                        vm.completeSignup(r)
+                        if (!system.permissionsGranted) actions.requestMeshPermissions() else vm.startMesh()
+                    },
                 )
                 else -> MainShell(vm, system, actions)
             }
@@ -201,7 +213,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     var notice by remember { mutableStateOf<RescueNotice?>(null) }
     LaunchedEffect(Unit) { vm.rescueNotices.collect { n -> notice = n } }
     val pendingRoute by vm.pendingRoute.collectAsStateWithLifecycle()
-    LaunchedEffect(pendingRoute) { pendingRoute?.let { stack.clear(); push(it); vm.pendingRoute.value = null } }
+    LaunchedEffect(pendingRoute) { pendingRoute?.let { stack.clear(); if (it == "calls") goTab(Tab.CHATS) else push(it); vm.pendingRoute.value = null } }
     LaunchedEffect(notice) { if (notice != null) { delay(6_000); notice = null } }
     val hereFix = myFix ?: estimate?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
     val askSteps = { if (vm.stepCounterAvailable && !vm.hasStepPermission()) actions.requestSteps() }
@@ -209,6 +221,24 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     LaunchedEffect(top) { vm.openChat(top?.takeIf { it.startsWith("chat:") }?.removePrefix("chat:")) }
     BackHandler(enabled = stack.isNotEmpty() || tab != Tab.NEARBY) { if (stack.isNotEmpty()) pop() else tab = Tab.NEARBY }
 
+    val fileProgress by vm.fileProgress.collectAsStateWithLifecycle()
+    val voicePlaying by vm.voicePlaying.collectAsStateWithLifecycle()
+    val recordingMs by vm.recordingMs.collectAsStateWithLifecycle()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    fun chatFiles(peer: String) = com.bluemob.app.ui.chat.ChatFiles(
+        progress = fileProgress, playing = voicePlaying, recordingMs = recordingMs,
+        thumbnail = { vm.thumbnail(it) },
+        onOpen = { m ->
+            val att = com.bluemob.app.files.Attachment.fromJson(m.att)
+            if (att?.kind == com.bluemob.app.files.AttKind.IMAGE) push("photo:" + m.id)
+            else scope.launch { vm.openCopy(m)?.let { actions.openFile(it, att?.mime ?: "*/*") } }
+        },
+        onPlay = vm::playVoice,
+        onAttach = { kind -> actions.pickFile(kind) { uri -> vm.sendFile(peer, uri) } },
+        onRecordStart = { if (!vm.startVoiceNote()) actions.requestCallPermissions(false) {} },
+        onRecordStop = { send -> vm.stopVoiceNote(peer, send) },
+        onMedia = { push("media:$peer") },
+    )
     val toggleLocation: (Boolean) -> Unit = { on -> if (on) actions.enableLocationSharing() else vm.setShareLocation(false) }
     /** Buttons under Sky's replies. */
     val onSkyAction: (String) -> Unit = { target ->
@@ -242,7 +272,10 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onConnections = { push("connections") }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push("games") },
                             onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
                         )
-                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { push("rescue:$it") }, onNewChat = { push("newchat") }) { push("chat:$it") }
+                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { push("rescue:$it") }, onNewChat = { push("newchat") },
+                            calls = vm.callLog.collectAsStateWithLifecycle().value,
+                            onCallBack = { id, n, video -> actions.requestCallPermissions(video) { vm.startCall(id, n, video) } },
+                            onClearCalls = { vm.clearCallLog() }) { push("chat:$it") }
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
@@ -276,11 +309,20 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         nodeId = id, person = people.firstOrNull { it.nodeId == id }, messages = conversations[id].orEmpty(), typing = id in typing,
                         meshEvents = vm.meshEvents, myName = name, myId = vm.nodeId, onBack = ::pop, onSend = { vm.send(id, it) },
                         onPing = { vm.ping(id) }, onInfo = { push("info:$it") }, onPerson = { if (id != SkyBot.NODE_ID) push("person:$id") }, onAction = onSkyAction,
+                        files = chatFiles(id),
                         onCall = { video ->
                             val who = people.firstOrNull { it.nodeId == id }?.name ?: "them"
                             actions.requestCallPermissions(video) { vm.startCall(id, who, video) }
                         },
                     )
+                }
+                route.startsWith("media:") -> {
+                    val id = route.removePrefix("media:")
+                    com.bluemob.app.ui.chat.MediaScreen(people.firstOrNull { it.nodeId == id }?.name ?: "them", conversations[id].orEmpty(), chatFiles(id), ::pop)
+                }
+                route.startsWith("photo:") -> {
+                    val m = vm.message(route.removePrefix("photo:"))
+                    if (m == null) LaunchedEffect(Unit) { pop() } else PhotoViewer(m, vm, ::pop)
                 }
                 route.startsWith("info:") -> {
                     val m = vm.message(route.removePrefix("info:"))
@@ -306,7 +348,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route.startsWith("rescue:") -> {
                     val room = rescues.firstOrNull { it.id == route.removePrefix("rescue:") }
                     if (room == null) LaunchedEffect(Unit) { delay(1_500); pop() }
-                    else RescueScreen(room, vm.nodeId, hereFix, headings, rated = remember(trustScores, room.id) {
+                    else RescueScreen(room, vm.nodeId, hereFix, headings, medical = vm.medicalFor(room.victimId), rated = remember(trustScores, room.id) {
                         (room.helpers.map { it.nodeId } + room.victimId).flatMap { s -> vm.myRatingsOf(s).filter { it.ctx == room.id }.map { "$s|${it.kind.code}" } }.toSet()
                     }, actions = RescueActions(
                         onBack = ::pop, onJoin = { vm.joinRescue(room.id) }, onSend = { vm.sendRescue(room.id, it) },
@@ -354,7 +396,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "game:ttt" -> TicTacToeScreen(::pop)
                 route == "game:c4" -> ConnectFourScreen(::pop)
                 route == "account" -> com.bluemob.app.ui.account.AccountScreen(
-                    shortId = com.bluemob.app.util.formatId(vm.nodeId).take(9),
+                    shortId = com.bluemob.app.util.formatId(vm.nodeId),
+                    profile = vm.profile.collectAsStateWithLifecycle().value, hasPin = vm.pinSet.collectAsStateWithLifecycle().value,
+                    onDetails = vm::setDetails, onTurnOffPin = vm::clearPin,
                     biometric = vm.biometric.collectAsStateWithLifecycle().value, canUseBiometric = remember { actions.canUseBiometric() },
                     lockAfterMs = vm.lockAfterMs.collectAsStateWithLifecycle().value, recoverySaved = vm.recoverySaved.collectAsStateWithLifecycle().value,
                     onBack = ::pop, onBiometric = { on -> if (on) actions.biometricUnlock { vm.setBiometric(true) } else vm.setBiometric(false) },
@@ -411,6 +455,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 onAccept = { actions.requestCallPermissions(c.video) { vm.acceptCall() } },
                 onDecline = vm::hangUp, onMute = vm::toggleMute, onSpeaker = vm::toggleSpeaker, onCamera = vm::toggleCamera,
                 wantsFrame = vm::wantsFrame, onFrame = vm::onCameraFrame,
+                onPtt = vm::togglePtt, onTalk = vm::talk, avatar = people.firstOrNull { it.nodeId == c.peer }?.avatar,
             )
         }
 
@@ -473,3 +518,23 @@ private fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit,
 
 private fun <T> List<T>.toMutableStateList() = mutableStateListOf<T>().also { it.addAll(this) }
 
+
+/** A photo from a chat, full screen. It's decrypted in memory only. */
+@Composable
+private fun PhotoViewer(m: com.bluemob.app.data.MessageEntity, vm: AppViewModel, onBack: () -> Unit) {
+    val bmp = com.bluemob.app.ui.chat.rememberLoaded(m.id) { vm.thumbnail(m, 2048) }
+    val att = remember(m.att) { com.bluemob.app.files.Attachment.fromJson(m.att) }
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)
+        .pointerInput(Unit) { detectTransformGestures { _, pan, zoom, _ -> scale = (scale * zoom).coerceIn(1f, 5f); offset = if (scale == 1f) androidx.compose.ui.geometry.Offset.Zero else offset + pan } }) {
+        bmp?.let {
+            androidx.compose.foundation.Image(it.asImageBitmap(), att?.name, Modifier.fillMaxSize()
+                .graphicsLayer(scaleX = scale, scaleY = scale, translationX = offset.x, translationY = offset.y), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+        } ?: Text("Opening…", color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.align(Alignment.Center))
+        Row(Modifier.statusBarsPadding().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = androidx.compose.ui.graphics.Color.White) }
+            Text(att?.name ?: "Photo", color = androidx.compose.ui.graphics.Color.White, style = MaterialTheme.typography.titleMedium)
+        }
+    }
+}

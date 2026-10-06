@@ -442,6 +442,37 @@ class NearbyMeshTransport(
         return true
     }
 
+    /** Progress and results of file transfers (photos, documents, voice notes). */
+    sealed interface FileEvent {
+        val nodeId: String
+        val transferId: Long
+        data class Progress(override val nodeId: String, override val transferId: Long, val done: Long, val total: Long, val outgoing: Boolean) : FileEvent
+        data class Arrived(override val nodeId: String, override val transferId: Long, val file: Payload.File) : FileEvent
+        data class Sent(override val nodeId: String, override val transferId: Long) : FileEvent
+        data class Failed(override val nodeId: String, override val transferId: Long, val outgoing: Boolean) : FileEvent
+    }
+
+    private val _fileEvents = MutableSharedFlow<FileEvent>(extraBufferCapacity = 64, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    val fileEvents: SharedFlow<FileEvent> = _fileEvents.asSharedFlow()
+    private val incomingFiles = java.util.concurrent.ConcurrentHashMap<Long, Pair<String, Payload>>()
+    private val outgoingFiles = java.util.concurrent.ConcurrentHashMap<Long, String>()
+
+    /**
+     * Sends a file (already encrypted by the caller) straight to a connected phone. [announce] gets the transfer ID
+     * first, so the other phone can tell which message the file belongs to. Returns the ID, or null if not connected.
+     */
+    fun sendFile(nodeId: String, file: java.io.File, announce: (Long) -> Unit): Long? {
+        val endpointId = connectedEndpointFor(nodeId) ?: return null
+        val payload = runCatching { Payload.fromFile(file) }.getOrNull() ?: return null
+        announce(payload.id)
+        outgoingFiles[payload.id] = nodeId
+        client.sendPayload(endpointId, payload).addOnFailureListener {
+            outgoingFiles.remove(payload.id)
+            _fileEvents.tryEmit(FileEvent.Failed(nodeId, payload.id, outgoing = true))
+        }
+        return payload.id
+    }
+
     private class InFlight(val endpointId: String, val size: Int, val kind: Byte, val at: Long)
     /** Call media handed to Nearby but not yet confirmed sent, so calls can tell when the link is falling behind. */
     private val inFlight = java.util.concurrent.ConcurrentHashMap<Long, InFlight>()
@@ -506,6 +537,7 @@ class NearbyMeshTransport(
         .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("bat", s.battery ?: -1)
         .put("at", s.at).put("cancel", s.cancelled)
         .also { j -> s.pos?.let { j.put("pos", posJson(it)) } }
+        .also { j -> s.bloodGroup?.let { j.put("blood", it) }; s.age?.let { j.put("age", it) } }
 
     /** Shares our position with everyone connected; pass null to stop sharing. */
     fun updateMyLocation(location: GeoPoint?) {
@@ -657,6 +689,12 @@ class NearbyMeshTransport(
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             lastHeard[endpointId] = SystemClock.elapsedRealtime()
+            if (payload.type == Payload.Type.FILE) {
+                // Only from phones that proved their ID; the file is matched to a message when it finishes.
+                if (_peers.value[endpointId]?.verified == true) incomingFiles[payload.id] = endpointId to payload
+                else client.cancelPayload(payload.id)
+                return
+            }
             val bytes = payload.asBytes() ?: return
             if (bytes.isNotEmpty() && (bytes[0] == MEDIA_AUDIO || bytes[0] == MEDIA_VIDEO)) {
                 // Call media only from a phone that proved its ID, and only within the size of a frame.
@@ -713,7 +751,25 @@ class NearbyMeshTransport(
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-            if (update.status != PayloadTransferUpdate.Status.IN_PROGRESS) inFlight.remove(update.payloadId)
+            val pid = update.payloadId
+            val done = update.status != PayloadTransferUpdate.Status.IN_PROGRESS
+            if (done) inFlight.remove(pid)
+            incomingFiles[pid]?.let { (ep, p) ->
+                val node = _peers.value[ep]?.nodeId ?: return@let
+                when {
+                    update.totalBytes > FILE_MAX_BYTES -> { client.cancelPayload(pid); incomingFiles.remove(pid); _fileEvents.tryEmit(FileEvent.Failed(node, pid, false)) }
+                    update.status == PayloadTransferUpdate.Status.SUCCESS -> { incomingFiles.remove(pid); p.asFile()?.let { _fileEvents.tryEmit(FileEvent.Arrived(node, pid, it)) } }
+                    done -> { incomingFiles.remove(pid); _fileEvents.tryEmit(FileEvent.Failed(node, pid, false)) }
+                    else -> _fileEvents.tryEmit(FileEvent.Progress(node, pid, update.bytesTransferred, update.totalBytes, false))
+                }
+            }
+            outgoingFiles[pid]?.let { node ->
+                when {
+                    update.status == PayloadTransferUpdate.Status.SUCCESS -> { outgoingFiles.remove(pid); _fileEvents.tryEmit(FileEvent.Sent(node, pid)) }
+                    done -> { outgoingFiles.remove(pid); _fileEvents.tryEmit(FileEvent.Failed(node, pid, true)) }
+                    else -> _fileEvents.tryEmit(FileEvent.Progress(node, pid, update.bytesTransferred, update.totalBytes, true))
+                }
+            }
         }
     }
 
@@ -756,6 +812,8 @@ class NearbyMeshTransport(
             lat = b.optDouble("lat").takeUnless { it.isNaN() }, lon = b.optDouble("lon").takeUnless { it.isNaN() },
             battery = b.optInt("bat", -1).takeIf { it in 0..100 }, at = b.optLong("at"), hops = o.hops + 1,
             cancelled = b.optBoolean("cancel"), pos = parsePos(b.optJSONObject("pos")),
+            bloodGroup = b.optString("blood").takeIf { it in com.bluemob.app.account.BloodGroups.ALL },
+            age = b.optInt("age", -1).takeIf { it in 1..120 },
         )
         if (sos.id.isEmpty()) return
         log("SOS from ${sos.name} (${if (sos.hops == 1) "direct" else "passed on ${sos.hops} times"}), signature checked")
@@ -808,6 +866,8 @@ class NearbyMeshTransport(
         private const val PEER_TIMEOUT_MS = 15_000L
         private const val HEARTBEAT = "hb-"
         private const val MEDIA_STALE_MS = 3_000L
+        /** Largest file accepted: the 25 MB attachment limit plus encryption overhead. */
+        private const val FILE_MAX_BYTES = 25L * 1024 * 1024 + 1024
         private const val RADIO_SETTLE_MS = 2_000L
         /** Restart discovery this often while no one is connected… */
         private const val LONELY_REFRESH_MS = 40_000L
@@ -822,7 +882,7 @@ class NearbyMeshTransport(
          * What this version can do, sent in every hello. Older phones ignore packet types they don't know, so new
          * features are added as new capabilities and new types, never by changing what existing packets mean.
          */
-        val CAPS = setOf("msg", "rcpt", "sos", "lost", "room", "rate", "audit", "app", "game", "call", "ring")
+        val CAPS = setOf("msg", "rcpt", "sos", "lost", "room", "rate", "audit", "app", "game", "call", "ring", "file", "ptt")
         private const val MAX_PAYLOAD = 32 * 1024
         private const val MAX_NOTE = 200
         private const val TYPE_SOS = "sos"

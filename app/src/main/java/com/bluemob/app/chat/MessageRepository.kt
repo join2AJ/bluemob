@@ -47,6 +47,8 @@ class MessageRepository(
     private val record: (AuditKind, String, String) -> Unit = { _, _, _ -> },
     /** Called once per new incoming message (not for copies), e.g. to show a notification. */
     private val onIncoming: (peer: String, text: String) -> Unit = { _, _ -> },
+    /** A message with a photo, document or voice note was saved (sent or received): its file can move now. */
+    private val onAttachment: suspend (MessageEntity) -> Unit = {},
 ) {
     val messages: StateFlow<List<MessageEntity>> = dao.observeAll().stateIn(scope, SharingStarted.Eagerly, emptyList())
 
@@ -104,6 +106,29 @@ class MessageRepository(
         }
     }
 
+    /**
+     * Sends a photo, document or voice note. [att] holds its details (and the file's key); the encrypted file at
+     * [path] goes straight to them when they're in range.
+     */
+    fun sendAttachment(peer: String, att: com.bluemob.app.files.Attachment, path: String, caption: String = "") {
+        scope.launch {
+            val now = System.currentTimeMillis()
+            val id = newId()
+            val inRange = mesh.isConnected(peer)
+            record(AuditKind.MESSAGE, peer, "${att.kind.label} $id (${com.bluemob.app.files.Attachment.sizeText(att.size)}) sent to {name}")
+            val m = MessageEntity(
+                id = id, peer = peer, fromMe = true, text = caption.trim().ifBlank { att.fallbackText() }, createdAt = now, status = MessageStatus.PENDING,
+                directState = if (inRange) PathState.TRYING else PathState.WAITING, internetState = PathState.UNAVAILABLE,
+                history = event(now, "${att.kind.label} prepared and encrypted on your phone") +
+                    event(now, if (inRange) "In range. Sending directly" else "Not in range. The message goes through the mesh; the file goes when you meet"),
+                att = att.toJson(), attPath = path, attState = com.bluemob.app.files.AttState.WAITING,
+            )
+            dao.insert(m)
+            deliverAll()
+            onAttachment(m)
+        }
+    }
+
     /** Marks everything from [peer] as read and tells them, if we can. */
     fun markRead(peer: String) {
         scope.launch {
@@ -131,7 +156,7 @@ class MessageRepository(
     private suspend fun deliverAll() = deliveryLock.withLock {
         val now = System.currentTimeMillis()
         dao.unacknowledgedAll().forEach { m ->
-            when (val h = mesh.sendChat(m.peer, m.id, m.text, m.createdAt)) {
+            when (val h = mesh.sendChat(m.peer, m.id, m.text, m.createdAt, m.att.ifBlank { null })) {
                 is Handoff.Direct -> {
                     val note = if (m.attempts == 0) "Sent over ${h.link}" else "Sent again over ${h.link} (attempt ${m.attempts + 1}): no receipt came back last time"
                     dao.update(m.copy(status = MessageStatus.SENT, directState = PathState.TRYING, attempts = m.attempts + 1, history = m.history + event(now, note)))
@@ -161,20 +186,22 @@ class MessageRepository(
         // Always answer with a receipt: if our first one was lost, the sender is still re-sending.
         mesh.sendReceipt(e.fromNodeId, e.messageId, read = false)
         if (!isNew) return // A copy we already have: discard it.
-        if (openConversation != e.fromNodeId) onIncoming(e.fromNodeId, e.text)
+        if (openConversation != e.fromNodeId) onIncoming(e.fromNodeId, com.bluemob.app.files.Attachment.fromJson(e.att)?.let { "${it.kind.emoji} ${it.kind.label}" } ?: e.text)
         record(AuditKind.MESSAGE, e.fromNodeId, "Message ${e.messageId} received from {name} over ${mesh.linkName(e.fromNodeId)}: \"${e.text.take(80)}\"")
         val open = openConversation == e.fromNodeId
         val readNow = open && mesh.sendReceipt(e.fromNodeId, e.messageId, read = true)
-        dao.insert(
-            MessageEntity(
-                id = e.messageId, peer = e.fromNodeId, fromMe = false, text = e.text, createdAt = e.sentAt,
+        val att = com.bluemob.app.files.Attachment.fromJson(e.att)
+        val saved = MessageEntity(
+                id = e.messageId, peer = e.fromNodeId, fromMe = false, text = if (att != null) "" else e.text, createdAt = e.sentAt,
                 status = if (open) MessageStatus.READ else MessageStatus.RECEIVED,
                 readAt = if (open) now else null, readReceiptSent = readNow,
                 history = event(now, if (e.viaInternet) "Received over the internet, through the BlueMob relay. End-to-end encrypted"
                     else if (e.hops <= 1) "Received over ${mesh.linkName(e.fromNodeId)}"
                     else "Received over the mesh: passed on by ${e.hops - 1} phone${if (e.hops > 2) "s" else ""}. End-to-end encrypted"),
+                att = att?.toJson() ?: "", attState = if (att != null) com.bluemob.app.files.AttState.WAITING else 0,
             )
-        )
+        dao.insert(saved)
+        if (att != null) onAttachment(saved)
     }
 
     private suspend fun receipt(e: MeshEvent.Receipt) {

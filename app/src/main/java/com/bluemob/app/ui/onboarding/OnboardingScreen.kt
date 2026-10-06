@@ -92,7 +92,7 @@ fun OnboardingScreen(
     /** "I already have a BlueMob ID": restore one with a recovery code. */
     onRestore: () -> Unit = {},
 ) {
-    val pageCount = slides.size + 1
+    val pageCount = slides.size
     val pager = rememberPagerState { pageCount }
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf(initialName) }
@@ -115,11 +115,7 @@ fun OnboardingScreen(
             }
 
             HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { page ->
-                if (page < slides.size) {
-                    SlidePage(slides[page])
-                } else {
-                    ProfileSetupPage(name, avatar, onName = { name = it }, onAvatar = { avatar = it })
-                }
+                SlidePage(slides[page])
             }
 
             Row(
@@ -133,10 +129,10 @@ fun OnboardingScreen(
                         if (isLast) onFinish(name, avatar)
                         else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) }
                     },
-                    enabled = !isLast || name.isNotBlank(),
+                    enabled = true,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp, vertical = 14.dp),
                 ) {
-                    Text(if (isLast) "Start exploring" else "Next")
+                    Text(if (isLast) "Sign up" else "Next")
                     Spacer(Modifier.width(8.dp))
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(18.dp))
                 }

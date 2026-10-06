@@ -62,6 +62,9 @@ import com.bluemob.app.ui.theme.Gradients
 import com.bluemob.app.ui.theme.Space
 import kotlinx.coroutines.delay
 
+/** Small enough for the whole pad to fit on short phones and with large text. */
+private val KEY_SIZE = 62.dp
+
 /** Dots for the digits typed so far, and a number pad. */
 @Composable
 fun PinPad(
@@ -89,12 +92,12 @@ fun PinPad(
         Text(error ?: " ", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 24.dp).height(36.dp))
         val rows = listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("x", "0", "<"))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             rows.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     row.forEach { k ->
                         when (k) {
-                            "x" -> Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) { extraKey?.invoke() }
+                            "x" -> Box(Modifier.size(KEY_SIZE), contentAlignment = Alignment.Center) { extraKey?.invoke() }
                             "<" -> Key("⌫", "Delete") { pin = pin.dropLast(1) }
                             else -> Key(k, k) {
                                 if (pin.length < length) {
@@ -112,9 +115,9 @@ fun PinPad(
 
 @Composable
 private fun Key(label: String, description: String, onClick: () -> Unit) {
-    Box(Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).clickable(onClickLabel = description, onClick = onClick),
+    Box(Modifier.size(KEY_SIZE).clip(CircleShape).background(MaterialTheme.colorScheme.surface).clickable(onClickLabel = description, onClick = onClick),
         contentAlignment = Alignment.Center) {
-        Text(label, fontSize = 28.sp, fontWeight = FontWeight.Medium)
+        Text(label, fontSize = 24.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -303,38 +306,47 @@ fun RestoreScreen(onBack: () -> Unit, onRestore: (String) -> String?) {
     }
 }
 
-/** Account & login settings: PIN, fingerprint, when to lock, and the recovery code. */
+/** Account & login settings: number, age and blood group, the optional PIN lock, and the recovery code. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun AccountScreen(
     shortId: String,
+    profile: com.bluemob.app.account.Profile,
+    hasPin: Boolean,
     biometric: Boolean,
     canUseBiometric: Boolean,
     lockAfterMs: Long,
     recoverySaved: Boolean,
     onBack: () -> Unit,
+    onDetails: (Int?, String?) -> Unit,
     onBiometric: (Boolean) -> Unit,
     onLockAfter: (Long) -> Unit,
     onLockNow: () -> Unit,
     checkPin: (String) -> PinResult,
     onNewPin: (String) -> Unit,
+    onTurnOffPin: () -> Unit,
     recoveryCode: () -> String,
     onRecoverySaved: () -> Unit,
 ) {
-    // What the PIN pad is unlocking: null, "code" (show recovery code) or "change" (change PIN).
+    // What the PIN pad is for: null, "code" (show recovery code), "change" (change PIN) or "off" (turn the lock off).
     var asking by rememberSaveable { mutableStateOf<String?>(null) }
     var showCode by rememberSaveable { mutableStateOf(false) }
     var changing by rememberSaveable { mutableStateOf(false) }
+    var editing by rememberSaveable { mutableStateOf(false) }
     var pinError by remember { mutableStateOf<String?>(null) }
     var round by remember { mutableIntStateOf(0) }
     var note by remember { mutableStateOf<String?>(null) }
-    SubScreen("Account & login", onBack) {
+    SubScreen("Account", onBack) {
         when {
             asking != null -> item {
-                PinPad("Enter your current PIN", if (asking == "code") "To show your recovery code." else "To change your PIN.", pinError,
+                PinPad("Enter your PIN", when (asking) { "code" -> "To show your recovery code."; "off" -> "To turn the PIN lock off."; else -> "To change your PIN." }, pinError,
                     resetKey = round, modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                     onDone = { pin ->
                         when (val r = checkPin(pin)) {
-                            PinResult.Ok -> { if (asking == "code") showCode = true else changing = true; asking = null; pinError = null }
+                            PinResult.Ok -> {
+                                when (asking) { "code" -> showCode = true; "off" -> { onTurnOffPin(); note = "PIN lock is off." }; else -> changing = true }
+                                asking = null; pinError = null
+                            }
                             is PinResult.Wrong -> { pinError = "Wrong PIN. ${r.triesBeforeWait} tries left."; round++ }
                             is PinResult.Wait -> { pinError = "Too many wrong PINs. Try again in ${r.seconds}s."; round++ }
                         }
@@ -342,65 +354,109 @@ fun AccountScreen(
             }
             changing -> item {
                 Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
-                    CreatePin(title = "Choose a new PIN", onPin = { onNewPin(it); changing = false; note = "PIN changed." })
+                    CreatePin(title = if (hasPin) "Choose a new PIN" else "Choose a PIN", onPin = { onNewPin(it); changing = false; note = if (hasPin) "PIN changed." else "PIN lock is on." })
                 }
             }
             showCode -> item {
-                Column(Modifier.padding(top = 12.dp)) {
-                    RecoveryCodeCard(recoveryCode(), onSaved = { onRecoverySaved(); showCode = false })
-                }
+                Column(Modifier.padding(top = 12.dp)) { RecoveryCodeCard(recoveryCode(), onSaved = { onRecoverySaved(); showCode = false }) }
             }
+            editing -> item { DetailsEditor(profile) { age, blood -> onDetails(age, blood); editing = false; note = "Details saved." } }
             else -> {
                 item {
                     Column(Modifier.padding(top = 8.dp)) {
-                        Text("Your account is your BlueMob ID, BM $shortId. It lives on this phone, not on a server, so it works with no internet.",
-                            style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
-                        note?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp)) }
+                        note?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 8.dp)) }
                     }
                 }
-                item { GroupLabel("Login") }
+                item { GroupLabel("You") }
                 item {
                     Group {
-                        Row(Modifier.fillMaxWidth().clickable { asking = "change"; round++ }.padding(16.dp)) {
-                            Text("Change PIN", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                            Text("›", color = Extra.ink3)
-                        }
-                        if (canUseBiometric) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Unlock with fingerprint or face", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                            Switch(checked = biometric, onCheckedChange = onBiometric)
-                        }
-                        Row(Modifier.fillMaxWidth().clickable(onClick = onLockNow).padding(16.dp)) {
-                            Text("Lock now", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        InfoRow("BlueMob ID", "BM $shortId")
+                        InfoRow("Mobile number", profile.phone?.let { com.bluemob.app.account.PhoneNumbers.pretty(it) + if (profile.verified) "  ✓ verified" else "" } ?: "Not added")
+                        InfoRow("Age", profile.age?.toString() ?: "Not given")
+                        InfoRow("Blood group", profile.bloodGroup ?: "Not given")
+                        Row(Modifier.fillMaxWidth().clickable { editing = true }.padding(16.dp)) {
+                            Text("Edit age and blood group", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
-                item { GroupLabel("Ask for PIN after leaving BlueMob") }
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(0L to "Right away", 60_000L to "1 min", 5 * 60_000L to "5 min", 30 * 60_000L to "30 min").forEach { (ms, label) ->
-                            Chip(label, lockAfterMs == ms) { onLockAfter(ms) }
-                        }
-                    }
+                    Text("Your age and blood group go out only with an SOS, so the people coming to help know.",
+                        style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 6.dp))
                 }
-                item { GroupLabel("Recovery") }
+                item { GroupLabel("PIN lock (optional)") }
                 item {
                     Group {
-                        Row(Modifier.fillMaxWidth().clickable { asking = "code"; round++ }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (!hasPin) Row(Modifier.fillMaxWidth().clickable { changing = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("Show recovery code", style = MaterialTheme.typography.bodyLarge)
-                                Text(if (recoverySaved) "You saved it. Check it's still somewhere safe." else "Not saved yet. Do this now: it's the only way to move your ID to a new phone.",
-                                    style = MaterialTheme.typography.bodySmall, color = if (recoverySaved) Extra.ink2 else MaterialTheme.colorScheme.error)
+                                Text("Turn on PIN lock", style = MaterialTheme.typography.bodyLarge)
+                                Text("Off: BlueMob opens without a PIN. Turn it on if others use this phone.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                            }
+                            Text("›", color = Extra.ink3)
+                        } else {
+                            Row(Modifier.fillMaxWidth().clickable { asking = "change"; round++ }.padding(16.dp)) {
+                                Text("Change PIN", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f)); Text("›", color = Extra.ink3)
+                            }
+                            if (canUseBiometric) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Unlock with fingerprint or face", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                                Switch(checked = biometric, onCheckedChange = onBiometric)
+                            }
+                            Row(Modifier.fillMaxWidth().clickable(onClick = onLockNow).padding(16.dp)) { Text("Lock now", style = MaterialTheme.typography.bodyLarge) }
+                            Row(Modifier.fillMaxWidth().clickable { asking = "off"; round++ }.padding(16.dp)) {
+                                Text("Turn off PIN lock", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+                if (hasPin) {
+                    item { GroupLabel("Ask for PIN after leaving BlueMob") }
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(0L to "Right away", 60_000L to "1 min", 5 * 60_000L to "5 min", 30 * 60_000L to "30 min").forEach { (ms, label) ->
+                                Chip(label, lockAfterMs == ms) { onLockAfter(ms) }
+                            }
+                        }
+                    }
+                }
+                item { GroupLabel("New phone") }
+                item {
+                    Group {
+                        Row(Modifier.fillMaxWidth().clickable { if (hasPin) { asking = "code"; round++ } else showCode = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Recovery code", style = MaterialTheme.typography.bodyLarge)
+                                Text(if (recoverySaved) "Saved. It moves your BlueMob ID to a new phone." else "Write it down: it moves your BlueMob ID to a new phone.",
+                                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
                             }
                             Text("›", color = Extra.ink3)
                         }
                     }
                 }
-                item {
-                    Text("Forgot your PIN? Reinstall BlueMob and choose \"I already have a BlueMob ID\" with your recovery code. " +
-                        "Without the code, a forgotten PIN can't be reset: that's what keeps your account safe if the phone is stolen.",
-                        style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 16.dp))
-                }
             }
         }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.End)
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun DetailsEditor(profile: com.bluemob.app.account.Profile, onSave: (Int?, String?) -> Unit) {
+    var age by rememberSaveable { mutableStateOf(profile.age?.toString() ?: "") }
+    var blood by rememberSaveable { mutableStateOf(profile.bloodGroup ?: com.bluemob.app.account.BloodGroups.UNKNOWN) }
+    val ageNum = age.toIntOrNull()
+    val ageOk = age.isEmpty() || ageNum in 1..120
+    Column(Modifier.padding(top = 12.dp)) {
+        OutlinedTextField(value = age, onValueChange = { age = it.filter { c -> c.isDigit() }.take(3) }, label = { Text("Age") }, singleLine = true,
+            isError = !ageOk, keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+        Text("Blood group", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            (com.bluemob.app.account.BloodGroups.ALL + com.bluemob.app.account.BloodGroups.UNKNOWN).forEach { g -> Chip(g, blood == g) { blood = g } }
+        }
+        Button(onClick = { onSave(ageNum, blood.takeIf { it != com.bluemob.app.account.BloodGroups.UNKNOWN }) }, enabled = ageOk, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("Save") }
     }
 }

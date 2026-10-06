@@ -2,6 +2,7 @@ package com.bluemob.app.data
 
 import android.content.Context
 import androidx.room.Dao
+import androidx.room.ColumnInfo
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.Index
@@ -47,7 +48,39 @@ data class MessageEntity(
     val history: String = "",
     /** Sky only: buttons under the reply, "label|target" per line. */
     val actions: String = "",
+    /** A photo, document or voice note: its details as JSON ([com.bluemob.app.files.Attachment]), or empty. */
+    @ColumnInfo(defaultValue = "''") val att: String = "",
+    /** The file on this phone, still encrypted with the key in [att]. Null until it has arrived. */
+    val attPath: String? = null,
+    /** Where the file is: see [com.bluemob.app.files.AttState]. */
+    @ColumnInfo(defaultValue = "0") val attState: Int = 0,
 )
+
+/** One call, for the Calls list. */
+@Entity(tableName = "calls", indices = [Index("startedAt")])
+data class CallLogEntry(
+    @PrimaryKey val id: String,
+    val peer: String,
+    val name: String,
+    val video: Boolean,
+    val outgoing: Boolean,
+    /** ANSWERED, MISSED, DECLINED, NO_ANSWER, BUSY, FAILED. */
+    val outcome: String,
+    val startedAt: Long,
+    val durationS: Long,
+)
+
+@Dao
+interface CallLogDao {
+    @Query("SELECT * FROM calls ORDER BY startedAt DESC LIMIT 500")
+    fun observe(): Flow<List<CallLogEntry>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(entry: CallLogEntry)
+
+    @Query("DELETE FROM calls")
+    suspend fun clear()
+}
 
 /** Message IDs this phone has already accepted, so a second copy is discarded. */
 @Entity(tableName = "seen_ids")
@@ -81,6 +114,14 @@ interface MessageDao {
 
     @Query("DELETE FROM messages")
     suspend fun clear()
+
+    /** Our attachments that haven't reached [peer] yet. */
+    @Query("SELECT * FROM messages WHERE peer = :peer AND fromMe = 1 AND att != '' AND attState != 3")
+    suspend fun filesToSend(peer: String): List<MessageEntity>
+
+    /** The message carrying file [fid] (its details include `"fid":"…"`). */
+    @Query("SELECT * FROM messages WHERE att LIKE '%\"fid\":\"' || :fid || '\"%' LIMIT 1")
+    suspend fun byFile(fid: String): MessageEntity?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun markSeen(seen: SeenId): Long
@@ -226,7 +267,7 @@ interface RatingDao {
     suspend fun recent(limit: Int): List<RatingRow>
 }
 
-@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class], version = 5, exportSchema = false)
+@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class, CallLogEntry::class], version = 6, exportSchema = false)
 abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun messages(): MessageDao
     abstract fun audit(): AuditDao
@@ -234,6 +275,7 @@ abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun rescue(): RescueDao
     abstract fun relay(): RelayDao
     abstract fun ratings(): RatingDao
+    abstract fun calls(): CallLogDao
 
     companion object {
         /** Opens the database encrypted with SQLCipher (AES-256). An older plain database is encrypted first. */
@@ -246,7 +288,7 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 builder.openHelperFactory(net.zetetic.database.sqlcipher.SupportOpenHelperFactory(pass))
             }
             return builder
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)
                 })
@@ -290,6 +332,18 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `ratings` (`key` TEXT NOT NULL, `subject` TEXT NOT NULL, `rater` TEXT NOT NULL, `raterName` TEXT NOT NULL, " +
                     "`kind` TEXT NOT NULL, `ctx` TEXT NOT NULL, `remark` TEXT NOT NULL, `at` INTEGER NOT NULL, `packet` TEXT NOT NULL, PRIMARY KEY(`key`))")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_ratings_subject` ON `ratings` (`subject`)")
+            }
+        }
+
+        /** Photos, documents and voice notes in chats, and the call history. */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `messages` ADD COLUMN `att` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `messages` ADD COLUMN `attPath` TEXT")
+                db.execSQL("ALTER TABLE `messages` ADD COLUMN `attState` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `calls` (`id` TEXT NOT NULL, `peer` TEXT NOT NULL, `name` TEXT NOT NULL, `video` INTEGER NOT NULL, " +
+                    "`outgoing` INTEGER NOT NULL, `outcome` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `durationS` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calls_startedAt` ON `calls` (`startedAt`)")
             }
         }
 

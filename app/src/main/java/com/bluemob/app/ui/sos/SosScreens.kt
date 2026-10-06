@@ -371,6 +371,14 @@ fun SosSignalScreen(start: SignalMode, defaultMode: SignalMode, signals: SignalC
     }
 }
 
+@Composable
+private fun MedicalTag(label: String, value: String) {
+    Column(Modifier.clip(MaterialTheme.shapes.medium).background(Extra.emberTint).padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Extra.rose)
+        Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    }
+}
+
 /** Opens over everything when someone nearby sends an SOS. */
 @Composable
 fun SosAlert(
@@ -399,6 +407,12 @@ fun SosAlert(
                 textAlign = TextAlign.Center, modifier = Modifier.padding(top = 10.dp))
             Text(listOfNotNull(distance, sos.battery?.let { "their battery $it%" }, if (sos.hops > 1) "passed on by ${sos.hops - 1} phone${if (sos.hops > 2) "s" else ""}" else "direct").joinToString(" · "),
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+            if (sos.bloodGroup != null || sos.age != null) {
+                Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    sos.bloodGroup?.let { MedicalTag("🩸 Blood group", it) }
+                    sos.age?.let { MedicalTag("Age", it.toString()) }
+                }
+            }
             if (sos.note.isNotBlank()) {
                 Text("“${sos.note}”", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium), textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 16.dp).clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(16.dp))

@@ -58,6 +58,9 @@ class UpgradeTest {
         assertTrue(audit.all { it.sig.isEmpty() }) // older entries stay unsigned, and the chain still checks
         assertEquals("Meet at the stream?", db.messages().get("m1")?.text)
         assertEquals(0, db.ratings().recent(5).size)
+        // 0.9: messages gain attachment columns (empty for old ones), and the call history table exists.
+        assertEquals("", db.messages().get("m1")?.att)
+        assertEquals(0, db.calls().observe().first().size)
         db.close()
     }
 

@@ -106,6 +106,12 @@ class AppLock(private val prefs: SharedPreferences, private val clock: () -> Lon
         return java.security.MessageDigest.isEqual(PinPolicy.hash(pin, salt), hash)
     }
 
+    /** Turns the PIN lock off. BlueMob then opens without asking. */
+    fun clearPin() {
+        prefs.edit().remove(KEY_HASH).putBoolean(KEY_BIO, false).apply()
+        _pinSet.value = false; _locked.value = false; _biometric.value = false
+    }
+
     /** Fingerprint or face unlock succeeded (checked by Android). */
     fun unlockedByBiometric() { if (_biometric.value) _locked.value = false }
 

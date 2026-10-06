@@ -49,6 +49,16 @@ data class Call(
     val theyMuted: Boolean = false,
     /** No voice from them for a few seconds while they aren't muted: the link is struggling. */
     val noAudio: Boolean = false,
+    val outgoing: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Walkie-talkie mode: our mic is on only while we hold the talk button. */
+    val ptt: Boolean = false,
+    /** Holding the talk button. */
+    val talking: Boolean = false,
+    val theyPtt: Boolean = false,
+    val theyTalking: Boolean = false,
+    /** How we're linked, e.g. "Wi-Fi" or "Bluetooth". */
+    val link: String = "",
 )
 
 /**
@@ -65,6 +75,8 @@ class CallManager(
     private val scope: CoroutineScope,
     /** Someone is calling: the app opens the call screen, or shows a notification in the background. */
     private val onIncoming: (Call) -> Unit = {},
+    /** Saves each call to the call history. */
+    private val log: suspend (com.bluemob.app.data.CallLogEntry) -> Unit = {},
 ) {
     private val app = context.applicationContext
     private val _call = MutableStateFlow<Call?>(null)
@@ -110,11 +122,11 @@ class CallManager(
     fun start(peer: String, name: String, video: Boolean): String? {
         _call.value?.takeIf { it.phase != CallPhase.ENDED }?.let { return "You're already in a call with ${it.name}" }
         if (!mesh.isConnected(peer)) return "Calls need $name to be nearby and connected directly. Messages still work through other phones."
-        val c = Call("c-" + UUID.randomUUID().toString().take(10), peer, name, video, CallPhase.OUTGOING)
+        val c = Call("c-" + UUID.randomUUID().toString().take(10), peer, name, video, CallPhase.OUTGOING, outgoing = true, link = mesh.linkName(peer))
         if (!signal(c, "invite", JSONObject().put("video", video))) return "Couldn't reach $name"
         _call.value = c
         ringback()
-        timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == c.id && _call.value?.phase == CallPhase.OUTGOING) { signal(c, "end"); finish(if (mesh.mayBeOld(c.peer)) "No answer. If ${c.name} has BlueMob 0.6 or older, they need to update for calls" else "No answer") } }
+        timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == c.id && _call.value?.phase == CallPhase.OUTGOING) { signal(c, "end"); finish(if (mesh.mayBeOld(c.peer)) "No answer. If ${c.name} has BlueMob 0.6 or older, they need to update for calls" else "No answer", "NO_ANSWER") } }
         audit.add(AuditKind.MESH, "${if (video) "Video" else "Voice"} call to $name")
         return null
     }
@@ -128,15 +140,38 @@ class CallManager(
     fun decline() {
         val c = _call.value ?: return
         signal(c, if (c.phase == CallPhase.INCOMING) "decline" else "end")
-        finish(if (c.phase == CallPhase.ACTIVE) "Call ended" else "Declined")
+        finish(if (c.phase == CallPhase.ACTIVE) "Call ended" else if (c.outgoing) "Cancelled" else "Declined",
+            if (c.phase == CallPhase.ACTIVE) null else if (c.outgoing) "CANCELLED" else "DECLINED")
     }
 
     fun hangUp() = decline()
 
+    /** Walkie-talkie mode: clearer over weak links and no echo on speaker, because only one side talks at a time. */
+    fun togglePtt() {
+        _call.update { it?.copy(ptt = !it.ptt, talking = false) }
+        val c = _call.value ?: return
+        applyMic(c)
+        signal(c, "ptt", JSONObject().put("on", c.ptt))
+    }
+
+    /** Holding (true) or releasing (false) the talk button. */
+    fun talk(down: Boolean) {
+        val c = _call.value?.takeIf { it.ptt && it.talking != down } ?: return
+        _call.update { it?.copy(talking = down) }
+        applyMic(_call.value ?: return)
+        signal(c, "talk", JSONObject().put("on", down))
+        runCatching { clicker?.startTone(if (down) ToneGenerator.TONE_PROP_BEEP else ToneGenerator.TONE_PROP_ACK, 80) }
+    }
+
+    /** A short click when the talk button goes down and up, like a radio. */
+    private val clicker by lazy { runCatching { ToneGenerator(AudioManager.STREAM_VOICE_CALL, 40) }.getOrNull() }
+
+    private fun applyMic(c: Call) { voice.muted = c.muted || !hasMic() || (c.ptt && !c.talking) }
+
     fun toggleMute() {
         _call.update { it?.copy(muted = !it.muted) }
         val c = _call.value ?: return
-        voice.muted = c.muted || !hasMic()
+        applyMic(c)
         // Tell them, so their phone doesn't think the link dropped.
         signal(c, "mute", JSONObject().put("on", c.muted))
     }
@@ -191,7 +226,7 @@ class CallManager(
                     mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("cid", id).put("a", "busy"))
                     return
                 }
-                val c = Call(id, e.fromNodeId, e.name.ifBlank { "Someone" }, b.optBoolean("video"), CallPhase.INCOMING)
+                val c = Call(id, e.fromNodeId, e.name.ifBlank { "Someone" }, b.optBoolean("video"), CallPhase.INCOMING, link = mesh.linkName(e.fromNodeId))
                 _call.value = c
                 ring()
                 timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == id && _call.value?.phase == CallPhase.INCOMING) finish("Missed call") }
@@ -199,8 +234,10 @@ class CallManager(
                 onIncoming(c)
             }
             "accept" -> if (current?.id == id && current.phase == CallPhase.OUTGOING && current.peer == e.fromNodeId) begin(current)
-            "decline" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} can't talk right now")
-            "busy" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} is on another call")
+            "decline" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} can't talk right now", "DECLINED")
+            "busy" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} is on another call", "BUSY")
+            "ptt" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyPtt = b.optBoolean("on"), theyTalking = false, noAudio = false) }
+            "talk" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyTalking = b.optBoolean("on"), noAudio = false) }
             "mute" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyMuted = b.optBoolean("on"), noAudio = false) }
             "end" -> if (current?.id == id && current.peer == e.fromNodeId) finish(if (current.phase == CallPhase.INCOMING) "Missed call" else "Call ended")
         }
@@ -228,14 +265,29 @@ class CallManager(
                 delay(1_000)
                 gone = if (mesh.isConnected(c.peer)) 0 else gone + 1
                 if (gone >= LINK_GRACE_S) finish("Lost the connection with ${c.name}")
-                val quiet = SystemClock.elapsedRealtime() - lastAudioAt > NO_AUDIO_MS && _call.value?.theyMuted == false
+                val link = mesh.linkName(c.peer)
+                if (gone == 0 && _call.value?.link != link) _call.update { it?.copy(link = link) }
+                val now = _call.value
+                // Quiet is expected when they've muted, or use walkie-talkie and aren't holding the button.
+                val quiet = SystemClock.elapsedRealtime() - lastAudioAt > NO_AUDIO_MS && now?.theyMuted == false && !(now.theyPtt && !now.theyTalking)
                 if (_call.value?.noAudio != quiet) _call.update { it?.copy(noAudio = quiet) }
             }
         }
     }
 
-    private fun finish(reason: String) {
+    private fun finish(reason: String, outcome: String? = null) {
         val c = _call.value ?: return
+        if (c.phase == CallPhase.ENDED) return
+        val now = System.currentTimeMillis()
+        val result = outcome ?: when (c.phase) {
+            CallPhase.ACTIVE -> "ANSWERED"
+            CallPhase.INCOMING -> "MISSED"
+            else -> if (reason.startsWith("Lost")) "FAILED" else "NO_ANSWER"
+        }
+        scope.launch {
+            log(com.bluemob.app.data.CallLogEntry(c.id, c.peer, c.name, c.video, c.outgoing, result, if (c.phase == CallPhase.ACTIVE) c.startedAt else c.createdAt,
+                if (c.phase == CallPhase.ACTIVE) (now - c.startedAt) / 1000 else 0))
+        }
         stopRinging()
         timeoutJob?.cancel()
         linkWatch?.cancel()

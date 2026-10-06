@@ -91,11 +91,11 @@ class MeshRouter(
     override fun isConnected(nodeId: String) = nodeId in wire.neighbors()
     override fun linkName(nodeId: String) = if (isConnected(nodeId)) wire.linkName(nodeId) else "the mesh"
 
-    override fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long): Handoff {
+    override fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long, att: String?): Handoff {
         val out = outgoing[messageId] ?: run {
             val theirKey = keyBook.key(toNodeId) ?: run { askForKey(toNodeId); return Handoff.NeedsKey }
             val shared = Crypto.sharedKey(keys.keyPair.private, theirKey, keys.nodeId, toNodeId)
-            val sealed = Crypto.seal(shared, JSONObject().put("text", text).toString().toByteArray(), messageId.toByteArray())
+            val sealed = Crypto.seal(shared, JSONObject().put("text", text).also { j -> att?.let { j.put("att", JSONObject(it)) } }.toString().toByteArray(), messageId.toByteArray())
             val body = JSONObject().put("id", messageId).put("to", toNodeId).put("at", sentAt).put("x", sentAt + TTL_MS)
                 .put("name", myName()).put("c", sealed)
             Outgoing("$RMSG:$messageId", Envelope.seal(RMSG, body, keys).toString(), COPIES).also { outgoing[messageId] = it }
@@ -232,9 +232,11 @@ class MeshRouter(
                 val id = b.optString("id")
                 val shared = Crypto.sharedKey(keys.keyPair.private, theirKey, keys.nodeId, o.from)
                 val plain = Crypto.open(shared, b.optString("c"), id.toByteArray()) ?: return log("Couldn't decrypt a message from ${o.from.take(4)}")
-                val text = runCatching { JSONObject(String(plain)).optString("text") }.getOrNull()?.take(MAX_TEXT) ?: return
+                val inner = runCatching { JSONObject(String(plain)) }.getOrNull() ?: return
+                val text = inner.optString("text").take(MAX_TEXT)
                 if (text.isEmpty() || id.isEmpty()) return
-                _events.tryEmit(MeshEvent.MessageReceived(o.from, id, text, b.optLong("at"), hops, b.optString("name").take(24).ifBlank { null }, viaInternet))
+                val att = inner.optJSONObject("att")?.toString()?.takeIf { it.length <= 4_000 }
+                _events.tryEmit(MeshEvent.MessageReceived(o.from, id, text, b.optLong("at"), hops, b.optString("name").take(24).ifBlank { null }, viaInternet, att))
             }
             RRCPT -> _events.tryEmit(MeshEvent.Receipt(o.from, b.optString("mid"), b.optString("k") == "r", hops, viaInternet))
         }

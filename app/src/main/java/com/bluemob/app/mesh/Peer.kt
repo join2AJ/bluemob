@@ -43,6 +43,8 @@ sealed interface MeshEvent {
         val name: String? = null,
         /** Arrived through the BlueMob relay over the internet. */
         val viaInternet: Boolean = false,
+        /** An attachment's details (JSON), when the message carries a photo, document or voice note. */
+        val att: String? = null,
     ) : MeshEvent
     /** A receipt for one of our messages: [read] is false for "delivered", true for "read". */
     data class Receipt(val fromNodeId: String, val messageId: String, val read: Boolean, val hops: Int = 1, val viaInternet: Boolean = false) : MeshEvent
@@ -95,6 +97,9 @@ data class SosSignal(
     val cancelled: Boolean = false,
     /** GPS, or last fix plus steps and direction since, so helpers can pinpoint the sender. */
     val pos: PositionEstimate? = null,
+    /** From the sender's profile, so helpers can tell medics (0.9+; older versions leave them out). */
+    val bloodGroup: String? = null,
+    val age: Int? = null,
 )
 
 /** "I'm lost": the sender's latest position estimate, passed on like an SOS. [ended] when they found their way. */

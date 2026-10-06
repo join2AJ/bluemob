@@ -35,6 +35,9 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.NetworkCheck
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.PermMedia
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -95,6 +98,7 @@ fun ChatScreen(
     onAction: (String) -> Unit,
     /** Starts a voice (false) or video (true) call. */
     onCall: (Boolean) -> Unit = {},
+    files: ChatFiles = ChatFiles(),
 ) {
     val isBot = nodeId == SkyBot.NODE_ID
     val name = if (isBot) SkyBot.NAME else person?.name ?: "Someone"
@@ -141,6 +145,7 @@ fun ChatScreen(
                         }
                     }
                     if (!isBot) {
+                        IconButton(onClick = files.onMedia) { Icon(Icons.Outlined.PermMedia, "Photos, documents and voice notes") }
                         IconButton(onClick = { onCall(false) }) { Icon(Icons.Outlined.Call, "Voice call") }
                         IconButton(onClick = { onCall(true) }) { Icon(Icons.Outlined.Videocam, "Video call") }
                     }
@@ -160,7 +165,7 @@ fun ChatScreen(
                     val next = messages.getOrNull(i + 1)
                     val withPrev = prev != null && prev.fromMe == m.fromMe && m.createdAt - prev.createdAt < 120_000
                     val withNext = next != null && next.fromMe == m.fromMe && next.createdAt - m.createdAt < 120_000
-                    Bubble(m, isBot, withPrev, withNext, name, Modifier.animateItem(), onInfo, onAction)
+                    Bubble(m, isBot, withPrev, withNext, name, Modifier.animateItem(), onInfo, onAction, files)
                 }
                 if (typing) item(key = "typing") {
                     Box(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp)).background(Extra.bubbleThem).padding(horizontal = 16.dp, vertical = 14.dp)) { TypingDots() }
@@ -172,7 +177,7 @@ fun ChatScreen(
                     items(SkyBot.suggestions) { s -> Chip(s) { onSend(s) } }
                 }
             }
-            Composer(draft, onDraft = { draft = it }, onSend = { onSend(draft); draft = "" })
+            Composer(draft, onDraft = { draft = it }, onSend = { onSend(draft); draft = "" }, files = if (isBot) null else files)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 90.dp))
     }
@@ -219,9 +224,10 @@ private fun Intro(isBot: Boolean, nodeId: String, name: String, emoji: String?, 
 @Composable
 private fun Bubble(
     m: MessageEntity, isBot: Boolean, withPrev: Boolean, withNext: Boolean, name: String, modifier: Modifier,
-    onInfo: (String) -> Unit, onAction: (String) -> Unit,
+    onInfo: (String) -> Unit, onAction: (String) -> Unit, files: ChatFiles = ChatFiles(),
 ) {
     val mine = m.fromMe
+    val att = remember(m.att) { com.bluemob.app.files.Attachment.fromJson(m.att) }
     val big = 20.dp
     val small = 6.dp
     val shape = if (mine) RoundedCornerShape(big, if (withPrev) small else big, if (withNext) small else big, if (withNext || !withPrev) small else big)
@@ -233,9 +239,11 @@ private fun Bubble(
     ) {
         Box(
             Modifier.widthIn(max = 300.dp).clip(shape).background(if (mine) MaterialTheme.colorScheme.primary else Extra.bubbleThem)
-                .clickable(enabled = tappable) { onInfo(m.id) }.padding(horizontal = 14.dp, vertical = 9.dp),
+                .clickable(enabled = tappable) { onInfo(m.id) }.padding(horizontal = if (att != null) 8.dp else 14.dp, vertical = if (att != null) 8.dp else 9.dp),
         ) {
-            Text(m.text, style = MaterialTheme.typography.bodyLarge, color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+            val onColor = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+            if (att != null) AttachmentContent(m, att, name, files, onColor)
+            else Text(m.text, style = MaterialTheme.typography.bodyLarge, color = onColor)
         }
         if (m.actions.isNotBlank()) {
             FlowRow(Modifier.padding(top = 8.dp).widthIn(max = 320.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -263,15 +271,40 @@ private fun Bubble(
 }
 
 @Composable
-private fun Composer(draft: String, onDraft: (String) -> Unit, onSend: () -> Unit) {
+private fun Composer(draft: String, onDraft: (String) -> Unit, onSend: () -> Unit, files: ChatFiles? = null) {
+    var menu by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(Extra.sand).padding(horizontal = 18.dp, vertical = 13.dp)) {
-            if (draft.isEmpty()) Text("Message", color = Extra.ink3, style = MaterialTheme.typography.bodyLarge)
-            BasicTextField(draft, onDraft, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface), maxLines = 4,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
+        val recording = files?.recordingMs
+        if (recording != null) {
+            Row(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(Extra.emberTint).padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                com.bluemob.app.ui.components.PulsingDot(Extra.rose, 10.dp)
+                Text("  " + com.bluemob.app.files.Attachment.durationText(recording) + "  ·  release to send, slide away to cancel",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+            }
+        } else Row(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(Extra.sand).padding(start = if (files != null) 4.dp else 18.dp, end = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (files != null) Box {
+                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.AttachFile, "Attach a photo or document", tint = Extra.ink2) }
+                androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    listOf("photo" to "📷  Photo", "video" to "🎬  Video", "doc" to "📄  Document").forEach { (k, label) ->
+                        androidx.compose.material3.DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; files.onAttach(k) })
+                    }
+                }
+            }
+            Box(Modifier.weight(1f).padding(vertical = 13.dp)) {
+                if (draft.isEmpty()) Text("Message", color = Extra.ink3, style = MaterialTheme.typography.bodyLarge)
+                BasicTextField(draft, onDraft, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface), maxLines = 4,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
+            }
         }
         Spacer(Modifier.width(8.dp))
+        if (files != null && draft.isBlank()) {
+            HoldToRecord(files.onRecordStart, files.onRecordStop, Modifier.size(if (recording != null) 58.dp else 46.dp).clip(CircleShape)
+                .background(if (recording != null) Extra.rose else MaterialTheme.colorScheme.primary)) {
+                Icon(Icons.Outlined.Mic, "Hold to record a voice note", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+            }
+            return@Row
+        }
         Box(
             Modifier.size(46.dp).clip(CircleShape).background(if (draft.isBlank()) Extra.sand else MaterialTheme.colorScheme.primary)
                 .clickable(enabled = draft.isNotBlank(), onClick = onSend),

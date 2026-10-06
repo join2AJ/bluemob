@@ -46,6 +46,8 @@ class MessageRepositoryTest {
         }
         override suspend fun update(message: MessageEntity) { rows.value = rows.value.map { if (it.id == message.id) message else it } }
         override suspend fun clear() { rows.value = emptyList() }
+        override suspend fun filesToSend(peer: String) = rows.value.filter { it.peer == peer && it.fromMe && it.att.isNotEmpty() && it.attState != 3 }
+        override suspend fun byFile(fid: String) = rows.value.firstOrNull { it.att.contains("\"fid\":\"$fid\"") }
         override suspend fun markSeen(seen: SeenId): Long = if (this.seen.add(seen.id)) 1 else -1
     }
 
@@ -65,7 +67,7 @@ class MessageRepositoryTest {
             override val events: SharedFlow<MeshEvent> = inbox
             override fun isConnected(nodeId: String) = connected
             override fun linkName(nodeId: String) = "Bluetooth"
-            override fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long): Handoff {
+            override fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long, att: String?): Handoff {
                 if (!connected) return Handoff.Held
                 copiesSent++
                 other.inbox.tryEmit(MeshEvent.MessageReceived(me, messageId, text, sentAt))

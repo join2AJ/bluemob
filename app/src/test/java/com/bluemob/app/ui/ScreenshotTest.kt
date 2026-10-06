@@ -260,7 +260,37 @@ class ScreenshotTest {
         com.bluemob.app.ui.account.AccountSetup(true, false, true, { "7KQ2-M9XA-T4PB-0RCE-W3HD-NF6Y-JS8G" }, {}, {}, {})
     }
     @Test fun accountSettings() = shot(tall = true) {
-        com.bluemob.app.ui.account.AccountScreen("5742 99A8", true, true, 60_000, false, {}, {}, {}, {}, { com.bluemob.app.account.PinResult.Ok }, {}, { "" }, {})
+        com.bluemob.app.ui.account.AccountScreen("5742 99A8 E65F 20FE", com.bluemob.app.account.Profile("+919876543210", true, 34, "B+"), false, false, true, 60_000, false,
+            {}, { _, _ -> }, {}, {}, {}, { com.bluemob.app.account.PinResult.Ok }, {}, {}, { "" }, {})
+    }
+    @Test fun signup() = shot(tall = true) {
+        com.bluemob.app.ui.account.SignupFlow(false, "", "🦅", "5742 99A8 E65F 20FE", {}) {}
+    }
+    @Test fun incomingVideoCall() = shot {
+        com.bluemob.app.ui.call.CallScreen(com.bluemob.app.call.Call("c-1", "a1c2", "Asha", true, com.bluemob.app.call.CallPhase.INCOMING, link = "Wi-Fi"),
+            null, null, false, {}, {}, {}, {}, {}, { false }, {}, avatar = "🦋")
+    }
+    @Test fun walkieTalkieCall() = shot {
+        com.bluemob.app.ui.call.CallScreen(com.bluemob.app.call.Call("c-1", "a1c2", "Asha", false, com.bluemob.app.call.CallPhase.ACTIVE, startedAt = now - 83_000,
+            ptt = true, theyPtt = true, theyTalking = true, link = "Bluetooth"), null, null, false, {}, {}, {}, {}, {}, { false }, {}, avatar = "🦋")
+    }
+    @Test fun callHistory() = shot(tall = true) {
+        val calls = listOf(
+            com.bluemob.app.data.CallLogEntry("1", "a1c2", "Asha", false, true, "ANSWERED", now - 600_000, 192),
+            com.bluemob.app.data.CallLogEntry("2", "b7e4", "Ravi", true, false, "MISSED", now - 3_600_000, 0),
+            com.bluemob.app.data.CallLogEntry("3", "a1c2", "Asha", true, false, "ANSWERED", now - 90_000_000, 61),
+            com.bluemob.app.data.CallLogEntry("4", "b7e4", "Ravi", false, true, "NO_ANSWER", now - 100_000_000, 0),
+        )
+        com.bluemob.app.ui.chat.ChatsScreen(people, emptyMap(), emptySet(), pad, calls = calls) {}
+    }
+    @Test fun chatWithFiles() = shot {
+        val att = { kind: com.bluemob.app.files.AttKind, name: String, size: Long, dur: Long -> com.bluemob.app.files.Attachment("f-" + name.hashCode().toString().replace("-", "x") + "abcdef", name, "x/y", size, "a2V5", kind, dur).toJson() }
+        val msgs = listOf(
+            msg("1", false, "", 600_000, MessageStatus.READ).copy(att = att(com.bluemob.app.files.AttKind.DOC, "Trail map.pdf", 1_400_000, 0), attState = 3),
+            msg("2", true, "", 500_000, MessageStatus.DELIVERED).copy(att = att(com.bluemob.app.files.AttKind.AUDIO, "Voice note.m4a", 90_000, 14_000), attPath = "x", attState = 3),
+            msg("3", true, "", 60_000, MessageStatus.PENDING).copy(att = att(com.bluemob.app.files.AttKind.IMAGE, "photo.jpg", 300_000, 0), attPath = "x", attState = 1),
+        )
+        ChatScreen("a1c2", people[0], msgs, false, MutableSharedFlow(), "Arjun", "3f9a1c2b7d4e8a01", {}, {}, { true }, {}, {}, {})
     }
     @Test fun restore() = shot { com.bluemob.app.ui.account.RestoreScreen({}) { null } }
     @Test fun incomingCall() = shot {

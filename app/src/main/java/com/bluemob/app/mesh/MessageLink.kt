@@ -19,7 +19,8 @@ interface MessageLink {
     val events: SharedFlow<MeshEvent>
     fun isConnected(nodeId: String): Boolean
     fun linkName(nodeId: String): String
-    fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long): Handoff
+    /** [att] is an attachment's details (JSON), sent inside the encrypted message; older versions see only [text]. */
+    fun sendChat(toNodeId: String, messageId: String, text: String, sentAt: Long, att: String? = null): Handoff
     /** True if the receipt is on its way (to them, or with a phone carrying it). */
     fun sendReceipt(toNodeId: String, messageId: String, read: Boolean): Boolean
 }

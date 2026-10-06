@@ -73,6 +73,10 @@ class BlueMobApp : Application() {
     lateinit var matches: com.bluemob.app.games.Matches private set
     lateinit var calls: com.bluemob.app.call.CallManager private set
     lateinit var lock: com.bluemob.app.account.AppLock private set
+    lateinit var profile: com.bluemob.app.account.ProfileStore private set
+    lateinit var files: com.bluemob.app.files.FileShare private set
+    lateinit var voiceNotes: com.bluemob.app.files.VoiceNotes private set
+    lateinit var callLog: com.bluemob.app.data.CallLogDao private set
     private var ratingPackets: List<org.json.JSONObject> = emptyList()
     private var auditEntries: List<com.bluemob.app.data.AuditEntry> = emptyList()
     private var auditHead: com.bluemob.app.data.AuditEntry? = null
@@ -119,6 +123,7 @@ class BlueMobApp : Application() {
         CrashLog.step(this, "unlocking your identity (Android Keystore)")
         identity = Identity(this)
         lock = com.bluemob.app.account.AppLock(this)
+        profile = com.bluemob.app.account.ProfileStore(SecurePrefs.open(this, "profile"))
         CrashLog.step(this, "unlocking encrypted contacts")
         contacts = ContactsStore(this)
         // Robolectric (the app-startup test) can't load SQLCipher's native library; real phones always encrypt.
@@ -154,14 +159,17 @@ class BlueMobApp : Application() {
         audit.add(AuditKind.APP, "BlueMob started · ID BM ${formatId(identity.nodeId)}")
         identity.previousNodeId?.let { audit.add(AuditKind.APP, "BlueMob ID changed from BM ${formatId(it)} to a key-based ID that can't be copied") }
         trail = TrailRecorder(this, location, heading, db.trail(), settings, audit, appScope) { identity.shareLocation.value }
-        sos = SosManager(this, mesh, identity, trail, signals, audit, appScope)
+        sos = SosManager(this, mesh, identity, trail, signals, audit, appScope) { profile.profile.value.let { it.age to it.bloodGroup } }
         lost = LostMode(mesh, identity, trail, audit, appScope, location, signals, sosActive = { sos.mine.value != null }, say = ::say)
         matches = com.bluemob.app.games.Matches(mesh, appScope) { m ->
             if (!inForeground) notifier.note("${m.opponentName} wants to play", "${com.bluemob.app.games.Match.title(m.game)} over the mesh. Tap to answer.", "games")
         }
-        calls = com.bluemob.app.call.CallManager(this, mesh, audit, appScope) { c ->
+        calls = com.bluemob.app.call.CallManager(this, mesh, audit, appScope, onIncoming = { c ->
             if (!inForeground) notifier.note("${c.name} is calling", "${if (c.video) "Video" else "Voice"} call from someone nearby. Tap to answer.", "call", id = 7_007)
-        }
+        }, log = { entry ->
+            db.calls().insert(entry)
+            if (entry.outcome == "MISSED" && !inForeground) notifier.note("Missed call from ${entry.name}", "${if (entry.video) "Video" else "Voice"} call. Tap to call back.", "calls", id = 7_008)
+        })
         bridge = InternetBridge(settings, identity, keyBook, mesh, connectivity, audit, appScope)
         trust = TrustManager(db.ratings(), identity, mesh, bridge.client, contacts, audit, appScope)
         // Ratings travel as people meet: each phone gives the ones it holds to every phone it connects to.
@@ -174,7 +182,10 @@ class BlueMobApp : Application() {
         }
         bridge.client.ratingSubjects = { mesh.connectedNodes() + sos.received.value.keys + contacts.contacts.value.keys.take(20) }
         rescue = RescueManager(mesh, identity, db.rescue(), trail, location, sos, audit, appScope)
-        messages = MessageRepository(db.messages(), mesh.router, appScope, sky = { text -> SkyBot.reply(text, skyFacts()) },
+        files = com.bluemob.app.files.FileShare(this, mesh, db.messages(), audit, appScope)
+        voiceNotes = com.bluemob.app.files.VoiceNotes(this, appScope)
+        callLog = db.calls()
+        messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text -> SkyBot.reply(text, skyFacts()) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
             onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, contacts.contacts.value[peer]?.name ?: "Someone", text) },
         )

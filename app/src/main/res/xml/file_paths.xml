@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the temporary folder of decrypted copies is shared, and only when the user opens a file in another app. -->
+<paths>
+    <cache-path name="open" path="open/" />
+</paths>

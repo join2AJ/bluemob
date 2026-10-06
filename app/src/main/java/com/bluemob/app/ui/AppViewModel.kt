@@ -277,6 +277,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun isBot(nodeId: String) = nodeId == SkyBot.NODE_ID
 
+    val profile = blueMob.profile.profile
+    /** Sign-up finished: the number is verified, the details saved, and the app opens. */
+    fun completeSignup(r: com.bluemob.app.ui.account.SignupResult) {
+        identity.setDisplayName(r.name); identity.setAvatar(r.avatar)
+        blueMob.profile.setVerifiedPhone(r.phone)
+        blueMob.profile.setDetails(r.age, r.bloodGroup)
+        identity.setOnboardingDone(true)
+        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Signed up: mobile number verified (${r.phone.take(5)}…)")
+    }
+    /** "🩸 B+ · age 34" from someone's SOS, if they shared it. */
+    fun medicalFor(nodeId: String): String? = sosManager.received.value[nodeId]?.let { s ->
+        listOfNotNull(s.bloodGroup?.let { "🩸 Blood group $it" }, s.age?.let { "age $it" }).joinToString(" · ").ifBlank { null }
+    }
+    fun setDetails(age: Int?, blood: String?) = blueMob.profile.setDetails(age, blood)
+    fun clearPin() { lock.clearPin(); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "PIN lock turned off") }
+
     private val lock = blueMob.lock
     val pinSet = lock.pinSet
     val locked = lock.locked
@@ -314,6 +330,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun gameAgain(id: String) = blueMob.matches.again(id)
     fun leaveGame(id: String) = blueMob.matches.leave(id)
 
+    // ---- Photos, documents, voice notes ----
+    private val files = blueMob.files
+    private val voiceNotes = blueMob.voiceNotes
+    val fileProgress = files.progress
+    val voicePlaying = voiceNotes.playing
+    val recordingMs = voiceNotes.recordingMs
+
+    fun sendFile(peer: String, uri: android.net.Uri) = viewModelScope.launch {
+        toast("Preparing…")
+        val (res, error) = files.prepare(uri)
+        if (res == null) toast(error ?: "Couldn't send that file") else repo.sendAttachment(peer, res.first, res.second.path)
+    }
+    suspend fun thumbnail(m: MessageEntity, maxPx: Int = 480) = files.thumbnail(m, maxPx)
+    suspend fun openCopy(m: MessageEntity) = files.openCopy(m)
+    /** Starts recording a voice note. False if the microphone isn't allowed or is busy. */
+    fun startVoiceNote(): Boolean = (blueMob.calls.hasMic() && voiceNotes.start()).also { recordingStarted = it }
+    private var recordingStarted = false
+    fun stopVoiceNote(peer: String, send: Boolean) {
+        val started = recordingStarted.also { recordingStarted = false }
+        val clip = voiceNotes.stop() ?: run { if (send && started) toast("Too short. Hold the mic while you talk, then let go to send"); return }
+        if (!send) { clip.first.delete(); return }
+        viewModelScope.launch { val (att, file) = files.prepareVoiceNote(clip.first, clip.second); repo.sendAttachment(peer, att, file.path) }
+    }
+    fun playVoice(m: MessageEntity) {
+        val att = com.bluemob.app.files.Attachment.fromJson(m.att) ?: return
+        if (voicePlaying.value?.first == att.fid) { voiceNotes.stopPlaying(); return }
+        viewModelScope.launch { files.openCopy(m)?.let { voiceNotes.play(att.fid, it) } ?: toast("This voice note hasn't arrived yet") }
+    }
+
     private val calls = blueMob.calls
     val call = calls.call
     val remoteFrame = calls.remoteFrame
@@ -322,6 +367,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun acceptCall() = calls.accept()
     fun hangUp() = calls.hangUp()
     fun toggleMute() = calls.toggleMute()
+    fun togglePtt() = calls.togglePtt()
+    fun talk(down: Boolean) = calls.talk(down)
+    val callLog = blueMob.callLog.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    fun clearCallLog() = viewModelScope.launch { blueMob.callLog.clear() }
     fun toggleSpeaker() = calls.toggleSpeaker()
     fun toggleCamera() = calls.toggleCamera()
     fun canUseCamera() = calls.hasCamera()
