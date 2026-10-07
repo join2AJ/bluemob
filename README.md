@@ -36,6 +36,19 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.13: simpler settings, files over the internet, wake-ups, BlueMob Cloud
+
+- **You tab regrouped**: Connections & power (mesh, reachable when closed, Bluetooth / Wi-Fi rules, battery), SOS (with
+  contacts), Account & backup, Storage & data, Diagnostics (audit trail, relay, logs, technical details). Sky lives in
+  the Guide tab. Link checks and routing details in chats are off unless turned on in Diagnostics.
+- **Files over the internet**: photos, documents and voice notes reach people who aren't nearby through the relay,
+  still encrypted with a key only the two phones have; only the recipient can download, and it's deleted after.
+- **Wake-ups (Firebase, optional)**: calls ring and messages arrive with BlueMob closed; real SMS codes at sign-up.
+  Set up in `docs/firebase.md`; without it, everything works as before.
+- **BlueMob Cloud backups**: the same password-locked backup file, kept on the relay (newest 3); restore on a new
+  phone after restoring the ID with the recovery code.
+- **Start-up**: background starts no longer leave a false "BlueMob couldn't start"; an unexplained stop is retried once.
+
 ## Android 0.12: faster internet, calls through friends, encrypted calls
 
 - **Messages over the internet in about a second**: they go straight over the relay's live channel when the other

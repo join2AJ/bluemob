@@ -32,9 +32,10 @@ enum class BackupEvery(val label: String, val days: Long) { OFF("Off", 0), DAILY
 data class BackupStatus(val lastAt: Long = 0, val lastResult: String? = null, val lastSize: Long = 0)
 
 /**
- * Backups that live only where the user puts them: this phone's Downloads folder, a folder they pick (an SD card, or a
- * cloud app that offers folders, like OneDrive), or a one-off copy saved to any app (Google Drive, OneDrive, email…).
- * Nothing goes to a BlueMob server. Each backup is one compressed file, encrypted with the user's backup password.
+ * Backups that live where the user puts them: this phone's Downloads folder, a folder they pick (an SD card, or a
+ * cloud app that offers folders, like OneDrive), BlueMob Cloud ([CloudBackups], on the relay), or a one-off copy saved
+ * to any app (Google Drive, OneDrive, email…). Each backup is one compressed file, encrypted with the user's backup
+ * password, which never leaves the phone.
  */
 class BackupManager(private val app: BlueMobApp) {
     private val prefs = com.bluemob.app.crypto.SecurePrefs.open(app, "backup")
@@ -46,7 +47,7 @@ class BackupManager(private val app: BlueMobApp) {
     val every: StateFlow<BackupEvery> = _every.asStateFlow()
 
     private val _folder = MutableStateFlow(prefs.getString("folder", null))
-    /** A folder the user picked (a content:// tree), or null for this phone's Downloads/BlueMob. */
+    /** A folder the user picked (a content:// tree), [CloudBackups.FOLDER] for BlueMob Cloud, or null for Downloads/BlueMob. */
     val folder: StateFlow<String?> = _folder.asStateFlow()
 
     /** Kept (encrypted with the phone's Keystore) only so scheduled backups can run without asking. */
@@ -66,7 +67,10 @@ class BackupManager(private val app: BlueMobApp) {
     /** A folder picked with Android's folder picker (permission already taken), or null for this phone. */
     fun setFolder(uri: String?) { prefs.edit().apply { if (uri == null) remove("folder") else putString("folder", uri) }.apply(); _folder.value = uri }
 
-    fun folderName(): String = _folder.value?.let { Uri.decode(it).substringAfterLast(':').substringAfterLast('/').ifBlank { "chosen folder" } } ?: "This phone · Downloads/BlueMob"
+    val cloud = CloudBackups({ app.settings.bridgeUrl.value.takeIf { it.isNotBlank() } }, { app.identity.keys })
+    val usesCloud: Boolean get() = _folder.value == CloudBackups.FOLDER
+
+    fun folderName(): String = if (usesCloud) "BlueMob Cloud" else _folder.value?.let { Uri.decode(it).substringAfterLast(':').substringAfterLast('/').ifBlank { "chosen folder" } } ?: "This phone · Downloads/BlueMob"
 
     private suspend fun collect(): Pair<BackupData, Map<String, File>> {
         val db = app.database
@@ -89,6 +93,14 @@ class BackupManager(private val app: BlueMobApp) {
         runCatching {
             val (data, atts) = collect()
             val name = fileName()
+            if (usesCloud) {
+                val tmp = File(app.cacheDir, name)
+                try {
+                    tmp.outputStream().use { BackupFile.write(it, pw, data, atts) }
+                    cloud.upload(tmp)?.let { return@withContext done("Backup not saved to BlueMob Cloud: $it", 0) }
+                    return@withContext done("Backed up ${data.messages.size} messages, ${data.trips.size} trips, ${data.calls.size} calls to BlueMob Cloud (${Attachment.sizeText(tmp.length())})", tmp.length())
+                } finally { tmp.delete() }
+            }
             val out = _folder.value?.let { createInTree(Uri.parse(it), name) } ?: createInDownloads(name)
                 ?: return@withContext "Couldn't create the backup file there. Pick the place again."
             app.contentResolver.openOutputStream(out)?.use { BackupFile.write(it, pw, data, atts) } ?: return@withContext "Couldn't write the backup"
@@ -153,6 +165,15 @@ class BackupManager(private val app: BlueMobApp) {
     sealed interface Preview {
         data class Ready(val data: BackupData, val attachments: Map<String, ByteArray>, val otherId: Boolean) : Preview
         data class Problem(val message: String) : Preview
+    }
+
+    /** Downloads a BlueMob Cloud backup and opens it like a file. */
+    suspend fun openCloud(name: String, pw: String): Preview = withContext(Dispatchers.IO) {
+        val tmp = File(app.cacheDir, "cloud-$name")
+        try {
+            if (!cloud.download(name, tmp)) return@withContext Preview.Problem("Couldn't download that backup. Check the internet.")
+            open(Uri.fromFile(tmp), pw)
+        } finally { tmp.delete() }
     }
 
     /** Opens a backup file to show what's in it before restoring. */

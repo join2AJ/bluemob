@@ -106,3 +106,38 @@ test("files: only the sender can upload, only the recipient can download, and it
   assert.equal((await get(b)).status, 404);
   srv.close();
 });
+
+test("cloud backups: only the owner can list and download, and the newest 3 are kept", async () => {
+  const os = require("os"), path = require("path"), fs = require("fs");
+  const { createServer, Backups, Blobs } = require("./relay");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backups-"));
+  const store = new Store(null);
+  const srv = createServer(store, new Map(), new Blobs(null), new Backups(dir, { persistent: true }));
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const me = device(), evil = device();
+  store.learnKey(evil.id, evil.pk);
+  const upload = (data) => {
+    const at = Date.now(), hash = crypto.createHash("sha256").update(data).digest("hex");
+    const sig = crypto.sign("sha256", Buffer.from(["bluemob-backup", hash, at].join("|")), me.privateKey).toString("base64");
+    return fetch(`${base}/v1/backup`, { method: "PUT", body: data, headers: { "x-at": String(at), "x-pk": me.pk, "x-sig": sig } });
+  };
+  const signed = (dev, name, suffix) => {
+    const at = Date.now();
+    const sig = crypto.sign("sha256", Buffer.from(["bluemob-backup-get", name, at].join("|")), dev.privateKey).toString("base64");
+    return fetch(`${base}/v1/backups${suffix}?id=${dev.id}&at=${at}&sig=${encodeURIComponent(sig)}`);
+  };
+  for (let i = 0; i < 4; i++) { assert.equal((await upload(Buffer.from("backup " + i))).status, 200); await new Promise((r) => setTimeout(r, 5)); }
+  const list = await (await signed(me, "list", "")).json();
+  assert.equal(list.backups.length, 3);
+  assert.equal(list.persistent, true);
+  // Someone else only ever sees their own (empty) list, and can't fetch ours by name.
+  assert.deepEqual((await (await signed(evil, "list", "")).json()).backups, []);
+  const newest = list.backups[0].name;
+  assert.equal(await (await signed(me, newest, "/" + newest)).text(), "backup 3");
+  assert.equal((await signed(evil, newest, "/" + newest)).status, 404);
+  // A signature by the wrong key is refused.
+  const at = Date.now(), forged = crypto.sign("sha256", Buffer.from(["bluemob-backup-get", "list", at].join("|")), evil.privateKey).toString("base64");
+  assert.equal((await fetch(`${base}/v1/backups?id=${me.id}&at=${at}&sig=${encodeURIComponent(forged)}`)).status, 403);
+  srv.close();
+});

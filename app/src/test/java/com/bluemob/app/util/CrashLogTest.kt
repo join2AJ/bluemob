@@ -41,3 +41,20 @@ class CrashLogTest {
         assertEquals("starting the mesh", CrashLog.unfinishedStep(context))
     }
 }
+
+@RunWith(RobolectricTestRunner::class)
+class CrashLogRetryTest {
+    private val context: Context = RuntimeEnvironment.getApplication()
+
+    @Test fun oneUnexplainedStopIsRetriedQuietlyTheSecondIsShown() {
+        CrashLog.clear(context)
+        CrashLog.step(context, "showing the first screen")
+        assertTrue(CrashLog.firstRetry(context))   // first stop: try again quietly
+        CrashLog.started(context, keepRetry = true) // start-up done, but no screen yet
+        CrashLog.step(context, "showing the first screen")
+        assertFalse(CrashLog.firstRetry(context))  // stopped again before a screen: show the error
+        CrashLog.started(context)                   // a screen opened: all clear
+        assertTrue(CrashLog.firstRetry(context))
+        CrashLog.clear(context)
+    }
+}

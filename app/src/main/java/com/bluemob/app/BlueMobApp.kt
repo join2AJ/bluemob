@@ -101,6 +101,12 @@ class BlueMobApp : Application() {
         CrashLog.forgetOtherVersions(this) // an update starts fresh instead of showing the old version's crash
         // The last launch died while starting (for example inside native code): show what happened instead of
         // dying again. "Try again" on that screen clears this and starts normally.
+        // One unexplained stop (no error recorded: the phone closed BlueMob, or it was updated mid-start) gets a quiet
+        // second try; only a second stop in a row shows the error screen.
+        CrashLog.unfinishedStep(this)?.takeIf { CrashLog.read(this) == null && CrashLog.firstRetry(this) }?.let { step ->
+            CrashLog.saveNonFatal(this, IllegalStateException("BlueMob stopped while starting last time, during: $step (retried)"))
+            CrashLog.started(this, keepRetry = true)
+        }
         CrashLog.unfinishedStep(this)?.let { step ->
             startupError = IllegalStateException("BlueMob stopped while starting last time, during: $step")
             if (CrashLog.read(this) == null) CrashLog.save(this, startupError!!, "previous launch")
@@ -227,7 +233,10 @@ class BlueMobApp : Application() {
         )
         appScope.launch { sos.alert.collect { a -> if (a != null && !inForeground && a.id != SosManager.PREVIEW_ID) notifier.sos(a) } }
         appScope.launch { rescue.notices.collect { n -> if (!inForeground) notifier.rescue(n.room, n.text) } }
-        CrashLog.step(this, "showing the first screen")
+        // Start-up itself is done. Android also starts BlueMob with no screen (background service, scheduled backups,
+        // wake-ups); the screen marks its own step when it opens (MainActivity), so a background start that's later
+        // closed normally is never mistaken for a crash. The retry marker stays until a screen really opens.
+        CrashLog.started(this, keepRetry = true)
         // The mesh keeps running in the background (with its notification) whenever it's on.
         appScope.launch {
             combine(mesh.running, settings.background) { on, bg -> on && bg }.collect { keep ->

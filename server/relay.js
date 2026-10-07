@@ -11,6 +11,8 @@
 //   GET  /v1/guides  /v1/guides/<id>                      survival-guide packs phones can download for offline use
 //   PUT  /v1/blob/<fid>      (signed by the sender)        a chat attachment, already encrypted on the phone
 //   GET  /v1/blob/<fid>?id&at&sig  (signed by the recipient)  download it; POST /v1/blob/<fid>/done deletes it
+//   PUT  /v1/backup          (signed by the phone)          BlueMob Cloud: an encrypted backup (password-locked on the phone)
+//   GET  /v1/backups?id&at&sig  /v1/backups/<name>?…       list / download your own backups (newest 3 kept)
 //   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
@@ -162,6 +164,35 @@ class Blobs {
 
 const FID = /^f-[0-9a-z]{8,40}$/;
 
+/**
+ * BlueMob Cloud backups. Each is the same file a phone saves locally: compressed and encrypted with the user's backup
+ * password, which never leaves the phone. Stored per BlueMob ID; only that ID's key can list or download them, which
+ * after a lost phone means: restore the ID with the recovery code, then the backup with its password.
+ * They need a disk that survives restarts (Render: a paid plan with a disk, and PERSISTENT_DISK=1).
+ */
+class Backups {
+  constructor(dir, { maxBytes = 100 * 1024 * 1024, keep = 3, persistent = false } = {}) {
+    this.dir = dir; this.maxBytes = maxBytes; this.keep = keep; this.persistent = persistent;
+    if (dir) fs.mkdirSync(dir, { recursive: true });
+  }
+  folder(id) { return path.join(this.dir, id); }
+  list(id) {
+    const d = this.folder(id);
+    if (!fs.existsSync(d)) return [];
+    return fs.readdirSync(d).filter((f) => /^\d{13}\.bmbk$/.test(f)).map((f) => ({ name: f, at: Number(f.slice(0, 13)), size: fs.statSync(path.join(d, f)).size }))
+      .sort((a, b) => b.at - a.at);
+  }
+  put(id, buf, at = Date.now()) {
+    const d = this.folder(id);
+    fs.mkdirSync(d, { recursive: true });
+    const name = String(at).padStart(13, "0") + ".bmbk";
+    fs.writeFileSync(path.join(d, name), buf);
+    for (const old of this.list(id).slice(this.keep)) fs.rmSync(path.join(d, old.name), { force: true });
+    return name;
+  }
+  read(id, name) { const f = path.join(this.folder(id), name); return /^\d{13}\.bmbk$/.test(name) && fs.existsSync(f) ? fs.readFileSync(f) : null; }
+}
+
 /** Checks a signature over [text] by the key [pk]; returns the signer's ID or null. */
 function signer(pk, text, sig) {
   try {
@@ -171,7 +202,7 @@ function signer(pk, text, sig) {
   } catch { return null; }
 }
 
-function createServer(store, guides = loadGuides(), blobs = new Blobs(null)) {
+function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null)) {
   const hits = new Map(); // device or IP -> {hour, n}
   const limited = (who) => {
     const hour = Math.floor(Date.now() / 3600e3);
@@ -183,7 +214,38 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null)) {
   return http.createServer((req, res) => {
     const url = new URL(req.url, "http://relay");
     const ip = req.socket.remoteAddress || "?";
-    if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, packets: store.packets.size });
+    if (req.method === "GET" && url.pathname === "/health") return send(res, 200, { ok: true, packets: store.packets.size, cloudBackups: backups.dir ? (backups.persistent ? "kept" : "temporary") : "off" });
+    if (backups.dir && url.pathname === "/v1/backup" && req.method === "PUT") {
+      const at = Number(req.headers["x-at"]), pk = String(req.headers["x-pk"] || ""), sig = String(req.headers["x-sig"] || "");
+      const size = Number(req.headers["content-length"] || 0);
+      if (!(size > 0) || size > backups.maxBytes) return send(res, 413, { error: "too large" });
+      if (Math.abs(Date.now() - at) > 10 * 60e3) return send(res, 400, { error: "clock" });
+      const chunks = []; let got = 0;
+      req.on("data", (c) => { got += c.length; if (got > backups.maxBytes) { send(res, 413, { error: "too large" }); req.destroy(); } else chunks.push(c); });
+      req.on("end", () => {
+        if (res.writableEnded) return;
+        const buf = Buffer.concat(chunks);
+        const id = signer(pk, ["bluemob-backup", crypto.createHash("sha256").update(buf).digest("hex"), at].join("|"), sig);
+        if (!id) return send(res, 401, { error: "bad signature" });
+        if (limited("dev:" + id)) return send(res, 429, { error: "slow down" });
+        store.learnKey(id, pk);
+        const name = backups.put(id, buf);
+        return send(res, 200, { ok: true, name, persistent: backups.persistent });
+      });
+      return;
+    }
+    const bk = url.pathname.match(/^\/v1\/backups(?:\/([^/]+))?$/);
+    if (backups.dir && bk && req.method === "GET") {
+      const id = url.searchParams.get("id") || "", at = Number(url.searchParams.get("at")), sig = url.searchParams.get("sig") || "";
+      const name = bk[1] || "list";
+      const pk = store.keys.get(id);
+      if (!pk || Math.abs(Date.now() - at) > 10 * 60e3 || signer(pk, ["bluemob-backup-get", name, at].join("|"), sig) !== id) return send(res, 403, { error: "not yours" });
+      if (!bk[1]) return send(res, 200, { backups: backups.list(id), persistent: backups.persistent });
+      const buf = backups.read(id, name);
+      if (!buf) return send(res, 404, { error: "no such backup" });
+      res.writeHead(200, { "content-type": "application/octet-stream", "content-length": buf.length, "cache-control": "no-store" });
+      return res.end(buf);
+    }
     if (req.method === "GET" && url.pathname === "/v1/guides") {
       return send(res, 200, { packs: [...guides.values()].map((p) => ({ id: p.id, version: p.version || 1, emoji: p.emoji || "📘", title: p.title, about: p.about || "",
         articles: p.articles.length, bytes: Buffer.byteLength(JSON.stringify(p)) })) });
@@ -271,7 +333,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null)) {
   });
 }
 
-module.exports = { createServer, Store, Blobs, openEnvelope, idFor, loadGuides };
+module.exports = { createServer, Store, Blobs, Backups, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
@@ -281,7 +343,8 @@ if (require.main === module) {
   setInterval(() => store.prune(), 3600e3).unref();
   const blobs = new Blobs(path.join(dataDir, "blobs"));
   setInterval(() => blobs.prune(), 3600e3).unref();
-  const server = createServer(store, loadGuides(), blobs);
+  const backups = new Backups(path.join(dataDir, "backups"), { persistent: process.env.PERSISTENT_DISK === "1" });
+  const server = createServer(store, loadGuides(), blobs, backups);
   const { createPusher, loadAccount } = require("./push");
   const pusher = createPusher(loadAccount());
   if (pusher.configured) console.log("Firebase wake-ups on");

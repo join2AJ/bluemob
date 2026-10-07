@@ -35,7 +35,7 @@ object CrashLog {
     }
 
     fun read(context: Context): String? = file(context).takeIf { it.exists() }?.readText()
-    fun clear(context: Context) { file(context).delete(); stepFile(context).delete() }
+    fun clear(context: Context) { file(context).delete(); stepFile(context).delete(); retryFile(context).delete() }
 
     // ---- startup steps: if the app dies while starting (even in native code, which no handler can catch),
     // the next launch knows exactly where, and shows it instead of trying again blindly. ----
@@ -43,7 +43,18 @@ object CrashLog {
 
     fun step(context: Context, what: String) = runCatching { stepFile(context).writeText("v=${appVersion(context)}\n$what") }
 
-    fun started(context: Context) { stepFile(context).delete() }
+    /** Start-up finished. Also forgets an earlier quiet retry, unless [keepRetry]. */
+    fun started(context: Context, keepRetry: Boolean = false) { stepFile(context).delete(); if (!keepRetry) retryFile(context).delete() }
+
+    private fun retryFile(context: Context) = File(context.noBackupFilesDir, "retried.txt")
+
+    /** True the first time start-up is retried after an unexplained stop; false if it was already retried once. */
+    fun firstRetry(context: Context): Boolean {
+        val f = retryFile(context)
+        if (f.exists()) return false
+        runCatching { f.writeText("1") }
+        return true
+    }
 
     /** The step the previous launch was on when it stopped, if it never finished starting. */
     fun unfinishedStep(context: Context): String? = stepFile(context).takeIf { it.exists() }?.readText()?.lines()?.filterNot { it.startsWith("v=") }?.joinToString("\n")

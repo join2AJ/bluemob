@@ -54,7 +54,7 @@ class LiveLinkTest {
         val offline = LinkedBlockingQueue<String>()
         b.onText = { from, data -> texts.add(from to data) }
         b.onBinary = { from, bytes -> media.add(from to bytes) }
-        a.onOffline = { offline.add(it) }
+        a.onOffline = { to, _ -> offline.add(to) }
         a.start(); b.start()
         withTimeout(15_000) { while (!a.connected.value || !b.connected.value) delay(100) }
 

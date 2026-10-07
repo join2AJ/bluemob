@@ -115,6 +115,9 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // The first screen is part of starting up: if BlueMob dies before it shows (even in native code), the next
+        // launch knows. Cleared in onResume.
+        if ((application as BlueMobApp).startupError == null) CrashLog.step(this, "showing the first screen")
         // If BlueMob couldn't start, explain and show the error instead of closing.
         (application as BlueMobApp).startupError?.let { error ->
             val report = CrashLog.read(this) ?: error.stackTraceToString()

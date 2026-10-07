@@ -60,6 +60,28 @@ fun BackupScreen(m: BackupManager, status: BackupStatus, every: BackupEvery, fol
     var pendingUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var preview by remember { mutableStateOf<BackupManager.Preview.Ready?>(null) }
     var hasPassword by remember { mutableStateOf(m.hasPassword) }
+    // BlueMob Cloud: is the relay keeping backups, and on a disk that survives restarts?
+    var cloudMode by remember { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { cloudMode = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { m.cloud.serverMode() } }
+    var cloudList by remember { mutableStateOf<List<com.bluemob.app.backup.CloudItem>?>(null) }
+    var pendingCloud by remember { mutableStateOf<String?>(null) }
+
+    cloudList?.let { list ->
+        AlertDialog(
+            onDismissRequest = { cloudList = null },
+            title = { Text("Your BlueMob Cloud backups") },
+            text = {
+                Column {
+                    if (list.isEmpty()) Text("No backups in BlueMob Cloud for this BlueMob ID yet. On a new phone, restore your ID with the recovery code first.")
+                    list.forEach { b ->
+                        Text("${TimeText.ago(b.at)} · ${Attachment.sizeText(b.size)}", style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.fillMaxWidth().clickable { cloudList = null; pendingCloud = b.name; askPassword = "cloud" }.padding(vertical = 12.dp))
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { cloudList = null }) { Text("Close") } },
+        )
+    }
 
     askPassword?.let { mode ->
         PasswordDialog(mode, onDone = { pw ->
@@ -69,6 +91,10 @@ fun BackupScreen(m: BackupManager, status: BackupStatus, every: BackupEvery, fol
                 "save" -> pendingUri?.let { uri -> busy = true; scope.launch { note = m.backupTo(uri, pw); busy = false } }
                 "open" -> pendingUri?.let { uri -> busy = true; scope.launch {
                     when (val p = m.open(uri, pw)) { is BackupManager.Preview.Ready -> preview = p; is BackupManager.Preview.Problem -> note = p.message }
+                    busy = false
+                } }
+                "cloud" -> pendingCloud?.let { name -> busy = true; scope.launch {
+                    when (val p = m.openCloud(name, pw)) { is BackupManager.Preview.Ready -> preview = p; is BackupManager.Preview.Problem -> note = p.message }
                     busy = false
                 } }
             }
@@ -132,10 +158,20 @@ fun BackupScreen(m: BackupManager, status: BackupStatus, every: BackupEvery, fol
                 Column(Modifier.padding(16.dp)) {
                     Text("Saved to", style = MaterialTheme.typography.labelMedium, color = Extra.ink2)
                     Text(m.folderName(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 2.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                        Chip("This phone", folder == null) { m.setFolder(null) }
-                        Chip("Pick a folder…", folder != null) { actions.pickFolder { uri -> if (uri != null) m.setFolder(uri) } }
+                    val cloudOn = folder == com.bluemob.app.backup.CloudBackups.FOLDER
+                    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                        item { Chip("This phone", folder == null) { m.setFolder(null) } }
+                        item { Chip("BlueMob Cloud", cloudOn) { m.setFolder(com.bluemob.app.backup.CloudBackups.FOLDER) } }
+                        item { Chip("Pick a folder…", folder != null && !cloudOn) { actions.pickFolder { uri -> if (uri != null) m.setFolder(uri) } } }
                     }
+                    if (cloudOn) Text(
+                        when (cloudMode) {
+                            "kept" -> "Kept on BlueMob's server, locked with your password: BlueMob can't open it. The newest 3 are kept. Works on a new phone after you restore your ID with the recovery code."
+                            "temporary" -> "Test server: cloud backups may be lost when it restarts. Keep a copy on this phone or Drive too until BlueMob Cloud is on a permanent disk."
+                            "off" -> "This relay doesn't keep cloud backups. Choose another place."
+                            else -> "Checking BlueMob Cloud… (needs internet)"
+                        },
+                        style = MaterialTheme.typography.bodySmall, color = if (cloudMode == "kept") Extra.ink2 else Extra.ember, modifier = Modifier.padding(top = 8.dp))
                     Text("Pick a folder on this phone or SD card, or in a cloud app that offers folders (OneDrive, Dropbox and others). The newest $KEEP backups are kept there.",
                         style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 8.dp))
                 }
@@ -155,6 +191,14 @@ fun BackupScreen(m: BackupManager, status: BackupStatus, every: BackupEvery, fol
         item {
             OutlinedButton(onClick = { actions.openFile { uri -> if (uri != null) { pendingUri = uri; askPassword = "open" } } },
                 enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Restore from a backup…") }
+            OutlinedButton(onClick = {
+                busy = true
+                scope.launch {
+                    val list = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { m.cloud.list() }
+                    busy = false
+                    if (list == null) note = "Couldn't reach BlueMob Cloud. Check the internet." else cloudList = list
+                }
+            }, enabled = !busy, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Restore from BlueMob Cloud…") }
             Text("Works on a new phone too. What's on this phone is kept; the backup is added to it.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 6.dp, bottom = 24.dp))
         }
     }
@@ -180,7 +224,7 @@ private fun PasswordDialog(mode: String, onDone: (String) -> Unit, onCancel: () 
                 if (setting) Text("Write it down. Without it, no one (not even BlueMob) can open your backups.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
             }
         },
-        confirmButton = { Button(onClick = { onDone(pw) }, enabled = ok) { Text(if (mode == "open") "Open" else "OK") } },
+        confirmButton = { Button(onClick = { onDone(pw) }, enabled = ok) { Text(if (mode == "open" || mode == "cloud") "Open" else "OK") } },
         dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
     )
 }

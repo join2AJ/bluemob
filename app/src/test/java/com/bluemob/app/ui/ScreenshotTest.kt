@@ -264,7 +264,7 @@ class ScreenshotTest {
             {}, { _, _ -> }, {}, {}, {}, { com.bluemob.app.account.PinResult.Ok }, {}, {}, { "" }, {})
     }
     @Test fun signup() = shot(tall = true) {
-        com.bluemob.app.ui.account.SignupFlow(false, "", "🦅", "5742 99A8 E65F 20FE", {}) {}
+        com.bluemob.app.ui.account.SignupFlow(false, "", "🦅", "5742 99A8 E65F 20FE", {}, onDone = {})
     }
     @Test fun incomingVideoCall() = shot {
         com.bluemob.app.ui.call.CallScreen(com.bluemob.app.call.Call("c-1", "a1c2", "Asha", true, com.bluemob.app.call.CallPhase.INCOMING, link = "Wi-Fi"),
