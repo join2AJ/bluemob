@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -132,14 +133,14 @@ fun GamesScreen(
                     Box {
                         Button(onClick = { menu = true }) { Text("Challenge ▾") }
                         DropdownMenu(menu, { menu = false }) {
-                            Engine.ALL.forEach { e -> DropdownMenuItem(text = { Text("${e.emoji}  ${e.title}") }, onClick = { menu = false; onChallenge(p, e.code) }) }
+                            Engine.ALL.filter { it.listed }.forEach { e -> DropdownMenuItem(text = { Text("${e.emoji}  ${e.title}") }, onClick = { menu = false; onChallenge(p, e.code) }) }
                         }
                     }
                 }
             }
         }
         item { GroupLabel("Play the computer") }
-        Engine.ALL.forEach { e ->
+        Engine.ALL.filter { it.listed }.forEach { e ->
             item(key = "cpu-" + e.code) {
                 GameTile(e.emoji, e.title, e.blurb, tileColors[e.code] ?: tileColors.getValue(Match.TTT)) { onPlay(e.code) }
                 Gap(12.dp)
@@ -153,29 +154,65 @@ fun GamesScreen(
 fun RulesDialog(engine: Engine, onDone: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDone,
-        title = { Text("${engine.emoji}  How to play") },
+        title = null,
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                engine.rules.forEachIndexed { i, (t, b) ->
-                    Row {
-                        Box(Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                // Header: the game, and in one line how you win.
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+                    .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)))).padding(18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(engine.emoji, fontSize = 44.sp)
+                    Text(engine.title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(top = 4.dp))
+                    Text("🏆 " + engine.goal, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                        textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+                }
+                Text("HOW TO PLAY", style = MaterialTheme.typography.labelMedium, color = Extra.ink3)
+                engine.rules.forEachIndexed { i, (t, body) ->
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Extra.sand).padding(12.dp)) {
+                        Box(Modifier.size(28.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
                             Text("${i + 1}", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                         }
                         Column(Modifier.padding(start = 12.dp)) {
                             Text(t, style = MaterialTheme.typography.titleSmall)
-                            Text(b, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                            Text(body, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
                         }
                     }
                 }
+                Text("💬 With a friend, tap the emojis under the board to react.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
             }
         },
-        confirmButton = { Button(onClick = onDone) { Text("Got it") } },
+        confirmButton = { Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Let's play") } },
     )
+}
+
+/** Emojis and quick phrases to send during a game, and the latest one from either side. */
+@Composable
+private fun Reactions(latest: com.bluemob.app.games.Matches.Reaction?, them: String, onReact: (String) -> Unit) {
+    var visible by remember(latest?.at) { mutableStateOf(latest != null && System.currentTimeMillis() - latest.at < 5_000) }
+    LaunchedEffect(latest?.at) { if (visible) { kotlinx.coroutines.delay(4_000); visible = false } }
+    Column(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        androidx.compose.animation.AnimatedVisibility(visible && latest != null,
+            enter = androidx.compose.animation.scaleIn() + androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+            latest?.let { r ->
+                Text((if (r.fromMe) "You: " else "$them: ") + r.text, style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (r.fromMe) Extra.pineTint else Extra.emberTint).padding(horizontal = 16.dp, vertical = 8.dp))
+            }
+        }
+        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            com.bluemob.app.games.Matches.EMOJI.forEach { e ->
+                Text(e, fontSize = 26.sp, modifier = Modifier.clip(CircleShape).clickable { onReact(e) }.padding(6.dp))
+            }
+        }
+        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+            items(com.bluemob.app.games.Matches.PHRASES) { p -> Chip(p, false) { onReact(p) } }
+        }
+    }
 }
 
 /** A game against a person. */
 @Composable
-fun MatchScreen(m: Match, onBack: () -> Unit, onPlay: (Int) -> Unit, onAgain: () -> Unit, onLeave: () -> Unit) {
+fun MatchScreen(m: Match, onBack: () -> Unit, onPlay: (Int) -> Unit, onAgain: () -> Unit, onLeave: () -> Unit,
+    reaction: com.bluemob.app.games.Matches.Reaction? = null, onReact: (String) -> Unit = {}) {
     var rules by rememberSaveable(m.game) { mutableStateOf(m.round == 0 && m.moveCount == 0) }
     if (rules) RulesDialog(m.engine) { rules = false }
     SubScreen(m.engine.title, onBack, actions = { TextButton(onClick = { rules = true }) { Text("How to play") } }) {
@@ -183,6 +220,7 @@ fun MatchScreen(m: Match, onBack: () -> Unit, onPlay: (Int) -> Unit, onAgain: ()
             Score(m.myScore, m.theirScore, status(m, m.opponentName), them = m.opponentName, themEmoji = "🙂")
         }
         item { Board(m, onPlay) }
+        if (m.state == MatchState.PLAYING) item { Reactions(reaction, m.opponentName, onReact) }
         item {
             Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.Center) {
                 if (m.over && m.state == MatchState.PLAYING) Button(onClick = onAgain) { Text("Play again") }
@@ -221,8 +259,28 @@ private fun Board(m: Match, onPlay: (Int) -> Unit) {
         InfiniteTicTacToe.code -> TttBoard(m.board.map { InfiniteTicTacToe.owner(it) }, win, enabled, onPlay,
             fading = if (m.over) null else InfiniteTicTacToe.fading(m.board, m.turn))
         DotsAndBoxes.code -> DotsBoard(m.board, enabled, onPlay)
+        com.bluemob.app.games.FiveInARow.code -> StoneBoard(m.board, win, enabled, onPlay)
         SurvivalQuiz.code -> QuizBoard(m, onPlay)
         else -> TttBoard(m.board, win, enabled, onPlay)
+    }
+}
+
+/** A 9×9 board of stones, for Five in a row. */
+@Composable
+private fun StoneBoard(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap: (Int) -> Unit) {
+    val n = com.bluemob.app.games.FiveInARow.N
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFD9B77A)).padding(6.dp)) {
+        for (r in 0 until n) Row {
+            for (c in 0 until n) {
+                val i = r * n + c
+                Box(Modifier.weight(1f).aspectRatio(1f).border(0.5.dp, Color(0x55000000)).clickable(enabled = enabled && board[i] == 0) { onTap(i) },
+                    contentAlignment = Alignment.Center) {
+                    if (board[i] != 0) Box(Modifier.fillMaxSize(0.8f).clip(CircleShape)
+                        .background(if (board[i] == 1) Color(0xFF1D2A24) else Color(0xFFF7F4EC))
+                        .border(if (line?.contains(i) == true) 3.dp else 0.dp, Color(0xFFE5484D), CircleShape))
+                }
+            }
+        }
     }
 }
 
@@ -353,6 +411,17 @@ private fun QuizBoard(m: Match, onAnswer: (Int) -> Unit) {
         if (mine >= 0) {
             Text(if (mine == question.right) "Right! 🎉" else "Not quite. The right answer is marked ✓.", style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(top = 4.dp))
+            // Why: what was wrong with their choice, and why the right one is right.
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(14.dp)).background(Extra.sand).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (mine != question.right) question.wrong.getOrNull(mine)?.takeIf { it.isNotBlank() }?.let {
+                    Text("✕ Why not “${question.options[mine]}”", style = MaterialTheme.typography.labelLarge, color = Extra.rose)
+                    Text(it, style = MaterialTheme.typography.bodyMedium)
+                }
+                if (question.why.isNotBlank()) {
+                    Text("✓ Why “${question.options[question.right]}”", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(question.why, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
             OutlinedButton(onClick = { shown = null }, modifier = Modifier.padding(top = 8.dp)) { Text(if (next != null) "Next question" else "See result") }
         }
     }

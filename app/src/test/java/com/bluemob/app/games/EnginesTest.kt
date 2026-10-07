@@ -107,4 +107,33 @@ class EnginesTest {
         assertFalse(m.myTurn)
         assertEquals(2, m.turn)
     }
+
+    @Test fun fiveInARowWinsBlocksAndTakesTheWin() {
+        val n = FiveInARow.N
+        var b = FiveInARow.empty()
+        // Four of player 1 across the middle with an open end: the computer (2) must block.
+        for (c in 2..5) b = FiveInARow.play(b, 1, 4 * n + c, 0)!!.first
+        val block = FiveInARow.computerMove(b, 2, hard = true)!!
+        assertTrue(block == 4 * n + 1 || block == 4 * n + 6)
+        // Its own four: it completes five instead of blocking.
+        var own = FiveInARow.empty()
+        for (r in 0..3) own = FiveInARow.play(own, 2, r * n, 0)!!.first
+        own = FiveInARow.play(own, 1, 8 * n + 8, 0)!!.first
+        assertEquals(4 * n, FiveInARow.computerMove(own, 2, hard = true))
+        val won = FiveInARow.play(own, 2, 4 * n, 0)!!.first
+        assertEquals(2, FiveInARow.winner(won)?.first)
+    }
+
+    @Test fun everyQuizQuestionExplainsItself() {
+        SurvivalQuiz.QUESTIONS.forEach { q ->
+            assertTrue(q.text, q.why.isNotBlank())
+            assertEquals(q.text, q.options.size, q.wrong.size)
+            q.options.indices.filter { it != q.right }.forEach { assertTrue("${q.text}: ${q.options[it]}", q.wrong[it].isNotBlank()) }
+        }
+    }
+
+    @Test fun classicTicTacToeIsHiddenButStillPlays() {
+        assertFalse(TicTacToeEngine.listed)
+        assertEquals(TicTacToeEngine, Engine.of(Match.TTT))
+    }
 }

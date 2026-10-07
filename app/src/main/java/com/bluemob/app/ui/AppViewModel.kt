@@ -453,6 +453,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun acceptGame(id: String) = blueMob.matches.accept(id)
     fun declineGame(id: String) = blueMob.matches.decline(id)
     fun playGame(id: String, spot: Int) = blueMob.matches.play(id, spot)
+    val gameReactions = blueMob.matches.reactions
+    fun reactInGame(id: String, text: String) = blueMob.matches.react(id, text)
     fun gameAgain(id: String) = blueMob.matches.again(id)
     fun leaveGame(id: String) = blueMob.matches.leave(id)
 

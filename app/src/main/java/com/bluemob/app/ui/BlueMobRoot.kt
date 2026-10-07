@@ -426,7 +426,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     val all by vm.matches.collectAsStateWithLifecycle()
                     val m = all[route.removePrefix("match:")]
                     if (m == null) LaunchedEffect(Unit) { pop() }
-                    else MatchScreen(m, ::pop, onPlay = { vm.playGame(m.id, it) }, onAgain = { vm.gameAgain(m.id) }, onLeave = { vm.leaveGame(m.id) })
+                    else MatchScreen(m, ::pop, onPlay = { vm.playGame(m.id, it) }, onAgain = { vm.gameAgain(m.id) }, onLeave = { vm.leaveGame(m.id) },
+                        reaction = vm.gameReactions.collectAsStateWithLifecycle().value[m.id], onReact = { vm.reactInGame(m.id, it) })
                 }
                 route.startsWith("game:") -> com.bluemob.app.ui.games.ComputerGameScreen(route.removePrefix("game:"), ::pop)
                 route == "trips" -> com.bluemob.app.ui.compass.TripsScreen(vm.trips.collectAsStateWithLifecycle().value, vm.currentTrip.collectAsStateWithLifecycle().value,

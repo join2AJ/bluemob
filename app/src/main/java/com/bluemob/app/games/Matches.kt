@@ -92,6 +92,20 @@ class Matches(
     private val _all = MutableStateFlow<Map<String, Match>>(emptyMap())
     val all: StateFlow<Map<String, Match>> = _all.asStateFlow()
 
+    /** A reaction during a game: an emoji or a short phrase from [REACTIONS]. */
+    data class Reaction(val fromMe: Boolean, val text: String, val at: Long = System.currentTimeMillis())
+    private val _reactions = MutableStateFlow<Map<String, Reaction>>(emptyMap())
+    /** The latest reaction in each match, by match ID. */
+    val reactions: StateFlow<Map<String, Reaction>> = _reactions.asStateFlow()
+
+    /** Sends a reaction to the other player. Only the fixed set, so nobody can send arbitrary text through a game. */
+    fun react(id: String, text: String) {
+        val m = _all.value[id]?.takeIf { it.state == MatchState.PLAYING } ?: return
+        if (text !in REACTIONS) return
+        _reactions.update { it + (id to Reaction(true, text)) }
+        send(m, "react", JSONObject().put("r", text))
+    }
+
     init {
         scope.launch {
             mesh.events.collect { e -> if (e is MeshEvent.App && e.kind == KIND) onPacket(e) }
@@ -168,6 +182,7 @@ class Matches(
             "leave" -> change(id) { m -> m.copy(state = MatchState.LEFT) }
             "move" -> change(id) { m -> MatchRules.move(m, 2, b.optInt("spot", -1), b.optInt("n"), b.optInt("round")) }
             "again" -> change(id) { m -> MatchRules.again(m, b.optInt("round")) }
+            "react" -> if (existing != null) b.optString("r").takeIf { it in REACTIONS }?.let { r -> _reactions.update { it + (id to Reaction(false, r)) } }
         }
     }
 
@@ -180,5 +195,8 @@ class Matches(
     companion object {
         const val KIND = "game"
         const val INVITE_TIMEOUT_MS = 40_000L
+        val EMOJI = listOf("👍", "😂", "😮", "😤", "🎉", "🤝")
+        val PHRASES = listOf("Nice move!", "Your turn 😄", "Good game!", "Rematch?", "Oops!", "Thinking…")
+        val REACTIONS = (EMOJI + PHRASES).toSet()
     }
 }
