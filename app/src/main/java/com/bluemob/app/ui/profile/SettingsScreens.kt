@@ -108,7 +108,7 @@ fun DiagnosticsScreen(
     val chevron: @Composable () -> Unit = { Icon(Icons.Outlined.ChevronRight, null, tint = Extra.ink3) }
     SubScreen("Diagnostics", onBack) {
         item {
-            Text("Nothing here is needed day to day. It helps when something goes wrong, and when testing.",
+            Text("Nothing here is needed day to day. It helps when something goes wrong.",
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 8.dp))
         }
         item { GroupLabel("Show") }
@@ -127,7 +127,7 @@ fun DiagnosticsScreen(
         item { GroupLabel("Advanced") }
         item {
             Group {
-                SettingRow(Icons.Outlined.Public, Extra.sky, "Internet relay", "Built in. Change it only if you run your own BlueMob relay", onClick = onBridge) { chevron() }
+                SettingRow(Icons.Outlined.Public, Extra.sky, "Internet connection", "How messages and calls are doing over the internet", onClick = onBridge) { chevron() }
             }
         }
         item { GroupLabel("Logs") }

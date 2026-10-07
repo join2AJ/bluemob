@@ -198,7 +198,7 @@ fun ProfileScreen(
             Group {
                 SettingRow(Icons.Outlined.SportsEsports, Extra.ember, "Games", "5 games, against the computer or people nearby", onClick = onGames) { chevron() }
                 SettingRow(Icons.Outlined.Refresh, Color(0xFF7C6BD6), "Replay the intro", "How BlueMob works, in a minute", divider = true, onClick = onReplayIntro) { chevron() }
-                SettingRow(Icons.Outlined.Terminal, Color(0xFF3A4A44), "Diagnostics", "Audit trail, relay, logs, technical details", divider = true, onClick = onDiagnostics) { chevron() }
+                SettingRow(Icons.Outlined.Terminal, Color(0xFF3A4A44), "Diagnostics", "Audit trail, internet connection, logs, report a problem", divider = true, onClick = onDiagnostics) { chevron() }
             }
         }
         item {

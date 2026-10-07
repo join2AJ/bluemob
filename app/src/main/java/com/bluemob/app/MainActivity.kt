@@ -97,11 +97,13 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onStart() {
         super.onStart()
         (application as BlueMobApp).takeIf { it.startupError == null }?.lock?.onForeground()
+        if (started) viewModel.setVisible(true)
     }
 
     override fun onStop() {
         super.onStop()
         (application as BlueMobApp).takeIf { it.startupError == null }?.lock?.onBackground()
+        if (started) viewModel.setVisible(false)
     }
 
     private fun requestCallPermissions(video: Boolean, then: () -> Unit) {

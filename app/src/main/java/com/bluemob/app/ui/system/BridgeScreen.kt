@@ -44,7 +44,7 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
         item {
             Column(Modifier.padding(top = 8.dp)) {
                 Text("Internet bridge", style = MaterialTheme.typography.headlineMedium)
-                Text("Met someone over Bluetooth and now you're 1,000 km apart? When either phone has internet, messages go through the BlueMob relay. " +
+                Text("Met someone over Bluetooth and now you're 1,000 km apart? When either phone has internet, messages go through BlueMob over the internet. " +
                     "Your phone also carries messages for people near you who have no signal.",
                     style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
             }
@@ -56,7 +56,7 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                         when {
                             !status.configured -> "Not available in this version"
                             !status.online -> "No internet right now"
-                            status.lastError != null -> "Can't reach the relay"
+                            status.lastError != null -> "Can't connect right now"
                             status.lastSync == null -> "Connecting…"
                             else -> "This phone is a bridge"
                         }, style = MaterialTheme.typography.titleMedium,
@@ -65,8 +65,8 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                         when {
                             !status.configured -> "This test version has no relay built in yet. Messages still travel phone to phone over Bluetooth and Wi-Fi."
                             !status.online -> "Messages wait and go the moment this phone, or any phone near it, has internet."
-                            status.lastError != null -> status.lastError
-                            else -> "Connected automatically" + (if (url == builtIn) " to the BlueMob relay" else "") + ". Last synced ${TimeText.ago(status.lastSync ?: 0)}."
+                            status.lastError != null -> "BlueMob keeps trying. Messages wait on this phone and go as soon as it connects."
+                            else -> "Connected automatically. Last synced ${TimeText.ago(status.lastSync ?: 0)}."
                         }, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp),
                     )
                 }
@@ -79,9 +79,9 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                     Text(if (liveConnected) "📞 Internet calls: ready" else "📞 Internet calls: not connected", style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
                     Text(when {
                         liveConnected -> "You can call people who are far away, and they can call you, as long as both phones have internet."
-                        url.isBlank() -> "Set the relay address below to call people who aren't nearby."
+                        url.isBlank() -> "Internet calls aren't available in this version."
                         !status.online -> "This phone has no internet right now. Calls with people nearby still work."
-                        else -> "Connecting to the relay… A free relay can take up to a minute to wake up."
+                        else -> "Connecting… this can take up to a minute."
                     }, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                 }
             }
@@ -94,32 +94,8 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
                 SettingRow(null, Extra.sand, "Waiting to upload", "${status.queued}", divider = true)
             }
         }
-        if (!advanced) item {
-            androidx.compose.material3.TextButton(onClick = { advanced = true }, modifier = Modifier.padding(top = 8.dp)) { Text("Use a different relay (advanced)") }
-        }
-        if (advanced) item { GroupLabel("Relay address") }
-        if (advanced) item {
-            Group {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(12.dp)) {
-                        if (draft.isEmpty()) Text("https://relay.example.org", color = Extra.ink3, style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace))
-                        BasicTextField(draft, { draft = it.take(200) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                            textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
-                    }
-                    val valid = draft.isBlank() || draft.startsWith("https://") || draft.startsWith("http://")
-                    if (!valid) Text("The address starts with https://", style = MaterialTheme.typography.bodySmall, color = Extra.rose)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { onSave(draft) }, enabled = valid && draft.trim() != url) { Text("Save") }
-                        if (builtIn.isNotEmpty() && url != builtIn) androidx.compose.material3.OutlinedButton(onClick = { onSave("") }) { Text("Use the built-in relay") }
-                    }
-                }
-            }
-        }
         item {
-            Text("What the relay sees: encrypted messages, who they're for, and public keys. It can't read messages or fake them: every message is " +
-                "end-to-end encrypted and signed by the sender's phone. There are no accounts or phone numbers. " +
-                "Use https in real use. Anyone can run a relay: see server/README.md in the BlueMob project.",
+            Text("Messages, calls and files over the internet are end-to-end encrypted: only you and the person you're talking to can read or hear them, not even BlueMob.",
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp))
         }
     }

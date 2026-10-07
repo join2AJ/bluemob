@@ -91,6 +91,8 @@ fun OnboardingScreen(
     onFinish: (name: String, avatar: String) -> Unit,
     /** "I already have a BlueMob ID": restore one with a recovery code. */
     onRestore: () -> Unit = {},
+    /** Signed in already (replaying the intro): finish with "Done", and no restore link. */
+    signedIn: Boolean = false,
 ) {
     val pageCount = slides.size
     val pager = rememberPagerState { pageCount }
@@ -110,7 +112,7 @@ fun OnboardingScreen(
                 if (!isLast) {
                     TextButton(onClick = { scope.launch { pager.animateScrollToPage(pageCount - 1) } }) { Text("Skip") }
                 } else {
-                    TextButton(onClick = onRestore) { Text("I already have a BlueMob ID") }
+                    if (!signedIn) TextButton(onClick = onRestore) { Text("I already have a BlueMob ID") }
                 }
             }
 
@@ -132,7 +134,7 @@ fun OnboardingScreen(
                     enabled = true,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp, vertical = 14.dp),
                 ) {
-                    Text(if (isLast) "Sign up" else "Next")
+                    Text(if (isLast) (if (signedIn) "Done" else "Sign up") else "Next")
                     Spacer(Modifier.width(8.dp))
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(18.dp))
                 }

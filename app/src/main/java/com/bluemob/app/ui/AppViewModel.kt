@@ -160,7 +160,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setAvatar(value: String) = identity.setAvatar(value)
     fun setShareLocation(value: Boolean) = identity.setShareLocation(value)
     fun finishOnboarding() = identity.setOnboardingDone(true)
-    fun replayIntro() = identity.setOnboardingDone(false)
+    /** "Replay the intro" from You: shows it once, then back to the app (nothing is reset). */
+    val replayingIntro = kotlinx.coroutines.flow.MutableStateFlow(false)
+    fun replayIntro() { replayingIntro.value = true }
+    fun endIntroReplay() {
+        replayingIntro.value = false
+        // Someone who's signed in has seen the intro: don't show it again by itself.
+        if (blueMob.profile.profile.value.verified) identity.setOnboardingDone(true)
+    }
 
     /** What to ask before the mesh starts: a radio is off and the user hasn't decided whether BlueMob may turn it on. */
     enum class MeshAsk { BLUETOOTH, WIFI }
@@ -224,8 +231,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun ping(nodeId: String) = mesh.ping(nodeId)
 
     fun send(nodeId: String, text: String) = repo.send(nodeId, text)
+    private var chatOnScreen: String? = null
+    private var visible = true
+
+    /** BlueMob on screen or not: messages only count as read while the chat is actually visible. */
+    fun setVisible(on: Boolean) {
+        visible = on
+        repo.openConversation = if (on) chatOnScreen else null
+    }
+
     fun openChat(nodeId: String?) {
-        repo.openConversation = nodeId
+        chatOnScreen = nodeId
+        repo.openConversation = if (visible) nodeId else null
         // Check whether they're online over the internet right away, and keep checking while the chat is open.
         blueMob.watchPresence = { listOfNotNull(nodeId, blueMob.calls.call.value?.peer) }
         if (nodeId != null && blueMob.live.connected.value) blueMob.live.askPresence(listOf(nodeId))

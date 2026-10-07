@@ -223,7 +223,8 @@ class BlueMobApp : Application() {
         // Files for people who aren't nearby go through the relay, encrypted as they are.
         files.net = com.bluemob.app.bridge.RelayFiles({ settings.bridgeUrl.value.takeIf { it.isNotBlank() } }, identity.keys)
         files.netUp = { connectivity.online.value && settings.bridgeUrl.value.isNotBlank() }
-        appScope.launch { live.connected.collect { if (it) files.pushAllOnline() } }
+        // Each time the live link (re)connects, anything waiting goes: messages, delivery and read receipts, files.
+        appScope.launch { live.connected.collect { if (it) { mesh.router.onInternetUp(); files.pushAllOnline() } } }
         voiceNotes = com.bluemob.app.files.VoiceNotes(this, appScope)
         callLog = db.calls()
         backups = com.bluemob.app.backup.BackupManager(this)

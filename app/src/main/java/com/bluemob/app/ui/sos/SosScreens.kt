@@ -309,19 +309,19 @@ fun SosSignalScreen(start: SignalMode, defaultMode: SignalMode, signals: SignalC
     val torch = mode == SignalMode.TORCH || mode == SignalMode.ALL
     val sound = mode == SignalMode.SOUND || mode == SignalMode.ALL
 
-    // Keep the screen on and as bright as it goes while signalling.
+    // Keep the screen on while signalling; full brightness only when the screen itself is the signal (saves battery
+    // with flashlight or sound).
     val view = LocalView.current
     val activity = LocalContext.current as? Activity
     DisposableEffect(Unit) {
         view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false; signals.stop() }
+    }
+    DisposableEffect(screen) {
         val window = activity?.window
         val before = window?.attributes?.screenBrightness
-        window?.attributes = window?.attributes?.apply { screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL }
-        onDispose {
-            view.keepScreenOn = false
-            window?.attributes = window?.attributes?.apply { screenBrightness = before ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
-            signals.stop()
-        }
+        if (screen) window?.attributes = window?.attributes?.apply { screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL }
+        onDispose { if (screen) window?.attributes = window?.attributes?.apply { screenBrightness = before ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE } }
     }
     LaunchedEffect(mode) {
         while (true) {

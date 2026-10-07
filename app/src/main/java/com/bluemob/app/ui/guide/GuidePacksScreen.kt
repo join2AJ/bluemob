@@ -51,30 +51,35 @@ fun GuidePacksScreen(relay: String, online: Boolean, onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 8.dp))
             note?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp)) }
         }
-        if (installed.isNotEmpty()) {
-            item { GroupLabel("On this phone") }
-            items(installed, key = { "i" + it.id }) { p ->
-                PackRow(p, "${p.articles} guides · works offline" + if (System.currentTimeMillis() - (GuidePacks.installedAt[p.id] ?: 0L) < GuidePacks.NEW_FOR_MS) " · NEW" else "") { TextButton(onClick = { GuidePacks.remove(p.id); note = "${p.title} removed." }) { Text("Remove", color = Extra.rose) } }
+        // One list: every pack once, with its size and what you can do with it.
+        val all = ((available ?: emptyList()) + installed.filter { i -> available?.none { it.id == i.id } != false }).distinctBy { it.id }
+        item {
+            val status = when {
+                relay.isBlank() -> "Downloads aren't available in this version."
+                !online -> "You're offline: showing what's on this phone. Connect to download more."
+                loading -> "Checking for guides…"
+                available == null -> "Couldn't check for new guides right now."
+                else -> null
             }
-        }
-        item { GroupLabel("Available") }
-        when {
-            relay.isBlank() -> item { Text("Downloads come from the BlueMob relay. Set it in You → Internet bridge.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2) }
-            !online -> item { Text("Connect to the internet (mobile data or Wi-Fi) to see the guides you can download.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2) }
-            loading -> item { Text("Loading…", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2) }
-            available == null -> item {
-                Column {
-                    Text("Couldn't reach the relay. It may be waking up: try again in a minute.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
-                    OutlinedButton(onClick = { scope.launch { loading = true; available = GuidePacks.available(relay.trimEnd('/')); loading = false } }, modifier = Modifier.padding(top = 8.dp)) { Text("Try again") }
+            status?.let {
+                Column(Modifier.padding(top = 10.dp)) {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                    if (available == null && online && relay.isNotBlank() && !loading)
+                        OutlinedButton(onClick = { scope.launch { loading = true; available = GuidePacks.available(relay.trimEnd('/')); loading = false } }, modifier = Modifier.padding(top = 8.dp)) { Text("Try again") }
                 }
             }
-            else -> items(available!!, key = { "a" + it.id }) { p ->
-                val have = installed.firstOrNull { it.id == p.id }
-                PackRow(p, "${p.articles} guides · ${Attachment.sizeText(p.bytes)}" + if (have != null && have.version >= p.version) " · downloaded" else "") {
-                    if (have == null || have.version < p.version) Button(onClick = {
+        }
+        items(all, key = { it.id }) { p ->
+            val have = installed.firstOrNull { it.id == p.id }
+            val isNew = have != null && System.currentTimeMillis() - (GuidePacks.installedAt[p.id] ?: 0L) < GuidePacks.NEW_FOR_MS
+            val newer = available?.firstOrNull { it.id == p.id }?.let { have != null && it.version > have.version } == true
+            PackRow(p, "${p.articles} guides · ${Attachment.sizeText(p.bytes)}" + when { have == null -> ""; isNew -> " · on this phone · NEW"; else -> " · on this phone" }) {
+                Column(horizontalAlignment = Alignment.End) {
+                    if (have == null || newer) Button(onClick = {
                         busy = p.id
                         scope.launch { note = GuidePacks.download(relay.trimEnd('/'), p.id) ?: "${p.title} is ready offline."; busy = null }
-                    }, enabled = busy == null) { Text(if (busy == p.id) "…" else if (have != null) "Update" else "Download") }
+                    }, enabled = busy == null && online) { Text(if (busy == p.id) "…" else if (newer) "Update" else "Download") }
+                    if (have != null) TextButton(onClick = { GuidePacks.remove(p.id); note = "${p.title} removed." }) { Text("Remove", color = Extra.rose) }
                 }
             }
         }

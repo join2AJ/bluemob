@@ -150,9 +150,12 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
         var introSeen by rememberSaveable { mutableStateOf(false) }
         // People who used BlueMob before sign-up existed verify their number once, with their name filled in.
         val upgrading = rememberSaveable { onboarded && !profile.verified }
+        val replaying by vm.replayingIntro.collectAsStateWithLifecycle()
         val stage = when {
             restoring && !profile.verified -> "restore"
-            !onboarded && !introSeen -> "intro"
+            replaying -> "intro"
+            // Signed-in people never land on the intro again (only "Replay the intro" shows it).
+            !onboarded && !introSeen && !profile.verified -> "intro"
             !profile.verified -> "signup"
             else -> "app"
         }
@@ -164,7 +167,8 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
                         vm.restore(code).also { if (it == null) actions.restartApp() }
                     })
                 }
-                "intro" -> OnboardingScreen(initialName = name, initialAvatar = avatar, onFinish = { _, _ -> introSeen = true }, onRestore = { restoring = true })
+                "intro" -> OnboardingScreen(initialName = name, initialAvatar = avatar, signedIn = profile.verified,
+                    onFinish = { _, _ -> introSeen = true; vm.endIntroReplay() }, onRestore = { restoring = true })
                 "signup" -> com.bluemob.app.ui.account.SignupFlow(
                     upgrading = upgrading, initialName = if (upgrading) name else "", initialAvatar = avatar,
                     bluemobId = com.bluemob.app.util.formatId(vm.nodeId),
