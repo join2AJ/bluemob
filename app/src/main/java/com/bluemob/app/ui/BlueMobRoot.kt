@@ -250,9 +250,29 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
         onMedia = { push("media:$peer") },
     )
     val toggleLocation: (Boolean) -> Unit = { on -> if (on) actions.enableLocationSharing() else vm.setShareLocation(false) }
+    /** "Teach Sky the answer": the question being taught, while the dialog is open. */
+    var teaching by rememberSaveable { mutableStateOf<String?>(null) }
+    teaching?.let { q ->
+        var answer by remember { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { teaching = null },
+            title = { Text("Teach Sky") },
+            text = {
+                Column {
+                    Text("When someone asks “$q”, Sky should answer:", style = MaterialTheme.typography.bodyMedium)
+                    androidx.compose.material3.OutlinedTextField(answer, { answer = it.take(1_000) }, minLines = 3, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    Text("Kept only on this phone.", style = MaterialTheme.typography.bodySmall, color = com.bluemob.app.ui.theme.Extra.ink3, modifier = Modifier.padding(top = 6.dp))
+                }
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { com.bluemob.app.bot.SkyMemory.teach(q, answer); teaching = null; vm.send(SkyBot.NODE_ID, q) },
+                enabled = answer.isNotBlank()) { Text("Teach") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { teaching = null }) { Text("Cancel") } },
+        )
+    }
     /** Buttons under Sky's replies. */
     val onSkyAction: (String) -> Unit = { target ->
         when {
+            target.startsWith("teach:") -> teaching = target.removePrefix("teach:")
             target == "sos" -> push("sos")
             target == "sos_signal" -> push("signal")
             target == "power" -> actions.openBatterySaver()

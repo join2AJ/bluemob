@@ -68,7 +68,8 @@ object SkyBot {
         "battery-low" to listOf("low battery", "battery low", "battery critical", "critical battery", "battery dying", "battery is dying", "phone dying", "phone is dying",
             "battery discharg", "battery+die", "battery+dead", "battery+%", "battery+save", "battery+last", "battery+empty", "battery+drain", "phone+switch off"),
         "recharge" to listOf("recharge", "charge my phone", "charge the phone", "charging", "power bank", "powerbank", "solar", "no charger", "regain battery",
-            "battery back", "get power", "charge+without"),
+            "battery back", "get power", "charge+without", "electric", "power source", "power supply", "plug point", "socket", "find power", "no power",
+            "need power", "energy", "charger"),
         "threes" to listOf("priorit", "first thing", "how long can", "survive without", "hungry", "food"),
     )
     private val urgent = Regex("\\b(hurt|pain|sick|injur|emergency|bitten|stung|sting|allerg|fever|poison|vomit|faint|seizure|pregnan|unwell|dizzy|bee|scorpion|spider)")
@@ -173,6 +174,8 @@ object SkyBot {
     fun reply(input: String, facts: SkyFacts): SkyAnswer {
         val t = input.lowercase()
         turn++
+        // Something the user taught Sky on this phone comes first.
+        SkyMemory.answer(t)?.let { return SkyAnswer("You taught me this: $it", listOf(SkyAction("Teach me a better answer", "teach:" + input.take(120)))) }
         live(t, facts)?.let { return it }
         appHelp.firstOrNull { h -> h.keys.any { atWord(t, it) } }?.let { return SkyAnswer(it.text, it.actions) }
         if (freeTime.containsMatchIn(t)) return SkyAnswer(
@@ -192,37 +195,77 @@ object SkyBot {
         // No keyword fits: look through every guide's words before giving up.
         searchGuides(t)?.let { return it }
         chat.firstOrNull { (keys, _) -> keys.any { matches(t, it) } }?.let { (_, options) -> return SkyAnswer(options[turn % options.size]) }
+        // Not sure: offer the closest guides instead of guessing, and let them teach me.
+        val close = closestGuides(t)
+        val teach = SkyAction("Teach Sky the answer", "teach:" + input.take(120))
+        if (close.isNotEmpty()) return SkyAnswer("I'm not sure I understood. Did you mean one of these?",
+            close.map { SkyAction(it.title, "guide:${it.id}") } + teach)
         if (questionLike.containsMatchIn(t)) return SkyAnswer(
-            "I don't have an answer for that yet. I'm best with first aid, water, fire, shelter, finding your way, signals, weather, disasters, " +
-                "phone battery, and how BlueMob works.",
-            listOf(tab("guide", "Browse the guide")),
+            "I don't know that one yet. I'm best with first aid, water, fire, shelter, finding your way, signals, weather, disasters, " +
+                "phone battery, and how BlueMob works. If you know the answer, teach me and I'll remember it on this phone.",
+            listOf(teach, tab("guide", "Browse the guide")),
         )
         return SkyAnswer(fallback[turn % fallback.size])
     }
 
     private val stopWords = setOf("what", "when", "where", "which", "while", "with", "without", "would", "could", "should", "there", "their", "they",
         "this", "that", "these", "have", "from", "your", "about", "into", "know", "dont", "don't", "does", "doing", "how", "the", "and", "for", "you",
-        "are", "can", "not", "but", "was", "will", "just", "only", "told", "tell", "please", "help", "need", "want", "get", "got", "some", "any")
+        "are", "can", "not", "but", "was", "will", "just", "only", "told", "tell", "please", "help", "need", "want", "get", "got", "some", "any",
+        // Words that appear in many guides and say little about which one is meant.
+        "find", "make", "keep", "stay", "take", "give", "thing", "things", "going", "good", "best", "much", "many", "very", "more", "most", "really",
+        "something", "anything", "someone", "anyone", "time", "right", "back", "away", "here", "then", "them", "than", "also", "like", "used", "using",
+        "safe", "able", "after", "before", "over", "under", "around", "work", "works", "still", "every", "other", "place", "people", "person")
+
+    /** How informative each word stem is: rare across guides = high (inverse document frequency). */
+    private fun idf(): Map<String, Double> {
+        val all = GuideContent.all()
+        val df = HashMap<String, Int>()
+        all.forEach { a -> stems(a.title + " " + a.intro + " " + a.steps.joinToString(" ")).forEach { df[it] = (df[it] ?: 0) + 1 } }
+        return df.mapValues { (_, n) -> kotlin.math.ln((all.size + 1.0) / n) }
+    }
+
+    private fun stems(text: String): Set<String> =
+        Regex("[a-z]+").findAll(text.lowercase()).map { it.value }.filter { it.length >= 4 && it !in stopWords }.map { it.take(5) }.toSet()
+
+    /** Each guide with a relevance score for [t]: title words count double, rare words count more. */
+    private fun scored(t: String): List<Pair<com.bluemob.app.guide.Article, Double>> {
+        val words = stems(t)
+        if (words.isEmpty()) return emptyList()
+        val w = idf()
+        return GuideContent.all().map { a ->
+            val title = stems(a.title)
+            val body = stems(a.intro + " " + a.steps.joinToString(" "))
+            a to words.sumOf { x -> (w[x] ?: 0.0) * (if (x in title) 2.0 else if (x in body) 1.0 else 0.0) }
+        }.filter { it.second > 0 }.sortedByDescending { it.second }
+    }
+
+    /** Up to three guides that might be meant, for "did you mean". */
+    fun closestGuides(t: String): List<com.bluemob.app.guide.Article> {
+        val words = stems(t)
+        // Worth suggesting: a word in its title, or at least two of the question's words in the guide.
+        return scored(t).filter { (a, score) ->
+            score >= MAYBE && (stems(a.title).any { it in words } || stems(a.intro + " " + a.steps.joinToString(" ")).count { it in words } >= 2)
+        }.take(3).map { it.first }
+    }
+
+    /** Relevance worth offering as "did you mean". */
+    private const val MAYBE = 2.0
 
     /**
      * Free-text search across all guides (title, intro, steps), for questions no keyword covers. Words are matched by
      * their first 5 letters, so "bleeding" finds "bleed"; title words count three times. Returns null if nothing fits well.
      */
     fun searchGuides(t: String): SkyAnswer? {
-        val words = Regex("[a-z]+").findAll(t.lowercase()).map { it.value }.filter { it.length >= 4 && it !in stopWords }.map { it.take(5) }.toSet()
-        if (words.isEmpty()) return null
-        var best: com.bluemob.app.guide.Article? = null
-        var bestScore = 0
-        for (a in GuideContent.all()) {
-            val title = Regex("[a-z]+").findAll(a.title.lowercase()).map { it.value.take(5) }.toSet()
-            val body = Regex("[a-z]+").findAll((a.intro + " " + a.steps.joinToString(" ")).lowercase()).map { it.value.take(5) }.toSet()
-            val score: Int = words.sumOf { w: String -> if (w in title) 3 else if (w in body) 1 else 0.toInt() }
-            if (score > bestScore) { bestScore = score; best = a }
-        }
-        // At least a title word, or three words found in the text.
-        if (best == null || bestScore < 3) return null
+        val ranked = scored(t)
+        val (best, score) = ranked.firstOrNull() ?: return null
+        val runnerUp = ranked.getOrNull(1)?.second ?: 0.0
+        // Confident only when the match is strong and clearly ahead of the next guide; otherwise "did you mean".
+        if (score < CONFIDENT || score < runnerUp * 1.3) return null
         return guideAnswer(best, prefix = "This guide looks closest")
     }
+
+    /** Relevance needed to answer from a guide without asking (about two rare words, or one in a title). */
+    private const val CONFIDENT = 4.0
 
     private fun guideAnswer(a: com.bluemob.app.guide.Article, prefix: String): SkyAnswer {
         val steps = a.steps.take(4).mapIndexed { i, s -> "${i + 1}. $s" }.joinToString("\n")

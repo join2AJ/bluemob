@@ -1,5 +1,6 @@
 package com.bluemob.app.bot
 
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,7 +41,7 @@ class SkyBotTest {
         "what is my id" to "BM · 3F9A 1C2B",
         "why is my message waiting" to "waits safely on your phone",
         "my friend got stung by a scorpion" to "I don't have a guide",
-        "how do I fix a car engine?" to "I don't have an answer",
+        "how do I fix a car engine?" to "I don't know that one yet",
         "how much battery do I have" to "Battery 64%",
         "Battery discharge what to do" to "Phone battery critically low",
         "Suppose my battery is 1 % what to do" to "At 1%, act now",
@@ -78,5 +79,26 @@ class SkyBotTest {
     @Test
     fun typingDelayIsCapped() {
         assertTrue(SkyBot.typingDelayMs("x".repeat(10_000)) <= 2_200)
+    }
+
+    @Test fun electricityMeansCharging() {
+        val r = SkyBot.reply("Where to find electricity", facts)
+        assertTrue(r.text, r.actions.any { it.target == "guide:recharge" })
+        assertFalse(r.text, r.text.contains("Find north"))
+    }
+
+    @Test fun aSingleCommonWordIsNotEnoughToPickAGuide() {
+        // "find" appears in many guides: Sky asks instead of guessing.
+        val r = SkyBot.reply("where can I buy a new tyre", facts)
+        assertFalse(r.text, r.text.startsWith("This guide looks closest"))
+        assertTrue(r.actions.any { it.target.startsWith("teach:") })
+    }
+
+    @Test fun rememberWhatItWasTaught() {
+        SkyBot.reply("what is the camp wifi password", facts).let { assertTrue(it.actions.any { a -> a.target.startsWith("teach:") }) }
+        SkyMemory.teach("what is the camp wifi password", "It's written on the board at reception.")
+        val r = SkyBot.reply("camp wifi password?", facts)
+        assertTrue(r.text, r.text.contains("written on the board"))
+        SkyMemory.forget("what is the camp wifi password")
     }
 }

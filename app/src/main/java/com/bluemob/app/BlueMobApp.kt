@@ -137,6 +137,7 @@ class BlueMobApp : Application() {
         identity = Identity(this)
         lock = com.bluemob.app.account.AppLock(this)
         com.bluemob.app.guide.GuidePacks.init(SecurePrefs.open(this, "guides"))
+        com.bluemob.app.bot.SkyMemory.init(SecurePrefs.open(this, "sky"))
         profile = com.bluemob.app.account.ProfileStore(SecurePrefs.open(this, "profile"))
         CrashLog.step(this, "unlocking encrypted contacts")
         contacts = ContactsStore(this)
