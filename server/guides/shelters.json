@@ -1,0 +1,58 @@
+{
+ "id": "shelters",
+ "version": 1,
+ "emoji": "🏕️",
+ "title": "Shelters",
+ "about": "Staying warm and dry for a night: debris huts, tarp shelters, and insulating from the ground.",
+ "articles": [
+  {
+   "id": "debris",
+   "category": "SHELTER",
+   "title": "Build a debris hut",
+   "minutes": 3,
+   "intro": "A tight, leaf-filled shelter that keeps you warm without a fire.",
+   "steps": [
+    "Find a ridge pole a little longer than you are tall. Rest one end on a stump or a fork about waist high.",
+    "Lean sticks along both sides of the pole, close together, to make a ribcage.",
+    "Pile leaves, grass and pine needles over it, at least an arm's length thick.",
+    "Fill the inside with dry leaves too, and block the doorway with a pile of leaves once inside.",
+    "Keep it just big enough to lie in: small shelters stay warmer."
+   ],
+   "avoid": [
+    "Don't build in a dip where cold air and water collect, or under dead branches."
+   ]
+  },
+  {
+   "id": "tarp",
+   "category": "SHELTER",
+   "title": "Tarp shelter",
+   "minutes": 2,
+   "intro": "A tarp, poncho or survival blanket makes a quick rain-proof roof.",
+   "steps": [
+    "Tie a ridge line between two trees at chest height (clove hitch at one end, taut-line hitch at the other).",
+    "Hang the tarp over it and stake or weigh down the edges, low on the windward side.",
+    "Angle it so rain runs off and doesn't pool.",
+    "Lie on insulation, not on the bare ground."
+   ],
+   "avoid": [
+    "Don't pitch it facing into the wind."
+   ]
+  },
+  {
+   "id": "ground",
+   "category": "SHELTER",
+   "title": "Stay off the cold ground",
+   "minutes": 2,
+   "intro": "The ground pulls heat out of you far faster than air. Insulation underneath matters more than a roof.",
+   "steps": [
+    "Gather a bed of dry leaves, grass, pine boughs or your pack, at least 15 cm thick when squashed.",
+    "Lie on it, not on bare earth or rock.",
+    "Add more under hips and shoulders, where you press down most.",
+    "Wet? Even a layer of branches keeps you out of the water."
+   ],
+   "avoid": [
+    "Don't sleep directly on snow, rock or wet soil."
+   ]
+  }
+ ]
+}

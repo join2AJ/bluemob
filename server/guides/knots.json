@@ -1,0 +1,78 @@
+{
+ "id": "knots",
+ "version": 1,
+ "emoji": "🪢",
+ "title": "Knots",
+ "about": "Four knots that cover almost everything outdoors: joining, loops, tying to a tree, and tight lines.",
+ "articles": [
+  {
+   "id": "reef",
+   "category": "BASICS",
+   "title": "Reef knot (joining two ends)",
+   "minutes": 2,
+   "intro": "Ties two ends of the same rope together, like a bandage or a bundle. Flat and easy to undo.",
+   "steps": [
+    "Hold one end in each hand.",
+    "Cross the left end over the right and tuck it under (like the first step of tying shoes).",
+    "Now cross the right end over the left and tuck it under.",
+    "Pull both ends: the two loops lie flat, side by side.",
+    "Remember: left over right, then right over left."
+   ],
+   "avoid": [
+    "Don't use it to join two different ropes or to hold a person's weight: it can slip.",
+    "If the loops look twisted (a 'granny knot'), untie and redo the second cross the other way."
+   ]
+  },
+  {
+   "id": "bowline",
+   "category": "BASICS",
+   "title": "Bowline (a loop that won't slip)",
+   "minutes": 3,
+   "intro": "Makes a fixed loop at the end of a rope, for rescue, mooring or hanging. Easy to untie even after a heavy load.",
+   "steps": [
+    "Make a small loop in the rope, with the short end on top (the 'rabbit hole').",
+    "Bring the short end up through the loop from below (the rabbit comes out of the hole).",
+    "Pass it behind the long part of the rope (round the tree).",
+    "Bring it back down through the small loop (back down the hole).",
+    "Hold the short end against the big loop and pull the long part tight.",
+    "Leave at least a hand's width of tail."
+   ],
+   "avoid": [
+    "Don't leave a short tail: it can work loose when not loaded.",
+    "Check the knot before trusting your weight to it."
+   ]
+  },
+  {
+   "id": "clove",
+   "category": "BASICS",
+   "title": "Clove hitch (tying to a post or tree)",
+   "minutes": 2,
+   "intro": "Quickly ties a rope to a pole, branch or tree, for a ridge line, a tarp or a tent guy.",
+   "steps": [
+    "Wrap the rope once around the post.",
+    "Cross over the first wrap and go around the post again.",
+    "Tuck the end under that second wrap.",
+    "Pull both ends: two neat parallel wraps with an X across them."
+   ],
+   "avoid": [
+    "Don't rely on it alone for a load that moves back and forth: add two half hitches."
+   ]
+  },
+  {
+   "id": "taut",
+   "category": "BASICS",
+   "title": "Taut-line hitch (adjustable tight line)",
+   "minutes": 2,
+   "intro": "A loop you can slide to tighten or loosen a line: perfect for tent and tarp guy lines.",
+   "steps": [
+    "Pass the rope around a peg or tree and bring the end back along the line.",
+    "Wrap the end twice around the line, working towards the peg.",
+    "Then wrap once more around the line, outside the first two wraps.",
+    "Pull tight. Slide the knot to adjust the tension; it grips when loaded."
+   ],
+   "avoid": [
+    "Don't use thin slippery cord: it may not grip."
+   ]
+  }
+ ]
+}

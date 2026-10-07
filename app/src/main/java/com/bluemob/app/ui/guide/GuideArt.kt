@@ -35,17 +35,20 @@ import kotlin.math.sin
  * needle settling north, a signal pulse, rain and lightning, shaking ground, a swaying leaf.
  */
 @Composable
-fun GuideArt(category: GuideCategory, modifier: Modifier = Modifier, animate: Boolean = true) {
+fun GuideArt(category: GuideCategory, modifier: Modifier = Modifier, animate: Boolean = true, articleId: String? = null) {
     // Screenshot tests and previews get a still frame.
     val still = LocalInspectionMode.current || !animate
     val t = if (still) 0.35f else {
         val loop = rememberInfiniteTransition(label = "guide-art")
-        val v by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(2_400, easing = LinearEasing), RepeatMode.Restart), label = "t")
+        val ms = articleId?.let { GuideScenes.duration(it) } ?: 2_400
+        val v by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(ms, easing = LinearEasing), RepeatMode.Restart), label = "t")
         v
     }
     val base = category.color
     Box(modifier.clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(base.copy(alpha = 0.95f), base.copy(alpha = 0.65f))))) {
         Canvas(Modifier.matchParentSize()) {
+            // Each guide has its own scene; the topic's picture is only for guides that don't have one yet.
+            if (articleId != null && GuideScenes.draw(this, articleId, t)) return@Canvas
             when (category) {
                 GuideCategory.FIRST_AID -> heartbeat(t)
                 GuideCategory.WATER -> drops(t)

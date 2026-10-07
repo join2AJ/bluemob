@@ -1,0 +1,61 @@
+{
+ "id": "firecraft",
+ "version": 1,
+ "emoji": "🔥",
+ "title": "Fire craft",
+ "about": "Laying a fire that lights first time, lighting it without matches, and keeping it going.",
+ "articles": [
+  {
+   "id": "teepee",
+   "category": "FIRE",
+   "title": "Build a fire that lights first time",
+   "minutes": 3,
+   "intro": "Most fires fail because there's no tinder or the wood is too big. Gather everything before you light.",
+   "steps": [
+    "Pick a sheltered spot, clear the ground to soil, ring it with stones if you can.",
+    "Tinder: a fist-sized ball of dry grass, birch bark, cotton or wood shavings.",
+    "Kindling: two handfuls of dry twigs, matchstick to pencil thick (they snap, not bend).",
+    "Fuel: thumb- to wrist-thick dry branches, stacked nearby.",
+    "Lay the tinder, lean kindling over it in a cone (teepee) with a gap on the windward side.",
+    "Light the tinder through the gap, low down. Blow gently at the base.",
+    "Add bigger sticks one at a time once the kindling burns well."
+   ],
+   "avoid": [
+    "Never light under overhanging branches or on peat/dry leaves.",
+    "Never leave a fire alone; drown and stir it until cold."
+   ]
+  },
+  {
+   "id": "sparks",
+   "category": "FIRE",
+   "title": "Light a fire without matches",
+   "minutes": 3,
+   "intro": "A ferro rod, a battery, or a lens can all light dry tinder.",
+   "steps": [
+    "Ferro rod: hold the striker still on the rod, close to the tinder, and pull the rod back hard. Sparks fall onto the tinder.",
+    "Battery: touch both ends of a 9-volt battery to fine steel wool; it glows and lights tinder.",
+    "Lens: on a sunny day, focus sunlight through a magnifier, glasses or a clear water bottle onto dark tinder until it smokes, then blow gently.",
+    "Catch the first glow with very fine tinder, then fold it into the bigger tinder bundle and blow."
+   ],
+   "avoid": [
+    "Don't strike a ferro rod away from the tinder: the sparks cool before they land."
+   ]
+  },
+  {
+   "id": "keep",
+   "category": "FIRE",
+   "title": "Keep a fire going",
+   "minutes": 2,
+   "intro": "A good fire needs air, the right wood, and steady feeding.",
+   "steps": [
+    "Add wood before the flames die down, not after.",
+    "Lay sticks across each other with gaps so air can flow.",
+    "Dry damp wood beside (not on) the fire before you add it.",
+    "For the night: a few thick logs, side by side, burn slowly. Bank embers with ash to keep them till morning."
+   ],
+   "avoid": [
+    "Don't smother it with too much wood at once."
+   ]
+  }
+ ]
+}

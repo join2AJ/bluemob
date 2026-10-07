@@ -135,7 +135,7 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
                 item { GroupLabel("Guide of the day") }
                 item {
                     Box(Modifier.fillMaxWidth().height(150.dp).clip(MaterialTheme.shapes.large).clickable { onOpen(a.id) }) {
-                        GuideArt(a.category, Modifier.fillMaxSize())
+                        GuideArt(a.category, Modifier.fillMaxSize(), articleId = a.id)
                         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.45f)))).padding(14.dp)) {
                             Text(a.title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${a.category.label} · ${a.minutes} min", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f))
@@ -281,7 +281,7 @@ fun ArticleScreen(article: Article, saved: Boolean, onBack: () -> Unit, onToggle
     SubScreen(article.title, onBack, actions = {
         IconButton(onClick = onToggleSaved) { Text(if (saved) "★" else "☆", fontSize = 22.sp, color = if (saved) Extra.ember else MaterialTheme.colorScheme.onSurface) }
     }) {
-        item { GuideArt(article.category, Modifier.padding(top = 8.dp).fillMaxWidth().height(140.dp)) }
+        item { GuideArt(article.category, Modifier.padding(top = 8.dp).fillMaxWidth().height(160.dp), articleId = article.id) }
         item {
             Column(Modifier.padding(top = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -376,7 +376,7 @@ private fun StepByStep(a: Article, speaker: Speaker, scale: Float, onClose: () -
             Text("Close", color = MaterialTheme.colorScheme.primary, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClose).padding(8.dp))
         }
         androidx.compose.material3.LinearProgressIndicator(progress = { (i + 1f) / a.steps.size }, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
-        GuideArt(a.category, Modifier.fillMaxWidth().height(110.dp))
+        GuideArt(a.category, Modifier.fillMaxWidth().height(150.dp), articleId = a.id)
         Text("Step ${i + 1} of ${a.steps.size}", style = MaterialTheme.typography.labelLarge, color = Extra.ink3, modifier = Modifier.padding(top = 18.dp))
         Text(a.steps[i], style = MaterialTheme.typography.headlineSmall.let { it.copy(fontSize = it.fontSize * scale, lineHeight = it.lineHeight * scale) },
             modifier = Modifier.padding(top = 8.dp).weight(1f))

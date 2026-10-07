@@ -47,3 +47,13 @@ class GuideDashboardTest {
         assertTrue(GuideDashboard.ofTheDay(all, 100) != GuideDashboard.ofTheDay(all, 101))
     }
 }
+
+/** Every guide, built in or downloadable, has its own animation (not just its topic's). */
+class GuideScenesTest {
+    @Test fun everyGuideHasItsOwnScene() {
+        val dir = listOf(File("../server/guides"), File("server/guides")).firstOrNull { it.isDirectory }
+        val packIds = dir?.listFiles { f -> f.name.endsWith(".json") }?.flatMap { GuidePacks.parse(JSONObject(it.readText())).second.map { a -> a.id } }.orEmpty()
+        val missing = (GuideContent.articles + GuideExtra.articles).map { it.id }.plus(packIds).filterNot { com.bluemob.app.ui.guide.GuideScenes.has(it) }
+        assertTrue("No animation for: $missing", missing.isEmpty())
+    }
+}

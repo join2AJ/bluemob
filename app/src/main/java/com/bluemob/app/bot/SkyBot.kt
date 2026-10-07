@@ -56,6 +56,8 @@ object SkyBot {
             "water+safe", "water+clean", "water+boil", "water+treat", "water+filter", "water+drinkable", "water+germs", "stream+drink", "river+drink"),
         "fire" to listOf("fire", "campfire", "matches", "lighter", "tinder", "keep+warm+wood"),
         "shelter" to listOf("shelter", "sleep outside", "sleep in the open", "stay dry", "build a hut", "sleep+night+outside", "rain+sleep"),
+        "find-bluemob" to listOf("find someone", "find my friend", "find him", "find her", "find them", "how to reach them", "where is my friend", "go to them",
+            "locate+friend", "track+friend", "find+sos"),
         "help-sos" to listOf("someone sent an sos", "someone sent sos", "received an sos", "got an sos", "sos from", "help someone", "someone needs help", "friend needs help"),
         "north" to listOf("north", "direction", "which way", "without a compass", "navigate", "stars", "shadow stick", "shadow", "polaris", "north star", "southern cross", "sunrise", "sunset"),
         "lost" to listOf("lost", "can't find my way", "cant find my way", "stranded", "where am i", "way+back", "get down", "way down", "getting down",
