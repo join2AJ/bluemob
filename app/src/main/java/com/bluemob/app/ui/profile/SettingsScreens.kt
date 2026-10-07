@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.bluemob.app.mesh.LogLine
 import com.bluemob.app.ui.components.Group
 import com.bluemob.app.ui.components.GroupLabel
@@ -102,14 +103,49 @@ fun DiagnosticsScreen(
     techDetails: Boolean, onTechDetails: (Boolean) -> Unit,
     log: List<LogLine>, lastError: String?,
     onBack: () -> Unit, onBridge: () -> Unit, onAudit: () -> Unit,
+    /** Sends a problem report: (what happened, include technical details). Returns null when sent, or why not. */
+    onReport: suspend (String, Boolean) -> String? = { _, _ -> null },
 ) {
     val clipboard = LocalClipboardManager.current
+    var reporting by rememberSaveable { mutableStateOf(false) }
+    var reportNote by remember { mutableStateOf<String?>(null) }
+    if (reporting) {
+        var text by rememberSaveable { mutableStateOf("") }
+        var details by rememberSaveable { mutableStateOf(true) }
+        var sending by remember { mutableStateOf(false) }
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
+        AlertDialog(
+            onDismissRequest = { if (!sending) reporting = false },
+            title = { Text("Report a problem") },
+            text = {
+                Column {
+                    androidx.compose.material3.OutlinedTextField(text, { text = it.take(4000) }, minLines = 4, modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("What happened? What did you expect? When?") })
+                    Row(Modifier.padding(top = 8.dp).clickable { details = !details }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(details, { details = it })
+                        Text("Include technical details (phone model, BlueMob version, recent errors and mesh log). Never your messages, contacts or keys.",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = { TextButton(enabled = text.isNotBlank() && !sending, onClick = {
+                sending = true
+                scope.launch { val r = onReport(text, details); sending = false; reportNote = r ?: "Thanks! Your report reached the BlueMob team."; if (r == null) reporting = false }
+            }) { Text(if (sending) "Sending…" else "Send") } },
+            dismissButton = { TextButton(onClick = { reporting = false }, enabled = !sending) { Text("Cancel") } },
+        )
+    }
     var showLog by rememberSaveable { mutableStateOf(false) }
     val chevron: @Composable () -> Unit = { Icon(Icons.Outlined.ChevronRight, null, tint = Extra.ink3) }
     SubScreen("Diagnostics", onBack) {
         item {
             Text("Nothing here is needed day to day. It helps when something goes wrong.",
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 8.dp))
+        }
+        item {
+            Group {
+                SettingRow(Icons.Outlined.Terminal, Extra.rose, "Report a problem", reportNote ?: "Tell the BlueMob team what went wrong", onClick = { reporting = true }) { chevron() }
+            }
         }
         item { GroupLabel("Show") }
         item {

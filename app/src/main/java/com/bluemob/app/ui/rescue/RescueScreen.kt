@@ -3,6 +3,7 @@ package com.bluemob.app.ui.rescue
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -119,6 +120,8 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
                     Text(if (room.mine) "Your rescue" else "Helping ${room.victimName}", style = MaterialTheme.typography.titleMedium)
                     Text("${room.coming.size + 1} in this group · " + (listOf(if (room.mine) "you" else room.victimName) + room.coming.map { if (it.nodeId == myId) "you" else it.name }).joinToString(", "),
                         style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1)
+                    Text("Started ${rescueStamp(room.startedAt)}" + (if (room.ended) room.chat.lastOrNull()?.let { " · ended ${rescueStamp(it.at).substringAfter(", ")}" } ?: " · ended" else ""),
+                        style = MaterialTheme.typography.labelSmall, color = Extra.ink3, maxLines = 1)
                 }
                 Box(Modifier.padding(end = 12.dp)) {
                     when {
@@ -324,9 +327,12 @@ private fun ChatLine(m: RescueMessage, myId: String, victimId: String) {
         ).padding(horizontal = 14.dp, vertical = 10.dp)) {
             Text(m.text, style = MaterialTheme.typography.bodyLarge, color = if (mine) Color.White else MaterialTheme.colorScheme.onSurface)
         }
-        Text(TimeText.ago(m.at), style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp))
+        Text(rescueStamp(m.at), style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp))
     }
 }
+
+/** "7 Oct 2026, 13:05": rescues are records, so they keep exact times, not "2 h ago". */
+fun rescueStamp(at: Long): String = java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(at))
 
 /** An arrow pointing at the person, relative to where the phone faces. */
 @Composable
@@ -381,6 +387,36 @@ private fun RateRescue(room: RescueRoom, myId: String, rated: Set<String>, actio
                 if (!room.mine) TextButton(onClick = { actions.onRate(room.victimId, com.bluemob.app.trust.RatingKind.THANKS) }) { Text("Or just say thanks to ${room.victimName}") }
             } else {
                 Text("${room.victimName} is safe now.", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
+}
+
+
+/** Every rescue on this phone, in two lists: when you asked for help, and when you helped. Newest first. */
+@Composable
+fun RescuesScreen(rescues: List<com.bluemob.app.rescue.RescueRoom>, onBack: () -> Unit, onOpen: (String) -> Unit) {
+    com.bluemob.app.ui.components.SubScreen("Rescues", onBack) {
+        val asked = rescues.filter { it.mine }.sortedByDescending { it.startedAt }
+        val helped = rescues.filter { !it.mine }.sortedByDescending { it.startedAt }
+        if (rescues.isEmpty()) item { Text("No rescues yet.", color = Extra.ink2, modifier = Modifier.padding(top = 16.dp)) }
+        listOf("You asked for help" to asked, "You helped" to helped).forEach { (label, list) ->
+            if (list.isNotEmpty()) {
+                item { com.bluemob.app.ui.components.GroupLabel("$label · ${list.size}") }
+                list.forEach { r ->
+                    item(key = r.id) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
+                            .clickable { onOpen(r.id) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (r.ended) "✅" else "🆘", fontSize = 24.sp)
+                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(if (r.mine) "Your SOS" + (r.note.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") else "Helping ${r.victimName}",
+                                    style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                                Text(rescueStamp(r.startedAt) + " · " + (if (r.ended) "ended" else "active") + " · ${r.coming.size} came to help",
+                                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -46,6 +46,7 @@ class MessageRepositoryTest {
         }
         override suspend fun update(message: MessageEntity) { rows.value = rows.value.map { if (it.id == message.id) message else it } }
         override suspend fun clear() { rows.value = emptyList() }
+        override suspend fun deleteChat(peer: String) { rows.value = rows.value.filter { it.peer != peer } }
         override suspend fun all() = rows.value
         override suspend fun filesToSend(peer: String) = rows.value.filter { it.peer == peer && it.fromMe && it.att.isNotEmpty() && it.attState != 3 }
         override suspend fun pendingFiles() = rows.value.filter { it.fromMe && it.att.isNotEmpty() && it.attState != 3 }

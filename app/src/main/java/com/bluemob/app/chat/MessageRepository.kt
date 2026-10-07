@@ -140,6 +140,14 @@ class MessageRepository(
         }
     }
 
+    /** Deletes one chat from this phone (not Sky: Sky's chat is always there). Returns its attachment files to delete. */
+    suspend fun deleteChat(peer: String): List<String> {
+        if (peer == SkyBot.NODE_ID) return emptyList()
+        val files = dao.all().filter { it.peer == peer }.mapNotNull { it.attPath }
+        dao.deleteChat(peer)
+        return files
+    }
+
     fun clearAll() = scope.launch { dao.clear() }
 
     private suspend fun handle(event: MeshEvent) {

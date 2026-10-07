@@ -141,3 +141,17 @@ test("cloud backups: only the owner can list and download, and the newest 3 are 
   assert.equal((await fetch(`${base}/v1/backups?id=${me.id}&at=${at}&sig=${encodeURIComponent(forged)}`)).status, 403);
   srv.close();
 });
+
+test("problem reports are kept and readable only with the token", async () => {
+  const os = require("os"), path = require("path"), fs = require("fs");
+  const { createServer, Reports, Blobs, Backups } = require("./relay");
+  const srv = createServer(new Store(null), new Map(), new Blobs(null), new Backups(null), new Reports(fs.mkdtempSync(path.join(os.tmpdir(), "rep-")), "secret-token"));
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const r = await fetch(`${base}/v1/report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: "Sky gave a wrong answer", app: "0.14.0", device: "motorola" }) });
+  assert.equal(r.status, 200);
+  assert.equal((await fetch(`${base}/v1/reports?token=wrong`)).status, 403);
+  const list = await (await fetch(`${base}/v1/reports?token=secret-token`)).json();
+  assert.equal(list.reports[0].text, "Sky gave a wrong answer");
+  srv.close();
+});

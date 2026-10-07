@@ -302,10 +302,10 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onConnections = { push("connections") }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push("games") },
                             onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
                         )
-                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { push("rescue:$it") }, onNewChat = { push("newchat") },
+                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push("rescues") else push("rescue:$it") }, onNewChat = { push("newchat") },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
                             onCallBack = { id, n, video -> actions.requestCallPermissions(video) { vm.startCall(id, n, video) } },
-                            onClearCalls = { vm.clearCallLog() }, onDeleteCall = { vm.deleteCall(it) },
+                            onClearCalls = { vm.clearCallLog() }, onDeleteCall = { vm.deleteCall(it) }, onDeleteChat = { vm.deleteChat(it) },
                             filesFor = { chatFiles(it) }) { push("chat:$it") }
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
@@ -379,6 +379,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "newchat" -> NewChatScreen(vm.nodeId, people, ::pop,
                     onStart = { id, n -> vm.startChatById(id, n); pop(); push("chat:$id") },
                     onOpen = { pop(); push("chat:$it") }, onShareId = actions.shareId)
+                route == "rescues" -> com.bluemob.app.ui.rescue.RescuesScreen(rescues, ::pop) { push("rescue:$it") }
                 route.startsWith("rescue:") -> {
                     val room = rescues.firstOrNull { it.id == route.removePrefix("rescue:") }
                     if (room == null) LaunchedEffect(Unit) { delay(1_500); pop() }
@@ -461,6 +462,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "diagnostics" -> com.bluemob.app.ui.profile.DiagnosticsScreen(
                     vm.techDetails.collectAsStateWithLifecycle().value, vm::setTechDetails, log, remember { vm.lastError() },
                     onBack = ::pop, onBridge = { push("bridge") }, onAudit = { push("audit") },
+                    onReport = { text, details -> vm.reportProblem(text, details, log) },
                 )
                 route == "account" -> com.bluemob.app.ui.account.AccountScreen(
                     shortId = com.bluemob.app.util.formatId(vm.nodeId),

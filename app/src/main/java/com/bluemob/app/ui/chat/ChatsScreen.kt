@@ -75,6 +75,8 @@ fun ChatsScreen(
     onCallBack: (String, String, Boolean) -> Unit = { _, _, _ -> },
     onClearCalls: () -> Unit = {},
     onDeleteCall: (String) -> Unit = {},
+    /** Long-press a chat to delete it (Sky's can't be). */
+    onDeleteChat: (String) -> Unit = {},
     /** File actions (open, play, thumbnails) for a chat, for the Files tab. */
     filesFor: (String) -> ChatFiles = { ChatFiles() },
     onOpen: (String) -> Unit,
@@ -88,6 +90,16 @@ fun ChatsScreen(
     }
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(ChatFilter.ALL) }
+    var deleting by remember { mutableStateOf<Entry?>(null) }
+    deleting?.let { d ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete chat with ${d.name}?") },
+            text = { Text("Messages, photos and files in this chat are deleted from this phone. You can't get them back unless you have a backup.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { onDeleteChat(d.id); deleting = null }) { Text("Delete", color = Extra.rose) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { deleting = null }) { Text("Keep") } },
+        )
+    }
     val lastTime = { id: String -> conversations[id]?.lastOrNull()?.createdAt ?: 0L }
     val entries = buildList {
         // Sky lives in the Guide tab now; its chat shows here only once you've talked to it.
@@ -134,25 +146,22 @@ fun ChatsScreen(
                 }
             }
         }
-        val groups = rescues.filter { it.iAmIn || !it.ended }
-        if (groups.isNotEmpty() && query.isBlank()) {
-            item { Text("RESCUE GROUPS", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
-            groups.forEach { r ->
-                item(key = "rescue-" + r.id) {
-                    val last = r.chat.lastOrNull()
-                    Row(Modifier.fillMaxWidth().clickable { onOpenRescue(r.id) }.padding(horizontal = Space.lg, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(52.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (r.ended) Extra.sand2 else Extra.rose), contentAlignment = Alignment.Center) {
-                            Text("🆘", fontSize = 22.sp)
-                        }
-                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                            Text(if (r.mine) "Your rescue" else "Help ${r.victimName}", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                (if (r.ended) "Ended · " else "${r.coming.size} coming · ") + (last?.let { "${it.fromName}: ${it.text}" } ?: r.note.ifBlank { "SOS" }),
-                                style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
+        // All rescues in one box: the ones you asked for and the ones you helped, open or ended.
+        if (rescues.isNotEmpty() && query.isBlank()) item {
+            val active = rescues.count { !it.ended }
+            val asked = rescues.count { it.mine }
+            val helped = rescues.count { !it.mine && it.iAmIn }
+            Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                .background(if (active > 0) Extra.rose.copy(alpha = 0.14f) else Extra.sand).clickable { onOpenRescue("") }.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (active > 0) Extra.rose else Extra.sand2), contentAlignment = Alignment.Center) {
+                    Text("🆘", fontSize = 22.sp)
                 }
+                Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                    Text("Rescues" + if (active > 0) " · $active active" else "", style = MaterialTheme.typography.titleMedium)
+                    Text("You asked for help $asked × · you helped $helped ×", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                }
+                Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             }
         }
         if (onlineNow.isNotEmpty() && query.isBlank()) {
@@ -175,7 +184,7 @@ fun ChatsScreen(
         }
         itemsIndexed(entries, key = { _, e -> e.id }) { i, e ->
             if (i > 0) InsetDivider()
-            ChatRow(e, conversations[e.id].orEmpty(), e.id in typing) { onOpen(e.id) }
+            ChatRow(e, conversations[e.id].orEmpty(), e.id in typing, onDelete = if (e.isBot) null else ({ deleting = e })) { onOpen(e.id) }
         }
         if (entries.isEmpty()) item {
             Text(if (people.isEmpty()) "People you meet appear here. Turn on the mesh in the Nearby tab." else "No chats match.",
@@ -187,10 +196,11 @@ fun ChatsScreen(
 private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
 @Composable
-private fun ChatRow(e: Entry, messages: List<MessageEntity>, typing: Boolean, onClick: () -> Unit) {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun ChatRow(e: Entry, messages: List<MessageEntity>, typing: Boolean, onDelete: (() -> Unit)? = null, onClick: () -> Unit) {
     val last = messages.lastOrNull()
     val unread = messages.count { !it.fromMe && it.status == MessageStatus.RECEIVED }
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = Space.lg, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onDelete).padding(horizontal = Space.lg, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Avatar(e.emoji, e.name, e.id, 54.dp, if (e.isBot) null else e.presence)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

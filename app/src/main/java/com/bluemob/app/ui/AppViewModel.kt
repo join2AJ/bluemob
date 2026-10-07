@@ -251,6 +251,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun unreadCount(all: Map<String, List<MessageEntity>>) = all.values.sumOf { list -> list.count { !it.fromMe && it.status == MessageStatus.RECEIVED } }
 
     fun forgetPeople() = blueMob.contacts.forgetAll()
+    /** Sends a problem report. Null when sent, otherwise why not. */
+    suspend fun reportProblem(text: String, details: Boolean, log: List<com.bluemob.app.mesh.LogLine>): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val app = getApplication<android.app.Application>()
+        val device = com.bluemob.app.util.CrashLog.deviceLine(app)
+        val extra = if (!details) "" else buildString {
+            com.bluemob.app.util.CrashLog.lastNonFatal(app)?.let { append("Last background error:\n").append(it.take(6000)).append("\n\n") }
+            com.bluemob.app.util.CrashLog.read(app)?.let { append("Last crash:\n").append(it.take(6000)).append("\n\n") }
+            append("Mesh log:\n")
+            log.take(80).forEach { append(java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date(it.timeMillis))).append("  ").append(it.text).append('\n') }
+        }
+        com.bluemob.app.util.ProblemReport.send(settings.bridgeUrl.value, text, com.bluemob.app.BuildConfig.VERSION_NAME, if (details) device else "", extra)
+    }
+
+    fun deleteChat(peer: String) = viewModelScope.launch {
+        repo.deleteChat(peer).forEach { runCatching { java.io.File(it).delete() } }
+        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "A chat was deleted from this phone")
+    }
+
     fun clearMessages() { repo.clearAll(); blueMob.files.deleteAll(); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "All messages deleted from this phone") }
 
     fun sendSos(note: String): Int = sosManager.send(note)

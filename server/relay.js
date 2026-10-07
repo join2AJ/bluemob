@@ -13,6 +13,8 @@
 //   GET  /v1/blob/<fid>?id&at&sig  (signed by the recipient)  download it; POST /v1/blob/<fid>/done deletes it
 //   PUT  /v1/backup          (signed by the phone)          BlueMob Cloud: an encrypted backup (password-locked on the phone)
 //   GET  /v1/backups?id&at&sig  /v1/backups/<name>?…       list / download your own backups (newest 3 kept)
+//   POST /v1/report          {text, app, device, details}  a problem report from the app (Diagnostics → Report a problem)
+//   GET  /v1/reports?token=REPORTS_TOKEN                   read them (only with the REPORTS_TOKEN set on the server)
 //   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
@@ -202,7 +204,20 @@ function signer(pk, text, sig) {
   } catch { return null; }
 }
 
-function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null)) {
+/** Problem reports from users. Kept as files (newest 500); readable only with the server's REPORTS_TOKEN. */
+class Reports {
+  constructor(dir, token = "") { this.dir = dir; this.token = token; if (dir) fs.mkdirSync(dir, { recursive: true }); }
+  add(r) {
+    const name = Date.now() + "-" + crypto.randomBytes(3).toString("hex") + ".json";
+    fs.writeFileSync(path.join(this.dir, name), JSON.stringify(r));
+    const all = fs.readdirSync(this.dir).sort();
+    for (const old of all.slice(0, Math.max(0, all.length - 500))) fs.rmSync(path.join(this.dir, old), { force: true });
+    return name;
+  }
+  list() { return fs.readdirSync(this.dir).sort().reverse().slice(0, 200).map((f) => { try { return { id: f, ...JSON.parse(fs.readFileSync(path.join(this.dir, f), "utf8")) }; } catch { return null; } }).filter(Boolean); }
+}
+
+function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null), reports = new Reports(null)) {
   const hits = new Map(); // device or IP -> {hour, n}
   const limited = (who) => {
     const hour = Math.floor(Date.now() / 3600e3);
@@ -233,6 +248,12 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         return send(res, 200, { ok: true, name, persistent: backups.persistent });
       });
       return;
+    }
+    if (reports.dir && url.pathname === "/v1/reports" && req.method === "GET") {
+      const given = Buffer.from(url.searchParams.get("token") || "");
+      const want = Buffer.from(reports.token);
+      if (!reports.token || given.length !== want.length || !crypto.timingSafeEqual(given, want)) return send(res, 403, { error: "no" });
+      return send(res, 200, { reports: reports.list() });
     }
     const bk = url.pathname.match(/^\/v1\/backups(?:\/([^/]+))?$/);
     if (backups.dir && bk && req.method === "GET") {
@@ -311,6 +332,13 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
       if (res.writableEnded) return;
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return send(res, 400, { error: "bad json" }); }
+      if (url.pathname === "/v1/report" && reports.dir) {
+        if (limited("report:" + ip)) return send(res, 429, { error: "slow down" });
+        const str = (v, n) => (typeof v === "string" ? v : "").slice(0, n);
+        if (!str(body.text, 4000).trim()) return send(res, 400, { error: "empty" });
+        const id = reports.add({ at: Date.now(), text: str(body.text, 4000), app: str(body.app, 40), device: str(body.device, 300), details: str(body.details, 20000) });
+        return send(res, 200, { ok: true, id });
+      }
       if (url.pathname === "/v1/push") {
         if (limited("ip:" + ip)) return send(res, 429, { error: "slow down" });
         const results = (Array.isArray(body.packets) ? body.packets.slice(0, 200) : []).map((p) => {
@@ -333,7 +361,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
   });
 }
 
-module.exports = { createServer, Store, Blobs, Backups, openEnvelope, idFor, loadGuides };
+module.exports = { createServer, Store, Blobs, Backups, Reports, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
@@ -344,7 +372,8 @@ if (require.main === module) {
   const blobs = new Blobs(path.join(dataDir, "blobs"));
   setInterval(() => blobs.prune(), 3600e3).unref();
   const backups = new Backups(path.join(dataDir, "backups"), { persistent: process.env.PERSISTENT_DISK === "1" });
-  const server = createServer(store, loadGuides(), blobs, backups);
+  const reports = new Reports(path.join(dataDir, "reports"), process.env.REPORTS_TOKEN || "");
+  const server = createServer(store, loadGuides(), blobs, backups, reports);
   const { createPusher, loadAccount } = require("./push");
   const pusher = createPusher(loadAccount());
   if (pusher.configured) console.log("Firebase wake-ups on");

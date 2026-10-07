@@ -36,6 +36,20 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.14: smarter Sky, games, a picture for every guide
+
+- **Fixes**: the intro shows only before sign-up ("Replay the intro" works); full screen brightness only for the
+  screen signal; one list of guide packs; plain-language internet screen (no server address); messages count as read
+  only while the chat is on screen; waiting receipts go as soon as the internet link reconnects.
+- **Sky**: synonyms ("electricity" → charging), weighted search across guides, "did you mean" instead of a wrong guess,
+  and **Teach Sky**: answers you teach it are kept on your phone.
+- **Games**: classic tic-tac-toe hidden (Infinite replaces it), new How to play, emoji and quick-phrase reactions,
+  the quiz explains why an answer is wrong and why the right one is right, new **Five in a row**.
+- **Guides**: a different animation for every guide (the shadow stick shows how to find north step by step, knots tie
+  themselves), *Find someone with BlueMob*, new **Knots**, **Fire craft** and **Shelters** packs.
+- **Chats**: one Rescues box (asked for help / helped), exact dates and times in rescue groups, delete a chat with a
+  long press (not Sky), Diagnostics → **Report a problem** (read reports at `/v1/reports?token=REPORTS_TOKEN`).
+
 ## Android 0.13: simpler settings, files over the internet, wake-ups, BlueMob Cloud
 
 - **You tab regrouped**: Connections & power (mesh, reachable when closed, Bluetooth / Wi-Fi rules, battery), SOS (with
