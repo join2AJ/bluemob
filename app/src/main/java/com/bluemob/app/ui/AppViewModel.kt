@@ -273,8 +273,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun sendSos(note: String): Int = sosManager.send(note)
     fun previewSosAlert() = sosManager.preview("Ravi")
-    fun addSosContact(name: String, phone: String) = settings.addSosContact(name, phone)
-    fun removeSosContact(id: String) = settings.removeSosContact(id)
+    suspend fun addSosContact(name: String, phone: String, nodeId: String?): String? = blueMob.sosCircle.add(name, phone, nodeId)
+    fun removeSosContact(id: String) = blueMob.sosCircle.remove(id)
+    fun askSosContactAgain(c: com.bluemob.app.settings.SosContact) = blueMob.sosCircle.ask(c)
+    val sosRequests = blueMob.sosCircle.requests
+    fun answerSosRequest(r: com.bluemob.app.sos.SosCircle.Request, yes: Boolean) = blueMob.sosCircle.answer(r, yes)
 
     /** The SOS text that goes to people nearby and to SOS contacts by SMS. */
     fun sosMessage(note: String): String {
@@ -327,6 +330,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun rate(subject: String, kind: com.bluemob.app.trust.RatingKind, ctx: String, remark: String) = blueMob.trust.rate(subject, kind, ctx, remark)
     /** Ratings this phone gave, so screens can show "You appreciated them". */
     fun myRatingsOf(subject: String) = blueMob.trust.ratings.value.filter { it.rater == nodeId && it.subject == subject }
+    fun lastRatedAt(subject: String) = blueMob.trust.lastRatedAt(subject)
+    fun rateCategories(subject: String, stars: Map<com.bluemob.app.trust.RatingCategory, Int>, remark: String) = blueMob.trust.rateCategories(subject, stars, remark)
+    /** Only people we've actually met, chatted with or shared a rescue with can be rated. */
+    fun canRate(subject: String): Boolean = subject != nodeId && (
+        (blueMob.contacts.contacts.value[subject]?.lastSeen ?: 0L) > 0 ||
+            repo.messages.value.any { it.peer == subject } ||
+            blueMob.rescue.rooms.value.any { r -> r.victimId == subject || r.helpers.any { it.nodeId == subject } })
+
+    /** Messages, calls and SOS, for the activity dashboard. */
+    val activity: StateFlow<List<com.bluemob.app.activity.ActivityEvent>> =
+        combine(repo.messages, blueMob.callLog.observe(), blueMob.audit.entries) { m, c, a -> com.bluemob.app.activity.Activity.events(m, c, a) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val bridgeStatus = blueMob.bridge.status
     val bridgeUrl = settings.bridgeUrl

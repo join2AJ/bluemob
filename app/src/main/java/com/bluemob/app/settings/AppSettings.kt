@@ -24,7 +24,17 @@ data class Spot(val id: String, val name: String, val lat: Double, val lon: Doub
 }
 
 /** Someone to text when the user sends an SOS. Stored only on this phone. */
-data class SosContact(val id: String, val name: String, val phone: String)
+/**
+ * Someone alerted in the app when you send an SOS. [nodeId] is their BlueMob ID once known; [state] says whether
+ * they've accepted. A contact without an ID isn't on BlueMob (yet): you can still text them from your own phone.
+ */
+data class SosContact(val id: String, val name: String, val phone: String, val nodeId: String? = null, val state: SosContactState = SosContactState.NOT_ON_BLUEMOB) {
+    val verified: Boolean get() = state == SosContactState.ACCEPTED
+}
+
+enum class SosContactState(val label: String) {
+    NOT_ON_BLUEMOB("Not on BlueMob"), ASKED("Waiting for them to accept"), ACCEPTED("Accepted ✓"), DECLINED("Declined"),
+}
 
 /** Small preferences that aren't part of the identity: SOS signal, saved spots, saved guides. */
 class AppSettings(context: Context) {
@@ -135,8 +145,15 @@ class AppSettings(context: Context) {
     private val _sosContacts = MutableStateFlow(loadContacts())
     val sosContacts: StateFlow<List<SosContact>> = _sosContacts.asStateFlow()
 
-    fun addSosContact(name: String, phone: String) {
-        _sosContacts.value = _sosContacts.value + SosContact("c" + System.currentTimeMillis(), name.trim(), phone.trim())
+    fun addSosContact(name: String, phone: String, nodeId: String? = null, state: SosContactState = SosContactState.NOT_ON_BLUEMOB): SosContact {
+        val c = SosContact("c" + System.currentTimeMillis(), name.trim(), phone.trim(), nodeId, state)
+        _sosContacts.value = _sosContacts.value + c
+        saveContacts()
+        return c
+    }
+
+    fun updateSosContact(id: String, f: (SosContact) -> SosContact) {
+        _sosContacts.value = _sosContacts.value.map { if (it.id == id) f(it) else it }
         saveContacts()
     }
 
@@ -147,12 +164,15 @@ class AppSettings(context: Context) {
 
     private fun loadContacts(): List<SosContact> = runCatching {
         val a = JSONArray(prefs.getString("sosContacts", "[]"))
-        (0 until a.length()).map { i -> a.getJSONObject(i).let { SosContact(it.getString("id"), it.getString("name"), it.getString("phone")) } }
+        (0 until a.length()).map { i -> a.getJSONObject(i).let {
+            SosContact(it.getString("id"), it.getString("name"), it.optString("phone"), it.optString("node").ifBlank { null },
+                runCatching { SosContactState.valueOf(it.optString("state")) }.getOrDefault(SosContactState.NOT_ON_BLUEMOB))
+        } }
     }.getOrDefault(emptyList())
 
     private fun saveContacts() {
         val a = JSONArray()
-        _sosContacts.value.forEach { a.put(JSONObject().put("id", it.id).put("name", it.name).put("phone", it.phone)) }
+        _sosContacts.value.forEach { a.put(JSONObject().put("id", it.id).put("name", it.name).put("phone", it.phone).put("node", it.nodeId ?: "").put("state", it.state.name)) }
         prefs.edit().putString("sosContacts", a.toString()).apply()
     }
 

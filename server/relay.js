@@ -15,6 +15,8 @@
 //   GET  /v1/backups?id&at&sig  /v1/backups/<name>?…       list / download your own backups (newest 3 kept)
 //   POST /v1/report          {text, app, device, details}  a problem report from the app (Diagnostics → Report a problem)
 //   GET  /v1/reports?token=REPORTS_TOKEN                   read them (only with the REPORTS_TOKEN set on the server)
+//   POST /v1/phone  {pk, at, h, sig}                       "my verified number's fingerprint is h" (signed by the phone)
+//   GET  /v1/phone?h&id&at&sig                             which BlueMob ID has that number (signed lookup, 30 a day)
 //   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
@@ -52,6 +54,7 @@ class Store {
     this.keys = new Map();    // id -> public key (base64)
     this.ratings = new Map(); // subject -> Map(ratingKey -> packet)
     this.pushTokens = new Map(); // id -> Firebase device token, for waking a phone that isn't connected
+    this.phones = new Map(); // fingerprint of a verified number -> BlueMob ID (the number itself is never sent)
     if (file) this.load();
   }
   load() {
@@ -66,6 +69,7 @@ class Store {
     if (r.op === "put") { this.seq = Math.max(this.seq, r.seq); this.packets.set(r.key, r); }
     else if (r.op === "del") this.packets.delete(r.key);
     else if (r.op === "key") this.keys.set(r.id, r.pk);
+    else if (r.op === "phone") { for (const [h, i] of this.phones) if (i === r.id) this.phones.delete(h); if (r.h) this.phones.set(r.h, r.id); }
     else if (r.op === "push") { if (r.token) this.pushTokens.set(r.id, r.token); else this.pushTokens.delete(r.id); }
     else if (r.op === "rate") { if (!this.ratings.has(r.subject)) this.ratings.set(r.subject, new Map()); this.ratings.get(r.subject).set(r.key, r.packet); }
     if (persist) this.log(r);
@@ -219,6 +223,7 @@ class Reports {
 
 function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null), reports = new Reports(null)) {
   const hits = new Map(); // device or IP -> {hour, n}
+  const lookups = new Map(); // device|day -> phone lookups
   const limited = (who) => {
     const hour = Math.floor(Date.now() / 3600e3);
     const h = hits.get(who);
@@ -274,6 +279,17 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
     if (req.method === "GET" && url.pathname.startsWith("/v1/guides/")) {
       const p = guides.get(url.pathname.slice("/v1/guides/".length));
       return p ? send(res, 200, p) : send(res, 404, { error: "no such pack" });
+    }
+    if (req.method === "GET" && url.pathname === "/v1/phone") {
+      const h = url.searchParams.get("h") || "", id = url.searchParams.get("id") || "", at = Number(url.searchParams.get("at")), sig = url.searchParams.get("sig") || "";
+      const pk = store.keys.get(id);
+      if (!/^[0-9a-f]{64}$/.test(h) || !pk || Math.abs(Date.now() - at) > 10 * 60e3 || signer(pk, ["bluemob-phone-get", h, at].join("|"), sig) !== id) return send(res, 403, { error: "not allowed" });
+      // A few lookups a day per phone: enough to add SOS contacts, too few to scan numbers.
+      const day = "phone:" + id + ":" + Math.floor(Date.now() / 86400e3);
+      lookups.set(day, (lookups.get(day) || 0) + 1);
+      if (lookups.get(day) > 30) return send(res, 429, { error: "too many lookups today" });
+      const found = store.phones.get(h);
+      return found ? send(res, 200, { id: found, pk: store.keys.get(found) || "" }) : send(res, 404, { error: "not on BlueMob" });
     }
     if (req.method === "GET" && url.pathname === "/v1/key") {
       const pk = store.keys.get(url.searchParams.get("id") || "");
@@ -338,6 +354,16 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         if (!str(body.text, 4000).trim()) return send(res, 400, { error: "empty" });
         const id = reports.add({ at: Date.now(), text: str(body.text, 4000), app: str(body.app, 40), device: str(body.device, 300), details: str(body.details, 20000) });
         return send(res, 200, { ok: true, id });
+      }
+      if (url.pathname === "/v1/phone") {
+        const h = String(body.h || ""), at = Number(body.at);
+        if (!/^[0-9a-f]{64}$/.test(h) || Math.abs(Date.now() - at) > 10 * 60e3) return send(res, 400, { error: "bad request" });
+        const id = signer(String(body.pk || ""), ["bluemob-phone", h, at].join("|"), String(body.sig || ""));
+        if (!id) return send(res, 401, { error: "bad signature" });
+        if (limited("dev:" + id)) return send(res, 429, { error: "slow down" });
+        store.learnKey(id, body.pk);
+        store.apply({ op: "phone", id, h });
+        return send(res, 200, { ok: true });
       }
       if (url.pathname === "/v1/push") {
         if (limited("ip:" + ip)) return send(res, 429, { error: "slow down" });

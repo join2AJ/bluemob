@@ -32,7 +32,7 @@ class SosManager(
     private val trail: TrailRecorder,
     private val signals: SignalController,
     private val audit: AuditLog,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     /** Age and blood group to send with our SOS. */
     private val medical: () -> Pair<Int?, String?> = { null to null },
 ) {
@@ -53,25 +53,30 @@ class SosManager(
 
     init {
         scope.launch {
-            mesh.events.collect { e ->
-                if (e !is MeshEvent.SosReceived) return@collect
-                val s = e.sos
-                if (s.cancelled) {
-                    if (_received.value.containsKey(s.fromNodeId)) audit.add(AuditKind.SOS, "${s.name} is safe now (SOS ended)")
-                    _received.update { it - s.fromNodeId }
-                    if (_alert.value?.fromNodeId == s.fromNodeId) _alert.value = null
-                    return@collect
-                }
-                _received.update { it + (s.fromNodeId to s) }
-                if (alerted.add(s.id)) {
-                    audit.add(AuditKind.SOS, "SOS received from ${s.name}" + (if (s.note.isNotBlank()) ": \"${s.note}\"" else "") +
-                        " (${if (s.hops <= 1) "direct" else "passed on by ${s.hops - 1} phones"}). " + (s.pos?.describe() ?: "No position."))
-                    _alert.value = s
-                    repeat(3) { signals.beep(220); delay(320) }
-                }
-            }
+            mesh.events.collect { e -> if (e is MeshEvent.SosReceived) receive(e.sos) }
         }
     }
+
+    /** An SOS (or "I'm safe") from someone: over the mesh, or from someone whose SOS contact we are. */
+    fun receive(s: SosSignal) {
+        if (s.cancelled) {
+            if (_received.value.containsKey(s.fromNodeId)) audit.add(AuditKind.SOS, "${s.name} is safe now (SOS ended)")
+            _received.update { it - s.fromNodeId }
+            if (_alert.value?.fromNodeId == s.fromNodeId) _alert.value = null
+            return
+        }
+        _received.update { it + (s.fromNodeId to s) }
+        if (alerted.add(s.id)) {
+            audit.add(AuditKind.SOS, "SOS received from ${s.name}" + (if (s.note.isNotBlank()) ": \"${s.note}\"" else "") +
+                " (${if (s.hops <= 1) "direct" else "passed on by ${s.hops - 1} phones"}). " + (s.pos?.describe() ?: "No position."))
+            _alert.value = s
+            scope.launch { repeat(3) { signals.beep(220); delay(320) } }
+        }
+    }
+
+    /** Our SOS reached the people who should hear it, wherever they are: set by the app (SOS contacts). */
+    var onSent: (SosSignal) -> Unit = {}
+    var onSafe: (SosSignal) -> Unit = {}
 
     fun batteryPct(): Int? = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)?.takeIf { it in 0..100 }
 
@@ -85,6 +90,7 @@ class SosManager(
         )
         _mine.value = sos
         val reached = mesh.broadcastSos(sos)
+        runCatching { onSent(sos) }
         audit.add(AuditKind.SOS, "SOS sent to $reached phones nearby" + (if (sos.note.isNotBlank()) ": \"${sos.note}\"" else "") +
             ". " + (here?.describe() ?: "No position known."))
         return reached
@@ -94,6 +100,7 @@ class SosManager(
     fun cancel() {
         val sos = _mine.value ?: return
         mesh.broadcastSos(sos.copy(cancelled = true, at = System.currentTimeMillis()))
+        runCatching { onSafe(sos) }
         _mine.value = null
         audit.add(AuditKind.SOS, "\"I'm safe\": SOS ended")
     }

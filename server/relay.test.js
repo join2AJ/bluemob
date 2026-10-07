@@ -155,3 +155,24 @@ test("problem reports are kept and readable only with the token", async () => {
   assert.equal(list.reports[0].text, "Sky gave a wrong answer");
   srv.close();
 });
+
+test("phone directory: only fingerprints, signed registration and lookups", async () => {
+  const { createServer } = require("./relay");
+  const store = new Store(null);
+  const srv = createServer(store, new Map());
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const me = device(), friend = device();
+  const h = crypto.createHash("sha256").update("bluemob-phone-v1|+919876543210").digest("hex");
+  const at = Date.now();
+  const reg = { pk: friend.pk, at, h, sig: crypto.sign("sha256", Buffer.from(["bluemob-phone", h, at].join("|")), friend.privateKey).toString("base64") };
+  assert.equal((await fetch(`${base}/v1/phone`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(reg) })).status, 200);
+  store.learnKey(me.id, me.pk);
+  const look = (dev, hh) => { const t = Date.now(); const sig = crypto.sign("sha256", Buffer.from(["bluemob-phone-get", hh, t].join("|")), dev.privateKey).toString("base64");
+    return fetch(`${base}/v1/phone?h=${hh}&id=${dev.id}&at=${t}&sig=${encodeURIComponent(sig)}`); };
+  const r = await look(me, h);
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).id, friend.id);
+  assert.equal((await look(me, "0".repeat(64))).status, 404);
+  srv.close();
+});

@@ -147,7 +147,12 @@ class ScreenshotTest {
     @Test fun sosActive() = shot(tall = true) {
         hub(SosHubState(SosSignal("s", "me", "Arjun", "Twisted ankle", noGps.lat, noGps.lon, 48, now - 60_000, 0, pos = noGps), 2, SignalMode.ALL, contacts, reached = 2))
     }
-    @Test fun sosContacts() = shot { SosContactsScreen(contacts, {}, { _, _ -> }, {}) }
+    @Test fun sosContacts() = shot { SosContactsScreen(contacts, {}, { _, _, _ -> null }, {}) }
+    @Test fun activity() = shot(tall = true) {
+        val day = 86_400_000L
+        val ev = (0 until 40).map { com.bluemob.app.activity.ActivityEvent(now - (it % 7) * day - it * 60_000L, com.bluemob.app.activity.ActivityType.entries[it % 5], 120, "p${it % 4}") }
+        com.bluemob.app.ui.profile.ActivityScreen(ev, {}, now)
+    }
     @Test fun sosAlert() = shot(tall = true) {
         SosAlert(SosSignal("x", "b7e4", "Ravi", "Twisted my ankle near the stream. Can't walk", noGps.lat, noGps.lon, 21, now, 2, pos = noGps), people[1], me.lat, me.lon, {}, {}, {}, {})
     }

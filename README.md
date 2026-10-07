@@ -36,6 +36,17 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.15: SOS contacts in the app, ratings by category, your activity
+
+- **SOS contacts live in BlueMob.** Add 1 to 4 people by phone number. They get a request in BlueMob and accept or
+  decline. At least one has to accept. Your SOS and "I'm safe" reach them over the internet, through phones nearby, or
+  later as a chat message. No SMS gateway is used.
+- **Ratings in five categories:** helpful, quick to respond, reliable, clear communication, respectful. Scores show in
+  quarter stars, and everyone starts at 4. You can only rate people you've met, chatted with or shared a rescue with,
+  once every 30 days. Your rating shows under your name in the You tab. Tap it to see each category and what people said.
+- **Your activity:** messages, calls (dialled, received, missed), talk time, SOS and rescues joined. Charts can be
+  filtered to 7, 30 or 90 days, or all time.
+
 ## Android 0.14: smarter Sky, games, a picture for every guide
 
 - **Fixes**: the intro shows only before sign-up ("Replay the intro" works); full screen brightness only for the

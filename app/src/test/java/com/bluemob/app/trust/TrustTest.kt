@@ -53,3 +53,32 @@ class TrustTest {
         assertNull(Trust.score("ravi", emptyList(), now).sosWarning)
     }
 }
+
+class CategoryTrustTest {
+    private val now = 1_000_000_000_000L
+    private fun c(rater: String, cat: RatingCategory, v: Int, at: Long = now) = CategoryRating(rater, rater, "ravi", cat, v, "", at)
+
+    @Test fun quarterStarsRound() {
+        assertEquals(4.25, Trust.quarter(4.2), 0.0001)
+        assertEquals(4.5, Trust.quarter(4.4), 0.0001)
+        assertEquals(5.0, Trust.quarter(7.0), 0.0001)
+    }
+
+    @Test fun newPersonStartsAtFourAndOneRatingMovesItGently() {
+        assertEquals(4.0, Trust.standing("ravi", emptyList(), emptyList(), now).stars, 0.001)
+        val one = Trust.standing("ravi", listOf(c("asha", RatingCategory.HELPFUL, 5)), emptyList(), now)
+        assertTrue(one.categories.getValue(RatingCategory.HELPFUL).stars in 4.01..4.99)
+        assertEquals(1, one.raters)
+    }
+
+    @Test fun onlyTheNewestRatingPerPersonAndCategoryCounts() {
+        val s = Trust.standing("ravi", listOf(c("asha", RatingCategory.QUICK, 1, now - 1000), c("asha", RatingCategory.QUICK, 5, now)), emptyList(), now)
+        assertEquals(1, s.categories.getValue(RatingCategory.QUICK).count)
+        assertTrue(s.categories.getValue(RatingCategory.QUICK).stars > 4.0)
+    }
+
+    @Test fun selfRatingsAreIgnored() {
+        val s = Trust.standing("ravi", listOf(CategoryRating("ravi", "Ravi", "ravi", RatingCategory.HELPFUL, 5, "", now)), emptyList(), now)
+        assertEquals(0, s.raters)
+    }
+}

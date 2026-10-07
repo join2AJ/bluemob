@@ -112,6 +112,8 @@ fun ProfileScreen(
     onBackground: (Boolean) -> Unit = {},
     onStorage: () -> Unit = {},
     onDiagnostics: () -> Unit = {},
+    onActivity: () -> Unit = {},
+    activitySummary: String = "",
 ) {
     var draft by remember(name) { mutableStateOf(name) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
@@ -161,6 +163,22 @@ fun ProfileScreen(
                     modifier = Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface)
                         .clickable { clipboard.setText(AnnotatedString("BM-$nodeId")); copied = true }.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
+                // Your rating, right under your name: tap it to see each category and what people said.
+                Row(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(50)).clickable(onClick = onMyRating).padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    com.bluemob.app.ui.components.QuarterStars(myStars, 18.dp)
+                    Text(
+                        if (myRatingCount == 0) "  New · no ratings yet" else "  %.2f · %d %s".format(com.bluemob.app.trust.Trust.quarter(myStars), myRatingCount, if (myRatingCount == 1) "person" else "people"),
+                        style = MaterialTheme.typography.bodyMedium, color = Extra.ink2,
+                    )
+                    Text("  ›", color = Extra.ink3)
+                }
+                // Your activity at a glance: opens the dashboard with graphs.
+                Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).clickable(onClick = onActivity)
+                    .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("📊  " + activitySummary.ifBlank { "Your activity" }, style = MaterialTheme.typography.bodyMedium)
+                    Text("  ›", color = Extra.ink3)
+                }
             }
         }
 
@@ -179,9 +197,6 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS",
                     "Signal ${signalDefault.emoji} ${signalDefault.label} · " + if (sosContactCount == 0) "no SOS contacts yet" else "$sosContactCount SOS contact${if (sosContactCount == 1) "" else "s"}",
                     onClick = onSos) { chevron() }
-                SettingRow(Icons.Outlined.StarOutline, com.bluemob.app.ui.components.StarGold, "Your rating",
-                    if (myRatingCount == 0) "4 stars to start. Help people and they can thank you" else "%.1f out of 5 · %d rating%s".format(myStars, myRatingCount, if (myRatingCount == 1) "" else "s"),
-                    divider = true, onClick = onMyRating) { com.bluemob.app.ui.components.StarRow(myStars, 14.dp) }
             }
         }
 

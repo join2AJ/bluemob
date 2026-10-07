@@ -327,9 +327,16 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onName = vm::setName, onAvatar = vm::setAvatar, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onToggleLocation = toggleLocation, onBatterySaver = actions.openBatterySaver, onKeepRunning = actions.askKeepRunning,
                             onSos = { push("sos") }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
-                            onBridge = { push("bridge") }, onMyRating = { push("person:" + vm.nodeId) },
+                            onBridge = { push("bridge") }, onMyRating = { push("person:" + vm.nodeId) }, onActivity = { push("activity") },
+                            activitySummary = vm.activity.collectAsStateWithLifecycle().value.let { ev ->
+                                val week = System.currentTimeMillis() - 7 * 86_400_000L
+                                val recent = ev.filter { it.at >= week }
+                                val msgs = recent.count { it.type == com.bluemob.app.activity.ActivityType.MSG_SENT || it.type == com.bluemob.app.activity.ActivityType.MSG_RECEIVED }
+                                val calls = recent.count { it.type.name.startsWith("CALL") }
+                                "This week: $msgs message${if (msgs == 1) "" else "s"} · $calls call${if (calls == 1) "" else "s"}"
+                            },
                             lastError = remember { vm.lastError() },
-                            myStars = (trustScores[vm.nodeId] ?: vm.scoreFor(vm.nodeId)).stars, myRatingCount = trustScores[vm.nodeId]?.ratings ?: 0,
+                            myStars = (trustScores[vm.nodeId] ?: vm.scoreFor(vm.nodeId)).stars, myRatingCount = trustScores[vm.nodeId]?.let { maxOf(it.raters, it.ratings) } ?: 0,
                             onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
                             onGames = { push("games") }, onAccount = { push("account") }, onAutoStart = { push("autostart") }, onBackup = { push("backup") }, sosContactCount = sosContacts.size,
                             background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
@@ -393,7 +400,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         onRate = { who, kind -> vm.rate(who, kind, room.id, "") },
                     ))
                 }
-                route == "sos-contacts" -> SosContactsScreen(sosContacts, ::pop, onAdd = vm::addSosContact, onRemove = vm::removeSosContact)
+                route == "sos-contacts" -> SosContactsScreen(sosContacts, ::pop, onAdd = { n, p, id -> vm.addSosContact(n, p, id) }, onRemove = vm::removeSosContact,
+                    people = people.filter { it.nodeId != SkyBot.NODE_ID }, onAskAgain = vm::askSosContactAgain)
                 route == "connections" -> ConnectionsScreen(radios, online, ::pop, onSwitch = actions.switchRadio)
                 route == "audit" -> {
                     val audit by vm.audit.collectAsStateWithLifecycle()
@@ -407,7 +415,13 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     val isMe = id == vm.nodeId
                     PersonScreen(id, if (isMe) name else p?.name ?: "Someone", if (isMe) avatar else p?.avatar, scores[id] ?: vm.scoreFor(id), isMe,
                         remember(scores) { vm.myRatingsOf(id) }, rescues.firstOrNull { it.victimId == id }?.id, ::pop,
-                        onMessage = { pop(); push("chat:$id") }, onRate = { kind, ctx, remark -> vm.rate(id, kind, ctx, remark) })
+                        onMessage = { pop(); push("chat:$id") }, onRate = { kind, ctx, remark -> vm.rate(id, kind, ctx, remark) },
+                        eligible = remember(id, scores) { vm.canRate(id) }, lastRatedAt = remember(id, scores) { vm.lastRatedAt(id) },
+                        onRateCategories = { stars, remark -> vm.rateCategories(id, stars, remark) })
+                }
+                route == "activity" -> {
+                    val events by vm.activity.collectAsStateWithLifecycle()
+                    com.bluemob.app.ui.profile.ActivityScreen(events, ::pop)
                 }
                 route == "bridge" -> {
                     val st by vm.bridgeStatus.collectAsStateWithLifecycle()
@@ -479,6 +493,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             }
         }
 
+        vm.sosRequests.collectAsStateWithLifecycle().value.firstOrNull()?.let { r ->
+            com.bluemob.app.ui.sos.SosContactRequest(r.name) { yes -> vm.answerSosRequest(r, yes) }
+        }
         alert?.let { sos ->
             val preview = sos.id == SosManager.PREVIEW_ID
             SosAlert(

@@ -25,6 +25,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -64,7 +67,13 @@ fun PersonScreen(
     onBack: () -> Unit,
     onMessage: () -> Unit,
     onRate: (RatingKind, String, String) -> Unit,
+    /** True when we've met, chatted or shared a rescue: only then can we rate them. */
+    eligible: Boolean = true,
+    lastRatedAt: Long? = null,
+    onRateCategories: (Map<com.bluemob.app.trust.RatingCategory, Int>, String) -> String? = { _, _ -> null },
 ) {
+    var picks by remember { mutableStateOf(mapOf<com.bluemob.app.trust.RatingCategory, Int>()) }
+    var rateNote by remember { mutableStateOf<String?>(null) }
     var composing by rememberSaveable { mutableStateOf<String?>(null) }
     var remark by rememberSaveable { mutableStateOf("") }
     SubScreen(if (isMe) "Your rating" else name, onBack) {
@@ -73,8 +82,8 @@ fun PersonScreen(
                 Avatar(avatar, name, nodeId, 84.dp)
                 Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 8.dp))
                 Text("BM " + formatId(nodeId), style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace), color = Extra.ink3)
-                StarRow(score.stars, 30.dp, Modifier.padding(top = 12.dp))
-                Text(if (score.isNew) "New · no ratings yet" else "${score.label} out of 5 · ${score.ratings} rating${if (score.ratings == 1) "" else "s"}",
+                com.bluemob.app.ui.components.QuarterStars(score.stars, 30.dp, Modifier.padding(top = 12.dp))
+                Text(if (score.raters == 0 && score.fakeSos == 0) "New · no ratings yet" else "%.2f out of 5 · %d %s rated".format(score.quarters, score.raters, if (score.raters == 1) "person" else "people"),
                     style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
                 FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (score.thanks > 0) Tag("👏 ${score.thanks} thanked them", Extra.pineTint, MaterialTheme.colorScheme.primary)
@@ -84,8 +93,55 @@ fun PersonScreen(
                 }
             }
         }
+        // Each category, in quarter stars.
+        item { GroupLabel("By category") }
+        item {
+            Group {
+                com.bluemob.app.trust.RatingCategory.entries.forEachIndexed { i, c ->
+                    if (i > 0) HorizontalDivider(Modifier.padding(start = 14.dp), color = Extra.line)
+                    val cs = score.categories[c]
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(c.emoji, fontSize = 20.sp)
+                        Text(c.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(start = 10.dp))
+                        com.bluemob.app.ui.components.QuarterStars(cs?.stars ?: com.bluemob.app.trust.Trust.START, 16.dp)
+                        Text(if ((cs?.count ?: 0) == 0) " new" else " %.2f".format(com.bluemob.app.trust.Trust.quarter(cs!!.stars)), style = MaterialTheme.typography.labelMedium, color = Extra.ink2, modifier = Modifier.width(44.dp))
+                    }
+                }
+            }
+        }
         if (!isMe) {
             item { GroupLabel("Rate ${name.substringBefore(" ")}") }
+            item {
+                val waitUntil = lastRatedAt?.plus(com.bluemob.app.trust.Trust.RERATE_MS)?.takeIf { it > System.currentTimeMillis() }
+                Group {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        when {
+                            !eligible -> Text("You can rate people you've met nearby, chatted with, or shared a rescue with.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                            waitUntil != null -> Text("You rated ${name.substringBefore(" ")} ${TimeText.ago(lastRatedAt!!)}. You can rate again after " +
+                                java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(waitUntil)) + ".", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                            else -> {
+                                com.bluemob.app.trust.RatingCategory.entries.forEach { c ->
+                                    Text("${c.emoji} ${c.label}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
+                                    Text(c.question, style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
+                                    com.bluemob.app.ui.components.StarPicker(picks[c] ?: 0) { v -> picks = picks + (c to v) }
+                                }
+                                Box(Modifier.padding(top = 8.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(12.dp)) {
+                                    if (remark.isEmpty()) Text("A few words (optional), e.g. Brought water and stayed with me", color = Extra.ink3, style = MaterialTheme.typography.bodyLarge)
+                                    BasicTextField(remark, { remark = it.take(TrustManager.MAX_REMARK) }, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
+                                }
+                                Button(onClick = { rateNote = onRateCategories(picks, remark) ?: "Thanks! Your rating is signed and shared."; if (rateNote?.startsWith("Thanks") == true) { picks = emptyMap(); remark = "" } },
+                                    enabled = picks.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) { Text("Send rating") }
+                                Text("Rate only what you saw. You can rate each person once every 30 days.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 6.dp))
+                            }
+                        }
+                        rateNote?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp)) }
+                    }
+                }
+            }
+        }
+        if (!isMe && sosId != null) {
+            item { GroupLabel("About their SOS") }
             item {
                 Group {
                     // Thanking someone (or confirming their SOS) and calling their SOS fake contradict each other: only
@@ -93,9 +149,8 @@ fun PersonScreen(
                     val vouched = myRatings.any { it.kind == RatingKind.THANKS || it.kind == RatingKind.GENUINE_SOS }
                     val flagged = myRatings.any { it.kind == RatingKind.FAKE_SOS }
                     val options = buildList {
-                        if (!flagged) add(RatingKind.THANKS to "general")
-                        if (sosId != null) { if (!flagged) add(RatingKind.GENUINE_SOS to sosId); if (!vouched) add(RatingKind.FAKE_SOS to sosId) }
-                        add(RatingKind.BAD_LANGUAGE to "general")
+                        if (!flagged) add(RatingKind.GENUINE_SOS to sosId)
+                        if (!vouched) add(RatingKind.FAKE_SOS to sosId)
                     }
                     options.forEachIndexed { i, (kind, ctx) ->
                         if (i > 0) HorizontalDivider(Modifier.padding(start = 14.dp), color = Extra.line)
@@ -130,26 +185,27 @@ fun PersonScreen(
                     }
                 }
             }
-            item {
-                Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center) {
-                    OutlinedButton(onClick = onMessage) { Text("Message ${name.substringBefore(" ")}") }
-                }
+        }
+        if (!isMe) item {
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center) {
+                OutlinedButton(onClick = onMessage) { Text("Message ${name.substringBefore(" ")}") }
             }
         }
-        item { GroupLabel(if (score.recent.isEmpty()) "Remarks" else "Remarks (${score.recent.size})") }
+        val remarks = score.remarks.distinctBy { it.rater to it.remark }
+        item { GroupLabel(if (remarks.isEmpty()) "Remarks" else "Remarks (${remarks.size})") }
         item {
             Group {
-                if (score.recent.isEmpty()) Text(if (isMe) "No one has rated you yet. Help someone, and they can thank you here." else "No ratings yet.",
+                if (remarks.isEmpty()) Text(if (isMe) "No remarks yet. Help someone, and they can say so here." else "No remarks yet.",
                     style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(14.dp))
-                score.recent.forEachIndexed { i, r ->
+                remarks.forEachIndexed { i, r ->
                     if (i > 0) HorizontalDivider(Modifier.padding(start = 14.dp), color = Extra.line)
                     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(r.raterName, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                             Text(TimeText.ago(r.at), style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
                         }
-                        Text(r.kind.label, style = MaterialTheme.typography.labelMedium, color = if (r.kind.positive) MaterialTheme.colorScheme.primary else Extra.rose)
-                        if (r.remark.isNotBlank()) Text("“${r.remark}”", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))
+                        Text("${r.category.emoji} ${r.category.label} · ${r.stars}★", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text("“${r.remark}”", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
             }
@@ -158,9 +214,10 @@ fun PersonScreen(
             Surface(shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.padding(top = 16.dp).fillMaxWidth()) {
                 Column(Modifier.padding(14.dp)) {
                     Text("How stars work", style = MaterialTheme.typography.titleSmall)
-                    Text("Everyone starts at 4 stars, and the most is 5. Being thanked for help adds ½, a confirmed real SOS adds ¼. " +
-                        "A bad-language flag takes away ¾, a fake SOS report takes away 1½. One person counts at most twice for each kind, " +
-                        "people you've never met count half, and old ratings fade. Every rating is signed by the phone that gave it, so it can't be faked or changed.",
+                    Text("People rate 5 things, 1 to 5 stars each: helpful, quick to respond, reliable, clear communication, respectful. " +
+                        "Each starts at 4 stars, so one or two ratings can't swing it much; the overall is their average. Only people who met, " +
+                        "chatted or shared a rescue can rate, once every 30 days. People met in person count fully, others half, and ratings older " +
+                        "than 6 months count half. Each fake-SOS report takes ½ star off the overall. Every rating is signed by the phone that gave it, so it can't be faked or changed.",
                         style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
                 }
             }

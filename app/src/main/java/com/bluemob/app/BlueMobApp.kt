@@ -61,6 +61,7 @@ class BlueMobApp : Application() {
     lateinit var settings: AppSettings private set
     lateinit var signals: SignalController private set
     lateinit var sos: SosManager private set
+    lateinit var sosCircle: com.bluemob.app.sos.SosCircle private set
     lateinit var heading: HeadingSensor private set
     lateinit var audit: AuditLog private set
     lateinit var trail: TrailRecorder private set
@@ -233,6 +234,14 @@ class BlueMobApp : Application() {
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
             onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, contacts.contacts.value[peer]?.name ?: "Someone", text) },
         )
+        // SOS contacts: alerted in BlueMob (online, nearby, or when they next connect) when we send an SOS.
+        sosCircle = com.bluemob.app.sos.SosCircle(settings, mesh, identity.keys, { identity.displayName.value },
+            { profile.profile.value.takeIf { it.verified }?.phone }, { settings.bridgeUrl.value.takeIf { it.isNotBlank() } },
+            sendChat = { peer, text -> messages.send(peer, text) }, sos = sos, prefs = SecurePrefs.open(this, "sos_circle"), scope = appScope,
+            onRequest = { r -> notifier.note("${r.name} wants you as their SOS contact", "Open BlueMob to accept: you'd get an alert if they ever send an SOS.", null) })
+        sos.onSent = { sosCircle.alert(it) }
+        sos.onSafe = { sosCircle.safe(it) }
+        appScope.launch { live.connected.collect { if (it) sosCircle.registerNumber() } }
         appScope.launch { sos.alert.collect { a -> if (a != null && !inForeground && a.id != SosManager.PREVIEW_ID) notifier.sos(a) } }
         appScope.launch { rescue.notices.collect { n -> if (!inForeground) notifier.rescue(n.room, n.text) } }
         // Start-up itself is done. Android also starts BlueMob with no screen (background service, scheduled backups,

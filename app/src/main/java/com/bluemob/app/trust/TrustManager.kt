@@ -40,11 +40,44 @@ class TrustManager(
         .map { rows -> rows.mapNotNull { r -> RatingKind.of(r.kind)?.let { Rating(r.rater, r.raterName, r.subject, it, r.ctx, r.remark, r.at) } } }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
+    /** Star ratings by category (5 categories, 1–5 stars each). */
+    val categoryRatings: StateFlow<List<CategoryRating>> = dao.observeAll()
+        .map { rows -> rows.mapNotNull { r ->
+            val c = RatingCategory.of(r.kind) ?: return@mapNotNull null
+            val v = runCatching { JSONObject(JSONObject(r.packet).getString("b")).optInt("v") }.getOrDefault(0)
+            if (v !in 1..5) null else CategoryRating(r.rater, r.raterName, r.subject, c, v, r.remark, r.at)
+        } }
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
     /** Scores for everyone we have ratings about. Use [scoreFor] for anyone. */
-    val scores: StateFlow<Map<String, TrustScore>> = combine(ratings, contacts.contacts) { all, people ->
+    val scores: StateFlow<Map<String, TrustScore>> = combine(ratings, categoryRatings, contacts.contacts) { all, cats, people ->
         val now = System.currentTimeMillis()
-        all.map { it.subject }.distinct().associateWith { id -> Trust.score(id, all, now) { rater -> weight(rater, people.keys) } }
+        (all.map { it.subject } + cats.map { it.subject }).distinct().associateWith { id -> Trust.standing(id, cats, all, now) { rater -> weight(rater, people.keys) } }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
+
+    /** When we last rated [subject] in any category (one round of ratings per person every 30 days). */
+    fun lastRatedAt(subject: String): Long? = categoryRatings.value.filter { it.rater == identity.nodeId && it.subject == subject }.maxOfOrNull { it.at }
+
+    /**
+     * Rates someone in one or more categories (1–5 stars each) with an optional remark. Returns why not, or null when
+     * done. The app only offers this to people you've actually met, chatted with or shared a rescue with.
+     */
+    fun rateCategories(subject: String, stars: Map<RatingCategory, Int>, remark: String): String? {
+        if (subject == identity.nodeId) return "You can't rate yourself."
+        lastRatedAt(subject)?.let { if (System.currentTimeMillis() - it < Trust.RERATE_MS) return "You rated them less than 30 days ago. You can change it after that." }
+        val now = System.currentTimeMillis()
+        stars.filterValues { it in 1..5 }.forEach { (c, v) ->
+            val body = JSONObject().put("subject", subject).put("kind", c.code).put("v", v).put("ctx", "")
+                .put("remark", remark.trim().take(MAX_REMARK)).put("at", now).put("name", identity.displayName.value)
+            val json = Envelope.seal(NearbyMeshTransport.TYPE_RATE, body, identity.keys)
+            scope.launch { store(json) }
+            mesh.broadcastRate(json, listOf(subject, c.code, "", now).joinToString("|"))
+            bridge.enqueue("rate:" + keyOf(identity.nodeId, subject, c.code, ""), json.toString())
+        }
+        val name = contacts.contacts.value[subject]?.name ?: "someone"
+        audit.add(AuditKind.TRUST, "You rated $name: " + stars.entries.joinToString(", ") { "${it.key.label} ${it.value}★" })
+        return null
+    }
 
     /** Someone rated us: shown as a banner or notification. */
     private val _aboutMe = MutableSharedFlow<Rating>(extraBufferCapacity = 8)
@@ -85,16 +118,24 @@ class TrustManager(
         val o = Envelope.open(json) ?: return
         if (o.type != NearbyMeshTransport.TYPE_RATE) return
         val b = o.body
-        val kind = RatingKind.of(b.optString("kind")) ?: return
+        val code = b.optString("kind")
+        val category = RatingCategory.of(code)
+        val kind = RatingKind.of(code)
+        if (kind == null && (category == null || b.optInt("v") !in 1..5)) return
         val subject = b.optString("subject")
         if (subject.length != 16 || subject == o.from) return
         val at = b.optLong("at")
         if (at > System.currentTimeMillis() + 10 * 60_000) return // dated in the future: refuse
         val ctx = b.optString("ctx").take(64)
-        val key = keyOf(o.from, subject, kind.code, ctx)
+        val key = keyOf(o.from, subject, code, ctx)
         val existing = dao.get(key)
         if (existing != null && existing.at >= at) return
-        dao.put(RatingRow(key, subject, o.from, b.optString("name").take(24).ifBlank { "Someone" }, kind.code, ctx, b.optString("remark").take(MAX_REMARK), at, json.toString()))
+        dao.put(RatingRow(key, subject, o.from, b.optString("name").take(24).ifBlank { "Someone" }, code, ctx, b.optString("remark").take(MAX_REMARK), at, json.toString()))
+        if (kind == null) {
+            if (existing == null && subject == identity.nodeId && category != null)
+                audit.add(AuditKind.TRUST, "${b.optString("name").take(24)} rated you: ${category.label} ${b.optInt("v")}★")
+            return
+        }
         if (existing == null && subject == identity.nodeId) {
             val r = Rating(o.from, b.optString("name").take(24), subject, kind, ctx, b.optString("remark").take(MAX_REMARK), at)
             _aboutMe.tryEmit(r)

@@ -245,46 +245,106 @@ fun SosHubScreen(
 @Composable
 internal fun Chevron() = Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = Extra.ink3)
 
-/** Add and remove the people to text when you send an SOS. Numbers stay on this phone. */
+/**
+ * SOS contacts: 1 to 4 people who get an alert in BlueMob when you send an SOS. Each one accepts in their own app
+ * (that makes them verified). Add someone you've met, or by mobile number.
+ */
 @Composable
-fun SosContactsScreen(contacts: List<SosContact>, onBack: () -> Unit, onAdd: (String, String) -> Unit, onRemove: (String) -> Unit) {
+fun SosContactsScreen(
+    contacts: List<SosContact>,
+    onBack: () -> Unit,
+    onAdd: suspend (name: String, phone: String, nodeId: String?) -> String?,
+    onRemove: (String) -> Unit,
+    people: List<com.bluemob.app.ui.Person> = emptyList(),
+    onAskAgain: (SosContact) -> Unit = {},
+) {
     var name by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
+    var note by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val full = contacts.size >= com.bluemob.app.sos.SosCircle.MAX
+    val accepted = contacts.count { it.verified }
     SubScreen("SOS contacts", onBack) {
         item {
             Column(Modifier.padding(top = 8.dp, bottom = 4.dp)) {
                 Text("SOS contacts", style = MaterialTheme.typography.headlineMedium)
-                Text("Family or friends to text when you send an SOS. They don't need BlueMob: they get a normal text with your note and position.",
+                Text("When you send an SOS, they get an alert in BlueMob with your note, position, battery and blood group: straight away if they're online or nearby, otherwise the moment their phone connects.",
                     style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
             }
         }
+        // The rules, and where you stand.
+        item {
+            val ok = contacts.isNotEmpty() && accepted >= 1
+            Column(Modifier.padding(top = 12.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(if (ok) Extra.pineTint else Extra.emberTint).padding(14.dp)) {
+                Text(if (ok) "✓ You're covered: $accepted of ${contacts.size} accepted" else if (contacts.isEmpty()) "Add at least one SOS contact" else "Waiting for someone to accept",
+                    style = MaterialTheme.typography.titleSmall)
+                Text("1 to 4 people · at least 1 must accept in their BlueMob · they must use BlueMob", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+        note?.let { item { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp)) } }
         item { Gap(12.dp) }
         item {
             Group {
                 if (contacts.isEmpty()) Text("No one yet. Add someone below.", color = Extra.ink2, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(16.dp))
                 contacts.forEachIndexed { i, c ->
-                    SettingRow(null, Color.Transparent, c.name, c.phone, divider = i > 0) {
-                        TextButton(onClick = { onRemove(c.id) }) { Text("Remove", color = Extra.rose) }
+                    SettingRow(null, Color.Transparent, c.name, listOf(c.phone.ifBlank { null }, c.state.label).filterNotNull().joinToString(" · "), divider = i > 0) {
+                        Row {
+                            if (c.state == com.bluemob.app.settings.SosContactState.ASKED || c.state == com.bluemob.app.settings.SosContactState.DECLINED)
+                                TextButton(onClick = { onAskAgain(c); note = "Asked ${c.name} again." }) { Text("Ask again") }
+                            TextButton(onClick = { onRemove(c.id) }) { Text("Remove", color = Extra.rose) }
+                        }
                     }
                 }
             }
         }
-        item { GroupLabel("Add someone") }
-        item {
-            Group {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Field("Name", name, "e.g. Papa", KeyboardType.Text) { name = it.take(30) }
-                    Field("Phone number", phone, "+91 …", KeyboardType.Phone) { phone = it.filter { ch -> ch.isDigit() || ch in "+ -()" }.take(20) }
-                    Button(onClick = { onAdd(name, phone); name = ""; phone = "" }, enabled = name.isNotBlank() && phone.count { it.isDigit() } >= 6,
-                        modifier = Modifier.fillMaxWidth()) { Text("Add") }
+        if (!full) {
+            val candidates = people.filter { p -> contacts.none { it.nodeId == p.nodeId } }.take(12)
+            if (candidates.isNotEmpty()) {
+                item { GroupLabel("People you've met") }
+                item {
+                    androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(candidates.size) { i ->
+                            val p = candidates[i]
+                            Chip("${p.avatar ?: "🙂"} ${p.name}", false) {
+                                busy = true
+                                scope.launch { note = onAdd(p.name, "", p.nodeId) ?: "Asked ${p.name}. They'll see it in BlueMob."; busy = false }
+                            }
+                        }
+                    }
                 }
             }
-        }
+            item { GroupLabel("Add by mobile number") }
+            item {
+                Group {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Field("Name", name, "e.g. Papa", KeyboardType.Text) { name = it.take(30) }
+                        Field("Mobile number", phone, "+91 …", KeyboardType.Phone) { phone = it.filter { ch -> ch.isDigit() || ch in "+ -()" }.take(20) }
+                        Button(onClick = {
+                            busy = true
+                            scope.launch { note = onAdd(name, phone, null) ?: "Found $name on BlueMob and asked them."; busy = false; if (note?.startsWith("Found") == true) { name = ""; phone = "" } }
+                        }, enabled = !busy && name.isNotBlank() && phone.count { it.isDigit() } >= 10, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "Looking…" else "Add") }
+                    }
+                }
+            }
+        } else item { Text("You have the maximum of ${com.bluemob.app.sos.SosCircle.MAX}. Remove one to add someone else.", color = Extra.ink2, modifier = Modifier.padding(top = 12.dp)) }
         item {
-            Text("Numbers stay on your phone. They're only used when you send an SOS.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3,
-                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+            Text("Numbers stay on your phone. To find someone, BlueMob sends only a scrambled fingerprint of the number.",
+                style = MaterialTheme.typography.bodySmall, color = Extra.ink3, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
         }
     }
+}
+
+/** Someone asked us to be their SOS contact. */
+@Composable
+fun SosContactRequest(name: String, onAnswer: (Boolean) -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = {},
+        title = { Text("🛟 Be $name's SOS contact?") },
+        text = { Text("If $name ever sends an SOS, you'll get an alert in BlueMob with their note and where they are, wherever you are.") },
+        confirmButton = { Button(onClick = { onAnswer(true) }) { Text("Accept") } },
+        dismissButton = { TextButton(onClick = { onAnswer(false) }) { Text("Not now") } },
+    )
 }
 
 @Composable
