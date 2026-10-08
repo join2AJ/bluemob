@@ -65,6 +65,10 @@ data class Call(
     val waiting: Boolean = false,
     /** Their phone was asleep and the relay woke it: it rings there as BlueMob starts. */
     val waking: Boolean = false,
+    /** Their picture arrives but their voice doesn't: something on the audio side, not the link. */
+    val videoOnly: Boolean = false,
+    /** Voice counters ("sent 210 · got 0 · played 0"), shown when voice has trouble, so it can be reported. */
+    val voiceStats: String = "",
 )
 
 /**
@@ -119,6 +123,8 @@ class CallManager(
     private var retryJob: Job? = null
     private var lastFrameSent = 0L
     @Volatile private var lastAudioAt = 0L
+    @Volatile private var lastVideoAt = 0L
+    private var lastNomic = 0L
     @Volatile private var encoding = false
 
     init {
@@ -148,7 +154,7 @@ class CallManager(
                 val frame = if (c.e2e) cipher?.open(m.bytes, c.peer) ?: return@collect else m.bytes
                 when (frame[0]) {
                     NearbyMeshTransport.MEDIA_AUDIO -> { lastAudioAt = SystemClock.elapsedRealtime(); voice.onPacket(frame) }
-                    NearbyMeshTransport.MEDIA_VIDEO -> decodeFrame(frame)
+                    NearbyMeshTransport.MEDIA_VIDEO -> { lastVideoAt = SystemClock.elapsedRealtime(); decodeFrame(frame) }
                 }
             }
         }
@@ -317,6 +323,8 @@ class CallManager(
             "ptt" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyPtt = b.optBoolean("on"), theyTalking = false, noAudio = false) }
             "talk" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyTalking = b.optBoolean("on"), noAudio = false) }
             "mute" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyMuted = b.optBoolean("on"), noAudio = false) }
+            // They hear nothing from us: rebuild our microphone.
+            "nomic" -> if (current?.id == id && current.peer == e.fromNodeId && current.phase == CallPhase.ACTIVE) voice.restartMic()
             "end" -> if (current?.id == id && current.peer == e.fromNodeId) finish(if (current.phase == CallPhase.INCOMING) "Missed call" else "Call ended")
         }
     }
@@ -352,8 +360,16 @@ class CallManager(
                 if (gone == 0 && _call.value?.link != link) _call.update { it?.copy(link = link) }
                 val now = _call.value
                 // Quiet is expected when they've muted, or use walkie-talkie and aren't holding the button.
-                val quiet = SystemClock.elapsedRealtime() - lastAudioAt > NO_AUDIO_MS && now?.theyMuted == false && !(now.theyPtt && !now.theyTalking)
-                if (_call.value?.noAudio != quiet) _call.update { it?.copy(noAudio = quiet) }
+                val t = SystemClock.elapsedRealtime()
+                val quiet = t - lastAudioAt > NO_AUDIO_MS && now?.theyMuted == false && !(now.theyPtt && !now.theyTalking)
+                // Their picture comes through but not their voice: the link is fine, their microphone isn't. Ask
+                // their phone to restart it (at most every few seconds).
+                val videoOnly = quiet && t - lastVideoAt < NO_AUDIO_MS
+                if (quiet && gone == 0 && t - lastNomic > NOMIC_EVERY_MS) { lastNomic = t; signal(c, "nomic") }
+                val st = voice.stats()
+                val stats = "Voice: sent ${st.sent} · got ${st.received} · played ${st.played}" +
+                    (if (st.micRestarts + st.speakerRestarts > 0) " · restarted mic ${st.micRestarts}, speaker ${st.speakerRestarts}" else "")
+                if (now?.noAudio != quiet || now.videoOnly != videoOnly || now.voiceStats != stats) _call.update { it?.copy(noAudio = quiet, videoOnly = videoOnly, voiceStats = stats) }
             }
         }
     }
@@ -380,7 +396,9 @@ class CallManager(
         runCatching { keepAlive(false, false) }
         if (c.phase == CallPhase.ACTIVE) {
             val secs = (System.currentTimeMillis() - c.startedAt) / 1000
-            audit.add(AuditKind.MESH, "Call with ${c.name} ended after ${secs / 60} min ${secs % 60} s")
+            val st = voice.stats()
+            audit.add(AuditKind.MESH, "Call with ${c.name} ended after ${secs / 60} min ${secs % 60} s · voice sent ${st.sent}, got ${st.received}, played ${st.played}" +
+                if (st.micRestarts + st.speakerRestarts > 0) ", mic restarted ${st.micRestarts}×, speaker ${st.speakerRestarts}×" else "")
         }
         _call.value = c.copy(phase = CallPhase.ENDED, ended = reason)
         _remoteFrame.value = null
@@ -431,6 +449,7 @@ class CallManager(
         const val RING_TIMEOUT_MS = 45_000L
         const val LINK_GRACE_S = 8
         const val NO_AUDIO_MS = 3_000L
+        const val NOMIC_EVERY_MS = 6_000L
         const val FPS_WIFI = 10
         const val FPS_BLUETOOTH = 2
         /** Longest side of a video frame, in pixels. */

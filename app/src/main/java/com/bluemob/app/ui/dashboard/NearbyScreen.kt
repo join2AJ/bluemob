@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.SmartToy
-import androidx.compose.material.icons.outlined.SportsEsports
 import com.bluemob.app.system.Radio
 import com.bluemob.app.system.RadioState
 import com.bluemob.app.ui.system.RadioBanner
@@ -200,7 +199,7 @@ fun NearbyScreen(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 FeatureCard(Icons.Outlined.SmartToy, Extra.sky, "Ask Sky", "Your built-in guide. Lives on your phone, works offline.", onTalkToSky)
                 FeatureCard(Icons.Outlined.MenuBook, Palette.Pine, "Survival guide", "First aid, water, fire, shelter and more. Stored on your phone.", onOpenGuide)
-                FeatureCard(Icons.Outlined.SportsEsports, Extra.ember, "Play a game", "With someone nearby, or against the computer when no one's around.", onGames)
+                FeatureCard(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Play a game", "With someone nearby, or against the computer when no one's around.", onGames)
                 FeatureCard(Icons.Outlined.BatterySaver, Color(0xFF3A9A5B), "Make the battery last", "Battery Saver for the phone, while BlueMob keeps running.", onOpenBattery)
             }
         }

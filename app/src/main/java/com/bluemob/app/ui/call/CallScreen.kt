@@ -208,7 +208,8 @@ private fun problem(call: Call): String? = when {
     call.phase != CallPhase.ACTIVE -> null
     call.warning != null -> call.warning
     call.theyMuted -> "${call.name} muted their microphone"
-    call.noAudio -> "Can't hear ${call.name} right now: the link is weak. Move closer, or try walkie-talkie."
+    call.videoOnly -> "${call.name}'s picture is coming but not their voice. Restarting their microphone…\n${call.voiceStats}"
+    call.noAudio -> "Can't hear ${call.name} right now: the link is weak. Move closer, or try walkie-talkie.\n${call.voiceStats}"
     call.theyPtt && !call.theyTalking && !call.ptt -> "${call.name} is using walkie-talkie: they talk while holding their button"
     else -> null
 }
