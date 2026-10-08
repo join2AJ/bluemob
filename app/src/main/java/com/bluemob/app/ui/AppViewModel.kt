@@ -428,6 +428,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             com.bluemob.app.util.Geo.formatDistance(d) + " away"
         } else null
         blueMob.sosCircle.coming(s.fromNodeId, away)
+        blueMob.rescue.note(id, "✓ ${s.name} has been told you're coming" + (away?.let { " ($it)" } ?: "") + ". " +
+            if (s.pos != null) "Their position is on the compass: tap Navigate." else "Their position isn't known yet: ask them where they are, or listen for their whistle.")
     }
     /** Text someone who isn't on BlueMob yet, from your own phone's SMS app. */
     fun inviteText(name: String) = "Hi $name, I've added you as my SOS contact on BlueMob, the safety app that works even without signal. " +

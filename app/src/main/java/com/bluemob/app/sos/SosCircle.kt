@@ -45,6 +45,8 @@ class SosCircle(
     /** Someone asked us to be their SOS contact: the app shows it (and notifies in the background). */
     private val onRequest: (Request) -> Unit = {},
 ) {
+    /** One of our SOS contacts' phones confirmed it got our SOS: (their name, the SOS ID). */
+    var onGot: (String, String) -> Unit = { _, _ -> }
     data class Request(val from: String, val name: String, val at: Long = System.currentTimeMillis())
 
     private val _requests = MutableStateFlow<List<Request>>(emptyList())
@@ -105,6 +107,7 @@ class SosCircle(
     fun fromPush(d: Map<String, String>): Boolean {
         val from = d["from"]?.takeIf { it.length == 16 } ?: return false
         if (from !in _guarding.value && contacts.value.none { it.nodeId == from }) return false
+        if (d["k"] == "sos") mesh.sendApp(from, KIND, JSONObject().put("a", "got").put("id", d["id"].orEmpty().take(40)))
         val lat = d["lat"]?.toDoubleOrNull()
         val lon = d["lon"]?.toDoubleOrNull()
         val at = d["at"]?.toLongOrNull() ?: System.currentTimeMillis()
@@ -172,7 +175,10 @@ class SosCircle(
             }
             "remove" -> { setGuarding(_guarding.value - e.fromNodeId); _requests.update { l -> l.filterNot { it.from == e.fromNodeId } } }
             // Only from people we agreed to look out for (or who are our own contacts): nobody else can set off an alarm.
+            "got" -> if (contacts.value.any { it.nodeId == e.fromNodeId }) onGot(e.name.ifBlank { "Your contact" }, b.optString("id").take(40))
             "sos", "safe" -> if (e.fromNodeId in _guarding.value || contacts.value.any { it.nodeId == e.fromNodeId }) {
+                // Tell them it arrived, so their phone can say "Asha got your SOS".
+                if (b.optString("a") == "sos") mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("a", "got").put("id", b.optString("id").take(40)))
                 val lat = b.optDouble("lat").takeUnless { it.isNaN() }
                 val lon = b.optDouble("lon").takeUnless { it.isNaN() }
                 sos.receive(SosSignal(

@@ -87,6 +87,24 @@ class RescueManager(
 
     fun room(id: String): RescueRoom? = rooms.value.firstOrNull { it.id == id }
 
+    /**
+     * People outside radio range who belong in a group, so its messages also go to them over the internet: set by the
+     * app (for our own SOS, our SOS contacts).
+     */
+    var remoteMembers: (RescueRoom) -> Collection<String> = { emptySet() }
+
+    /** Everyone in a group but us: the person in need, the helpers, and [remoteMembers]. */
+    private fun members(r: RescueRoom): Set<String> =
+        (listOf(r.victimId) + r.helpers.filter { it.status != HelperStatus.LEFT }.map { it.nodeId } + remoteMembers(r)).toSet() - identity.nodeId
+
+    /** A line in the group that only this phone shows ("Asha got your SOS"). */
+    fun note(roomId: String, text: String) {
+        scope.launch { dao.insert(RescueMessage("note-" + UUID.randomUUID().toString().take(12), roomId, "", "", RescueRoom.NOTE, text, System.currentTimeMillis(), local = true)) }
+    }
+
+    /** Last catch-up sent to each person over the internet, so it isn't repeated every message. */
+    private val caughtUp = mutableMapOf<String, Long>()
+
     /** "I'm coming": joins the group for this SOS and starts sharing our position with it. */
     fun join(roomId: String) {
         val r = room(roomId) ?: return
@@ -128,12 +146,20 @@ class RescueManager(
         val m = RoomPayload("r-" + UUID.randomUUID().toString().take(16), room, identity.nodeId, identity.displayName.value, kind, text, System.currentTimeMillis(), pos)
         scope.launch { dao.insert(m.toRow(battery = if (room(room)?.mine == true) sos.batteryPct() else null)) }
         mesh.broadcastRoom(m)
+        // Members who aren't nearby get it over the internet.
+        room(room)?.let { r -> members(r).filter { !mesh.isConnected(it) }.forEach { mesh.sendRoomOnline(it, m) } }
     }
 
     private suspend fun receive(m: RoomPayload) {
         val isNew = dao.insert(m.toRow()) != -1L
         if (!isNew) return
         val r = room(m.room)
+        // Someone far away in the group just spoke: send them what they may have missed (at most every 2 minutes).
+        if (r != null && m.fromNodeId != identity.nodeId && !mesh.isConnected(m.fromNodeId) &&
+            System.currentTimeMillis() - (caughtUp[m.fromNodeId] ?: 0L) > 120_000) {
+            caughtUp[m.fromNodeId] = System.currentTimeMillis()
+            catchUpOnline(m.fromNodeId, r.id)
+        }
         if (m.kind == RescueRoom.TEXT) audit.add(AuditKind.MESSAGE, "Rescue group for ${r?.victimName ?: "an SOS"}: ${m.fromName}: \"${m.text.take(80)}\"")
         if (r == null || !r.iAmIn) return
         val notice = when (m.kind) {
@@ -145,6 +171,20 @@ class RescueManager(
             else -> null
         }
         notice?.let { _notices.tryEmit(RescueNotice(m.room, it)) }
+        // Our own SOS: say plainly what the helper already knows about us. It gives hope, and says what to do next.
+        if (r.mine && m.kind == RescueRoom.JOIN) {
+            val mine = sos.mine.value
+            note(m.room, "🏃 ${m.fromName} is on the way. They have your note, battery and blood group" +
+                (if (mine?.pos != null) ", and your position (±${mine.pos.uncertaintyM.toInt()} m). Stay where you are if you can." else ". Your position isn't known yet: turn on location, or tell them where you are."))
+        }
+    }
+
+    /** Our own recent messages in a group, to someone far away. (We can only re-send what we signed ourselves.) */
+    private suspend fun catchUpOnline(nodeId: String, roomId: String) {
+        val since = System.currentTimeMillis() - 6 * 3_600_000L
+        dao.recentShared(roomId, since, 30).asReversed().filter { it.fromNodeId == identity.nodeId }.forEach { row ->
+            mesh.sendRoomOnline(nodeId, RoomPayload(row.id, row.room, row.fromNodeId, row.fromName, row.kind, row.text, row.at, PosCodec.decode(row.pos)))
+        }
     }
 
     /** A phone just connected: send it what's happened in open groups, so it catches up. Duplicates are dropped on arrival. */
@@ -165,9 +205,19 @@ class RescueManager(
             location.hold()
             sharing[id] = scope.launch {
                 var last: PositionEstimate? = null
+                var told = false
                 while (true) {
                     delay(45_000)
                     val here = trail.snapshot() ?: continue
+                    // Say once that our position is going out: the person in need knows help can find them, and a
+                    // helper knows they can be followed.
+                    if (!told) {
+                        told = true
+                        room(id)?.let { r ->
+                            val who = (r.helpers.filter { it.nodeId != identity.nodeId }.map { it.name } + (if (!r.mine) listOf(r.victimName) else emptyList())).distinct()
+                            note(id, "📍 Your position (±${here.uncertaintyM.toInt()} m) is now shared with " + (if (who.isEmpty()) "the group" else who.joinToString()) + ", and updated as you move.")
+                        }
+                    }
                     val moved = last?.let { Geo.distanceM(GeoPoint(it.lat, it.lon, 0f, 0), GeoPoint(here.lat, here.lon, 0f, 0)) } ?: Double.MAX_VALUE
                     if (moved >= 10 || here.at - (last?.at ?: 0) >= 3 * 60_000) {
                         post(id, RescueRoom.POS, "", here)

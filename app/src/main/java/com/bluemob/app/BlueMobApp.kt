@@ -247,7 +247,15 @@ class BlueMobApp : Application() {
         peerStatus = com.bluemob.app.nearby.PeerStatus(mesh, appScope,
             battery = { sos.batteryPct()?.let { it to (getSystemService(android.os.BatteryManager::class.java)?.isCharging == true) } },
             onRequest = { r -> if (!inForeground) notifier.note("${r.name} is checking on everyone", "Open BlueMob and tap I'm OK, or I need help.", null) })
-        sos.onSent = { sosCircle.alert(it) }
+        sos.onSent = { s ->
+            sosCircle.alert(s)
+            val names = settings.sosContacts.value.filter { it.nodeId != null }.map { it.name }
+            if (names.isNotEmpty()) rescue.note(s.id, "📨 Sent to your SOS contacts: ${names.joinToString()}" +
+                (if (s.pos != null) ", with your position (±${s.pos.uncertaintyM.toInt()} m)" else ". Your position isn't known: turn on location if you can") + ". Waiting for them to answer…")
+        }
+        sosCircle.onGot = { name, id -> rescue.note(id, "✅ $name got your SOS" + if (sos.mine.value?.pos != null) " and your position" else "") }
+        // Our SOS contacts are in our rescue group too, wherever they are: group messages reach them over the internet.
+        rescue.remoteMembers = { r -> if (r.mine) settings.sosContacts.value.mapNotNull { it.nodeId } else emptySet() }
         sos.onSafe = { sosCircle.safe(it) }
         appScope.launch { live.connected.collect { if (it) { sosCircle.registerNumber(); syncEmail(); sosCircle.recheck() } } }
         // SOS contacts who hadn't joined BlueMob yet: look again every few hours and ask them as soon as they have.

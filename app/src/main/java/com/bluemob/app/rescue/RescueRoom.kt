@@ -55,7 +55,9 @@ data class RescueRoom(
         const val ARRIVED = "ARRIVED"
         const val LEAVE = "LEAVE"
         const val ENDED = "ENDED"
-        private val CHAT_KINDS = setOf(JOIN, TEXT, ARRIVED, LEAVE, ENDED)
+        /** A line only this phone shows, e.g. "Asha got your SOS and your position". */
+        const val NOTE = "NOTE"
+        private val CHAT_KINDS = setOf(JOIN, TEXT, ARRIVED, LEAVE, ENDED, NOTE)
 
         /** Walking time over rough ground, at about 1.1 m/s. */
         fun walkMinutes(m: Double): Int = (m / 1.1 / 60).toInt().coerceAtLeast(1)

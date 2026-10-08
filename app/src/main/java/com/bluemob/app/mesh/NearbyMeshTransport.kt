@@ -411,6 +411,15 @@ class NearbyMeshTransport(
         return targets.size
     }
 
+    /**
+     * Sends a rescue-group message to one person over the internet (the relay's live link), for group members who
+     * aren't nearby. Only works while they're online; the group catches them up when they next hear from us.
+     */
+    fun sendRoomOnline(nodeId: String, m: RoomPayload): Boolean {
+        val json = roomJson(m) ?: return false
+        return live?.sendText(nodeId, json.toString()) == true
+    }
+
     /** Sends a rescue-group message to one phone, e.g. one that just connected and may have missed it. */
     fun sendRoom(nodeId: String, m: RoomPayload): Boolean {
         val endpointId = connectedEndpointFor(nodeId) ?: return false
@@ -463,6 +472,8 @@ class NearbyMeshTransport(
                 val json = runCatching { JSONObject(data) }.getOrNull()
                 when (json?.optString("t")) {
                     TYPE_APP -> scope.launch { handleApp(null, json, viaInternetFrom = from) }
+                    // A rescue-group message from someone far away (checked like one from nearby, then passed on to phones here).
+                    TYPE_ROOM -> scope.launch { handleRoom("", json) }
                     // A chat message or receipt sent live: for us, or for a phone near us that we carry.
                     MeshRouter.RMSG, MeshRouter.RRCPT -> scope.launch { router.onInternetPacket(json.put("net", 1)) }
                 }
