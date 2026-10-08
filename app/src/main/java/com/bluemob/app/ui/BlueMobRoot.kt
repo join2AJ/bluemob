@@ -218,6 +218,15 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val headings = remember { vm.headings() }
     val sosContacts by vm.sosContacts.collectAsStateWithLifecycle()
     val radios by vm.radios.collectAsStateWithLifecycle()
+    /** Switches on what helps an SOS reach people: asks for permission first where Android needs it. */
+    val turnOnForSos: (String) -> Unit = { k ->
+        when (k) {
+            "location" -> if (!system.locationPermission) actions.requestLocation() else actions.switchRadio(com.bluemob.app.system.Radio.LOCATION, true)
+            "bluetooth" -> if (!system.permissionsGranted) actions.requestMeshPermissions() else actions.switchRadio(com.bluemob.app.system.Radio.BLUETOOTH, true)
+            "mesh" -> if (!system.permissionsGranted) actions.requestMeshPermissions() else vm.startMesh()
+            "internet" -> actions.switchRadio(com.bluemob.app.system.Radio.INTERNET, true)
+        }
+    }
     val trailOn by vm.trailOn.collectAsStateWithLifecycle()
     val trailPoints by vm.trailPoints.collectAsStateWithLifecycle()
     val estimate by vm.estimate.collectAsStateWithLifecycle()
@@ -422,7 +431,16 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "sos" -> SosHubScreen(
                     SosHubState(mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, sosContacts, sosReached),
                     message = vm::sosMessage, onBack = ::pop,
-                    onSend = { sosReached = vm.sendSos(it) }, onSafe = { vm.cancelSos(); sosReached = -1 }, onSignal = { push("signal") },
+                    onSend = {
+                        sosReached = vm.sendSos(it)
+                        // Ask for the most important missing piece right away (Android shows one prompt at a time).
+                        when {
+                            !system.permissionsGranted -> actions.requestMeshPermissions()
+                            !system.locationPermission -> actions.requestLocation()
+                            !radios.bluetooth -> actions.switchRadio(com.bluemob.app.system.Radio.BLUETOOTH, true)
+                            !radios.location -> actions.switchRadio(com.bluemob.app.system.Radio.LOCATION, true)
+                        }
+                    }, onSafe = { vm.cancelSos(); sosReached = -1 }, onSignal = { push("signal") },
                     onDefaultSignal = vm::setSignalDefault, onHowToHelp = { push("article:help-sos") }, onContacts = { push("sos-contacts") },
                     onText = actions.textSos, onPreviewAlert = vm::previewSosAlert,
                     rescue = rescues.firstOrNull { it.mine && it.id == mySos?.id }, onOpenRescue = { mySos?.let { push("rescue:" + it.id) } },
@@ -441,6 +459,10 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         onArrived = { vm.arrivedRescue(room.id) }, onLeave = { vm.leaveRescue(room.id) },
                         onNavigate = { compassTarget = room.victimId; goTab(Tab.COMPASS) }, onGuide = { push("article:$it") },
                         onSignal = { push("signal") }, onSafe = { vm.cancelSos(); sosReached = -1 },
+                        readiness = if (!room.mine) emptyMap() else mapOf(
+                            "location" to (system.locationPermission && radios.location), "bluetooth" to radios.bluetooth,
+                            "mesh" to running, "internet" to online),
+                        onTurnOn = { k -> turnOnForSos(k) },
                         onRate = { who, kind -> vm.rate(who, kind, room.id, "") },
                     ))
                 }
@@ -593,7 +615,16 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             com.bluemob.app.ui.account.LockScreen(
                 name, avatar, com.bluemob.app.util.formatId(vm.nodeId).take(9), biometricOn,
                 onPin = vm::checkPin, onBiometric = { actions.biometricUnlock { vm.unlockedByBiometric() } },
-                onSos = { vm.sendSos("") }, sosActive = mySos != null,
+                onSos = {
+                    val reached = vm.sendSos("")
+                    when {
+                        !system.permissionsGranted -> actions.requestMeshPermissions()
+                        !system.locationPermission -> actions.requestLocation()
+                        !radios.bluetooth -> actions.switchRadio(com.bluemob.app.system.Radio.BLUETOOTH, true)
+                        !radios.location -> actions.switchRadio(com.bluemob.app.system.Radio.LOCATION, true)
+                    }
+                    reached
+                }, sosActive = mySos != null,
             )
         }
 

@@ -101,6 +101,22 @@ class SosManager(
         return reached
     }
 
+    /** Our SOS got a (better) position: set by the app, to tell SOS contacts. */
+    var onUpdated: (SosSignal) -> Unit = {}
+
+    /**
+     * A new or better position while our SOS is on: everyone nearby gets the SOS again with it (same ID, so it updates
+     * rather than raising a new alarm), and so do our SOS contacts.
+     */
+    fun updatePosition(here: com.bluemob.app.trail.PositionEstimate) {
+        val cur = _mine.value ?: return
+        val updated = cur.copy(lat = here.lat, lon = here.lon, pos = here, at = System.currentTimeMillis(), battery = batteryPct() ?: cur.battery)
+        _mine.value = updated
+        mesh.broadcastSos(updated)
+        runCatching { onUpdated(updated) }
+        audit.add(AuditKind.SOS, "SOS position updated: " + here.describe())
+    }
+
     /** "I'm safe": tells everyone and stops re-sending. */
     fun cancel() {
         val sos = _mine.value ?: return

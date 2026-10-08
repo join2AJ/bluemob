@@ -92,6 +92,9 @@ class RescueActions(
     val onSafe: () -> Unit = {},
     /** Rate someone in this rescue: (their ID, what). */
     val onRate: (String, com.bluemob.app.trust.RatingKind) -> Unit = { _, _ -> },
+    /** For the person in need: what's on that helps them be found ("location", "bluetooth", "mesh", "internet"), and turning one on. */
+    val readiness: Map<String, Boolean> = emptyMap(),
+    val onTurnOn: (String) -> Unit = {},
 )
 
 private val HELPER_REPLIES = listOf("On my way 🏃", "Stay where you are", "Can you hear my whistle?", "Shine your light", "I see you!", "Need more people")
@@ -264,6 +267,25 @@ private fun VictimCard(room: RescueRoom, actions: RescueActions) {
             }
             Text("Stay where you are if you can. Keep warm and save battery. When they're close, use the SOS signal so they can find you.",
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 8.dp))
+            // What helps them find you: anything off gets a button.
+            if (!room.ended && actions.readiness.isNotEmpty()) Column(Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(
+                    "location" to ("📍 Location" to "so helpers know where you are"),
+                    "bluetooth" to ("📶 Bluetooth" to "so phones nearby find you without signal"),
+                    "mesh" to ("📡 Searching nearby" to "your SOS goes to every phone in range"),
+                    "internet" to ("🌐 Internet" to "reaches your SOS contacts anywhere"),
+                ).forEach { (k, v) ->
+                    val on = actions.readiness[k] ?: return@forEach
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(v.first + if (on) "  ✓ on" else "  · off", style = MaterialTheme.typography.titleSmall, color = if (on) MaterialTheme.colorScheme.primary else Extra.rose)
+                            if (!on) Text(v.second, style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                        }
+                        if (!on) TextButton(onClick = { actions.onTurnOn(k) }) { Text("Turn on") }
+                    }
+                }
+            }
             if (!room.ended) Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = actions.onSignal, colors = ButtonDefaults.buttonColors(containerColor = Extra.rose, contentColor = Color.White)) { Text("Signal: light & sound") }
                 OutlinedButton(onClick = actions.onSafe) { Text("I'm safe now") }

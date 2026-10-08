@@ -206,9 +206,12 @@ class RescueManager(
             sharing[id] = scope.launch {
                 var last: PositionEstimate? = null
                 var told = false
+                var first = true
                 while (true) {
-                    delay(45_000)
-                    val here = trail.snapshot() ?: continue
+                    // The first position goes out as soon as there is one; then about every 45 s.
+                    if (!first) delay(45_000)
+                    first = false
+                    val here = trail.snapshot() ?: run { delay(5_000); first = true; null } ?: continue
                     // Say once that our position is going out: the person in need knows help can find them, and a
                     // helper knows they can be followed.
                     if (!told) {

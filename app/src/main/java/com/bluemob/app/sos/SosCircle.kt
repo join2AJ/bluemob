@@ -155,6 +155,14 @@ class SosCircle(
         }
     }
 
+    /** A better position for our SOS: contacts' alerts update (no new chat message, no second alarm). */
+    fun update(s: SosSignal) {
+        val body = JSONObject().put("a", "sos").put("id", s.id).put("note", s.note.take(200)).put("at", s.at)
+            .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("acc", s.pos?.uncertaintyM ?: -1.0)
+            .put("bat", s.battery ?: -1).put("blood", s.bloodGroup ?: "").put("age", s.age ?: -1).put("upd", 1)
+        contacts.value.mapNotNull { it.nodeId }.forEach { to -> mesh.sendApp(to, KIND, JSONObject(body.toString())) }
+    }
+
     fun safe(s: SosSignal) {
         contacts.value.mapNotNull { it.nodeId }.forEach { to ->
             mesh.sendApp(to, KIND, JSONObject().put("a", "safe").put("id", s.id))
@@ -178,7 +186,7 @@ class SosCircle(
             "got" -> if (contacts.value.any { it.nodeId == e.fromNodeId }) onGot(e.name.ifBlank { "Your contact" }, b.optString("id").take(40))
             "sos", "safe" -> if (e.fromNodeId in _guarding.value || contacts.value.any { it.nodeId == e.fromNodeId }) {
                 // Tell them it arrived, so their phone can say "Asha got your SOS".
-                if (b.optString("a") == "sos") mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("a", "got").put("id", b.optString("id").take(40)))
+                if (b.optString("a") == "sos" && b.optInt("upd") != 1) mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("a", "got").put("id", b.optString("id").take(40)))
                 val lat = b.optDouble("lat").takeUnless { it.isNaN() }
                 val lon = b.optDouble("lon").takeUnless { it.isNaN() }
                 sos.receive(SosSignal(

@@ -253,6 +253,37 @@ class BlueMobApp : Application() {
             if (names.isNotEmpty()) rescue.note(s.id, "📨 Sent to your SOS contacts: ${names.joinToString()}" +
                 (if (s.pos != null) ", with your position (±${s.pos.uncertaintyM.toInt()} m)" else ". Your position isn't known: turn on location if you can") + ". Waiting for them to answer…")
         }
+        sos.onUpdated = { s -> sosCircle.update(s) }
+        // While our SOS is on: GPS at full speed, and the mesh searching for phones nearby, so help can find us.
+        // Every new or clearly better position goes out at once to everyone nearby, our SOS contacts and the group.
+        appScope.launch {
+            var boosted = false
+            sos.mine.collect { mine ->
+                if (mine != null && !boosted) {
+                    boosted = true
+                    location.boost(true)
+                    if (!mesh.running.value) runCatching { mesh.start(useWifi = radios.state.value.wifi) }
+                } else if (mine == null && boosted) { boosted = false; location.boost(false) }
+            }
+        }
+        appScope.launch {
+            var lastSent: com.bluemob.app.contacts.GeoPoint? = null
+            var lastAt = 0L
+            location.location.collect { fix ->
+                val mine = sos.mine.value ?: run { lastSent = null; return@collect }
+                fix ?: return@collect
+                val prev = lastSent ?: mine.pos?.let { com.bluemob.app.contacts.GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
+                val now = System.currentTimeMillis()
+                val first = prev == null
+                val moved = prev != null && com.bluemob.app.util.Geo.distanceM(prev, fix) > 30
+                val sharper = prev != null && fix.accuracyM < prev.accuracyM / 2 && prev.accuracyM > 20
+                if (!(first || ((moved || sharper) && now - lastAt > 20_000))) return@collect
+                lastSent = fix; lastAt = now
+                val est = trail.snapshot() ?: return@collect
+                sos.updatePosition(est)
+                if (first) rescue.note(mine.id, "📍 Found your position (±${fix.accuracyM.toInt()} m). Sent to everyone nearby, your SOS contacts and your rescue group.")
+            }
+        }
         sosCircle.onGot = { name, id -> rescue.note(id, "✅ $name got your SOS" + if (sos.mine.value?.pos != null) " and your position" else "") }
         // Our SOS contacts are in our rescue group too, wherever they are: group messages reach them over the internet.
         rescue.remoteMembers = { r -> if (r.mine) settings.sosContacts.value.mapNotNull { it.nodeId } else emptySet() }
