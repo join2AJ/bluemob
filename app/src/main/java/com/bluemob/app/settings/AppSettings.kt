@@ -71,6 +71,19 @@ class AppSettings(context: Context) {
         prefs.edit().putStringSet("bookmarks", _bookmarks.value).apply()
     }
 
+    private val _pinned = MutableStateFlow(prefs.getStringSet("pinned_chats", emptySet())!!.toSet())
+    /** Chats pinned to the top of the list. */
+    val pinnedChats: StateFlow<Set<String>> = _pinned.asStateFlow()
+    fun setPinned(id: String, on: Boolean) {
+        _pinned.value = if (on) _pinned.value + id else _pinned.value - id
+        prefs.edit().putStringSet("pinned_chats", _pinned.value).apply()
+    }
+
+    private val _callsSeenAt = MutableStateFlow(prefs.getLong("calls_seen_at", 0L))
+    /** When the call list was last looked at: missed calls after this get the red badge. */
+    val callsSeenAt: StateFlow<Long> = _callsSeenAt.asStateFlow()
+    fun markCallsSeen() { val now = System.currentTimeMillis(); _callsSeenAt.value = now; prefs.edit().putLong("calls_seen_at", now).apply() }
+
     /** Base camp is a spot with a fixed ID, so setting it again moves it. */
     fun setBaseCamp(lat: Double, lon: Double) {
         _spots.value = listOf(Spot(Spot.BASE_CAMP_ID, "Base camp", lat, lon, System.currentTimeMillis())) + _spots.value.filterNot { it.isBaseCamp }

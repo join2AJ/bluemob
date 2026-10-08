@@ -317,7 +317,10 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
                             onCallBack = { id, n, video -> actions.requestCallPermissions(video) { vm.startCall(id, n, video) } },
                             onClearCalls = { vm.clearCallLog() }, onDeleteCall = { vm.deleteCall(it) }, onDeleteChat = { vm.deleteChat(it) },
-                            filesFor = { chatFiles(it) }) { push("chat:$it") }
+                            filesFor = { chatFiles(it) },
+                            groups = vm.groups.collectAsStateWithLifecycle().value.values.toList(), pinned = vm.pinnedChats.collectAsStateWithLifecycle().value,
+                            onPin = vm::setPinned, onNewGroup = { push("newgroup") }, onLeaveGroup = vm::leaveGroup,
+                            callsSeenAt = vm.callsSeenAt.collectAsStateWithLifecycle().value, onCallsSeen = vm::markCallsSeen) { push("chat:$it") }
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
@@ -362,11 +365,22 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         meshEvents = vm.meshEvents, myName = name, myId = vm.nodeId, onBack = ::pop, onSend = { vm.send(id, it) },
                         onPing = { vm.ping(id) }, onInfo = { push("info:$it") }, onPerson = { if (id != SkyBot.NODE_ID) push("person:$id") }, onAction = onSkyAction,
                         files = chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
+                        group = vm.groups.collectAsStateWithLifecycle().value[id],
+                        onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onGroupInfo = { push("group:$id") },
                         onCall = { video ->
                             val who = people.firstOrNull { it.nodeId == id }?.name ?: "them"
                             actions.requestCallPermissions(video) { vm.startCall(id, who, video) }
                         },
                     )
+                }
+                route == "newgroup" -> com.bluemob.app.ui.chat.NewGroupScreen(people.filter { it.nodeId != SkyBot.NODE_ID }, ::pop) { n, members ->
+                    vm.createGroup(n, members)?.let { pop(); push("chat:$it") }
+                }
+                route.startsWith("group:") -> {
+                    val g = vm.groups.collectAsStateWithLifecycle().value[route.removePrefix("group:")]
+                    if (g == null) LaunchedEffect(Unit) { pop() }
+                    else com.bluemob.app.ui.chat.GroupInfoScreen(g, people, ::pop, onAdd = { vm.addToGroup(g.id, it) },
+                        onLeave = { vm.leaveGroup(g.id); stack.clear() }, onPerson = { push("person:$it") })
                 }
                 route.startsWith("media:") -> {
                     val id = route.removePrefix("media:")

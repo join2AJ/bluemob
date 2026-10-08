@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,7 +61,8 @@ import java.util.Locale
 
 private enum class ChatFilter(val label: String) { ALL("All"), UNREAD("Unread"), ONLINE("Online"), WAITING("Waiting") }
 
-private data class Entry(val id: String, val name: String, val emoji: String?, val presence: Presence, val sharesName: Boolean, val status: String, val isBot: Boolean)
+private data class Entry(val id: String, val name: String, val emoji: String?, val presence: Presence, val sharesName: Boolean, val status: String, val isBot: Boolean,
+    val isGroup: Boolean = false, val pinned: Boolean = false)
 
 @Composable
 fun ChatsScreen(
@@ -79,10 +81,20 @@ fun ChatsScreen(
     onDeleteChat: (String) -> Unit = {},
     /** File actions (open, play, thumbnails) for a chat, for the Files tab. */
     filesFor: (String) -> ChatFiles = { ChatFiles() },
+    /** Group chats, pinned chats (they stay on top), and starting a new group. */
+    groups: List<com.bluemob.app.chat.ChatGroup> = emptyList(),
+    pinned: Set<String> = emptySet(),
+    onPin: (String, Boolean) -> Unit = { _, _ -> },
+    onNewGroup: () -> Unit = {},
+    onLeaveGroup: (String) -> Unit = {},
+    /** Missed calls since the Calls list was last opened: the red badge. */
+    callsSeenAt: Long = 0L,
+    onCallsSeen: () -> Unit = {},
     onOpen: (String) -> Unit,
 ) {
     var tab by rememberSaveable { mutableStateOf(ChatsTab.CHATS) }
-    val missedToday = calls.count { !it.outgoing && it.outcome == "MISSED" && it.startedAt > System.currentTimeMillis() - 86_400_000 }
+    val missedToday = calls.count { !it.outgoing && it.outcome == "MISSED" && it.startedAt > callsSeenAt }
+    if (tab == ChatsTab.CALLS) LaunchedEffect(calls.size) { onCallsSeen() }
     when (tab) {
         ChatsTab.CALLS -> { CallsList(calls, people, contentPadding, missedToday, onTab = { tab = it }, onCallBack = onCallBack, onClear = onClearCalls, onDelete = onDeleteCall); return }
         ChatsTab.FILES -> { FilesList(conversations, people, contentPadding, missedToday, onTab = { tab = it }, filesFor = filesFor); return }
@@ -94,9 +106,9 @@ fun ChatsScreen(
     deleting?.let { d ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text("Delete chat with ${d.name}?") },
-            text = { Text("Messages, photos and files in this chat are deleted from this phone. You can't get them back unless you have a backup.") },
-            confirmButton = { androidx.compose.material3.TextButton(onClick = { onDeleteChat(d.id); deleting = null }) { Text("Delete", color = Extra.rose) } },
+            title = { Text(if (d.isGroup) "Leave ${d.name}?" else "Delete chat with ${d.name}?") },
+            text = { Text(if (d.isGroup) "The others are told you left, and the group's messages are deleted from this phone." else "Messages, photos and files in this chat are deleted from this phone. You can't get them back unless you have a backup.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { if (d.isGroup) onLeaveGroup(d.id) else onDeleteChat(d.id); deleting = null }) { Text(if (d.isGroup) "Leave" else "Delete", color = Extra.rose) } },
             dismissButton = { androidx.compose.material3.TextButton(onClick = { deleting = null }) { Text("Keep") } },
         )
     }
@@ -104,8 +116,9 @@ fun ChatsScreen(
     val entries = buildList {
         // Sky lives in the Guide tab now; its chat shows here only once you've talked to it.
         if (conversations[SkyBot.NODE_ID].orEmpty().isNotEmpty()) add(Entry(SkyBot.NODE_ID, SkyBot.NAME, SkyBot.AVATAR, Presence.ONLINE, false, "Lives on your phone · works offline", true))
-        people.sortedByDescending { lastTime(it.nodeId) }.forEach { add(Entry(it.nodeId, it.name, it.avatar, it.presence, it.sharesName, statusLine(it), false)) }
-    }.filter { e ->
+        people.forEach { add(Entry(it.nodeId, it.name, it.avatar, it.presence, it.sharesName, statusLine(it), false, pinned = it.nodeId in pinned)) }
+        groups.forEach { g -> add(Entry(g.id, g.name, "👥", Presence.OFFLINE, false, "${g.members.size + 1} members", false, isGroup = true, pinned = g.id in pinned)) }
+    }.sortedWith(compareByDescending<Entry> { it.pinned }.thenByDescending { lastTime(it.id) }).filter { e ->
         val msgs = conversations[e.id].orEmpty()
         (query.isBlank() || e.name.contains(query.trim(), ignoreCase = true)) && when (filter) {
             ChatFilter.ALL -> true
@@ -141,6 +154,19 @@ fun ChatsScreen(
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text("Message anyone by BlueMob ID", style = MaterialTheme.typography.titleMedium)
                         Text("Even if they're not nearby. Share your own ID too", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+        if (query.isBlank()) item {
+            androidx.compose.material3.Surface(onClick = onNewGroup, shape = MaterialTheme.shapes.large, color = Extra.skyTint,
+                modifier = Modifier.padding(start = Space.lg, end = Space.lg, top = 10.dp).fillMaxWidth()) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("👥", fontSize = 22.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("New group", style = MaterialTheme.typography.titleMedium)
+                        Text("Family, friends, a trek team: everyone in one chat, even with no signal", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
                     }
                     Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                 }
@@ -184,7 +210,27 @@ fun ChatsScreen(
         }
         itemsIndexed(entries, key = { _, e -> e.id }) { i, e ->
             if (i > 0) InsetDivider()
-            ChatRow(e, conversations[e.id].orEmpty(), e.id in typing, onDelete = if (e.isBot) null else ({ deleting = e })) { onOpen(e.id) }
+            ChatRow(e, conversations[e.id].orEmpty(), e.id in typing, onDelete = if (e.isBot) null else ({ deleting = e }),
+                onPin = if (e.isBot) null else ({ onPin(e.id, !e.pinned) })) { onOpen(e.id) }
+        }
+        // Searching also looks inside messages.
+        val q = query.trim()
+        if (q.length >= 2) {
+            val names = people.associate { it.nodeId to it.name } + groups.associate { it.id to it.name } + (SkyBot.NODE_ID to SkyBot.NAME)
+            val hits = conversations.values.flatten().filter { it.text.contains(q, ignoreCase = true) }.sortedByDescending { it.createdAt }.take(30)
+            if (hits.isNotEmpty()) {
+                item { Text("MESSAGES", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
+                items(hits, key = { "hit-" + it.id }) { m ->
+                    Column(Modifier.fillMaxWidth().clickable { onOpen(m.peer) }.padding(horizontal = Space.lg, vertical = 8.dp)) {
+                        Row {
+                            Text(names[m.peer] ?: "Someone", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text(timeFormat.format(Date(m.createdAt)), style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
+                        }
+                        Text(highlight((if (m.fromMe) "You: " else if (m.senderName.isNotBlank()) m.senderName + ": " else "") + m.text, q, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
         }
         if (entries.isEmpty()) item {
             Text(if (people.isEmpty()) "People you meet appear here. Turn on the mesh in the Nearby tab." else "No chats match.",
@@ -197,22 +243,29 @@ private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-private fun ChatRow(e: Entry, messages: List<MessageEntity>, typing: Boolean, onDelete: (() -> Unit)? = null, onClick: () -> Unit) {
+private fun ChatRow(e: Entry, messages: List<MessageEntity>, typing: Boolean, onDelete: (() -> Unit)? = null, onPin: (() -> Unit)? = null, onClick: () -> Unit) {
     val last = messages.lastOrNull()
     val unread = messages.count { !it.fromMe && it.status == MessageStatus.RECEIVED }
-    Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onDelete).padding(horizontal = Space.lg, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Avatar(e.emoji, e.name, e.id, 54.dp, if (e.isBot) null else e.presence)
+    var menu by remember { mutableStateOf(false) }
+    Box {
+    androidx.compose.material3.DropdownMenu(menu, { menu = false }) {
+        onPin?.let { androidx.compose.material3.DropdownMenuItem(text = { Text(if (e.pinned) "📌  Unpin" else "📌  Pin to top") }, onClick = { menu = false; it() }) }
+        onDelete?.let { androidx.compose.material3.DropdownMenuItem(text = { Text(if (e.isGroup) "🚪  Leave group" else "🗑  Delete chat", color = Extra.rose) }, onClick = { menu = false; it() }) }
+    }
+    Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = if (onDelete != null || onPin != null) ({ menu = true }) else null).padding(horizontal = Space.lg, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Avatar(e.emoji, e.name, e.id, 54.dp, if (e.isBot || e.isGroup) null else e.presence)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(e.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (e.sharesName) Text(shortId(e.id), style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
                 if (e.isBot) Tag("On this phone", Extra.skyTint, Extra.sky)
+                if (e.pinned) Text("📌", style = MaterialTheme.typography.labelSmall)
             }
             Text(
                 when {
                     typing -> "typing…"
-                    last != null -> (if (last.fromMe) "You: " else "") + last.preview().lineSequence().first()
+                    last != null -> (if (last.fromMe) "You: " else if (e.isGroup && last.senderName.isNotBlank()) last.senderName + ": " else "") + last.preview().lineSequence().first()
                     else -> e.status
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (unread > 0) FontWeight.SemiBold else FontWeight.Normal),
@@ -227,6 +280,20 @@ private fun ChatRow(e: Entry, messages: List<MessageEntity>, typing: Boolean, on
                 Text("$unread", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary)
             }
         }
+    }
+    }
+}
+
+/** [text] with every [q] in bold colour, for search results. */
+private fun highlight(text: String, q: String, color: androidx.compose.ui.graphics.Color) = androidx.compose.ui.text.buildAnnotatedString {
+    var i = 0
+    while (i < text.length) {
+        val at = text.indexOf(q, i, ignoreCase = true)
+        if (at < 0) { append(text.substring(i)); break }
+        append(text.substring(i, at))
+        pushStyle(androidx.compose.ui.text.SpanStyle(color = color, fontWeight = FontWeight.SemiBold))
+        append(text.substring(at, at + q.length)); pop()
+        i = at + q.length
     }
 }
 
@@ -307,7 +374,11 @@ private fun CallsList(calls: List<com.bluemob.app.data.CallLogEntry>, people: Li
             item(key = "h-$heading") {
                 Text(heading.uppercase(), style = MaterialTheme.typography.labelMedium, color = Extra.ink3, modifier = Modifier.padding(start = Space.lg, top = 14.dp, bottom = 2.dp))
             }
-            items(group, key = { it.id }) { c ->
+            // Calls in a row with the same person and the same result show once, as "×3".
+            val runs = CallFilter.runs(group)
+            items(runs, key = { it.first().id }) { run ->
+                val c = run.first()
+                val count = run.size
                 val person = people.firstOrNull { it.nodeId == c.peer }
                 val missed = !c.outgoing && c.outcome == "MISSED"
                 val name = person?.name ?: c.name
@@ -316,7 +387,7 @@ private fun CallsList(calls: List<com.bluemob.app.data.CallLogEntry>, people: Li
                         .padding(horizontal = Space.lg, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Avatar(person?.avatar, name, c.peer, 46.dp, person?.presence)
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text(name, style = MaterialTheme.typography.titleMedium, color = if (missed) Extra.rose else MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                            Text(name + if (count > 1) "  ($count)" else "", style = MaterialTheme.typography.titleMedium, color = if (missed) Extra.rose else MaterialTheme.colorScheme.onSurface, maxLines = 1)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(if (c.outgoing) "↗" else "↙", color = if (missed) Extra.rose else if (c.outcome == "ANSWERED") MaterialTheme.colorScheme.primary else Extra.ink3, fontWeight = FontWeight.Bold)
                                 Text(" " + outcomeWords(c) + " · " + callTime(c.startedAt), style = MaterialTheme.typography.bodySmall,
@@ -330,7 +401,8 @@ private fun CallsList(calls: List<com.bluemob.app.data.CallLogEntry>, people: Li
                     androidx.compose.material3.DropdownMenu(menuFor == c.id, { menuFor = null }) {
                         androidx.compose.material3.DropdownMenuItem(text = { Text("Voice call") }, onClick = { menuFor = null; onCallBack(c.peer, name, false) })
                         androidx.compose.material3.DropdownMenuItem(text = { Text("Video call") }, onClick = { menuFor = null; onCallBack(c.peer, name, true) })
-                        androidx.compose.material3.DropdownMenuItem(text = { Text("Remove from history", color = Extra.rose) }, onClick = { menuFor = null; onDelete(c.id) })
+                        androidx.compose.material3.DropdownMenuItem(text = { Text(if (count > 1) "Remove these $count from history" else "Remove from history", color = Extra.rose) },
+                            onClick = { menuFor = null; run.forEach { onDelete(it.id) } })
                     }
                 }
             }

@@ -61,6 +61,7 @@ class BlueMobApp : Application() {
     lateinit var settings: AppSettings private set
     lateinit var signals: SignalController private set
     lateinit var sos: SosManager private set
+    lateinit var groups: com.bluemob.app.chat.GroupStore private set
     lateinit var sosCircle: com.bluemob.app.sos.SosCircle private set
     lateinit var heading: HeadingSensor private set
     lateinit var audit: AuditLog private set
@@ -230,9 +231,11 @@ class BlueMobApp : Application() {
         voiceNotes = com.bluemob.app.files.VoiceNotes(this, appScope)
         callLog = db.calls()
         backups = com.bluemob.app.backup.BackupManager(this)
+        groups = com.bluemob.app.chat.GroupStore(SecurePrefs.open(this, "groups"))
         messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text -> SkyBot.reply(text, skyFacts()) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
-            onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, contacts.contacts.value[peer]?.name ?: "Someone", text) },
+            onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
+            groups = groups, me = { identity.nodeId to identity.displayName.value },
         )
         // SOS contacts: alerted in BlueMob (online, nearby, or when they next connect) when we send an SOS.
         sosCircle = com.bluemob.app.sos.SosCircle(settings, mesh, identity.keys, { identity.displayName.value },

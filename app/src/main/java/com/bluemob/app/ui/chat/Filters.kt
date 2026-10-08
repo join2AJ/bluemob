@@ -47,6 +47,20 @@ object CallFilter {
         else -> "Earlier"
     }
 
+    /**
+     * Consecutive calls (newest first) with the same person, direction, kind and result, grouped so a list of seven
+     * cancelled attempts shows as one row "(7)". Answered calls stay separate (each has its own duration).
+     */
+    fun runs(calls: List<CallLogEntry>): List<List<CallLogEntry>> {
+        val out = mutableListOf<MutableList<CallLogEntry>>()
+        calls.forEach { c ->
+            val last = out.lastOrNull()?.first()
+            if (last != null && c.outcome != "ANSWERED" && last.peer == c.peer && last.outgoing == c.outgoing && last.outcome == c.outcome && last.video == c.video) out.last().add(c)
+            else out.add(mutableListOf(c))
+        }
+        return out
+    }
+
     /** Total talk time, e.g. "1 h 4 min", for the summary line. */
     fun talkTime(calls: List<CallLogEntry>): String {
         val s = calls.filter { it.outcome == "ANSWERED" }.sumOf { it.durationS }

@@ -54,6 +54,20 @@ data class MessageEntity(
     val attPath: String? = null,
     /** Where the file is: see [com.bluemob.app.files.AttState]. */
     @ColumnInfo(defaultValue = "0") val attState: Int = 0,
+    /** Group chats: who wrote it (node ID and name). Empty in one-to-one chats. */
+    @ColumnInfo(defaultValue = "''") val sender: String = "",
+    @ColumnInfo(defaultValue = "''") val senderName: String = "",
+    /** A reply: "id|name|first words" of the message it answers. */
+    @ColumnInfo(defaultValue = "''") val replyTo: String = "",
+    /** Reactions, one "nodeId|emoji" per line. */
+    @ColumnInfo(defaultValue = "''") val reactions: String = "",
+    /**
+     * Not shown in any chat: a copy that carries a group message, reply or reaction to one person. The group message
+     * itself is the visible one; [parent] links a copy to it. On the receiving side, [parent] holds the copy's ID so
+     * receipts reach the sender's copy.
+     */
+    @ColumnInfo(defaultValue = "0") val hidden: Boolean = false,
+    @ColumnInfo(defaultValue = "''") val parent: String = "",
 )
 
 /** One call, for the Calls list. */
@@ -111,6 +125,10 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE peer = :peer AND fromMe = 0 AND status = 'RECEIVED'")
     suspend fun unread(peer: String): List<MessageEntity>
+
+    /** The copies that carry one of our group messages to each member. */
+    @Query("SELECT * FROM messages WHERE parent = :parent AND fromMe = 1 AND hidden = 1")
+    suspend fun copiesOf(parent: String): List<MessageEntity>
 
     @Query("SELECT COUNT(*) FROM messages WHERE peer = :peer")
     suspend fun count(peer: String): Int
@@ -326,7 +344,7 @@ interface RatingDao {
     suspend fun recent(limit: Int): List<RatingRow>
 }
 
-@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class, CallLogEntry::class, Trip::class], version = 7, exportSchema = false)
+@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class, CallLogEntry::class, Trip::class], version = 8, exportSchema = false)
 abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun messages(): MessageDao
     abstract fun audit(): AuditDao
@@ -348,7 +366,7 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 builder.openHelperFactory(net.zetetic.database.sqlcipher.SupportOpenHelperFactory(pass))
             }
             return builder
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)
                 })
@@ -417,6 +435,14 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 db.execSQL("INSERT INTO `trips` (`id`, `name`, `startedAt`, `endedAt`, `distanceM`, `points`) " +
                     "SELECT 'earlier', 'Earlier trail', mn, mx, 0, c FROM (SELECT MIN(`time`) AS mn, MAX(`time`) AS mx, COUNT(*) AS c FROM `trail`) WHERE c > 0")
                 db.execSQL("UPDATE `trail` SET `tripId` = 'earlier' WHERE `tripId` = ''")
+            }
+        }
+
+        /** Group chats, replies and reactions. */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                listOf("sender", "senderName", "replyTo", "reactions", "parent").forEach { db.execSQL("ALTER TABLE `messages` ADD COLUMN `$it` TEXT NOT NULL DEFAULT ''") }
+                db.execSQL("ALTER TABLE `messages` ADD COLUMN `hidden` INTEGER NOT NULL DEFAULT 0")
             }
         }
 

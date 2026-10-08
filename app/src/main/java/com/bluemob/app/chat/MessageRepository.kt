@@ -49,8 +49,12 @@ class MessageRepository(
     private val onIncoming: (peer: String, text: String) -> Unit = { _, _ -> },
     /** A message with a photo, document or voice note was saved (sent or received): its file can move now. */
     private val onAttachment: suspend (MessageEntity) -> Unit = {},
+    /** Group chats this phone is in. */
+    val groups: GroupStore? = null,
+    private val me: () -> Pair<String, String> = { "" to "" },
 ) {
-    val messages: StateFlow<List<MessageEntity>> = dao.observeAll().stateIn(scope, SharingStarted.Eagerly, emptyList())
+    /** Every message shown in a chat (copies that only carry group messages and reactions are left out). */
+    val messages: StateFlow<List<MessageEntity>> = dao.observeAll().map { all -> all.filter { !it.hidden } }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     val conversations: StateFlow<Map<String, List<MessageEntity>>> =
         messages.map { all -> all.groupBy { it.peer } }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
@@ -81,7 +85,7 @@ class MessageRepository(
         scope.launch { mesh.events.collect { handle(it) } }
     }
 
-    fun send(peer: String, text: String) {
+    fun send(peer: String, text: String, replyTo: MessageEntity? = null) {
         val clean = text.trim()
         if (clean.isEmpty()) return
         scope.launch {
@@ -90,18 +94,84 @@ class MessageRepository(
                 talkToSky(clean, now)
                 return@launch
             }
+            val reply = replyTo?.let { Rich.replyField(it.id, if (it.fromMe) me().second else it.senderName.ifBlank { "" }, it.text) } ?: ""
+            if (GroupStore.isGroup(peer)) { sendToGroup(peer, clean, reply, now); return@launch }
             val inRange = mesh.isConnected(peer)
             val id = newId()
             record(AuditKind.MESSAGE, peer, "Message $id written to {name}: \"${clean.take(80)}\"")
             dao.insert(
                 MessageEntity(
-                    id = id, peer = peer, fromMe = true, text = clean, createdAt = now, status = MessageStatus.PENDING,
+                    id = id, peer = peer, fromMe = true, text = clean, createdAt = now, status = MessageStatus.PENDING, replyTo = reply,
                     directState = if (inRange) PathState.TRYING else PathState.WAITING,
                     internetState = PathState.UNAVAILABLE,
                     history = event(now, "Written on your phone") +
                         event(now, if (inRange) "In range. Sending directly" else "Not in range. Looking for a way to reach them through phones nearby"),
                 )
             )
+            deliverAll()
+        }
+    }
+
+    /**
+     * A group message: shown once in the group chat, and carried to each member as its own encrypted message (so it
+     * travels every way a normal message does, and each member's receipts come back).
+     */
+    private suspend fun sendToGroup(gid: String, text: String, reply: String, now: Long) {
+        val g = groups?.get(gid) ?: return
+        val (myId, myName) = me()
+        val id = newId()
+        val members = g.members + (myId to myName)
+        val others = members.keys.filter { it != myId }
+        dao.insert(MessageEntity(id = id, peer = gid, fromMe = true, text = text, createdAt = now, status = if (others.isEmpty()) MessageStatus.LOCAL else MessageStatus.SENT,
+            replyTo = reply, sender = myId, senderName = myName,
+            history = event(now, "Written on your phone") + event(now, "Sent to ${others.size} ${if (others.size == 1) "member" else "members"} of ${g.name}, each end-to-end encrypted")))
+        val r = Rich.replyParts(reply)
+        val wire = Rich(text, group = gid, groupName = g.name, members = members, groupMsgId = id, replyId = r?.first, replyName = r?.second.orEmpty(), replyText = r?.third.orEmpty()).encode()
+        others.forEach { to -> dao.insert(carrier(to, wire, id, now)) }
+        record(AuditKind.MESSAGE, gid, "Group message $id written to ${g.name} (${others.size} members): \"${text.take(80)}\"")
+        deliverAll()
+    }
+
+    private fun carrier(to: String, wire: String, parent: String, now: Long) = MessageEntity(
+        id = newId(), peer = to, fromMe = true, text = wire, createdAt = now, status = MessageStatus.PENDING,
+        directState = PathState.WAITING, internetState = PathState.UNAVAILABLE, hidden = true, parent = parent,
+    )
+
+    /** Starts a group with [members] (node ID → name). Everyone hears about it with the first message. */
+    fun createGroup(name: String, members: Map<String, String>): String? {
+        val store = groups ?: return null
+        val (myId, myName) = me()
+        val gid = GroupStore.PREFIX + UUID.randomUUID().toString().replace("-", "").take(12)
+        store.put(ChatGroup(gid, name.trim().take(40), members.filterKeys { it != myId }.entries.take(Rich.MAX_MEMBERS - 1).associate { it.key to it.value }))
+        send(gid, "👋 $myName created the group \"${name.trim().take(40)}\"")
+        return gid
+    }
+
+    /** Leaves a group: the others are told, and the chat goes from this phone. */
+    fun leaveGroup(gid: String) {
+        val g = groups?.get(gid) ?: return
+        scope.launch {
+            val (myId, myName) = me()
+            val now = System.currentTimeMillis()
+            val wire = Rich("$myName left the group", group = gid, groupName = g.name, members = g.members, leave = true).encode()
+            g.members.keys.filter { it != myId }.forEach { dao.insert(carrier(it, wire, "", now)) }
+            groups.remove(gid)
+            dao.deleteChat(gid)
+            deliverAll()
+        }
+    }
+
+    /** Reacts to a message with an emoji ("" takes our reaction back). */
+    fun react(target: MessageEntity, emoji: String) {
+        scope.launch {
+            val (myId, _) = me()
+            val now = System.currentTimeMillis()
+            dao.get(target.id)?.let { dao.update(it.copy(reactions = Rich.withReaction(it.reactions, myId, emoji))) }
+            if (target.peer == SkyBot.NODE_ID) return@launch
+            val g = if (GroupStore.isGroup(target.peer)) groups?.get(target.peer) else null
+            val wire = Rich(react = emoji, reactTo = target.id, group = g?.id, groupName = g?.name.orEmpty(), members = g?.members.orEmpty()).encode()
+            val to = g?.members?.keys?.filter { it != myId } ?: listOf(target.peer)
+            to.forEach { dao.insert(carrier(it, wire, "", now)) }
             deliverAll()
         }
     }
@@ -134,7 +204,7 @@ class MessageRepository(
         scope.launch {
             val now = System.currentTimeMillis()
             dao.unread(peer).forEach { m ->
-                val told = peer != SkyBot.NODE_ID && mesh.sendReceipt(peer, m.id, read = true)
+                val told = peer != SkyBot.NODE_ID && receiptFor(m)
                 dao.update(m.copy(status = MessageStatus.READ, readAt = now, readReceiptSent = told || peer == SkyBot.NODE_ID))
             }
         }
@@ -150,6 +220,11 @@ class MessageRepository(
 
     fun clearAll() = scope.launch { dao.clear() }
 
+    /** Read receipt for an incoming message: in a group it goes to whoever wrote it, for their copy. */
+    private fun receiptFor(m: MessageEntity): Boolean =
+        if (GroupStore.isGroup(m.peer)) m.sender.isNotBlank() && m.parent.isNotBlank() && mesh.sendReceipt(m.sender, m.parent, read = true)
+        else mesh.sendReceipt(m.peer, m.id, read = true)
+
     private suspend fun handle(event: MeshEvent) {
         when (event) {
             // Any new phone in range might be them, or someone who can carry messages toward them.
@@ -164,7 +239,11 @@ class MessageRepository(
     private suspend fun deliverAll() = deliveryLock.withLock {
         val now = System.currentTimeMillis()
         dao.unacknowledgedAll().forEach { m ->
-            when (val h = mesh.sendChat(m.peer, m.id, m.text, m.createdAt, m.att.ifBlank { null })) {
+            // A group message is carried by its copies, one per member.
+            if (GroupStore.isGroup(m.peer)) return@forEach
+            // A reply carries what it answers.
+            val wire = if (!m.hidden && m.replyTo.isNotBlank()) Rich.replyParts(m.replyTo)?.let { (id, n, q) -> Rich(m.text, replyId = id, replyName = n, replyText = q).encode() } ?: m.text else m.text
+            when (val h = mesh.sendChat(m.peer, m.id, wire, m.createdAt, m.att.ifBlank { null })) {
                 is Handoff.Direct -> {
                     val note = if (m.attempts == 0) "Sent over ${h.link}" else "Sent again over ${h.link} (attempt ${m.attempts + 1}): no receipt came back last time"
                     dao.update(m.copy(status = MessageStatus.SENT, directState = PathState.TRYING, attempts = m.attempts + 1, history = m.history + event(now, note)))
@@ -184,7 +263,7 @@ class MessageRepository(
             }
         }
         dao.readReceiptsOwedAll().forEach { m ->
-            if (mesh.sendReceipt(m.peer, m.id, read = true)) dao.update(m.copy(readReceiptSent = true))
+            if (receiptFor(m)) dao.update(m.copy(readReceiptSent = true))
         }
     }
 
@@ -194,6 +273,7 @@ class MessageRepository(
         // Always answer with a receipt: if our first one was lost, the sender is still re-sending.
         mesh.sendReceipt(e.fromNodeId, e.messageId, read = false)
         if (!isNew) return // A copy we already have: discard it.
+        Rich.decode(e.text)?.let { rich -> receiveRich(e, rich, now); return }
         if (openConversation != e.fromNodeId) onIncoming(e.fromNodeId, com.bluemob.app.files.Attachment.fromJson(e.att)?.let { "${it.kind.emoji} ${it.kind.label}" } ?: e.text)
         record(AuditKind.MESSAGE, e.fromNodeId, "Message ${e.messageId} received from {name} over ${mesh.linkName(e.fromNodeId)}: \"${e.text.take(80)}\"")
         val open = openConversation == e.fromNodeId
@@ -210,6 +290,63 @@ class MessageRepository(
             )
         dao.insert(saved)
         if (att != null) onAttachment(saved)
+    }
+
+    /** A group message, a reply or a reaction. */
+    private suspend fun receiveRich(e: MeshEvent.MessageReceived, rich: Rich, now: Long) {
+        val (myId, _) = me()
+        val gid = rich.group?.takeIf { GroupStore.isGroup(it) }
+        // Keep the group's name and members up to date (whoever writes last knows best).
+        if (gid != null && groups != null) {
+            val known = groups.get(gid)
+            if (rich.leave) {
+                known?.let { groups.put(it.copy(members = it.members - e.fromNodeId)) }
+            } else if (rich.members.isNotEmpty()) {
+                groups.put(ChatGroup(gid, rich.groupName.ifBlank { known?.name ?: "Group" }, rich.members - myId, known?.createdAt ?: now))
+            } else if (known == null) {
+                groups.put(ChatGroup(gid, rich.groupName.ifBlank { "Group" }, mapOf(e.fromNodeId to ""), now))
+            }
+        }
+        if (rich.react != null) {
+            val target = rich.reactTo?.let { dao.get(it) } ?: return
+            // Only someone in that chat can react to its messages.
+            if (target.peer != e.fromNodeId && target.peer != gid) return
+            dao.update(target.copy(reactions = Rich.withReaction(target.reactions, e.fromNodeId, rich.react)))
+            return
+        }
+        val peer = gid ?: e.fromNodeId
+        val senderName = rich.members[e.fromNodeId].orEmpty()
+        if (rich.leave) {
+            dao.insert(MessageEntity(id = e.messageId, peer = peer, fromMe = false, text = "🚪 ${senderName.ifBlank { "Someone" }} left the group", createdAt = e.sentAt,
+                status = MessageStatus.READ, readAt = now, readReceiptSent = true, sender = e.fromNodeId, senderName = senderName))
+            return
+        }
+        val open = openConversation == peer
+        if (!open) onIncoming(peer, if (gid != null) "${senderName.ifBlank { "Someone" }}: ${rich.text}" else rich.text)
+        record(AuditKind.MESSAGE, e.fromNodeId, "Message ${e.messageId} received from {name}" + (if (gid != null) " in group ${rich.groupName}" else "") + ": \"${rich.text.take(80)}\"")
+        val readNow = open && mesh.sendReceipt(e.fromNodeId, e.messageId, read = true)
+        dao.insert(MessageEntity(
+            id = if (gid != null) rich.groupMsgId ?: e.messageId else e.messageId, peer = peer, fromMe = false, text = rich.text, createdAt = e.sentAt,
+            status = if (open) MessageStatus.READ else MessageStatus.RECEIVED, readAt = if (open) now else null, readReceiptSent = readNow,
+            history = event(now, if (e.viaInternet) "Received over the internet, through the BlueMob relay. End-to-end encrypted" else "Received over ${mesh.linkName(e.fromNodeId)}"),
+            sender = if (gid != null) e.fromNodeId else "", senderName = senderName,
+            replyTo = rich.replyId?.let { Rich.replyField(it, rich.replyName, rich.replyText) } ?: "",
+            parent = if (gid != null) e.messageId else "",
+        ))
+    }
+
+    /** A member's receipt for their copy of our group message: the group message shows the best of them. */
+    private suspend fun updateGroupStatus(parentId: String, now: Long) {
+        val visible = dao.get(parentId) ?: return
+        val copies = dao.copiesOf(parentId)
+        if (copies.isEmpty()) return
+        val read = copies.count { it.status == MessageStatus.READ }
+        val delivered = copies.count { it.status == MessageStatus.DELIVERED || it.status == MessageStatus.READ }
+        val status = when { read == copies.size -> MessageStatus.READ; delivered > 0 -> MessageStatus.DELIVERED; else -> MessageStatus.SENT }
+        val note = "Delivered to $delivered of ${copies.size}, read by $read"
+        if (status != visible.status || !visible.history.endsWith("$note\n")) dao.update(visible.copy(status = status,
+            deliveredAt = visible.deliveredAt ?: if (delivered > 0) now else null, readAt = if (status == MessageStatus.READ) now else visible.readAt,
+            history = visible.history + event(now, note)))
     }
 
     private suspend fun receipt(e: MeshEvent.Receipt) {
@@ -236,6 +373,7 @@ class MessageRepository(
                     history = delivered.history + event(now, "Delivered over $link. Delivery receipt came back")))
             }
         }
+        if (m.hidden && m.parent.isNotBlank()) updateGroupStatus(m.parent, now)
     }
 
     private suspend fun talkToSky(text: String, now: Long) {

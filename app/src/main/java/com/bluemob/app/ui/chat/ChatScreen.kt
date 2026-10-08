@@ -2,6 +2,7 @@ package com.bluemob.app.ui.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -101,12 +102,22 @@ fun ChatScreen(
     files: ChatFiles = ChatFiles(),
     /** Link-speed check and the route strip: for testers (You → Diagnostics). */
     techDetails: Boolean = false,
+    /** A group chat: its name and members. */
+    group: com.bluemob.app.chat.ChatGroup? = null,
+    /** Replies and reactions. */
+    onReply: (String, MessageEntity) -> Unit = { t, _ -> onSend(t) },
+    onReact: (MessageEntity, String) -> Unit = { _, _ -> },
+    /** Group info: members, adding people, leaving. */
+    onGroupInfo: () -> Unit = {},
 ) {
     val isBot = nodeId == SkyBot.NODE_ID
-    val name = if (isBot) SkyBot.NAME else person?.name ?: "Someone"
-    val emoji = if (isBot) SkyBot.AVATAR else person?.avatar
-    val presence = if (isBot) null else person?.presence ?: Presence.OFFLINE
+    val isGroup = group != null
+    val name = if (isBot) SkyBot.NAME else group?.name ?: person?.name ?: "Someone"
+    val emoji = if (isBot) SkyBot.AVATAR else if (isGroup) "👥" else person?.avatar
+    val presence = if (isBot || isGroup) null else person?.presence ?: Presence.OFFLINE
     var draft by rememberSaveable { mutableStateOf("") }
+    var replying by remember { mutableStateOf<MessageEntity?>(null) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val listState = rememberLazyListState()
     val snackbar = remember { SnackbarHostState() }
 
@@ -124,16 +135,17 @@ fun ChatScreen(
             Column(Modifier.background(MaterialTheme.colorScheme.surface).statusBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-                    Row(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable(enabled = !isBot, onClick = onPerson).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable(enabled = !isBot, onClick = if (isGroup) onGroupInfo else onPerson).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Avatar(emoji, name, nodeId, 38.dp, presence, sos = person?.sos == true)
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(name, style = MaterialTheme.typography.titleMedium)
-                                if (!isBot && person != null) com.bluemob.app.ui.components.StarChip(person.stars, person.ratingCount, Modifier.padding(start = 6.dp))
+                                if (!isBot && !isGroup && person != null) com.bluemob.app.ui.components.StarChip(person.stars, person.ratingCount, Modifier.padding(start = 6.dp))
                             }
                             Text(
                                 when {
+                                    group != null -> "${group.members.size + 1} members · " + (listOf("You") + group.members.values).joinToString(", ")
                                     typing -> "typing…"
                                     isBot -> "Lives on your phone · works offline"
                                     presence == Presence.ONLINE -> "Online nearby · " + linkWords(person?.quality)
@@ -147,28 +159,31 @@ fun ChatScreen(
                             )
                         }
                     }
-                    if (!isBot) {
+                    if (!isBot && !isGroup) {
                         IconButton(onClick = files.onMedia) { Icon(Icons.Outlined.PermMedia, "Photos, documents and voice notes") }
                         IconButton(onClick = { onCall(false) }) { Icon(Icons.Outlined.Call, "Voice call") }
                         IconButton(onClick = { onCall(true) }) { Icon(Icons.Outlined.Videocam, "Video call") }
                     }
                     if (techDetails && presence == Presence.ONLINE) IconButton(onClick = { onPing() }) { Icon(Icons.Outlined.NetworkCheck, "Check link speed") }
                 }
-                if (!isBot && techDetails) RouteStrip(messages.lastOrNull { it.fromMe }, myName, myId, name, nodeId, onInfo)
+                if (!isBot && !isGroup && techDetails) RouteStrip(messages.lastOrNull { it.fromMe }, myName, myId, name, nodeId, onInfo)
                 HorizontalDivider(color = Extra.line)
             }
 
             LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
-                item { Intro(isBot, nodeId, name, emoji, person) }
+                item { if (group != null) GroupIntro(group) else Intro(isBot, nodeId, name, emoji, person) }
                 item {
                     Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) { Tag("Today") }
                 }
                 itemsIndexed(messages, key = { _, m -> m.id }) { i, m ->
                     val prev = messages.getOrNull(i - 1)
                     val next = messages.getOrNull(i + 1)
-                    val withPrev = prev != null && prev.fromMe == m.fromMe && m.createdAt - prev.createdAt < 120_000
-                    val withNext = next != null && next.fromMe == m.fromMe && next.createdAt - m.createdAt < 120_000
-                    Bubble(m, isBot, withPrev, withNext, name, Modifier.animateItem(), onInfo, onAction, files)
+                    val withPrev = prev != null && prev.fromMe == m.fromMe && prev.sender == m.sender && m.createdAt - prev.createdAt < 120_000
+                    val withNext = next != null && next.fromMe == m.fromMe && next.sender == m.sender && next.createdAt - m.createdAt < 120_000
+                    Bubble(m, isBot, withPrev, withNext, name, Modifier.animateItem(), onInfo, onAction, files, myId = myId,
+                        showSender = isGroup && !m.fromMe && !withPrev,
+                        onReply = if (isBot) null else ({ replying = m }), onReact = if (isBot) null else ({ e -> onReact(m, e) }),
+                        onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(m.text)) })
                 }
                 if (typing) item(key = "typing") {
                     Box(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp)).background(Extra.bubbleThem).padding(horizontal = 16.dp, vertical = 14.dp)) { TypingDots() }
@@ -180,7 +195,18 @@ fun ChatScreen(
                     items(SkyBot.suggestions) { s -> Chip(s) { onSend(s) } }
                 }
             }
-            Composer(draft, onDraft = { draft = it }, onSend = { onSend(draft); draft = "" }, files = if (isBot) null else files)
+            replying?.let { r ->
+                Row(Modifier.fillMaxWidth().background(Extra.sand).padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.width(3.dp).size(3.dp, 34.dp).background(MaterialTheme.colorScheme.primary))
+                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                        Text("Replying to " + if (r.fromMe) "yourself" else r.senderName.ifBlank { name }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(r.text, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1)
+                    }
+                    androidx.compose.material3.TextButton(onClick = { replying = null }) { Text("✕") }
+                }
+            }
+            Composer(draft, onDraft = { draft = it }, onSend = { val r = replying; if (r != null) onReply(draft, r) else onSend(draft); draft = ""; replying = null },
+                files = if (isBot || isGroup) null else files)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 90.dp))
     }
@@ -223,13 +249,28 @@ private fun Intro(isBot: Boolean, nodeId: String, name: String, emoji: String?, 
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GroupIntro(g: com.bluemob.app.chat.ChatGroup) {
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(80.dp).clip(CircleShape).background(Extra.skyTint), contentAlignment = Alignment.Center) { Text("👥", style = MaterialTheme.typography.headlineLarge) }
+        Text(g.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+        Tag("Group · ${g.members.size + 1} members", Extra.skyTint, Extra.sky)
+        Text("Each message goes to every member separately, end-to-end encrypted, over Bluetooth, Wi-Fi, other phones or the internet: whatever reaches them.",
+            style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun Bubble(
     m: MessageEntity, isBot: Boolean, withPrev: Boolean, withNext: Boolean, name: String, modifier: Modifier,
     onInfo: (String) -> Unit, onAction: (String) -> Unit, files: ChatFiles = ChatFiles(),
+    myId: String = "", showSender: Boolean = false,
+    onReply: (() -> Unit)? = null, onReact: ((String) -> Unit)? = null, onCopy: () -> Unit = {},
 ) {
     val mine = m.fromMe
+    var menu by remember { mutableStateOf(false) }
+    val reactions = remember(m.reactions) { com.bluemob.app.chat.Rich.reactionsOf(m.reactions) }
     val att = remember(m.att) { com.bluemob.app.files.Attachment.fromJson(m.att) }
     val big = 20.dp
     val small = 6.dp
@@ -240,13 +281,45 @@ private fun Bubble(
         modifier.fillMaxWidth().padding(top = if (withPrev) 2.dp else 10.dp),
         horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
     ) {
+        if (showSender && m.senderName.isNotBlank()) Text(m.senderName, style = MaterialTheme.typography.labelMedium, color = Extra.sky, modifier = Modifier.padding(start = 10.dp, bottom = 2.dp))
+        Box {
         Box(
             Modifier.widthIn(max = 300.dp).clip(shape).background(if (mine) MaterialTheme.colorScheme.primary else Extra.bubbleThem)
-                .clickable(enabled = tappable) { onInfo(m.id) }.padding(horizontal = if (att != null) 8.dp else 14.dp, vertical = if (att != null) 8.dp else 9.dp),
+                .combinedClickable(enabled = tappable || onReply != null, onClick = { if (tappable) onInfo(m.id) else menu = true }, onLongClick = { menu = true })
+                .padding(horizontal = if (att != null) 8.dp else 14.dp, vertical = if (att != null) 8.dp else 9.dp),
         ) {
             val onColor = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-            if (att != null) AttachmentContent(m, att, name, files, onColor)
-            else Text(m.text, style = MaterialTheme.typography.bodyLarge, color = onColor)
+            Column {
+                com.bluemob.app.chat.Rich.replyParts(m.replyTo)?.let { (_, who, quote) ->
+                    Row(Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(8.dp)).background(onColor.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 5.dp)) {
+                        Column {
+                            Text(who.ifBlank { "Reply" }, style = MaterialTheme.typography.labelMedium, color = onColor.copy(alpha = 0.85f))
+                            Text(quote, style = MaterialTheme.typography.bodySmall, color = onColor.copy(alpha = 0.75f), maxLines = 2)
+                        }
+                    }
+                }
+                if (att != null) AttachmentContent(m, att, name, files, onColor)
+                else Text(m.text, style = MaterialTheme.typography.bodyLarge, color = onColor)
+            }
+        }
+        androidx.compose.material3.DropdownMenu(menu, { menu = false }) {
+            if (onReact != null) Row(Modifier.padding(horizontal = 8.dp)) {
+                com.bluemob.app.chat.Rich.QUICK_REACTIONS.forEach { e ->
+                    val chosen = reactions[myId] == e
+                    Text(e, style = MaterialTheme.typography.titleLarge, modifier = Modifier.clip(CircleShape).background(if (chosen) Extra.pineTint else androidx.compose.ui.graphics.Color.Transparent)
+                        .clickable { menu = false; onReact(if (chosen) "" else e) }.padding(6.dp))
+                }
+            }
+            onReply?.let { androidx.compose.material3.DropdownMenuItem(text = { Text("↩  Reply") }, onClick = { menu = false; it() }) }
+            if (m.text.isNotBlank()) androidx.compose.material3.DropdownMenuItem(text = { Text("⧉  Copy") }, onClick = { menu = false; onCopy() })
+            if (tappable) androidx.compose.material3.DropdownMenuItem(text = { Text("ⓘ  Message info") }, onClick = { menu = false; onInfo(m.id) })
+        }
+        }
+        if (reactions.isNotEmpty()) {
+            Row(Modifier.padding(top = 2.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface)
+                .clickable(enabled = onReact != null) { menu = true }.padding(horizontal = 8.dp, vertical = 3.dp)) {
+                reactions.values.groupingBy { it }.eachCount().forEach { (e, n) -> Text(if (n > 1) "$e $n " else "$e ", style = MaterialTheme.typography.bodyMedium) }
+            }
         }
         if (m.actions.isNotBlank()) {
             FlowRow(Modifier.padding(top = 8.dp).widthIn(max = 320.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

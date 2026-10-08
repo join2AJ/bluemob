@@ -52,6 +52,7 @@ class MessageRepositoryTest {
         override suspend fun pendingFiles() = rows.value.filter { it.fromMe && it.att.isNotEmpty() && it.attState != 3 }
         override suspend fun byFile(fid: String) = rows.value.firstOrNull { it.att.contains("\"fid\":\"$fid\"") }
         override suspend fun markSeen(seen: SeenId): Long = if (this.seen.add(seen.id)) 1 else -1
+        override suspend fun copiesOf(parent: String) = rows.value.filter { it.parent == parent && it.fromMe && it.hidden }
     }
 
     /** A radio link between two phones. Copies only get through while [connected]. */
@@ -101,8 +102,10 @@ class MessageRepositoryTest {
         val daoA = FakeDao()
         val daoB = FakeDao()
         val sky: (String) -> SkyAnswer = { SkyAnswer("hi") }
-        val a = MessageRepository(daoA, radio.a, scope.backgroundScope, sky)
-        val b = MessageRepository(daoB, radio.b, scope.backgroundScope, sky)
+        val groupsA = GroupStore(null)
+        val groupsB = GroupStore(null)
+        val a = MessageRepository(daoA, radio.a, scope.backgroundScope, sky, groups = groupsA, me = { "A" to "Asha" })
+        val b = MessageRepository(daoB, radio.b, scope.backgroundScope, sky, groups = groupsB, me = { "B" to "Bala" })
         fun sentByA() = daoA.rows.value.filter { it.fromMe && it.peer == "B" }
         fun receivedByB() = daoB.rows.value.filter { !it.fromMe && it.peer == "A" }
     }
@@ -178,5 +181,50 @@ class MessageRepositoryTest {
         assertEquals(MessageStatus.LOCAL, sky.single { it.fromMe }.status)
         assertTrue(sky.any { !it.fromMe && it.text == "hi" })
         assertEquals(0, p.radio.a.copiesSent)
+    }
+
+    @Test
+    fun groupMessagesRepliesAndReactions() = runTest {
+        val p = Phones(this)
+        p.radio.connected = true
+        // Node IDs in groups are 16 characters; this fake radio calls the phones "A" and "B", so use a group with B only.
+        val gid = GroupStore.PREFIX + "trek"
+        p.groupsA.put(ChatGroup(gid, "Trek", mapOf("B" to "Bala")))
+        p.a.send(gid, "Meet at the bridge")
+        settle()
+        // A shows it once in the group; the copy that carried it to B is hidden.
+        val shown = p.a.messages.value.single { it.peer == gid }
+        assertEquals("Meet at the bridge", shown.text)
+        assertTrue(p.a.messages.value.none { it.hidden })
+        // B learns the group from the message and shows it there, with who wrote it.
+        val got = p.daoB.rows.value.single { !it.fromMe && it.peer == gid }
+        assertEquals("Meet at the bridge", got.text)
+        assertEquals("A", got.sender)
+        assertEquals("Trek", p.groupsB.get(gid)!!.name)
+        // B's read receipt reaches A's copy, and A's group message shows it.
+        p.b.markRead(gid)
+        settle()
+        assertEquals(MessageStatus.READ, p.a.messages.value.single { it.peer == gid }.status)
+
+        // A reply and a reaction in a one-to-one chat.
+        p.a.send("B", "Ready?")
+        settle()
+        val ready = p.daoB.rows.value.single { it.text == "Ready?" }
+        p.b.send("A", "Yes!", ready)
+        settle()
+        val reply = p.daoA.rows.value.single { it.text == "Yes!" }
+        assertEquals("Ready?", Rich.replyParts(reply.replyTo)!!.third)
+        p.b.react(ready, "👍")
+        settle()
+        assertEquals("👍", Rich.reactionsOf(p.daoA.rows.value.single { it.text == "Ready?" }.reactions)["B"])
+        assertTrue("reactions aren't shown as messages", p.a.messages.value.none { it.text.startsWith(Rich.MARK) })
+    }
+
+    @Test
+    fun richRoundTrip() {
+        val r = Rich("hi", group = "g-1", groupName = "Fam", members = mapOf("0123456789abcdef" to "Asha"), groupMsgId = "m-1", replyId = "m-0", replyName = "Bala", replyText = "ok")
+        assertEquals(r, Rich.decode(r.encode()))
+        assertEquals(null, Rich.decode("plain text"))
+        assertEquals("", Rich.reactionsOf(Rich.withReaction(Rich.withReaction("", "x", "👍"), "x", ""))["x"].orEmpty())
     }
 }

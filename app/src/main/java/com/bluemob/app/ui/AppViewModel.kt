@@ -231,6 +231,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun ping(nodeId: String) = mesh.ping(nodeId)
 
     fun send(nodeId: String, text: String) = repo.send(nodeId, text)
+    fun reply(nodeId: String, text: String, to: MessageEntity) = repo.send(nodeId, text, to)
+    fun react(m: MessageEntity, emoji: String) = repo.react(m, emoji)
+
+    // ---- groups, pinned chats, missed-call badge ----
+    val groups = blueMob.groups.groups
+    fun createGroup(name: String, members: Map<String, String>) = repo.createGroup(name, members)
+    fun leaveGroup(id: String) { repo.leaveGroup(id); settings.setPinned(id, false) }
+    /** Adds people to a group: everyone (them included) learns the new member list with the message. */
+    fun addToGroup(id: String, people: Map<String, String>) {
+        val g = blueMob.groups.get(id) ?: return
+        blueMob.groups.put(g.copy(members = g.members + people))
+        repo.send(id, "➕ ${identity.displayName.value} added " + people.values.joinToString(", "))
+    }
+    val pinnedChats = settings.pinnedChats
+    fun setPinned(id: String, on: Boolean) = settings.setPinned(id, on)
+    val callsSeenAt = settings.callsSeenAt
+    fun markCallsSeen() = settings.markCallsSeen()
     private var chatOnScreen: String? = null
     private var visible = true
 
