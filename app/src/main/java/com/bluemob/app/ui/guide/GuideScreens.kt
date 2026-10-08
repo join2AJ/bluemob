@@ -95,6 +95,23 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
                 QuickCard("I'm lost", "Stop, think, plan", Extra.emberTint, MaterialTheme.colorScheme.onSurface, Icons.Outlined.Explore, Modifier.weight(1f)) { onOpen("lost") }
             }
         }
+        // Emergency mode: the six most urgent guides, big enough to hit with shaking hands.
+        item {
+            Text("IN AN EMERGENCY", style = MaterialTheme.typography.labelSmall, color = Extra.rose, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                EMERGENCY.chunked(3).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { (id, emoji, label) ->
+                            Column(Modifier.weight(1f).height(84.dp).clip(MaterialTheme.shapes.medium).background(Extra.rose.copy(alpha = 0.12f)).clickable { onOpen(id) }.padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Text(emoji, fontSize = 28.sp)
+                                Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // Sky lives here now: ask in your own words, it answers from these guides, offline.
         item {
             androidx.compose.material3.Surface(onClick = onAskSky, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
@@ -123,6 +140,11 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
                         androidx.compose.material3.LinearProgressIndicator(progress = { dash.readShare }, modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)),
                             trackColor = Extra.sand)
                     }
+                    val days by com.bluemob.app.guide.GuidePacks.readDays.collectAsStateWithLifecycle()
+                    val quizzes by com.bluemob.app.guide.GuidePacks.quizzesPassed.collectAsStateWithLifecycle()
+                    val streak = com.bluemob.app.guide.Streak.of(days)
+                    Text((if (streak > 0) "🔥 $streak-day reading streak" else "Read a guide today to start a streak") + " · 🧠 ${quizzes.size} quiz${if (quizzes.size == 1) "" else "zes"} passed",
+                        style = MaterialTheme.typography.labelMedium, color = if (streak > 0) Extra.ember else Extra.ink3, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
@@ -268,7 +290,7 @@ private fun QuickCard(title: String, sub: String, bg: Color, fg: Color, icon: an
 }
 
 @Composable
-fun ArticleScreen(article: Article, saved: Boolean, onBack: () -> Unit, onToggleSaved: () -> Unit, onSos: () -> Unit, onOpen: (String) -> Unit = {}) {
+fun ArticleScreen(article: Article, saved: Boolean, onBack: () -> Unit, onToggleSaved: () -> Unit, onSos: () -> Unit, onOpen: (String) -> Unit = {}, onQuiz: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.runtime.LaunchedEffect(article.id) { com.bluemob.app.guide.GuidePacks.markRead(article.id) }
     var scale by rememberSaveable { mutableStateOf(1f) }
@@ -338,6 +360,20 @@ fun ArticleScreen(article: Article, saved: Boolean, onBack: () -> Unit, onToggle
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         article.avoid.forEach { d -> Row { Text("✕  ", color = Extra.rose); Text(d, style = body) } }
                     }
+                }
+            }
+        }
+        // Test yourself: three questions made from this guide.
+        item {
+            val passed = com.bluemob.app.guide.GuidePacks.quizzesPassed.collectAsStateWithLifecycle().value
+            androidx.compose.material3.Surface(onClick = onQuiz, shape = MaterialTheme.shapes.large, color = Extra.pineTint, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (article.id in passed) "🏅" else "🧠", fontSize = 24.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Test yourself", style = MaterialTheme.typography.titleMedium)
+                        Text(if (article.id in passed) "Passed. Take it again any time" else "3 quick questions on this guide", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -462,3 +498,10 @@ fun rememberSpeaker(): Speaker {
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { speaker.shutdown() } }
     return speaker
 }
+
+
+/** The guides for the first minutes of an emergency: (id, emoji, label). */
+private val EMERGENCY = listOf(
+    Triple("cpr", "❤️", "CPR"), Triple("bleed", "🩸", "Bleeding"), Triple("burns", "🔥", "Burns"),
+    Triple("choke", "😮", "Choking"), Triple("snake", "🐍", "Snake bite"), Triple("lost", "🧭", "Lost"),
+)

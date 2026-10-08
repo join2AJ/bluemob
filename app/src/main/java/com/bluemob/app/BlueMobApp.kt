@@ -252,6 +252,11 @@ class BlueMobApp : Application() {
         // SOS contacts who hadn't joined BlueMob yet: look again every few hours and ask them as soon as they have.
         appScope.launch { while (true) { kotlinx.coroutines.delay(3 * 3_600_000L); if (live.connected.value) sosCircle.recheck() } }
         appScope.launch { sos.alert.collect { a -> if (a != null && !inForeground && a.id != SosManager.PREVIEW_ID) notifier.sos(a) } }
+        // The emergency card on the lock screen, kept up to date with the profile and SOS contacts.
+        appScope.launch {
+            kotlinx.coroutines.flow.combine(settings.emergencyCard, profile.profile, settings.sosContacts, identity.displayName) { on, p, contacts, name -> if (on) EmergencyCard.text(name, p, contacts) else null }
+                .collect { card -> if (card == null) notifier.cancel(com.bluemob.app.service.Notifier.EMERGENCY_CARD_ID) else notifier.emergencyCard(card.first, card.second) }
+        }
         // "I'm safe": take the alarm notification down too.
         appScope.launch { sos.incoming.collect { if (it.cancelled) notifier.sosEnded(it) } }
         appScope.launch { rescue.notices.collect { n -> if (!inForeground) notifier.rescue(n.room, n.text) } }
@@ -337,4 +342,16 @@ class BlueMobApp : Application() {
 
     /** The optional recovery email, sent to the relay once (and again whenever it changes). */
     suspend fun syncEmail() = com.bluemob.app.account.RecoveryEmail.sync(profile, settings.bridgeUrl.value.takeIf { it.isNotBlank() }, identity.keys)
+}
+
+/** What the lock-screen emergency card says. */
+object EmergencyCard {
+    fun text(name: String, p: com.bluemob.app.account.Profile, contacts: List<com.bluemob.app.settings.SosContact>): Pair<String, String> {
+        val title = "🆘 In an emergency: $name"
+        val lines = listOfNotNull(
+            listOfNotNull(p.bloodGroup?.let { "🩸 Blood group $it" }, p.age?.let { "age $it" }).joinToString(" · ").ifBlank { null },
+            contacts.filter { it.phone.isNotBlank() }.take(3).joinToString("\n") { "📞 ${it.name}: ${it.phone}" }.ifBlank { null },
+        )
+        return title to lines.joinToString("\n").ifBlank { "Open BlueMob → You → Account to add your blood group and SOS contacts." }
+    }
 }

@@ -36,6 +36,22 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.17: groups, a smarter compass, emergency mode
+
+- **Chats:** group chats (each message reaches every member end-to-end encrypted, by any path), replies and
+  reactions (long-press a message), pinned chats, search inside messages, repeated calls grouped as one row with a
+  count, and a missed-call badge.
+- **Nearby (radar kept):** each person's battery and when they were last seen, filters (online, in range, SOS, low
+  battery), and **Check on everyone**, which asks every phone nearby "Are you OK?" and shows the answers.
+- **Compass:** the sun on the dial, daylight left, sunset and the moon; **back to base** (straight to camp, or
+  **retrace my trail**); walking time and altitude; share my location; figure-8 calibration help; and a map of you,
+  spots and friends that needs no download.
+- **Guide:** emergency buttons (CPR, bleeding, burns, choking, snake bite, lost), a reading streak, and a **Test
+  yourself** quiz after every guide.
+- **You:** badges, an emergency card on the lock screen (blood group and SOS contacts), and a light, dark or auto theme.
+- **Calls:** voice repairs itself when Android drops the microphone or speaker mid-call, and the call screen shows
+  voice counters when there's trouble.
+
 ## Android 0.16: SOS alarm push, contacts who join later, optional email
 
 - **SOS alarm push.** Your SOS reaches each SOS contact as a Firebase push straight away, never held back. Their phone

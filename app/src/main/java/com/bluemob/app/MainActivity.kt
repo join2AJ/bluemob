@@ -28,6 +28,8 @@ import com.bluemob.app.ui.BlueMobRoot
 import com.bluemob.app.ui.SystemActions
 import com.bluemob.app.ui.SystemStatus
 import com.bluemob.app.ui.theme.BlueMobTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
 
@@ -174,7 +176,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             }
         }
         setContent {
-            BlueMobTheme {
+            val theme by viewModel.theme.collectAsState()
+            BlueMobTheme(dark = when (theme) { "light" -> false; "dark" -> true; else -> androidx.compose.foundation.isSystemInDarkTheme() }) {
                 val report = lastCrash.value
                 if (report != null) CrashScreen(false, report, onShare = { shareReport(report) },
                     onContinue = { CrashLog.clear(this); lastCrash.value = null }, onRetry = {}, onReset = {})

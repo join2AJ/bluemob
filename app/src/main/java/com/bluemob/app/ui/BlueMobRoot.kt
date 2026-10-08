@@ -348,6 +348,11 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onToggleLocation = toggleLocation, onBatterySaver = actions.openBatterySaver, onKeepRunning = actions.askKeepRunning,
                             onSos = { push("sos") }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
                             onBridge = { push("bridge") }, onMyRating = { push("person:" + vm.nodeId) }, onActivity = { push("activity") },
+                            badges = vm.badges.collectAsStateWithLifecycle().value.let { b -> b.count { it.earned } to b.size },
+                            badgeEmojis = vm.badges.collectAsStateWithLifecycle().value.filter { it.earned }.takeLast(4).joinToString("") { it.emoji },
+                            onBadges = { push("badges") },
+                            theme = vm.theme.collectAsStateWithLifecycle().value, onTheme = vm::setTheme,
+                            emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value, onEmergencyCard = vm::setEmergencyCard,
                             activitySummary = vm.activity.collectAsStateWithLifecycle().value.let { ev ->
                                 val week = System.currentTimeMillis() - 7 * 86_400_000L
                                 val recent = ev.filter { it.at >= week }
@@ -379,6 +384,10 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         },
                     )
                 }
+                route.startsWith("quiz:") -> {
+                    val a = com.bluemob.app.guide.GuideContent.all().firstOrNull { it.id == route.removePrefix("quiz:") }
+                    if (a == null) LaunchedEffect(Unit) { pop() } else com.bluemob.app.ui.guide.GuideQuizScreen(a, ::pop, onRead = ::pop)
+                }
                 route == "newgroup" -> com.bluemob.app.ui.chat.NewGroupScreen(people.filter { it.nodeId != SkyBot.NODE_ID }, ::pop) { n, members ->
                     vm.createGroup(n, members)?.let { pop(); push("chat:$it") }
                 }
@@ -404,7 +413,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route.startsWith("article:") -> {
                     val a = GuideContent.byId(route.removePrefix("article:"))
                     if (a == null) LaunchedEffect(Unit) { pop() }
-                    else ArticleScreen(a, a.id in bookmarks, ::pop, onToggleSaved = { vm.toggleBookmark(a.id) }, onSos = { push("sos") }, onOpen = { push("article:$it") })
+                    else ArticleScreen(a, a.id in bookmarks, ::pop, onToggleSaved = { vm.toggleBookmark(a.id) }, onSos = { push("sos") }, onOpen = { push("article:$it") },
+                        onQuiz = { push("quiz:" + a.id) })
                 }
                 route == "sos" -> SosHubScreen(
                     SosHubState(mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, sosContacts, sosReached),
@@ -451,6 +461,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         eligible = remember(id, scores) { vm.canRate(id) }, lastRatedAt = remember(id, scores) { vm.lastRatedAt(id) },
                         onRateCategories = { stars, remark -> vm.rateCategories(id, stars, remark) })
                 }
+                route == "badges" -> com.bluemob.app.ui.profile.BadgesScreen(vm.badges.collectAsStateWithLifecycle().value, ::pop)
                 route == "activity" -> {
                     val events by vm.activity.collectAsStateWithLifecycle()
                     com.bluemob.app.ui.profile.ActivityScreen(events, ::pop)

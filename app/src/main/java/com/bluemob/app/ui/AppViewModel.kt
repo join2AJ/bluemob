@@ -258,6 +258,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun clearCheck() = blueMob.peerStatus.clearCheck()
 
+    // ---- You: theme, emergency card, badges ----
+    val theme = settings.theme
+    fun setTheme(t: String) = settings.setTheme(t)
+    val emergencyCard = settings.emergencyCard
+    fun setEmergencyCard(on: Boolean) = settings.setEmergencyCard(on)
+    // Lazy: it uses flows declared further down this class.
+    private val badgeInputs by lazy { combine(
+        combine(com.bluemob.app.guide.GuidePacks.read, com.bluemob.app.guide.GuidePacks.quizzesPassed, com.bluemob.app.guide.GuidePacks.readDays) { r, q, d -> Triple(r.size, q.size, com.bluemob.app.guide.Streak.of(d)) },
+        activity, settings.sosContacts, blueMob.groups.groups,
+        combine(blueMob.contacts.contacts, blueMob.profile.profile, trail.allTrips) { c, p, t -> Triple(c.count { it.value.lastSeen > 0 }, p.bloodGroup != null, t.size) },
+    ) { g, act, contacts, groups, other ->
+        com.bluemob.app.ui.profile.BadgeStats(
+            guidesRead = g.first, quizzes = g.second, streak = g.third,
+            rescuesJoined = act.count { it.type == com.bluemob.app.activity.ActivityType.HELPED },
+            sosContactsAccepted = contacts.count { it.verified }, messagesSent = act.count { it.type == com.bluemob.app.activity.ActivityType.MSG_SENT },
+            groups = groups.size, peopleMet = other.first, hasBloodGroup = other.second, tripsRecorded = other.third,
+        )
+    } }
+    val badges: StateFlow<List<com.bluemob.app.ui.profile.Badge>> by lazy { badgeInputs.map { com.bluemob.app.ui.profile.Badges.of(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.bluemob.app.ui.profile.Badges.of(com.bluemob.app.ui.profile.BadgeStats())) }
+
     val pinnedChats = settings.pinnedChats
     fun setPinned(id: String, on: Boolean) = settings.setPinned(id, on)
     val callsSeenAt = settings.callsSeenAt

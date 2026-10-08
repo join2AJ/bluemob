@@ -41,7 +41,21 @@ object GuidePacks {
 
     fun markRead(articleId: String, now: Long = System.currentTimeMillis()) {
         _read.value = _read.value + (articleId to now)
-        prefs?.edit()?.putLong("read:$articleId", now)?.apply()
+        val day = Streak.dayKey(now)
+        _readDays.value = _readDays.value + day
+        prefs?.edit()?.putLong("read:$articleId", now)?.putStringSet("read_days", _readDays.value)?.apply()
+    }
+
+    private val _readDays = MutableStateFlow<Set<String>>(emptySet())
+    /** Days (yyyy-MM-dd) on which at least one guide was opened: for the reading streak. */
+    val readDays: StateFlow<Set<String>> = _readDays.asStateFlow()
+
+    private val _quizzes = MutableStateFlow<Set<String>>(emptySet())
+    /** Guides whose "Test yourself" quiz was passed. */
+    val quizzesPassed: StateFlow<Set<String>> = _quizzes.asStateFlow()
+    fun markQuizPassed(articleId: String) {
+        _quizzes.value = _quizzes.value + articleId
+        prefs?.edit()?.putStringSet("quiz_passed", _quizzes.value)?.apply()
     }
 
     const val NEW_FOR_MS = 24 * 3_600_000L
@@ -55,6 +69,8 @@ object GuidePacks {
 
     private fun reload() {
         val p = prefs ?: return
+        _readDays.value = p.getStringSet("read_days", emptySet())!!.toSet()
+        _quizzes.value = p.getStringSet("quiz_passed", emptySet())!!.toSet()
         val packs = p.all.keys.filter { it.startsWith("pack:") }.mapNotNull { k -> p.getString(k, null)?.let { runCatching { parse(JSONObject(it)) }.getOrNull() } }
         installedArticles = packs.flatMap { it.second }
         _installed.value = packs.map { it.first }.sortedBy { it.title }
@@ -143,4 +159,48 @@ data class GuideDashboard(
         fun ofTheDay(all: List<Article>, day: Long = System.currentTimeMillis() / 86_400_000L): Article? =
             all.takeIf { it.isNotEmpty() }?.let { it.sortedBy { a -> a.id }[(day % it.size).toInt()] }
     }
+}
+
+
+/** Days in a row with some reading, counting today (or up to yesterday, so a streak isn't lost before you read today). */
+object Streak {
+    fun dayKey(at: Long): String = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date(at))
+
+    fun of(days: Set<String>, now: Long = System.currentTimeMillis()): Int {
+        val dayMs = 86_400_000L
+        var t = if (dayKey(now) in days) now else now - dayMs
+        var n = 0
+        while (dayKey(t) in days) { n++; t -= dayMs }
+        return n
+    }
+}
+
+/**
+ * "Test yourself" after a guide: three questions made from the guide itself, so every guide (downloaded ones too)
+ * has a quiz. What comes first, what to avoid, and what comes next.
+ */
+object GuideQuiz {
+    data class Question(val prompt: String, val options: List<String>, val answer: Int, val why: String)
+
+    fun of(a: Article, all: List<Article>, seed: Long = a.id.hashCode().toLong()): List<Question> {
+        val rnd = java.util.Random(seed)
+        val others = all.filter { it.id != a.id && it.category != a.category }.flatMap { it.steps }.shuffled(rnd)
+        val qs = mutableListOf<Question>()
+        fun ask(prompt: String, right: String, wrong: List<String>, why: String) {
+            val opts = (wrong.distinct().filter { it != right }.take(2) + right).shuffled(rnd)
+            if (opts.size == 3) qs += Question(prompt, opts.map { short(it) }, opts.indexOf(right), why)
+        }
+        if (a.steps.size >= 2) ask("${a.title}: what do you do first?", a.steps[0], a.steps.drop(2).take(1) + others.take(1) + a.steps.drop(1).take(1),
+            "The guide starts with: ${short(a.steps[0])}. The order matters: the first step keeps you or them safe before anything else.")
+        if (a.avoid.isNotEmpty()) ask("Which of these should you NOT do?", a.avoid[rnd.nextInt(a.avoid.size)], a.steps.shuffled(rnd).take(2),
+            "That one is on the guide's \"don't\" list. The others are steps the guide tells you to do.")
+        if (a.steps.size >= 3) {
+            val i = rnd.nextInt(a.steps.size - 1)
+            ask("After \"${short(a.steps[i], 60)}\", what comes next?", a.steps[i + 1], a.steps.filterIndexed { j, _ -> j != i && j != i + 1 }.shuffled(rnd).take(1) + others.drop(1).take(1),
+                "Next is: ${short(a.steps[i + 1])}.")
+        }
+        return qs
+    }
+
+    private fun short(s: String, max: Int = 110) = s.substringBefore(". ").let { if (it.length > max) it.take(max - 1) + "…" else it }
 }

@@ -57,3 +57,23 @@ class GuideScenesTest {
         assertTrue("No animation for: $missing", missing.isEmpty())
     }
 }
+
+class GuideQuizTest {
+    @org.junit.Test fun everyBuiltInGuideGetsAQuizWithOneRightAnswer() {
+        val all = GuideContent.all()
+        all.forEach { a ->
+            val qs = GuideQuiz.of(a, all)
+            org.junit.Assert.assertTrue("${a.id} has questions", qs.isNotEmpty())
+            qs.forEach { q -> org.junit.Assert.assertTrue(q.answer in q.options.indices); org.junit.Assert.assertEquals(q.options.size, q.options.distinct().size) }
+        }
+    }
+
+    @org.junit.Test fun streakCountsDaysInARow() {
+        val day = 86_400_000L
+        val now = 1_760_000_000_000L
+        val days = setOf(Streak.dayKey(now), Streak.dayKey(now - day), Streak.dayKey(now - 2 * day), Streak.dayKey(now - 5 * day))
+        org.junit.Assert.assertEquals(3, Streak.of(days, now))
+        org.junit.Assert.assertEquals(2, Streak.of(days - Streak.dayKey(now), now))
+        org.junit.Assert.assertEquals(0, Streak.of(emptySet(), now))
+    }
+}

@@ -113,6 +113,14 @@ fun ProfileScreen(
     onDiagnostics: () -> Unit = {},
     onActivity: () -> Unit = {},
     activitySummary: String = "",
+    /** Badges earned / all, and opening them. */
+    badges: Pair<Int, Int> = 0 to 0,
+    badgeEmojis: String = "",
+    onBadges: () -> Unit = {},
+    theme: String = "auto",
+    onTheme: (String) -> Unit = {},
+    emergencyCard: Boolean = false,
+    onEmergencyCard: (Boolean) -> Unit = {},
 ) {
     var draft by remember(name) { mutableStateOf(name) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
@@ -172,6 +180,12 @@ fun ProfileScreen(
                     )
                     Text("  ›", color = Extra.ink3)
                 }
+                // Badges: what you've done that makes you (and others) safer.
+                Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).clickable(onClick = onBadges)
+                    .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🏅  ${badges.first} of ${badges.second} badges  " + badgeEmojis, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                    Text("  ›", color = Extra.ink3)
+                }
                 // Your activity at a glance: opens the dashboard with graphs.
                 Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).clickable(onClick = onActivity)
                     .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -196,6 +210,9 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS",
                     "Signal ${signalDefault.emoji} ${signalDefault.label} · " + if (sosContactCount == 0) "no SOS contacts yet" else "$sosContactCount SOS contact${if (sosContactCount == 1) "" else "s"}",
                     onClick = onSos) { chevron() }
+                SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Emergency card on lock screen",
+                    if (emergencyCard) "On: blood group and SOS contacts show without unlocking" else "Off: let whoever finds you see who to call",
+                    divider = true) { androidx.compose.material3.Switch(emergencyCard, onEmergencyCard) }
             }
         }
 
@@ -211,6 +228,16 @@ fun ProfileScreen(
         item {
             Group {
                 SettingRow(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Games", "5 games, against the computer or people nearby", onClick = onGames) { chevron() }
+                // Appearance: follow the phone, or always light / dark.
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🌗", fontSize = 20.sp)
+                    Text("Theme", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(start = 14.dp))
+                    listOf("auto" to "Auto", "light" to "Light", "dark" to "Dark").forEach { (k, l) ->
+                        Text(l, style = MaterialTheme.typography.labelLarge, color = if (theme == k) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(if (theme == k) MaterialTheme.colorScheme.primary else Extra.sand)
+                                .clickable { onTheme(k) }.padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
+                }
                 SettingRow(Icons.Outlined.Refresh, Color(0xFF7C6BD6), "Replay the intro", "How BlueMob works, in a minute", divider = true, onClick = onReplayIntro) { chevron() }
                 SettingRow(Icons.Outlined.Terminal, Color(0xFF3A4A44), "Diagnostics", "Audit trail, internet connection, logs, report a problem", divider = true, onClick = onDiagnostics) { chevron() }
             }

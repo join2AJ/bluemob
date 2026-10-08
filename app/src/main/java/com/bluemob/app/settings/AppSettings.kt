@@ -71,6 +71,16 @@ class AppSettings(context: Context) {
         prefs.edit().putStringSet("bookmarks", _bookmarks.value).apply()
     }
 
+    private val _theme = MutableStateFlow(prefs.getString("theme", "auto") ?: "auto")
+    /** "auto" (follow the phone), "light" or "dark". */
+    val theme: StateFlow<String> = _theme.asStateFlow()
+    fun setTheme(t: String) { _theme.value = t; prefs.edit().putString("theme", t).apply() }
+
+    private val _emergencyCard = MutableStateFlow(prefs.getBoolean("emergency_card", false))
+    /** Show blood group, age and emergency contacts on the lock screen, for whoever finds you. */
+    val emergencyCard: StateFlow<Boolean> = _emergencyCard.asStateFlow()
+    fun setEmergencyCard(on: Boolean) { _emergencyCard.value = on; prefs.edit().putBoolean("emergency_card", on).apply() }
+
     private val _pinned = MutableStateFlow(prefs.getStringSet("pinned_chats", emptySet())!!.toSet())
     /** Chats pinned to the top of the list. */
     val pinnedChats: StateFlow<Set<String>> = _pinned.asStateFlow()

@@ -42,6 +42,11 @@ class Notifier(private val context: Context) {
             setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
+        nm.createNotificationChannel(NotificationChannel(CH_CARD, "Emergency info on the lock screen", NotificationManager.IMPORTANCE_LOW).apply {
+            description = "Your blood group and emergency contacts, readable without unlocking, if you turn it on"
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setShowBadge(false)
+        })
         nm.createNotificationChannel(NotificationChannel(CH_RESCUE, "Rescue groups", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Who's coming to help, and messages in rescue groups"
         })
@@ -133,6 +138,16 @@ class Notifier(private val context: Context) {
         .setFullScreenIntent(open("call", 11), true)
         .build())
 
+    /** The emergency card: readable on the lock screen, so whoever finds you knows who to call. */
+    fun emergencyCard(title: String, text: String) = post(EMERGENCY_CARD_ID, NotificationCompat.Builder(context, CH_CARD)
+        .setSmallIcon(R.drawable.ic_stat_bluemob)
+        .setContentTitle(title).setContentText(text)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setOngoing(true).setSilent(true).setShowWhen(false)
+        .setColor(0xFFD94F55.toInt())
+        .setContentIntent(open("account", 12))
+        .build())
+
     fun cancel(id: Int) { runCatching { manager.cancel(id) } }
 
     /** Opens BlueMob on the call that's going on. */
@@ -146,6 +161,8 @@ class Notifier(private val context: Context) {
 
     companion object {
         const val ONGOING_ID = 1001
+        const val EMERGENCY_CARD_ID = 1009
+        private const val CH_CARD = "emergency_card"
         const val EXTRA_ROUTE = "route"
         const val CH_MESH = "mesh"
         const val CALL_ID = 1002
