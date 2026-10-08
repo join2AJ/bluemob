@@ -85,6 +85,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val bookmarks = settings.bookmarks
     val signals = blueMob.signals
     val compassAvailable = blueMob.heading.available
+    val compassAccuracy = blueMob.heading.accuracy
+    val altitude = blueMob.location.altitude
     val sosContacts = settings.sosContacts
     val radios = blueMob.radios.state
     val otherVersions = mesh.otherVersions

@@ -120,6 +120,8 @@ class SystemActions(
     val textSos: (List<String>, String) -> Unit = { _, _ -> },
     val requestSteps: () -> Unit = {},
     val shareId: () -> Unit = {},
+    /** Shares text through Android's share sheet (WhatsApp, SMS, email…). */
+    val shareText: (String) -> Unit = {},
     /** Asks for the microphone (and camera for video), then runs the callback whatever the answer. */
     val requestCallPermissions: (Boolean, () -> Unit) -> Unit = { _, then -> then() },
     val canUseBiometric: () -> Boolean = { false },
@@ -325,6 +327,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             callsSeenAt = vm.callsSeenAt.collectAsStateWithLifecycle().value, onCallsSeen = vm::markCallsSeen) { push("chat:$it") }
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
+                            altitude = vm.altitude.collectAsStateWithLifecycle().value, compassAccuracy = vm.compassAccuracy.collectAsStateWithLifecycle().value,
+                            onShareLocation = { g -> actions.shareText(com.bluemob.app.util.Geo.shareText(g)) },
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
                             onSaveSpot = { if (!system.locationPermission) actions.requestLocation() else vm.saveSpot("Spot ${spots.count { !it.isBaseCamp } + 1}") }, onRemoveSpot = vm::removeSpot,
                             trail = TrailUi(trailOn, trailPoints, estimate, lostOn, vm.hasStepPermission() && vm.stepCounterAvailable, vm.stepCounterAvailable),

@@ -135,6 +135,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             openBatterySaver = { open(Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS), fallback = Intent(Settings.ACTION_SETTINGS)) },
             askKeepRunning = ::askKeepRunning,
             switchRadio = ::switchRadio,
+            shareText = { text -> runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), "Share")) } },
             shareId = {
                 val text = "Message me on BlueMob, even with no signal: BM ${com.bluemob.app.util.formatId(viewModel.nodeId)}"
                 runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), "Share your BlueMob ID")) }

@@ -16,6 +16,10 @@ class HeadingSensor(context: Context) {
 
     val available: Boolean get() = rotation != null
 
+    private val _accuracy = kotlinx.coroutines.flow.MutableStateFlow(SensorManager.SENSOR_STATUS_ACCURACY_HIGH)
+    /** The sensor's own accuracy (SensorManager.SENSOR_STATUS_*): low means it needs a figure-8 to calibrate. */
+    val accuracy: kotlinx.coroutines.flow.StateFlow<Int> = _accuracy
+
     /** Emits a smoothed heading while collected; nothing if the phone has no compass. */
     fun headings(): Flow<Float> = callbackFlow {
         val r = FloatArray(9)
@@ -34,7 +38,7 @@ class HeadingSensor(context: Context) {
                 }
                 trySend(smoothed!!)
             }
-            override fun onAccuracyChanged(s: Sensor?, accuracy: Int) = Unit
+            override fun onAccuracyChanged(s: Sensor?, accuracy: Int) { _accuracy.value = accuracy }
         }
         if (rotation != null) sensors?.registerListener(listener, rotation, SensorManager.SENSOR_DELAY_UI)
         awaitClose { sensors?.unregisterListener(listener) }

@@ -44,6 +44,11 @@ object Geo {
     fun formatLatLon(lat: Double, lon: Double): String =
         "%.4f %s, %.4f %s".format(kotlin.math.abs(lat), if (lat >= 0) "N" else "S", kotlin.math.abs(lon), if (lon >= 0) "E" else "W")
 
+    /** Where I am, as text anyone can open: coordinates plus a map link. */
+    fun shareText(g: com.bluemob.app.contacts.GeoPoint): String =
+        "📍 My location: ${formatLatLon(g.lat, g.lon)} (±${g.accuracyM.toInt()} m)\n" +
+            "https://maps.google.com/?q=%.6f,%.6f".format(java.util.Locale.US, g.lat, g.lon) + "\nSent from BlueMob"
+
     fun formatDistance(m: Double): String = when {
         m < 10 -> "a few m"
         m < 1000 -> "${(m / 5).roundToInt() * 5} m"

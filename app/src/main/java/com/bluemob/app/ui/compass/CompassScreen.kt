@@ -2,6 +2,9 @@ package com.bluemob.app.ui.compass
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.height
+import androidx.compose.animation.core.animateFloat
+import com.bluemob.app.trail.TrailMath
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.Surface
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -86,6 +90,12 @@ fun CompassScreen(
     trailActions: TrailActions = TrailActions(),
     /** Asks a lost or SOS person's phone to whistle and flash. */
     onRing: (String) -> Unit = {},
+    /** Height above sea level from GPS. */
+    altitude: Double? = null,
+    /** The compass sensor's accuracy (SensorManager.SENSOR_STATUS_*). */
+    compassAccuracy: Int = 3,
+    /** Share where I am (coordinates and a map link) with any app. */
+    onShareLocation: (GeoPoint) -> Unit = {},
 ) {
     DisposableEffect(hasLocationPermission) {
         if (hasLocationPermission) onHoldLocation()
@@ -95,7 +105,12 @@ fun CompassScreen(
     val targets = spots.map { Target(it.id, it.name, if (it.isBaseCamp) "⛺" else "📍", GeoPoint(it.lat, it.lon, 0f, it.time)) } +
         people.mapNotNull { p -> p.location?.let { Target(p.nodeId, if (p.lost != null) "${p.name} (lost)" else p.name, p.avatar ?: "🙂", it, p) } }
     var selected by rememberSaveable { mutableStateOf(initialTarget) }
-    val target = targets.firstOrNull { it.id == selected } ?: targets.firstOrNull()
+    // "Retrace my trail": the target is a point on our own trail a little way back, so we walk back the way we came.
+    val retrace = if (selected == RETRACE && myLocation != null) TrailMath.retracePoint(trail.points.filter { !it.estimated }.map { GeoPoint(it.lat, it.lon, it.accuracyM, it.time) }, myLocation)
+        ?.let { Target(RETRACE, "Back along my trail", "↩", it) } else null
+    val target = retrace ?: targets.firstOrNull { it.id == selected } ?: targets.firstOrNull()
+    val now = remember { System.currentTimeMillis() }
+    val sun = myLocation?.let { com.bluemob.app.util.SunMoon.sun(System.currentTimeMillis(), it.lat, it.lon) }
     val bearing = if (myLocation != null && target != null) Geo.bearingDeg(myLocation, target.point).toFloat() else null
     val distance = if (myLocation != null && target != null) Geo.distanceM(myLocation, target.point) else null
 
@@ -118,7 +133,7 @@ fun CompassScreen(
         }
         item {
             Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                Dial(heading, bearing, Modifier.fillMaxWidth(0.82f).aspectRatio(1f))
+                Dial(heading, bearing, Modifier.fillMaxWidth(0.82f).aspectRatio(1f), sunDeg = sun?.takeIf { it.altitudeDeg > -2 }?.azimuthDeg?.toFloat())
                 Column(
                     Modifier.size(104.dp).shadow(10.dp, CircleShape).clip(CircleShape).background(MaterialTheme.colorScheme.surface),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
@@ -143,8 +158,63 @@ fun CompassScreen(
                 },
                 style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
             )
+            // Walking time at an easy 4.5 km/h, and height above sea level.
+            val extras = listOfNotNull(
+                distance?.let { "🚶 about ${WalkTime.words(it)}" },
+                altitude?.let { "⛰ ${it.roundToInt()} m above sea level" },
+            )
+            if (extras.isNotEmpty()) Text(extras.joinToString("  ·  "), style = MaterialTheme.typography.bodyMedium, color = Extra.ink3, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
         }
+        // The compass needs a figure-8 wave when the phone says it's unsure.
+        if (compassAvailable && compassAccuracy <= android.hardware.SensorManager.SENSOR_STATUS_ACCURACY_LOW) item { CalibrateCard() }
         target?.person?.let { p -> item { PersonFix(p, target.point, distance, onRing) } }
+        // Back to base: straight to base camp, or back along the way you came.
+        val base = spots.firstOrNull { it.isBaseCamp }
+        if (base != null || trail.points.size > 2) item {
+            Group(Modifier.padding(top = 12.dp)) {
+                Column(Modifier.padding(14.dp)) {
+                    Text("Back to base", style = MaterialTheme.typography.titleMedium)
+                    base?.let { b ->
+                        val d = myLocation?.let { Geo.distanceM(it, GeoPoint(b.lat, b.lon, 0f, 0)) }
+                        Text("⛺ Base camp" + (d?.let { " · ${Geo.formatDistance(it)} · ${WalkTime.words(it)}" } ?: ""), style = MaterialTheme.typography.bodyMedium, color = Extra.ink2,
+                            modifier = Modifier.padding(top = 4.dp))
+                    }
+                    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (base != null) Chip("⛺ Straight to camp", selected == base.id) { selected = base.id }
+                        if (trail.points.size > 2) Chip("↩ Retrace my trail", selected == RETRACE) { selected = RETRACE }
+                    }
+                    if (selected == RETRACE) Text("The arrow points a little way back along your own path. Follow it, and it moves on as you go: you walk back exactly the way you came.",
+                        style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+        }
+        // Daylight: the most important number outdoors.
+        if (myLocation != null) item { SunCard(myLocation, now) }
+        if (myLocation != null) item {
+            Surface(onClick = { onShareLocation(myLocation) }, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("📤", fontSize = 22.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Share my location", style = MaterialTheme.typography.titleMedium)
+                        Text(Geo.formatLatLon(myLocation.lat, myLocation.lon) + " · ±${myLocation.accuracyM.roundToInt()} m", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+        // A map of where everything is, even without the trail on.
+        if (!trail.on && myLocation != null && (spots.isNotEmpty() || people.any { it.location != null })) {
+            item { GroupLabel("Map") }
+            item {
+                Group {
+                    TrailMap(emptyList(), spots, myLocation, null, Modifier.padding(12.dp).fillMaxWidth().height(260.dp).clip(MaterialTheme.shapes.medium),
+                        others = people.mapNotNull { p -> p.location?.let { (p.avatar ?: "🙂") to it } })
+                    Text("You, your saved spots and friends sharing their location. No map download needed.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp))
+                }
+            }
+        }
         item {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
                 TextButton(onClick = onSaveSpot) { Text("+ Save this spot") }
@@ -173,14 +243,14 @@ fun CompassScreen(
                 SettingRow(Icons.Outlined.Place, MaterialTheme.colorScheme.primary, "GPS needs no internet", "Your phone hears satellites directly. Works in airplane mode.")
                 SettingRow(Icons.Outlined.Explore, Extra.sky, "Compass from the phone's sensor", "The magnetometer gives your heading. No data needed.", divider = true)
                 SettingRow(Icons.Outlined.Hub, Extra.ember, "Friends' positions over the mesh", "People who share their location appear here as targets.", divider = true)
-                SettingRow(Icons.Outlined.Map, Color(0xFF7C6BD6), "Maps: coming next", "Download an area's map at home, then use it offline.", divider = true)
+                SettingRow(Icons.Outlined.Map, Color(0xFF7C6BD6), "Map without downloads", "You, spots, your trail and friends drawn to scale: no map tiles needed.", divider = true)
             }
         }
     }
 }
 
 @Composable
-private fun Dial(heading: Float, bearing: Float?, modifier: Modifier) {
+private fun Dial(heading: Float, bearing: Float?, modifier: Modifier, sunDeg: Float? = null) {
     val dial by animateFloatAsState(-heading, label = "dial")
     val needle by animateFloatAsState(((bearing ?: 0f) - heading), label = "needle")
     val measurer = rememberTextMeasurer()
@@ -209,6 +279,11 @@ private fun Dial(heading: Float, bearing: Float?, modifier: Modifier) {
                     drawText(layout, topLeft = Offset(c.x - layout.size.width / 2, c.y - r + 28.dp.toPx()))
                 }
             }
+        }
+        // The sun on the dial's edge, so you can check the compass against it (and walk by it).
+        if (sunDeg != null) rotate(dial + sunDeg, c) {
+            val layout = measurer.measure("☀", TextStyle(fontSize = 18.sp, color = Color(0xFFE8A33A)))
+            drawText(layout, topLeft = Offset(c.x - layout.size.width / 2, c.y - r - layout.size.height / 2 + 4.dp.toPx()))
         }
         if (bearing != null) {
             rotate(needle, c) {
@@ -277,5 +352,79 @@ private fun agoShort(then: Long, now: Long): String {
         sec < 10 -> "a few seconds ago"
         sec < 60 -> "$sec s ago"
         else -> com.bluemob.app.util.TimeText.ago(then, now)
+    }
+}
+
+
+private const val RETRACE = "retrace"
+
+/** Walking time at an easy pace. */
+object WalkTime {
+    fun words(m: Double): String {
+        val min = (m / 75.0).roundToInt().coerceAtLeast(1) // 4.5 km/h
+        return if (min < 60) "$min min walk" else "${min / 60} h ${min % 60} min walk"
+    }
+}
+
+/** Sunrise, sunset, daylight left, where the sun is, and tonight's moon. */
+@Composable
+private fun SunCard(me: GeoPoint, now: Long) {
+    val t = com.bluemob.app.util.SunMoon.times(now, me.lat, me.lon)
+    val pos = com.bluemob.app.util.SunMoon.sun(now, me.lat, me.lon)
+    val (moon, moonWords) = com.bluemob.app.util.SunMoon.moonWords(com.bluemob.app.util.SunMoon.moonPhase(now))
+    val fmt = remember { java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()) }
+    val up = pos.altitudeDeg > -0.833
+    val left = t.set?.let { it - now }
+    val warn = up && left != null && left in 0..90 * 60_000L
+    Surface(shape = MaterialTheme.shapes.large, color = if (warn) Extra.emberTint else MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (warn) Extra.ember else Extra.line), modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Column(Modifier.padding(14.dp)) {
+            Text(if (up) "☀️  Daylight" else "🌙  Night", style = MaterialTheme.typography.titleMedium)
+            Text(
+                when {
+                    t.set == null -> "The sun doesn't set or rise here today."
+                    up && left != null && left > 0 -> "${com.bluemob.app.util.SunMoon.span(left)} of light left · sunset ${fmt.format(java.util.Date(t.set))}" +
+                        if (warn) ". Head back or make camp now." else ""
+                    else -> "Sunrise ${t.rise?.let { fmt.format(java.util.Date(if (it < now) it + 86_400_000L else it)) } ?: "—"}"
+                },
+                style = MaterialTheme.typography.bodyMedium, color = if (warn) Extra.ember else Extra.ink2, modifier = Modifier.padding(top = 4.dp),
+            )
+            if (up) Text("Sun at ${pos.azimuthDeg.roundToInt()}° ${cardinal(pos.azimuthDeg)}, ${pos.altitudeDeg.roundToInt()}° up. It's the ☀ on the dial: if your compass disagrees, trust the sun.",
+                style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 4.dp))
+            Text("$moon  $moonWords", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+/** "Wave the phone in a figure 8", with the movement drawn. */
+@Composable
+private fun CalibrateCard() {
+    val t by androidx.compose.animation.core.rememberInfiniteTransition(label = "fig8").animateFloat(0f, 1f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(2400, easing = androidx.compose.animation.core.LinearEasing)), label = "t")
+    val ember = Extra.ember
+    val ink3 = Extra.ink3
+    Surface(shape = MaterialTheme.shapes.large, color = Extra.emberTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Canvas(Modifier.size(84.dp, 56.dp)) {
+                val w = size.width / 2.4f
+                val h = size.height / 2.4f
+                val path = Path()
+                for (i in 0..64) {
+                    val a = i / 64.0 * 2 * Math.PI
+                    val x = center.x + w * kotlin.math.sin(a).toFloat()
+                    val y = center.y + h * kotlin.math.sin(2 * a).toFloat()
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                drawPath(path, ink3, style = Stroke(2.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8f, 8f))))
+                val a = t * 2 * Math.PI
+                val p = Offset(center.x + w * kotlin.math.sin(a).toFloat(), center.y + h * kotlin.math.sin(2 * a).toFloat())
+                drawRoundRect(ember, Offset(p.x - 7.dp.toPx(), p.y - 11.dp.toPx()), androidx.compose.ui.geometry.Size(14.dp.toPx(), 22.dp.toPx()),
+                    androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()))
+            }
+            Column(Modifier.padding(start = 12.dp)) {
+                Text("Calibrate the compass", style = MaterialTheme.typography.titleMedium)
+                Text("Wave your phone in a figure 8 a few times, away from metal, cars and power lines.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+            }
+        }
     }
 }

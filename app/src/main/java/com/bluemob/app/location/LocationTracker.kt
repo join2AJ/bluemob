@@ -25,6 +25,10 @@ class LocationTracker(context: Context) {
     private val _location = MutableStateFlow<GeoPoint?>(null)
     val location: StateFlow<GeoPoint?> = _location.asStateFlow()
 
+    private val _altitude = MutableStateFlow<Double?>(null)
+    /** Height above sea level from GPS, in metres, when the fix has one. */
+    val altitude: StateFlow<Double?> = _altitude.asStateFlow()
+
     private var active = false
 
     private val listener = LocationListener { loc: Location ->
@@ -35,6 +39,7 @@ class LocationTracker(context: Context) {
             return@LocationListener
         }
         _location.value = GeoPoint(loc.latitude, loc.longitude, loc.accuracy, loc.time)
+        if (loc.hasAltitude()) _altitude.value = if (android.os.Build.VERSION.SDK_INT >= 34 && loc.hasMslAltitude()) loc.mslAltitudeMeters else loc.altitude
     }
 
     fun hasPermission(): Boolean =

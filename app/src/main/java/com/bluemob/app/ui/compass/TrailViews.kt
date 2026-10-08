@@ -162,7 +162,9 @@ fun LostCard(ui: TrailUi, onLost: (Boolean) -> Unit) {
 
 /** North-up map of the trail: solid where GPS was used, dashed where estimated. */
 @Composable
-fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, me: GeoPoint?, estimate: PositionEstimate?, modifier: Modifier) {
+fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, me: GeoPoint?, estimate: PositionEstimate?, modifier: Modifier,
+    /** Other people to draw: their emoji and position. */
+    others: List<Pair<String, GeoPoint>> = emptyList()) {
     val measurer = rememberTextMeasurer()
     val pine = MaterialTheme.colorScheme.primary
     val sky = Extra.sky
@@ -170,7 +172,8 @@ fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, me: GeoPoint?, estimat
     val ember = Extra.ember
     val rose = Extra.rose
     Canvas(modifier.background(Color(0xFFEFF3EC))) {
-        val all = points.map { it.lat to it.lon } + spots.map { it.lat to it.lon } + listOfNotNull(me?.let { it.lat to it.lon }, estimate?.let { it.lat to it.lon })
+        val all = points.map { it.lat to it.lon } + spots.map { it.lat to it.lon } + others.map { it.second.lat to it.second.lon } +
+            listOfNotNull(me?.let { it.lat to it.lon }, estimate?.let { it.lat to it.lon })
         // Grid.
         val step = 32.dp.toPx()
         var gx = 0f
@@ -209,6 +212,11 @@ fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, me: GeoPoint?, estimat
             val p = px(s.lat, s.lon)
             val label = measurer.measure(if (s.isBaseCamp) "⛺" else "📍", TextStyle(fontSize = 18.sp))
             drawText(label, topLeft = Offset(p.x - label.size.width / 2, p.y - label.size.height + 4.dp.toPx()))
+        }
+        others.forEach { (emoji, g) ->
+            val p = px(g.lat, g.lon)
+            val label = measurer.measure(emoji, TextStyle(fontSize = 18.sp))
+            drawText(label, topLeft = Offset(p.x - label.size.width / 2, p.y - label.size.height / 2))
         }
         estimate?.takeIf { !it.gps }?.let { e ->
             val p = px(e.lat, e.lon)

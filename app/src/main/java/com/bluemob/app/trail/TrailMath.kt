@@ -131,6 +131,17 @@ data class TrailStats(
 }
 
 object TrailMath {
+    /**
+     * Retracing: where to head to walk back the way we came. Finds where we are on our own trail (the closest point),
+     * then the point [aheadM] metres further back along it. Near the start, it's the start itself.
+     */
+    fun retracePoint(points: List<GeoPoint>, me: GeoPoint, aheadM: Double = 40.0): GeoPoint? {
+        if (points.size < 2) return null
+        val here = points.indices.minBy { Geo.distanceM(points[it], me) }
+        for (i in here downTo 0) if (Geo.distanceM(points[i], me) >= aheadM) return points[i]
+        return points.first()
+    }
+
     /** Looks at about the last [windowM] metres of the trail and decides whether the user walks straight. */
     fun analyse(points: List<GeoPoint>, windowM: Double = 400.0, minStepM: Double = 15.0): TrailStats {
         // Thin out GPS jitter: keep points at least minStepM apart, newest first.
