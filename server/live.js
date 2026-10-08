@@ -10,6 +10,7 @@
 //    Binary [8-byte target ID | payload] → delivered as [8-byte sender ID | payload]   (call audio and video)
 //    Text  {t:"push", token}      → this phone's Firebase token, to wake it when it isn't connected
 //    Server → phone {t:"poke"}    → a message for you (or a phone you carry) was stored: pull now
+// An SOS for someone's SOS contact is also pushed to that phone straight away (see sosWake).
 //
 // Wake-ups: when someone calls or messages a phone that isn't connected (and nobody carries it), and the server has
 // that phone's Firebase token, it sends a content-free push ("a call", "a message") so the phone wakes, connects and
@@ -117,15 +118,34 @@ function attachLive(server, { now = () => Date.now(), store = null, pusher = nul
   const poke = (to) => { const ws = route(to); if (ws) ws.text({ t: "poke" }); };
   // Wake a phone that isn't connected, at most once per kind every few seconds.
   const lastWake = new Map();
-  const wake = (to, data, every = 8e3) => {
+  const wake = (to, data, every = 8e3, ttl = 60) => {
     if (!pusher || !pusher.configured || !store) return false;
     const token = store.pushTokens.get(to);
     if (!token) return false;
     const key = to + "|" + data.k;
-    if (now() - (lastWake.get(key) || 0) < every) return true;
+    if (every > 0 && now() - (lastWake.get(key) || 0) < every) return true;
     lastWake.set(key, now());
-    Promise.resolve(pusher.send(token, data)).then((r) => { if (r === "gone") store.setPushToken(to, null); }).catch(() => {});
+    Promise.resolve(pusher.send(token, data, ttl)).then((r) => { if (r === "gone") store.setPushToken(to, null); }).catch(() => {});
     return true;
+  };
+  // An SOS (or "I'm safe") for someone's SOS contact: always pushed, never held back, even if that phone looks connected
+  // (its link may be asleep). Unlike other wake-ups it carries the alert itself (note, position, battery, blood group)
+  // so the alarm shows at once; the phone drops it unless the sender is someone whose SOS contact it is.
+  const sosWake = (from, to, data) => {
+    try {
+      const p = JSON.parse(data);
+      if (!p || p.t !== "app") return false;
+      const o = require("./relay").openEnvelope(p);
+      const b = o && o.from === from ? o.body : null;
+      if (!b || b.to !== to || b.k !== "sosc" || (b.a !== "sos" && b.a !== "safe")) return false;
+      const str = (v, n) => (v === undefined || v === null ? "" : String(v).slice(0, n));
+      const d = { k: b.a, from, name: str(b.name, 40), id: str(b.id, 40), at: str(b.at, 20) };
+      if (b.a === "sos") Object.assign(d, {
+        note: str(b.note, 200), lat: typeof b.lat === "number" ? String(b.lat) : "", lon: typeof b.lon === "number" ? String(b.lon) : "",
+        acc: str(b.acc, 12), bat: str(b.bat, 4), blood: str(b.blood, 4), age: str(b.age, 4),
+      });
+      return wake(to, d, 0, 6 * 3600); // an SOS still matters hours later
+    } catch { return false; }
   };
   if (store) store.onPut = (to, info = {}) => { if (route(to)) poke(to); else if (info.type === "rmsg") wake(to, { k: "msg", name: info.name || "" }, 30e3); };
   online.poke = poke;
@@ -166,6 +186,7 @@ function attachLive(server, { now = () => Date.now(), store = null, pusher = nul
       }
       if (!allowed(txt.length)) return;
       if (m.t === "send" && /^[0-9a-f]{16}$/.test(m.to) && typeof m.data === "string") {
+        sosWake(id, m.to, m.data);
         const direct = online.get(m.to);
         const peer = route(m.to);
         if (peer) peer.text({ t: "msg", from: id, data: m.data });

@@ -51,6 +51,10 @@ class SosManager(
 
     private val alerted = mutableSetOf<String>()
 
+    private val _incoming = kotlinx.coroutines.flow.MutableSharedFlow<SosSignal>(extraBufferCapacity = 32)
+    /** Every SOS and "I'm safe" we hear of, however it came (nearby, internet, push), for the rescue groups. */
+    val incoming: kotlinx.coroutines.flow.SharedFlow<SosSignal> = _incoming
+
     init {
         scope.launch {
             mesh.events.collect { e -> if (e is MeshEvent.SosReceived) receive(e.sos) }
@@ -59,6 +63,7 @@ class SosManager(
 
     /** An SOS (or "I'm safe") from someone: over the mesh, or from someone whose SOS contact we are. */
     fun receive(s: SosSignal) {
+        _incoming.tryEmit(s)
         if (s.cancelled) {
             if (_received.value.containsKey(s.fromNodeId)) audit.add(AuditKind.SOS, "${s.name} is safe now (SOS ended)")
             _received.update { it - s.fromNodeId }

@@ -17,6 +17,8 @@
 //   GET  /v1/reports?token=REPORTS_TOKEN                   read them (only with the REPORTS_TOKEN set on the server)
 //   POST /v1/phone  {pk, at, h, sig}                       "my verified number's fingerprint is h" (signed by the phone)
 //   GET  /v1/phone?h&id&at&sig                             which BlueMob ID has that number (signed lookup, 30 a day)
+//   POST /v1/email  {pk, at, email, sig}                   optional recovery email for this BlueMob ID ("" removes it);
+//                                                          kept for account recovery and receipts, never shown to anyone
 //   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
@@ -55,6 +57,7 @@ class Store {
     this.ratings = new Map(); // subject -> Map(ratingKey -> packet)
     this.pushTokens = new Map(); // id -> Firebase device token, for waking a phone that isn't connected
     this.phones = new Map(); // fingerprint of a verified number -> BlueMob ID (the number itself is never sent)
+    this.emails = new Map(); // BlueMob ID -> optional recovery email
     if (file) this.load();
   }
   load() {
@@ -70,6 +73,7 @@ class Store {
     else if (r.op === "del") this.packets.delete(r.key);
     else if (r.op === "key") this.keys.set(r.id, r.pk);
     else if (r.op === "phone") { for (const [h, i] of this.phones) if (i === r.id) this.phones.delete(h); if (r.h) this.phones.set(r.h, r.id); }
+    else if (r.op === "email") { if (r.email) this.emails.set(r.id, r.email); else this.emails.delete(r.id); }
     else if (r.op === "push") { if (r.token) this.pushTokens.set(r.id, r.token); else this.pushTokens.delete(r.id); }
     else if (r.op === "rate") { if (!this.ratings.has(r.subject)) this.ratings.set(r.subject, new Map()); this.ratings.get(r.subject).set(r.key, r.packet); }
     if (persist) this.log(r);
@@ -363,6 +367,16 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         if (limited("dev:" + id)) return send(res, 429, { error: "slow down" });
         store.learnKey(id, body.pk);
         store.apply({ op: "phone", id, h });
+        return send(res, 200, { ok: true });
+      }
+      if (url.pathname === "/v1/email") {
+        const email = String(body.email || "").trim().toLowerCase(), at = Number(body.at);
+        if ((email && !/^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(email)) || Math.abs(Date.now() - at) > 10 * 60e3) return send(res, 400, { error: "bad request" });
+        const id = signer(String(body.pk || ""), ["bluemob-email", email, at].join("|"), String(body.sig || ""));
+        if (!id) return send(res, 401, { error: "bad signature" });
+        if (limited("dev:" + id)) return send(res, 429, { error: "slow down" });
+        store.learnKey(id, body.pk);
+        store.apply({ op: "email", id, email });
         return send(res, 200, { ok: true });
       }
       if (url.pathname === "/v1/push") {

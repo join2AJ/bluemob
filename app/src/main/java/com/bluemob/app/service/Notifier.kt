@@ -68,7 +68,22 @@ class Notifier(private val context: Context) {
         .setContentIntent(open(null, 2))
         // On phones that allow it, the SOS alert opens over the lock screen, like an incoming call.
         .setFullScreenIntent(open(null, 3), true)
+        .addAction(0, "I'm coming", open("sos-coming:" + s.id, 4 + s.id.hashCode()))
+        .addAction(0, "Open map", mapFor(s) ?: open(null, 5 + s.id.hashCode()))
         .build())
+
+    /** "Ended" for an SOS whose alert is still showing. */
+    fun sosEnded(s: SosSignal) = cancel(s.id.hashCode())
+
+    /** Where they are, in the phone's maps app (works offline with downloaded maps), or null if we don't know. */
+    private fun mapFor(s: SosSignal): PendingIntent? {
+        val lat = s.lat ?: return null
+        val lon = s.lon ?: return null
+        val uri = android.net.Uri.parse("geo:%.6f,%.6f?q=%.6f,%.6f(%s)".format(java.util.Locale.US, lat, lon, lat, lon, android.net.Uri.encode("SOS: " + s.name)))
+        val i = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (i.resolveActivity(context.packageManager) == null) return null
+        return PendingIntent.getActivity(context, 6 + s.id.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
 
     fun message(fromId: String, name: String, text: String) = post(fromId.hashCode(), NotificationCompat.Builder(context, CH_MSG)
         .setSmallIcon(R.drawable.ic_stat_bluemob)

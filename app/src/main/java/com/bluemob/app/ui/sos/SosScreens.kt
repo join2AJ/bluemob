@@ -257,6 +257,8 @@ fun SosContactsScreen(
     onRemove: (String) -> Unit,
     people: List<com.bluemob.app.ui.Person> = emptyList(),
     onAskAgain: (SosContact) -> Unit = {},
+    /** Text someone who isn't on BlueMob yet, from your own SMS app (free, nothing goes through BlueMob). */
+    onInvite: (SosContact) -> Unit = {},
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
@@ -279,7 +281,12 @@ fun SosContactsScreen(
             Column(Modifier.padding(top = 12.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(if (ok) Extra.pineTint else Extra.emberTint).padding(14.dp)) {
                 Text(if (ok) "✓ You're covered: $accepted of ${contacts.size} accepted" else if (contacts.isEmpty()) "Add at least one SOS contact" else "Waiting for someone to accept",
                     style = MaterialTheme.typography.titleSmall)
-                Text("1 to 4 people · at least 1 must accept in their BlueMob · they must use BlueMob", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
+                Text("1 to 4 people · at least 1 should accept in their BlueMob", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
+                // No deadline: nothing is blocked while people get round to it.
+                if (!ok && contacts.isNotEmpty()) Text(
+                    "Take your time: your SOS still reaches everyone nearby meanwhile. " +
+                        (if (contacts.any { it.state == com.bluemob.app.settings.SosContactState.NOT_ON_BLUEMOB }) "People not on BlueMob yet are checked every few hours and asked automatically once they sign up with their number." else "They'll see your request whenever they next open BlueMob."),
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
             }
         }
         note?.let { item { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp)) } }
@@ -292,6 +299,8 @@ fun SosContactsScreen(
                         Row {
                             if (c.state == com.bluemob.app.settings.SosContactState.ASKED || c.state == com.bluemob.app.settings.SosContactState.DECLINED)
                                 TextButton(onClick = { onAskAgain(c); note = "Asked ${c.name} again." }) { Text("Ask again") }
+                            if (c.state == com.bluemob.app.settings.SosContactState.NOT_ON_BLUEMOB && c.phone.isNotBlank())
+                                TextButton(onClick = { onInvite(c) }) { Text("Invite") }
                             TextButton(onClick = { onRemove(c.id) }) { Text("Remove", color = Extra.rose) }
                         }
                     }

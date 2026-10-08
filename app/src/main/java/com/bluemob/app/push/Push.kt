@@ -13,7 +13,8 @@ import com.google.firebase.messaging.RemoteMessage
 /**
  * Firebase, used for two things only, and only when the build has a Firebase project set (gradle.properties):
  * waking this phone when someone calls or messages while BlueMob is closed, and real SMS codes at sign-up.
- * Wake-ups carry no message content: the phone wakes, connects to the relay and fetches what's waiting itself.
+ * Wake-ups carry no message content: the phone wakes, connects to the relay and fetches what's waiting itself. The one
+ * exception is an SOS for an SOS contact, which carries the alert itself (note, position) so the alarm shows at once.
  */
 object Push {
     val configured: Boolean get() = BuildConfig.FIREBASE_APP_ID.isNotBlank() && BuildConfig.FIREBASE_API_KEY.isNotBlank() && BuildConfig.FIREBASE_PROJECT_ID.isNotBlank()
@@ -54,6 +55,8 @@ class PushService : FirebaseMessagingService() {
             "call" -> if (app.calls.call.value == null) app.notifier.incomingCall(d["name"]?.take(40).orEmpty().ifBlank { "Someone" }, d["video"] == "true")
             // A message is waiting on the relay: fetch it (the usual notification shows once it's here).
             "msg" -> app.bridge.syncNow()
+            // An SOS from someone whose SOS contact we are: the full-screen alarm right away, then fetch the rest.
+            "sos", "safe" -> { app.sosCircle.fromPush(d); app.bridge.syncNow() }
         }
     }
 }

@@ -4,7 +4,11 @@ BlueMob uses Firebase for two things only:
 
 1. **Wake-ups.** When someone calls or messages a phone whose BlueMob is closed, the relay sends it a content-free push
    ("a call", "a message"). The phone rings or fetches the message from the relay itself.
-2. **Real SMS codes at sign-up**, instead of the test code `123456`.
+   **SOS alarms:** when you send an SOS, each of your SOS contacts gets a push straight away, every time, never held
+   back. It carries the alert itself (note, position, battery, blood group), so their phone shows a full-screen alarm
+   with sound even when BlueMob is closed or the phone is locked, with **I'm coming** and **Open map** buttons.
+   Pushes are free (Firebase Cloud Messaging has no per-message charge, and the free Spark plan is enough for them).
+2. **Real SMS codes at sign-up**, instead of the test code `123456`. Only these cost money (Blaze plan).
 
 Until this is set up, everything else works as before.
 

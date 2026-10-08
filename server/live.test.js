@@ -163,3 +163,37 @@ test("a call to a phone that's asleep wakes it through Firebase; messages do too
   assert.deepEqual(sent[1].data, { k: "msg", name: "" });
   A.ws.close(); s.close();
 });
+
+test("an SOS for an SOS contact is always pushed with the alert itself, never held back", async () => {
+  const store = new Store(null);
+  const sent = [];
+  const pusher = { configured: true, send: async (token, data, ttl) => { sent.push({ token, data, ttl }); return "ok"; } };
+  const { s, url } = await server(store, pusher);
+  const a = device(), b = device();
+  const B = await connect(url, b);
+  B.ws.send(JSON.stringify({ t: "push", token: "tok-b" }));
+  await new Promise((r) => setTimeout(r, 50));
+  const A = await connect(url, a);
+  // Even while b looks connected, the SOS goes out as a push too (b's link may be asleep).
+  const sos = () => JSON.stringify(app(a, { to: b.id, k: "sosc", a: "sos", id: "sos-1", note: "Fell", lat: 12.5, lon: 77.25, acc: 20, bat: 31, blood: "B+", age: 34, name: "Asha" }));
+  A.ws.send(JSON.stringify({ t: "send", to: b.id, data: sos() }));
+  assert.equal((await B.next()).t, "msg");
+  A.ws.send(JSON.stringify({ t: "send", to: b.id, data: sos() }));
+  await B.next();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(sent.length, 2, "never throttled");
+  assert.deepEqual(sent[0].data, { k: "sos", from: a.id, name: "Asha", id: "sos-1", at: sent[0].data.at, note: "Fell", lat: "12.5", lon: "77.25", acc: "20", bat: "31", blood: "B+", age: "34" });
+  assert.ok(sent[0].ttl >= 3600);
+  // "I'm safe" too; ordinary app packets and forged ones aren't pushed.
+  A.ws.send(JSON.stringify({ t: "send", to: b.id, data: JSON.stringify(app(a, { to: b.id, k: "sosc", a: "safe", id: "sos-1", name: "Asha" })) }));
+  await B.next();
+  A.ws.send(JSON.stringify({ t: "send", to: b.id, data: JSON.stringify(app(a, { to: b.id, k: "sosc", a: "ask" })) }));
+  await B.next();
+  const evil = device();
+  A.ws.send(JSON.stringify({ t: "send", to: b.id, data: JSON.stringify(app(evil, { to: b.id, k: "sosc", a: "sos", id: "x" })) }));
+  await B.next();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(sent.length, 3);
+  assert.equal(sent[2].data.k, "safe");
+  A.ws.close(); B.ws.close(); s.close();
+});

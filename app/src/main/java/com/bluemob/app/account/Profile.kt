@@ -11,7 +11,16 @@ data class Profile(
     val verified: Boolean = false,
     val age: Int? = null,
     val bloodGroup: String? = null,
+    /** Optional, for account recovery and receipts later. */
+    val email: String? = null,
 )
+
+object Emails {
+    private val SHAPE = Regex("^[^\\s@]{1,64}@[^\\s@]{1,190}\\.[^\\s@]{2,}$")
+    fun clean(s: String) = s.trim().lowercase()
+    /** Why it isn't an email address, or null if it looks fine (blank is fine too: it's optional). */
+    fun problem(s: String): String? = if (s.isBlank() || SHAPE.matches(clean(s))) null else "Check the email address"
+}
 
 object BloodGroups {
     val ALL = listOf("A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−")
@@ -64,7 +73,18 @@ class ProfileStore(private val prefs: SharedPreferences) {
         verified = prefs.getBoolean(VERIFIED, false),
         age = prefs.getInt(AGE, -1).takeIf { it in 1..120 },
         bloodGroup = prefs.getString(BLOOD, null),
+        email = prefs.getString(EMAIL, null),
     )
+
+    /** The email the relay has: what to send it next time we're online, if different. */
+    val syncedEmail: String? get() = prefs.getString(EMAIL_SYNCED, null)
+    fun markEmailSynced(email: String) { prefs.edit().putString(EMAIL_SYNCED, email).apply() }
+
+    fun setEmail(email: String?) {
+        val e = email?.let { Emails.clean(it) }?.takeIf { it.isNotEmpty() && Emails.problem(it) == null }
+        prefs.edit().putString(EMAIL, e).apply()
+        _profile.value = read()
+    }
 
     fun setVerifiedPhone(e164: String) { prefs.edit().putString(PHONE, e164).putBoolean(VERIFIED, true).apply(); _profile.value = read() }
 
@@ -79,5 +99,7 @@ class ProfileStore(private val prefs: SharedPreferences) {
         const val VERIFIED = "phone_verified"
         const val AGE = "age"
         const val BLOOD = "blood_group"
+        const val EMAIL = "email"
+        const val EMAIL_SYNCED = "email_synced"
     }
 }

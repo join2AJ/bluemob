@@ -241,8 +241,12 @@ class BlueMobApp : Application() {
             onRequest = { r -> notifier.note("${r.name} wants you as their SOS contact", "Open BlueMob to accept: you'd get an alert if they ever send an SOS.", null) })
         sos.onSent = { sosCircle.alert(it) }
         sos.onSafe = { sosCircle.safe(it) }
-        appScope.launch { live.connected.collect { if (it) sosCircle.registerNumber() } }
+        appScope.launch { live.connected.collect { if (it) { sosCircle.registerNumber(); syncEmail(); sosCircle.recheck() } } }
+        // SOS contacts who hadn't joined BlueMob yet: look again every few hours and ask them as soon as they have.
+        appScope.launch { while (true) { kotlinx.coroutines.delay(3 * 3_600_000L); if (live.connected.value) sosCircle.recheck() } }
         appScope.launch { sos.alert.collect { a -> if (a != null && !inForeground && a.id != SosManager.PREVIEW_ID) notifier.sos(a) } }
+        // "I'm safe": take the alarm notification down too.
+        appScope.launch { sos.incoming.collect { if (it.cancelled) notifier.sosEnded(it) } }
         appScope.launch { rescue.notices.collect { n -> if (!inForeground) notifier.rescue(n.room, n.text) } }
         // Start-up itself is done. Android also starts BlueMob with no screen (background service, scheduled backups,
         // wake-ups); the screen marks its own step when it opens (MainActivity), so a background start that's later
@@ -323,4 +327,7 @@ class BlueMobApp : Application() {
             sosActive = sos.mine.value != null,
         )
     }
+
+    /** The optional recovery email, sent to the relay once (and again whenever it changes). */
+    suspend fun syncEmail() = com.bluemob.app.account.RecoveryEmail.sync(profile, settings.bridgeUrl.value.takeIf { it.isNotBlank() }, identity.keys)
 }

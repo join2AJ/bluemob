@@ -36,6 +36,18 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.16: SOS alarm push, contacts who join later, optional email
+
+- **SOS alarm push.** Your SOS reaches each SOS contact as a Firebase push straight away, never held back. Their phone
+  shows a full-screen alarm with sound even when BlueMob is closed, with **I'm coming** and **Open map** buttons.
+  "I'm safe" clears it. Pushes are free. "I'm coming" also tells you in your chat, with how far away they are.
+- **No deadline for SOS contacts.** People who aren't on BlueMob yet stay on your list. Every few hours BlueMob checks
+  whether they've signed up with that number, and asks them automatically. **Invite** texts them from your own SMS app.
+  Your SOS still reaches everyone nearby meanwhile.
+- **Optional email** at sign-up and in Account, kept for account recovery and receipts later. It's stored on the
+  relay against your BlueMob ID and never shown to anyone.
+- **Full-screen alerts check** in Connections & power, for Android 14+ phones that block alarms over the lock screen.
+
 ## Android 0.15: SOS contacts in the app, ratings by category, your activity
 
 - **SOS contacts live in BlueMob.** Add 1 to 4 people by phone number. They get a request in BlueMob and accept or

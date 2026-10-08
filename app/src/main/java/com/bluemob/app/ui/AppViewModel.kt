@@ -363,6 +363,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val rescues = blueMob.rescue.rooms
     val rescueNotices = blueMob.rescue.notices
     fun joinRescue(id: String) = blueMob.rescue.join(id)
+    /** "I'm coming" on an SOS: join its rescue group, and if it's one of our SOS contacts, tell them in their chat too. */
+    fun comingToSos(id: String) = viewModelScope.launch {
+        // Straight from the notification, the group may still be being set up: give it a moment.
+        kotlinx.coroutines.withTimeoutOrNull(5_000) { blueMob.rescue.rooms.first { rooms -> rooms.any { it.id == id } } }
+        joinRescue(id)
+        val s = sosManager.received.value.values.firstOrNull { it.id == id } ?: return@launch
+        val here = trail.snapshot()
+        val away = if (here != null && s.lat != null && s.lon != null) {
+            val d = com.bluemob.app.util.Geo.distanceM(com.bluemob.app.contacts.GeoPoint(here.lat, here.lon, 0f, 0), com.bluemob.app.contacts.GeoPoint(s.lat, s.lon, 0f, 0))
+            com.bluemob.app.util.Geo.formatDistance(d) + " away"
+        } else null
+        blueMob.sosCircle.coming(s.fromNodeId, away)
+    }
+    /** Text someone who isn't on BlueMob yet, from your own phone's SMS app. */
+    fun inviteText(name: String) = "Hi $name, I've added you as my SOS contact on BlueMob, the safety app that works even without signal. " +
+        "Please install BlueMob and sign up with this number: you'll then get my alert if I'm ever in trouble."
     fun sendRescue(id: String, text: String) = blueMob.rescue.send(id, text)
     fun arrivedRescue(id: String) = blueMob.rescue.arrived(id)
     fun leaveRescue(id: String) = blueMob.rescue.leave(id)
@@ -441,6 +457,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         identity.setDisplayName(r.name); identity.setAvatar(r.avatar)
         blueMob.profile.setVerifiedPhone(r.phone)
         blueMob.profile.setDetails(r.age, r.bloodGroup)
+        blueMob.profile.setEmail(r.email)
+        syncEmail()
         identity.setOnboardingDone(true)
         blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Signed up: mobile number verified (${r.phone.take(5)}…)")
     }
@@ -449,6 +467,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         listOfNotNull(s.bloodGroup?.let { "🩸 Blood group $it" }, s.age?.let { "age $it" }).joinToString(" · ").ifBlank { null }
     }
     fun setDetails(age: Int?, blood: String?) = blueMob.profile.setDetails(age, blood)
+    /** Optional recovery email: saved on the phone, and on the relay as soon as we're online. */
+    fun setEmail(email: String?) { blueMob.profile.setEmail(email); syncEmail() }
+    private fun syncEmail() = viewModelScope.launch { blueMob.syncEmail() }
     fun clearPin() { lock.clearPin(); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "PIN lock turned off") }
 
     private val lock = blueMob.lock

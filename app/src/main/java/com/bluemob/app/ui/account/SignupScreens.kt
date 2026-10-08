@@ -63,7 +63,7 @@ import com.bluemob.app.ui.theme.Space
 import kotlinx.coroutines.delay
 
 /** What sign-up collects. */
-data class SignupResult(val phone: String, val name: String, val avatar: String, val age: Int?, val bloodGroup: String?)
+data class SignupResult(val phone: String, val name: String, val avatar: String, val age: Int?, val bloodGroup: String?, val email: String? = null)
 
 /**
  * Sign up: mobile number → one-time code → name, age and blood group. People who used BlueMob before sign-up
@@ -105,8 +105,8 @@ fun SignupFlow(
                     }
                 }
                 1 -> OtpStep(phone, verifier) { step = 2 }
-                else -> DetailsStep(upgrading, initialName, initialAvatar, bluemobId) { name, avatar, age, blood ->
-                    onDone(SignupResult(phone, name, avatar, age, blood))
+                else -> DetailsStep(upgrading, initialName, initialAvatar, bluemobId) { name, avatar, age, blood, email ->
+                    onDone(SignupResult(phone, name, avatar, age, blood, email))
                 }
             }
         }
@@ -219,8 +219,10 @@ private fun OtpStep(phone: String, verifier: com.bluemob.app.account.PhoneVerifi
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: String, bluemobId: String, onDone: (String, String, Int?, String?) -> Unit) {
+private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: String, bluemobId: String, onDone: (String, String, Int?, String?, String?) -> Unit) {
     var name by rememberSaveable { mutableStateOf(initialName) }
+    var email by rememberSaveable { mutableStateOf("") }
+    val emailProblem = com.bluemob.app.account.Emails.problem(email)
     var avatar by rememberSaveable { mutableStateOf(initialAvatar) }
     var age by rememberSaveable { mutableStateOf("") }
     var blood by rememberSaveable { mutableStateOf<String?>(null) }
@@ -248,7 +250,13 @@ private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: 
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         (BloodGroups.ALL + BloodGroups.UNKNOWN).forEach { g -> Chip(if (g == BloodGroups.UNKNOWN) g else "🩸 $g", blood == g) { blood = g } }
     }
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
+    OutlinedTextField(
+        value = email, onValueChange = { email = it.filter { c -> !c.isWhitespace() }.take(120) }, label = { Text("Email (optional)") }, singleLine = true,
+        isError = emailProblem != null && email.contains('@'),
+        supportingText = { Text(if (emailProblem != null && email.contains('@')) emailProblem else "To recover your account, and for receipts later. Never shown to anyone.") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+    )
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
         Column(Modifier.padding(14.dp)) {
             Text("YOUR BLUEMOB ID", style = MaterialTheme.typography.labelSmall, color = Extra.ink2, letterSpacing = 1.sp)
             Text("BM $bluemobId", fontFamily = FontFamily.Monospace, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
@@ -257,8 +265,8 @@ private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: 
         }
     }
     Button(
-        onClick = { onDone(name.trim(), avatar, ageNum, blood?.takeIf { it != BloodGroups.UNKNOWN }) },
-        enabled = name.isNotBlank() && ageOk && blood != null,
+        onClick = { onDone(name.trim(), avatar, ageNum, blood?.takeIf { it != BloodGroups.UNKNOWN }, email.takeIf { it.isNotBlank() }) },
+        enabled = name.isNotBlank() && ageOk && blood != null && emailProblem == null,
         modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 24.dp),
     ) { Text(if (upgrading) "Save and continue" else "Create my account") }
     if (blood == null) Text("Pick your blood group, or \"${BloodGroups.UNKNOWN}\".", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())

@@ -334,6 +334,8 @@ fun AccountScreen(
     /** Opens Backup: account and backup live together, both are about not losing your BlueMob. */
     onBackup: () -> Unit = {},
     backupSummary: String = "",
+    /** The optional recovery email ("" or null removes it). */
+    onEmail: (String?) -> Unit = {},
 ) {
     // What the PIN pad is for: null, "code" (show recovery code), "change" (change PIN) or "off" (turn the lock off).
     var asking by rememberSaveable { mutableStateOf<String?>(null) }
@@ -367,7 +369,7 @@ fun AccountScreen(
             showCode -> item {
                 Column(Modifier.padding(top = 12.dp)) { RecoveryCodeCard(recoveryCode(), onSaved = { onRecoverySaved(); showCode = false }) }
             }
-            editing -> item { DetailsEditor(profile) { age, blood -> onDetails(age, blood); editing = false; note = "Details saved." } }
+            editing -> item { DetailsEditor(profile) { age, blood, email -> onDetails(age, blood); onEmail(email); editing = false; note = "Details saved." } }
             else -> {
                 item {
                     Column(Modifier.padding(top = 8.dp)) {
@@ -381,13 +383,14 @@ fun AccountScreen(
                         InfoRow("Mobile number", profile.phone?.let { com.bluemob.app.account.PhoneNumbers.pretty(it) + if (profile.verified) "  ✓ verified" else "" } ?: "Not added")
                         InfoRow("Age", profile.age?.toString() ?: "Not given")
                         InfoRow("Blood group", profile.bloodGroup ?: "Not given")
+                        InfoRow("Email", profile.email ?: "Not added (optional)")
                         Row(Modifier.fillMaxWidth().clickable { editing = true }.padding(16.dp)) {
-                            Text("Edit age and blood group", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyLarge)
+                            Text("Edit age, blood group and email", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
                 item {
-                    Text("Your age and blood group go out only with an SOS, so the people coming to help know.",
+                    Text("Your age and blood group go out only with an SOS, so the people coming to help know. Your email is only for recovering your account and for receipts later; nobody else sees it.",
                         style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 6.dp))
                 }
                 item { GroupLabel("PIN lock (optional)") }
@@ -460,8 +463,10 @@ private fun InfoRow(label: String, value: String) {
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun DetailsEditor(profile: com.bluemob.app.account.Profile, onSave: (Int?, String?) -> Unit) {
+private fun DetailsEditor(profile: com.bluemob.app.account.Profile, onSave: (Int?, String?, String?) -> Unit) {
     var age by rememberSaveable { mutableStateOf(profile.age?.toString() ?: "") }
+    var email by rememberSaveable { mutableStateOf(profile.email ?: "") }
+    val emailProblem = com.bluemob.app.account.Emails.problem(email)
     var blood by rememberSaveable { mutableStateOf(profile.bloodGroup ?: com.bluemob.app.account.BloodGroups.UNKNOWN) }
     val ageNum = age.toIntOrNull()
     val ageOk = age.isEmpty() || ageNum in 1..120
@@ -472,6 +477,10 @@ private fun DetailsEditor(profile: com.bluemob.app.account.Profile, onSave: (Int
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             (com.bluemob.app.account.BloodGroups.ALL + com.bluemob.app.account.BloodGroups.UNKNOWN).forEach { g -> Chip(g, blood == g) { blood = g } }
         }
-        Button(onClick = { onSave(ageNum, blood.takeIf { it != com.bluemob.app.account.BloodGroups.UNKNOWN }) }, enabled = ageOk, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("Save") }
+        OutlinedTextField(value = email, onValueChange = { email = it.filter { c -> !c.isWhitespace() }.take(120) }, label = { Text("Email (optional)") }, singleLine = true,
+            isError = emailProblem != null, supportingText = { Text(emailProblem ?: "For account recovery and receipts. Leave empty to remove it.") },
+            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email), modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+        Button(onClick = { onSave(ageNum, blood.takeIf { it != com.bluemob.app.account.BloodGroups.UNKNOWN }, email.takeIf { it.isNotBlank() }) },
+            enabled = ageOk && emailProblem == null, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("Save") }
     }
 }

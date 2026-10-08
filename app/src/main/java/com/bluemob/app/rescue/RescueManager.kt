@@ -64,13 +64,13 @@ class RescueManager(
         scope.launch {
             mesh.events.collect { e ->
                 when (e) {
-                    is MeshEvent.SosReceived -> onSos(e.sos)
                     is MeshEvent.RoomReceived -> receive(e.msg)
                     is MeshEvent.PeerConnected -> catchUp(e.nodeId)
                     else -> Unit
                 }
             }
         }
+        scope.launch { sos.incoming.collect { onSos(it) } }
         scope.launch {
             var previous: SosSignal? = null
             sos.mine.collect { mine ->

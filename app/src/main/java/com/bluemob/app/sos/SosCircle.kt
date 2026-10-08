@@ -71,8 +71,52 @@ class SosCircle(
         if (id != null && contacts.value.any { it.nodeId == id }) return "$name is already one of your SOS contacts."
         if (id == keys.nodeId) return "That's you. Add someone else."
         val c = settings.addSosContact(name, phone, id, if (id != null) SosContactState.ASKED else SosContactState.NOT_ON_BLUEMOB)
-        if (id != null) ask(c) else return "$name isn't on BlueMob yet. Ask them to install it and sign up with this number, then add them again. Until then you can text them from your phone."
+        if (id != null) ask(c) else return "$name isn't on BlueMob yet. They're saved: once they install BlueMob and sign up with this number, they're asked automatically. Tap Invite to text them."
         return null
+    }
+
+    /**
+     * Contacts who weren't on BlueMob when they were added: looks their number up again and, once they've signed up,
+     * asks them automatically. Runs when the phone comes online and every few hours, so nobody has to add them again.
+     * Returns how many were found.
+     */
+    suspend fun recheck(): Int {
+        var found = 0
+        contacts.value.filter { it.state == SosContactState.NOT_ON_BLUEMOB && it.phone.count { ch -> ch.isDigit() } >= 10 }.forEach { c ->
+            val id = lookup(c.phone) ?: return@forEach
+            if (id == keys.nodeId || contacts.value.any { it.nodeId == id }) return@forEach
+            settings.updateSosContact(c.id) { it.copy(nodeId = id, state = SosContactState.ASKED) }
+            contacts.value.firstOrNull { it.id == c.id }?.let { ask(it) }
+            found++
+        }
+        return found
+    }
+
+    /** We tapped "I'm coming" on a contact's SOS: they hear it in their chat, wherever they are. */
+    fun coming(to: String, away: String?) {
+        if (to !in _guarding.value && contacts.value.none { it.nodeId == to }) return
+        sendChat(to, "🏃 I'm coming" + (away?.let { " · $it" } ?: "") + ". Stay where you are if you can.")
+    }
+
+    /**
+     * An SOS (or "I'm safe") that arrived as a push while BlueMob was closed. Only from people whose SOS contact we
+     * are; the relay only sends these for packets the sender signed, and only it can push to this phone.
+     */
+    fun fromPush(d: Map<String, String>): Boolean {
+        val from = d["from"]?.takeIf { it.length == 16 } ?: return false
+        if (from !in _guarding.value && contacts.value.none { it.nodeId == from }) return false
+        val lat = d["lat"]?.toDoubleOrNull()
+        val lon = d["lon"]?.toDoubleOrNull()
+        val at = d["at"]?.toLongOrNull() ?: System.currentTimeMillis()
+        val acc = d["acc"]?.toDoubleOrNull()?.coerceAtLeast(5.0) ?: 50.0
+        sos.receive(SosSignal(
+            id = d["id"].orEmpty().take(40).ifBlank { "sos-push-$from" }, fromNodeId = from, name = d["name"].orEmpty().take(40).ifBlank { "Your contact" },
+            note = d["note"].orEmpty().take(200), lat = lat, lon = lon, battery = d["bat"]?.toIntOrNull()?.takeIf { it in 0..100 }, at = at, hops = 1,
+            cancelled = d["k"] == "safe",
+            pos = if (lat != null && lon != null) com.bluemob.app.trail.PositionEstimate(lat, lon, true, lat, lon, at, acc.toFloat(), null, null, null, acc, at) else null,
+            bloodGroup = d["blood"]?.takeIf { it in com.bluemob.app.account.BloodGroups.ALL }, age = d["age"]?.toIntOrNull()?.takeIf { it in 1..120 },
+        ))
+        return true
     }
 
     fun remove(id: String) {

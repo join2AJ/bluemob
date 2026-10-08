@@ -48,6 +48,22 @@ fun AutoStartScreen(
         item {
             Group {
                 SwitchRow("Mesh", if (running) "On: finding and being found by phones nearby" else "Off: people nearby can't reach you", running, onToggleMesh)
+                // Android 14+ can stop apps opening over the lock screen: SOS alarms and calls need it.
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val fullScreenOk = android.os.Build.VERSION.SDK_INT < 34 ||
+                    context.getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent()
+                if (!fullScreenOk) Row(Modifier.fillMaxWidth().clickable {
+                    runCatching {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                            android.net.Uri.parse("package:" + context.packageName)))
+                    }
+                }.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("⚠️ Allow full-screen alerts", style = MaterialTheme.typography.bodyLarge, color = Extra.rose)
+                        Text("So an SOS from your contacts, and calls, open over the lock screen with an alarm", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    Text("›", color = Extra.ink3)
+                }
                 Row(Modifier.fillMaxWidth().clickable(onClick = onConnections).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Bluetooth, Wi-Fi, GPS, internet", style = MaterialTheme.typography.bodyLarge)

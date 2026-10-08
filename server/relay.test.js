@@ -176,3 +176,22 @@ test("phone directory: only fingerprints, signed registration and lookups", asyn
   assert.equal((await look(me, "0".repeat(64))).status, 404);
   srv.close();
 });
+
+test("recovery email: signed, checked, removable", async () => {
+  const { createServer } = require("./relay");
+  const store = new Store(null);
+  const srv = createServer(store, new Map());
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const me = device(), evil = device();
+  const post = (dev, email, signer = dev) => { const at = Date.now();
+    const sig = crypto.sign("sha256", Buffer.from(["bluemob-email", email.trim().toLowerCase(), at].join("|")), signer.privateKey).toString("base64");
+    return fetch(`${base}/v1/email`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pk: dev.pk, at, email, sig }) }); };
+  assert.equal((await post(me, "Asha@Example.com")).status, 200);
+  assert.equal(store.emails.get(me.id), "asha@example.com");
+  assert.equal((await post(me, "not-an-email")).status, 400);
+  assert.equal((await post(me, "x@y.com", evil)).status, 401);
+  assert.equal((await post(me, "")).status, 200);
+  assert.equal(store.emails.has(me.id), false);
+  srv.close();
+});

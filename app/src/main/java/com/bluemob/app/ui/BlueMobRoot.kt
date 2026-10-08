@@ -223,7 +223,18 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     var notice by remember { mutableStateOf<RescueNotice?>(null) }
     LaunchedEffect(Unit) { vm.rescueNotices.collect { n -> notice = n } }
     val pendingRoute by vm.pendingRoute.collectAsStateWithLifecycle()
-    LaunchedEffect(pendingRoute) { pendingRoute?.let { stack.clear(); if (it == "calls") goTab(Tab.CHATS) else push(it); vm.pendingRoute.value = null } }
+    LaunchedEffect(pendingRoute) {
+        pendingRoute?.let {
+            stack.clear()
+            when {
+                it == "calls" -> goTab(Tab.CHATS)
+                // "I'm coming" straight from the SOS alarm notification.
+                it.startsWith("sos-coming:") -> { val id = it.removePrefix("sos-coming:"); vm.dismissSosAlert(); vm.comingToSos(id); push("rescue:$id") }
+                else -> push(it)
+            }
+            vm.pendingRoute.value = null
+        }
+    }
     LaunchedEffect(notice) { if (notice != null) { delay(6_000); notice = null } }
     val hereFix = myFix ?: estimate?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
     val askSteps = { if (vm.stepCounterAvailable && !vm.hasStepPermission()) actions.requestSteps() }
@@ -401,6 +412,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     ))
                 }
                 route == "sos-contacts" -> SosContactsScreen(sosContacts, ::pop, onAdd = { n, p, id -> vm.addSosContact(n, p, id) }, onRemove = vm::removeSosContact,
+                    onInvite = { c -> actions.textSos(listOf(c.phone), vm.inviteText(c.name)) },
                     people = people.filter { it.nodeId != SkyBot.NODE_ID }, onAskAgain = vm::askSosContactAgain)
                 route == "connections" -> ConnectionsScreen(radios, online, ::pop, onSwitch = actions.switchRadio)
                 route == "audit" -> {
@@ -481,7 +493,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "account" -> com.bluemob.app.ui.account.AccountScreen(
                     shortId = com.bluemob.app.util.formatId(vm.nodeId),
                     profile = vm.profile.collectAsStateWithLifecycle().value, hasPin = vm.pinSet.collectAsStateWithLifecycle().value,
-                    onDetails = vm::setDetails, onTurnOffPin = vm::clearPin,
+                    onDetails = vm::setDetails, onEmail = vm::setEmail, onTurnOffPin = vm::clearPin,
                     biometric = vm.biometric.collectAsStateWithLifecycle().value, canUseBiometric = remember { actions.canUseBiometric() },
                     lockAfterMs = vm.lockAfterMs.collectAsStateWithLifecycle().value, recoverySaved = vm.recoverySaved.collectAsStateWithLifecycle().value,
                     onBack = ::pop, onBiometric = { on -> if (on) actions.biometricUnlock { vm.setBiometric(true) } else vm.setBiometric(false) },
@@ -500,7 +512,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             val preview = sos.id == SosManager.PREVIEW_ID
             SosAlert(
                 sos, people.firstOrNull { it.nodeId == sos.fromNodeId }, hereFix?.lat, hereFix?.lon,
-                onComing = { vm.dismissSosAlert(); if (!preview) { vm.joinRescue(sos.id); push("rescue:" + sos.id) } },
+                onComing = { vm.dismissSosAlert(); if (!preview) { vm.comingToSos(sos.id); push("rescue:" + sos.id) } },
                 onWay = { if (!preview) compassTarget = sos.fromNodeId; vm.dismissSosAlert(); if (!preview) goTab(Tab.COMPASS) },
                 onHowTo = { vm.dismissSosAlert(); push("article:help-sos") },
                 onClose = vm::dismissSosAlert,
