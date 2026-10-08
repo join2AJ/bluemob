@@ -193,6 +193,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     var compassTarget by rememberSaveable { mutableStateOf<String?>(null) }
     val stack = rememberSaveable(saver = listSaver({ it.toList() }, { it.toMutableStateList() })) { mutableStateListOf<String>() }
     val top = stack.lastOrNull()
+    // Time spent in each part of the app, for the activity dashboard (counted on this phone only).
+    val inCallNow = vm.call.collectAsStateWithLifecycle().value.let { it != null && it.phase != com.bluemob.app.call.CallPhase.ENDED }
+    LaunchedEffect(top, tab, inCallNow) { com.bluemob.app.activity.Usage.enter(com.bluemob.app.activity.Usage.areaOf(top, tab.name, inCallNow)) }
     fun push(route: String) { stack.add(route) }
     fun pop() { if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) }
     fun goTab(t: Tab) { stack.clear(); tab = t }
@@ -464,7 +467,14 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "badges" -> com.bluemob.app.ui.profile.BadgesScreen(vm.badges.collectAsStateWithLifecycle().value, ::pop)
                 route == "activity" -> {
                     val events by vm.activity.collectAsStateWithLifecycle()
-                    com.bluemob.app.ui.profile.ActivityScreen(events, ::pop)
+                    LaunchedEffect(Unit) { com.bluemob.app.activity.Usage.flush() }
+                    val guidesRead = com.bluemob.app.guide.GuidePacks.read.collectAsStateWithLifecycle().value.size
+                    val quizzes = com.bluemob.app.guide.GuidePacks.quizzesPassed.collectAsStateWithLifecycle().value.size
+                    val streak = com.bluemob.app.guide.Streak.of(com.bluemob.app.guide.GuidePacks.readDays.collectAsStateWithLifecycle().value)
+                    com.bluemob.app.ui.profile.ActivityScreen(events, ::pop,
+                        names = people.associate { it.nodeId to it.name } + vm.groups.collectAsStateWithLifecycle().value.mapValues { it.value.name },
+                        usage = com.bluemob.app.activity.Usage.days.collectAsStateWithLifecycle().value,
+                        learning = Triple(guidesRead, quizzes, streak))
                 }
                 route == "bridge" -> {
                     val st by vm.bridgeStatus.collectAsStateWithLifecycle()

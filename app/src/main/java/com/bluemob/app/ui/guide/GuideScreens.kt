@@ -95,23 +95,6 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
                 QuickCard("I'm lost", "Stop, think, plan", Extra.emberTint, MaterialTheme.colorScheme.onSurface, Icons.Outlined.Explore, Modifier.weight(1f)) { onOpen("lost") }
             }
         }
-        // Emergency mode: the six most urgent guides, big enough to hit with shaking hands.
-        item {
-            Text("IN AN EMERGENCY", style = MaterialTheme.typography.labelSmall, color = Extra.rose, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                EMERGENCY.chunked(3).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { (id, emoji, label) ->
-                            Column(Modifier.weight(1f).height(84.dp).clip(MaterialTheme.shapes.medium).background(Extra.rose.copy(alpha = 0.12f)).clickable { onOpen(id) }.padding(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Text(emoji, fontSize = 28.sp)
-                                Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
-                            }
-                        }
-                    }
-                }
-            }
-        }
         // Sky lives here now: ask in your own words, it answers from these guides, offline.
         item {
             androidx.compose.material3.Surface(onClick = onAskSky, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
@@ -500,8 +483,3 @@ fun rememberSpeaker(): Speaker {
 }
 
 
-/** The guides for the first minutes of an emergency: (id, emoji, label). */
-private val EMERGENCY = listOf(
-    Triple("cpr", "❤️", "CPR"), Triple("bleed", "🩸", "Bleeding"), Triple("burns", "🔥", "Burns"),
-    Triple("choke", "😮", "Choking"), Triple("snake", "🐍", "Snake bite"), Triple("lost", "🧭", "Lost"),
-)

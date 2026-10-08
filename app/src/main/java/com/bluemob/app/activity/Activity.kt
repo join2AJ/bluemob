@@ -12,7 +12,9 @@ enum class ActivityType(val label: String) {
     SOS_SENT("SOS sent"), SOS_RECEIVED("SOS received"), HELPED("Rescues joined"),
 }
 
-data class ActivityEvent(val at: Long, val type: ActivityType, val seconds: Long = 0, val peer: String? = null)
+data class ActivityEvent(val at: Long, val type: ActivityType, val seconds: Long = 0, val peer: String? = null,
+    /** Sent messages: how they got there ("nearby", "phones", "internet") or null if not delivered yet. */
+    val via: String? = null)
 
 /** The dashboard's date filter. */
 enum class ActivityRange(val label: String, val days: Int?) { WEEK("7 days", 7), MONTH("30 days", 30), QUARTER("90 days", 90), ALL("All", null) }
@@ -37,7 +39,9 @@ object Activity {
 
     /** Turns messages, calls and the audit trail into events. Sky chats aren't counted as messages. */
     fun events(messages: List<MessageEntity>, calls: List<CallLogEntry>, audit: List<AuditEntry>): List<ActivityEvent> = buildList {
-        messages.filter { it.peer != "sky" }.forEach { add(ActivityEvent(it.createdAt, if (it.fromMe) ActivityType.MSG_SENT else ActivityType.MSG_RECEIVED, peer = it.peer)) }
+        messages.filter { it.peer != "sky" }.forEach {
+            add(ActivityEvent(it.createdAt, if (it.fromMe) ActivityType.MSG_SENT else ActivityType.MSG_RECEIVED, peer = it.peer, via = if (it.fromMe) viaOf(it.deliveredVia) else null))
+        }
         calls.forEach {
             val t = when {
                 it.outgoing -> ActivityType.CALL_DIALLED
@@ -55,6 +59,13 @@ object Activity {
             }
             if (t != null) add(ActivityEvent(it.time, t))
         }
+    }
+
+    private fun viaOf(v: String?): String? = when {
+        v == null -> null
+        v.contains("internet", ignoreCase = true) -> "internet"
+        v.contains("mesh", ignoreCase = true) || v.contains("carried", ignoreCase = true) -> "phones"
+        else -> "nearby"
     }
 
     /** Midnight (local time) of the day [at] falls in. */
@@ -83,5 +94,47 @@ object Activity {
             bins = bins,
             binDays = binDays,
         )
+    }
+}
+
+
+/** Things worth knowing about how you use BlueMob, for the dashboard. */
+data class Insights(
+    /** Who you talk to most: peer → messages + calls. */
+    val topPeople: List<Pair<String, Int>>,
+    val busiestHour: Int?,
+    val busiestWeekday: Int?,
+    /** Incoming calls you answered, 0..1. */
+    val answerRate: Double?,
+    val avgCallSeconds: Long?,
+    /** Delivered messages by path: "nearby", "phones", "internet". */
+    val delivery: Map<String, Int>,
+    val waiting: Int,
+    val messagesPerDay: Double,
+) {
+    companion object {
+        fun of(events: List<ActivityEvent>, range: ActivityRange, now: Long): Insights {
+            val from = range.days?.let { Activity.dayStart(now) - (it - 1) * 86_400_000L } ?: Long.MIN_VALUE
+            val e = events.filter { it.at >= from && it.at <= now }
+            val cal = java.util.Calendar.getInstance()
+            fun hour(t: Long) = cal.apply { timeInMillis = t }.get(java.util.Calendar.HOUR_OF_DAY)
+            fun weekday(t: Long) = cal.apply { timeInMillis = t }.get(java.util.Calendar.DAY_OF_WEEK)
+            val talk = e.filter { it.type in setOf(ActivityType.MSG_SENT, ActivityType.MSG_RECEIVED, ActivityType.CALL_DIALLED, ActivityType.CALL_RECEIVED, ActivityType.CALL_MISSED) }
+            val received = e.count { it.type == ActivityType.CALL_RECEIVED }
+            val missed = e.count { it.type == ActivityType.CALL_MISSED }
+            val answered = e.filter { it.seconds > 0 }
+            val sent = e.filter { it.type == ActivityType.MSG_SENT }
+            val days = range.days ?: ((now - (events.minOfOrNull { it.at } ?: now)) / 86_400_000L + 1).toInt().coerceAtLeast(1)
+            return Insights(
+                topPeople = talk.mapNotNull { it.peer }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(3).map { it.key to it.value },
+                busiestHour = talk.groupingBy { hour(it.at) }.eachCount().maxByOrNull { it.value }?.key,
+                busiestWeekday = talk.groupingBy { weekday(it.at) }.eachCount().maxByOrNull { it.value }?.key,
+                answerRate = if (received + missed > 0) received.toDouble() / (received + missed) else null,
+                avgCallSeconds = if (answered.isNotEmpty()) answered.sumOf { it.seconds } / answered.size else null,
+                delivery = sent.mapNotNull { it.via }.groupingBy { it }.eachCount(),
+                waiting = sent.count { it.via == null },
+                messagesPerDay = e.count { it.type == ActivityType.MSG_SENT || it.type == ActivityType.MSG_RECEIVED }.toDouble() / days,
+            )
+        }
     }
 }

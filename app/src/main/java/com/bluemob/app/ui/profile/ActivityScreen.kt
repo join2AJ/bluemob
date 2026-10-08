@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,9 +52,18 @@ import java.util.Locale
 
 /** Your activity: messages, calls and SOS over time, with a date filter and simple bar charts. */
 @Composable
-fun ActivityScreen(events: List<ActivityEvent>, onBack: () -> Unit, now: Long = System.currentTimeMillis()) {
+fun ActivityScreen(
+    events: List<ActivityEvent>, onBack: () -> Unit, now: Long = System.currentTimeMillis(),
+    /** Names for people (node ID → name), for "who you talk to most". */
+    names: Map<String, String> = emptyMap(),
+    /** Seconds in each part of the app by day ("yyyy-MM-dd"). */
+    usage: Map<String, Map<com.bluemob.app.activity.AppArea, Long>> = emptyMap(),
+    /** Guides read, quizzes passed, reading streak. */
+    learning: Triple<Int, Int, Int> = Triple(0, 0, 0),
+) {
     var range by rememberSaveable { mutableStateOf(ActivityRange.WEEK) }
     val s = remember(events, range) { Activity.summarize(events, range, now) }
+    val ins = remember(events, range) { com.bluemob.app.activity.Insights.of(events, range, now) }
     val sent = MaterialTheme.colorScheme.primary
     val received = Extra.sky
     val missed = Extra.rose
@@ -71,10 +81,16 @@ fun ActivityScreen(events: List<ActivityEvent>, onBack: () -> Unit, now: Long = 
                 Tile("People", s.people, "👥", Modifier.weight(1f))
             }
         }
+        // Time in BlueMob, per part of the app.
+        item { GroupLabel("Time in BlueMob") }
+        item { UsageCard(usage, range, now) }
+        item { GroupLabel("Insights") }
+        item { InsightsCard(ins, names) }
         item { GroupLabel("Messages") }
         item {
             ChartCard(s, listOf(ActivityType.MSG_SENT to sent, ActivityType.MSG_RECEIVED to received))
         }
+        if (ins.delivery.isNotEmpty() || ins.waiting > 0) item { DeliveryCard(ins) }
         item { GroupLabel("Calls") }
         item {
             ChartCard(s, listOf(ActivityType.CALL_DIALLED to dialled, ActivityType.CALL_RECEIVED to received, ActivityType.CALL_MISSED to missed),
@@ -87,6 +103,16 @@ fun ActivityScreen(events: List<ActivityEvent>, onBack: () -> Unit, now: Long = 
                     SafetyRow("🆘", "SOS you sent", s.count(ActivityType.SOS_SENT))
                     SafetyRow("📡", "SOS you received", s.count(ActivityType.SOS_RECEIVED))
                     SafetyRow("🏃", "Rescues you joined", s.count(ActivityType.HELPED))
+                }
+            }
+        }
+        item { GroupLabel("Learning") }
+        item {
+            Group {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SafetyRow("📖", "Guides read", learning.first)
+                    SafetyRow("🧠", "Quizzes passed", learning.second)
+                    SafetyRow("🔥", "Reading streak (days)", learning.third)
                 }
             }
         }
@@ -170,6 +196,106 @@ private fun ChartCard(s: ActivitySummary, series: List<Pair<ActivityType, Color>
                 }
             }
             if (footer != null) Text(footer, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+
+/** Time per part of the app over the range: total, daily average, bars per area, and a bar per day. */
+@Composable
+private fun UsageCard(usage: Map<String, Map<com.bluemob.app.activity.AppArea, Long>>, range: ActivityRange, now: Long) {
+    val days = range.days ?: usage.size.coerceAtLeast(1)
+    val keys = (0 until days).map { com.bluemob.app.guide.Streak.dayKey(now - it * 86_400_000L) }.reversed()
+    val inRange = if (range.days == null) usage.values.toList() else keys.mapNotNull { usage[it] }
+    val byArea = inRange.flatMap { it.entries }.groupBy({ it.key }, { it.value }).mapValues { it.value.sum() }.entries.sortedByDescending { it.value }
+    val total = byArea.sumOf { it.value }
+    val accent = MaterialTheme.colorScheme.primary
+    Group {
+        Column(Modifier.padding(16.dp)) {
+            if (total == 0L) {
+                Text("Nothing counted yet. Time is counted only while BlueMob is on screen, from this version on.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                return@Column
+            }
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(com.bluemob.app.activity.Usage.words(total), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                Text("  ·  about ${com.bluemob.app.activity.Usage.words(total / days)} a day", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+            }
+            // A bar per day (up to the last 30), so you can see which days were busy.
+            if (range.days != null && range.days <= 30) {
+                val perDay = keys.map { k -> usage[k]?.values?.sum() ?: 0L }
+                val max = (perDay.maxOrNull() ?: 0L).coerceAtLeast(1)
+                Canvas(Modifier.fillMaxWidth().height(56.dp).padding(top = 10.dp)) {
+                    val slot = size.width / perDay.size
+                    val bw = (slot * 0.6f).coerceAtLeast(2f)
+                    perDay.forEachIndexed { i, v ->
+                        val h = size.height * v / max
+                        drawRoundRect(accent.copy(alpha = if (i == perDay.lastIndex) 1f else 0.55f), Offset(i * slot + (slot - bw) / 2, size.height - h), Size(bw, h.coerceAtLeast(2f)), CornerRadius(bw / 3))
+                    }
+                }
+            }
+            Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                byArea.forEach { (a, sec) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(a.emoji, modifier = Modifier.width(28.dp))
+                        Column(Modifier.weight(1f)) {
+                            Row {
+                                Text(a.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                Text(com.bluemob.app.activity.Usage.words(sec) + "  ${(sec * 100 / total)}%", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                            }
+                            Box(Modifier.padding(top = 3.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Extra.sand)) {
+                                Box(Modifier.fillMaxWidth(sec.toFloat() / byArea.first().value).height(6.dp).clip(RoundedCornerShape(3.dp)).background(accent))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val weekdays = listOf("", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+
+@Composable
+private fun InsightsCard(i: com.bluemob.app.activity.Insights, names: Map<String, String>) {
+    val rows = buildList {
+        if (i.topPeople.isNotEmpty()) add("👥" to "You talk most with " + i.topPeople.joinToString { (id, n) -> "${names[id] ?: "someone"} ($n)" })
+        i.busiestHour?.let { h -> add("⏰" to "Busiest time: around ${if (h % 12 == 0) 12 else h % 12} ${if (h < 12) "am" else "pm"}") }
+        i.busiestWeekday?.let { add("📅" to "Busiest day: ${weekdays.getOrElse(it) { "" }}") }
+        add("💬" to "About ${"%.1f".format(i.messagesPerDay)} messages a day")
+        i.answerRate?.let { add("📞" to "You answered ${(it * 100).toInt()}% of incoming calls") }
+        i.avgCallSeconds?.let { add("⏱" to "Average call: ${talk(it)}") }
+    }
+    Group {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (rows.size <= 1) Text("Use BlueMob for a few days and patterns show up here.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+            else rows.forEach { (e, t) -> Row { Text(e, modifier = Modifier.width(28.dp)); Text(t, style = MaterialTheme.typography.bodyMedium) } }
+        }
+    }
+}
+
+/** How sent messages got there: phone to phone, carried by other phones, or over the internet. */
+@Composable
+private fun DeliveryCard(i: com.bluemob.app.activity.Insights) {
+    val parts = listOf(
+        Triple("nearby", "Phone to phone", MaterialTheme.colorScheme.primary),
+        Triple("phones", "Carried by other phones", Extra.ember),
+        Triple("internet", "Over the internet", Extra.sky),
+    )
+    val total = (i.delivery.values.sum() + i.waiting).coerceAtLeast(1)
+    Group(Modifier.padding(top = 10.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("How your messages travelled", style = MaterialTheme.typography.titleSmall)
+            Row(Modifier.padding(vertical = 10.dp).fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp)).background(Extra.sand)) {
+                parts.forEach { (k, _, c) -> val n = i.delivery[k] ?: 0; if (n > 0) Box(Modifier.weight(n.toFloat()).height(12.dp).background(c)) }
+                if (i.waiting > 0) Box(Modifier.weight(i.waiting.toFloat()).height(12.dp).background(Extra.line))
+            }
+            parts.forEach { (k, label, c) ->
+                val n = i.delivery[k] ?: 0
+                if (n > 0) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).clip(CircleShape).background(c)); Text("  $label: $n (${n * 100 / total}%)", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (i.waiting > 0) Text("⏳ ${i.waiting} not delivered yet", style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
         }
     }
 }

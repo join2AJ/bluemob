@@ -1,5 +1,7 @@
 package com.bluemob.app.ui.games
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,13 +65,6 @@ import com.bluemob.app.ui.theme.Extra
 import com.bluemob.app.ui.theme.Palette
 import kotlinx.coroutines.delay
 
-private val tileColors = mapOf(
-    Match.TTT to listOf(Palette.Pine, Color(0xFF0B3D2E)),
-    InfiniteTicTacToe.code to listOf(Color(0xFF3A5BD9), Color(0xFF1E2F7A)),
-    Match.C4 to listOf(Color(0xFFC2621A), Color(0xFF7A3A0E)),
-    DotsAndBoxes.code to listOf(Color(0xFF7B4FC9), Color(0xFF3D2470)),
-    SurvivalQuiz.code to listOf(Color(0xFFB8323A), Color(0xFF5E1519)),
-)
 
 /** Pick a game: challenge someone (nearby or over the internet), or play the computer. Open games and invites first. */
 @Composable
@@ -86,7 +81,6 @@ fun GamesScreen(
     SubScreen("Games", onBack) {
         item {
             Column(Modifier.padding(top = 8.dp)) {
-                Text("Games", style = MaterialTheme.typography.headlineMedium)
                 Text("Play with someone nearby (no signal needed) or over the internet, or against the computer.",
                     style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
             }
@@ -97,7 +91,7 @@ fun GamesScreen(
                 Group(Modifier.padding(bottom = 8.dp)) {
                     Row(Modifier.fillMaxWidth().clickable(enabled = m.state == MatchState.PLAYING) { onOpenMatch(m.id) }.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text(m.engine.emoji, fontSize = 28.sp)
+                        GameIcon(m.game, 44.dp)
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             Text("${m.engine.title} with ${m.opponentName}", style = MaterialTheme.typography.titleMedium)
                             Text(when (m.state) {
@@ -133,7 +127,7 @@ fun GamesScreen(
                     Box {
                         Button(onClick = { menu = true }) { Text("Challenge ▾") }
                         DropdownMenu(menu, { menu = false }) {
-                            Engine.ALL.filter { it.listed }.forEach { e -> DropdownMenuItem(text = { Text("${e.emoji}  ${e.title}") }, onClick = { menu = false; onChallenge(p, e.code) }) }
+                            Engine.ALL.filter { it.listed }.forEach { e -> DropdownMenuItem(text = { Text(e.title) }, leadingIcon = { GameIcon(e.code, 28.dp) }, onClick = { menu = false; onChallenge(p, e.code) }) }
                         }
                     }
                 }
@@ -142,8 +136,8 @@ fun GamesScreen(
         item { GroupLabel("Play the computer") }
         Engine.ALL.filter { it.listed }.forEach { e ->
             item(key = "cpu-" + e.code) {
-                GameTile(e.emoji, e.title, e.blurb, tileColors[e.code] ?: tileColors.getValue(Match.TTT)) { onPlay(e.code) }
-                Gap(12.dp)
+                GameTile(e.code, e.title, e.blurb) { onPlay(e.code) }
+                Gap(10.dp)
             }
         }
     }
@@ -152,36 +146,46 @@ fun GamesScreen(
 /** The rules card, shown before someone's first game of each kind, and from "How to play". */
 @Composable
 fun RulesDialog(engine: Engine, onDone: () -> Unit) {
+    val accent = gameAccent(engine.code)
     AlertDialog(
         onDismissRequest = onDone,
         title = null,
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                // Header: the game, and in one line how you win.
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                    .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)))).padding(18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(engine.emoji, fontSize = 44.sp)
-                    Text(engine.title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(top = 4.dp))
-                    Text("🏆 " + engine.goal, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
-                        textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                // The game and, in one line, how you win.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    GameIcon(engine.code, 52.dp)
+                    Column(Modifier.padding(start = 14.dp)) {
+                        Text(engine.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text("How to play", style = MaterialTheme.typography.labelMedium, color = Extra.ink3)
+                    }
                 }
-                Text("HOW TO PLAY", style = MaterialTheme.typography.labelMedium, color = Extra.ink3)
-                engine.rules.forEachIndexed { i, (t, body) ->
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Extra.sand).padding(12.dp)) {
-                        Box(Modifier.size(28.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                            Text("${i + 1}", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
-                        }
-                        Column(Modifier.padding(start = 12.dp)) {
-                            Text(t, style = MaterialTheme.typography.titleSmall)
-                            Text(body, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                Row(Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(accent.copy(alpha = 0.14f)).padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("🏆", fontSize = 18.sp)
+                    Text(engine.goal, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 10.dp))
+                }
+                // Steps as a timeline: number, line down to the next.
+                Column(Modifier.padding(top = 14.dp)) {
+                    engine.rules.forEachIndexed { i, (t, body) ->
+                        Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(Modifier.size(24.dp).clip(CircleShape).background(accent), contentAlignment = Alignment.Center) {
+                                    Text("${i + 1}", color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                }
+                                if (i < engine.rules.lastIndex) Box(Modifier.width(2.dp).weight(1f).background(accent.copy(alpha = 0.3f)))
+                            }
+                            Column(Modifier.padding(start = 12.dp, bottom = 14.dp)) {
+                                Text(t, style = MaterialTheme.typography.titleSmall)
+                                Text(body, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                            }
                         }
                     }
                 }
-                Text("💬 With a friend, tap the emojis under the board to react.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
+                Text("With a friend, tap the reactions under the board to say something.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
             }
         },
-        confirmButton = { Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Let's play") } },
+        confirmButton = { Button(onClick = onDone, modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = accent)) { Text("Let's play", color = Color.White) } },
     )
 }
 
@@ -217,7 +221,7 @@ fun MatchScreen(m: Match, onBack: () -> Unit, onPlay: (Int) -> Unit, onAgain: ()
     if (rules) RulesDialog(m.engine) { rules = false }
     SubScreen(m.engine.title, onBack, actions = { TextButton(onClick = { rules = true }) { Text("How to play") } }) {
         item {
-            Score(m.myScore, m.theirScore, status(m, m.opponentName), them = m.opponentName, themEmoji = "🙂")
+            Score(m.myScore, m.theirScore, status(m, m.opponentName), them = m.opponentName, themEmoji = "🧑", myTurn = if (m.over || !m.engine.turnBased) null else m.myTurn, accent = gameAccent(m.game))
         }
         item { Board(m, onPlay) }
         if (m.state == MatchState.PLAYING) item { Reactions(reaction, m.opponentName, onReact) }
@@ -295,8 +299,20 @@ private fun TttBoard(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap
                 Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(18.dp)).background(bg).border(1.dp, Extra.line, RoundedCornerShape(18.dp))
                     .clickable(enabled = enabled && board[i] == 0) { onTap(i) },
                     contentAlignment = Alignment.Center) {
-                    Text(when (board[i]) { 1 -> "✕"; 2 -> "◯"; else -> "" }, fontSize = 40.sp, fontWeight = FontWeight.Bold,
-                        color = if (board[i] == 1) Palette.Pine else Extra.ember, modifier = Modifier.alpha(if (i == fading) 0.3f else 1f))
+                    if (board[i] != 0) {
+                        val color = if (board[i] == 1) gameAccent(Match.TTT) else Extra.ember
+                        // Marks draw themselves in.
+                        val grow = remember { androidx.compose.animation.core.Animatable(0f) }
+                        LaunchedEffect(Unit) { grow.animateTo(1f, androidx.compose.animation.core.tween(220)) }
+                        androidx.compose.foundation.Canvas(Modifier.fillMaxSize(0.5f).alpha(if (i == fading) 0.3f else 1f)) {
+                            val st = size.width * 0.16f
+                            if (board[i] == 1) {
+                                val g = grow.value
+                                drawLine(color, androidx.compose.ui.geometry.Offset.Zero, androidx.compose.ui.geometry.Offset(size.width * g, size.height * g), st, androidx.compose.ui.graphics.StrokeCap.Round)
+                                drawLine(color, androidx.compose.ui.geometry.Offset(size.width, 0f), androidx.compose.ui.geometry.Offset(size.width * (1 - g), size.height * g), st, androidx.compose.ui.graphics.StrokeCap.Round)
+                            } else drawArc(color, -90f, 360f * grow.value, false, style = androidx.compose.ui.graphics.drawscope.Stroke(st, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                        }
+                    }
                 }
             }
         }
@@ -428,27 +444,46 @@ private fun QuizBoard(m: Match, onAnswer: (Int) -> Unit) {
 }
 
 @Composable
-private fun GameTile(emoji: String, title: String, body: String, colors: List<Color>, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(colors)).clickable(onClick = onClick).padding(20.dp),
+private fun GameTile(code: String, title: String, body: String, onClick: () -> Unit) {
+    val accent = gameAccent(code)
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, Extra.line, RoundedCornerShape(22.dp)).clickable(onClick = onClick).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(emoji, fontSize = 36.sp)
-        Column(Modifier.weight(1f).padding(start = 16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White)
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
-            Text("🤖 Play the computer", style = MaterialTheme.typography.labelMedium, color = Color.White, modifier = Modifier.padding(top = 8.dp))
+        GameIcon(code, 60.dp)
+        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, maxLines = 2)
+        }
+        Box(Modifier.padding(start = 8.dp).size(40.dp).clip(CircleShape).background(accent.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
+            Text("▶", color = accent, fontSize = 16.sp)
         }
     }
 }
 
 @Composable
-private fun Score(you: Int, cpu: Int, status: String, them: String, themEmoji: String) {
+private fun Score(you: Int, cpu: Int, status: String, them: String, themEmoji: String, myTurn: Boolean? = null, accent: Color = MaterialTheme.colorScheme.primary) {
     Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("🙂", fontSize = 30.sp); Text("You", style = MaterialTheme.typography.labelMedium, color = Extra.ink2) }
-            Text("$you – $cpu", style = MaterialTheme.typography.displaySmall)
-            Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(themEmoji, fontSize = 30.sp); Text(them, style = MaterialTheme.typography.labelMedium, color = Extra.ink2) }
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).border(1.dp, Extra.line, RoundedCornerShape(22.dp)).padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            PlayerPill("🙂", "You", you, myTurn == true, accent, Modifier.weight(1f))
+            Text("vs", style = MaterialTheme.typography.labelLarge, color = Extra.ink3, modifier = Modifier.padding(horizontal = 6.dp))
+            PlayerPill(themEmoji, them, cpu, myTurn == false, accent, Modifier.weight(1f))
         }
-        Text(status, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 10.dp))
+        Text(status, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
+    }
+}
+
+/** One side of the score bar; lit up while it's that side's turn. */
+@Composable
+private fun PlayerPill(emoji: String, name: String, score: Int, active: Boolean, accent: Color, modifier: Modifier) {
+    val bg by animateColorAsState(if (active) accent.copy(alpha = 0.16f) else Color.Transparent, label = "turn")
+    Row(modifier.clip(RoundedCornerShape(16.dp)).background(bg).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(emoji, fontSize = 24.sp)
+        Column(Modifier.weight(1f).padding(start = 8.dp)) {
+            Text(name, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            Text(if (active) "playing" else " ", style = MaterialTheme.typography.labelSmall, color = accent)
+        }
+        Text("$score", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -486,7 +521,7 @@ fun ComputerGameScreen(code: String, onBack: () -> Unit) {
                 Chip(if (code == Match.TTT) "Unbeatable" else "Hard", hard) { hard = true }
             }
         }
-        item { Score(m.myScore, m.theirScore, status(m, "Computer"), them = "Computer", themEmoji = "🤖") }
+        item { Score(m.myScore, m.theirScore, status(m, "Computer"), them = "Computer", themEmoji = "🤖", myTurn = if (m.over || !engine.turnBased) null else m.turn == 1, accent = gameAccent(code)) }
         item { Board(m) { spot -> m = MatchRules.move(m, 1, spot, m.moveCount + 1, m.round) } }
         if (m.over) item {
             Box(Modifier.fillMaxWidth().padding(top = 20.dp), contentAlignment = Alignment.Center) {

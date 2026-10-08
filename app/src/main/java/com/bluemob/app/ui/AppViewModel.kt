@@ -289,6 +289,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** BlueMob on screen or not: messages only count as read while the chat is actually visible. */
     fun setVisible(on: Boolean) {
         visible = on
+        com.bluemob.app.activity.Usage.visible(on)
         repo.openConversation = if (on) chatOnScreen else null
     }
 

@@ -36,6 +36,18 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.18: a fuller dashboard, new game look, real-life quiz
+
+- **Your activity** now shows time spent in each part of BlueMob (Chats, Calls, Guide, Settings…) with a bar per day,
+  insights (who you talk to most, busiest time and day, calls answered, average call), how your messages travelled
+  (phone to phone, carried by other phones, internet) and your learning (guides, quizzes, streak). Time is counted only
+  while BlueMob is on screen, and stays on the phone.
+- **Games:** new drawn icons for every game, cleaner game cards, a timeline-style "How to play", a score bar that shows
+  whose turn it is, and X and O marks that draw themselves.
+- **Survival quiz:** 25 new questions from real situations (a collapse at a bus stop, a dog bite, a gas leak, a flooded
+  road, heatstroke, a crowd crush…), each explaining why the answer is right and why the others are wrong.
+- The emergency grid at the top of the Guide is gone.
+
 ## Android 0.17: groups, a smarter compass, emergency mode
 
 - **Chats:** group chats (each message reaches every member end-to-end encrypted, by any path), replies and

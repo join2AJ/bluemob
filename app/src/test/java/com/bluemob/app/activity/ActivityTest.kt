@@ -46,3 +46,14 @@ class ActivityTest {
         assertEquals(3, Activity.summarize(ev, ActivityRange.ALL, now).count(ActivityType.MSG_SENT))
     }
 }
+
+class UsageTest {
+    @Test fun screensMapToAreas() {
+        assertEquals(AppArea.SKY, Usage.areaOf("chat:sky", "CHATS", false))
+        assertEquals(AppArea.CHATS, Usage.areaOf("chat:0123456789abcdef", "NEARBY", false))
+        assertEquals(AppArea.CALLS, Usage.areaOf(null, "CHATS", true))
+        assertEquals(AppArea.SETTINGS, Usage.areaOf("autostart", "YOU", false))
+        assertEquals(AppArea.GAMES, Usage.areaOf("match:g-1", "YOU", false))
+        assertEquals(AppArea.COMPASS, Usage.areaOf(null, "COMPASS", false))
+    }
+}
