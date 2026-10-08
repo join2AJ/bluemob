@@ -62,7 +62,9 @@ import java.util.Locale
 private enum class ChatFilter(val label: String) { ALL("All"), UNREAD("Unread"), ONLINE("Online"), WAITING("Waiting") }
 
 private data class Entry(val id: String, val name: String, val emoji: String?, val presence: Presence, val sharesName: Boolean, val status: String, val isBot: Boolean,
-    val isGroup: Boolean = false, val pinned: Boolean = false)
+    val isGroup: Boolean = false, val pinned: Boolean = false,
+    /** Reachable right now: nearby, or online on the internet. */
+    val online: Boolean = false)
 
 @Composable
 fun ChatsScreen(
@@ -116,18 +118,19 @@ fun ChatsScreen(
     val entries = buildList {
         // Sky lives in the Guide tab now; its chat shows here only once you've talked to it.
         if (conversations[SkyBot.NODE_ID].orEmpty().isNotEmpty()) add(Entry(SkyBot.NODE_ID, SkyBot.NAME, SkyBot.AVATAR, Presence.ONLINE, false, "Lives on your phone · works offline", true))
-        people.forEach { add(Entry(it.nodeId, it.name, it.avatar, it.presence, it.sharesName, statusLine(it), false, pinned = it.nodeId in pinned)) }
+        people.forEach { add(Entry(it.nodeId, it.name, it.avatar, it.presence, it.sharesName, statusLine(it), false, pinned = it.nodeId in pinned,
+            online = it.presence == Presence.ONLINE || it.reach != null)) }
         groups.forEach { g -> add(Entry(g.id, g.name, "👥", Presence.OFFLINE, false, "${g.members.size + 1} members", false, isGroup = true, pinned = g.id in pinned)) }
     }.sortedWith(compareByDescending<Entry> { it.pinned }.thenByDescending { lastTime(it.id) }).filter { e ->
         val msgs = conversations[e.id].orEmpty()
         (query.isBlank() || e.name.contains(query.trim(), ignoreCase = true)) && when (filter) {
             ChatFilter.ALL -> true
             ChatFilter.UNREAD -> msgs.any { !it.fromMe && it.status == MessageStatus.RECEIVED }
-            ChatFilter.ONLINE -> e.presence == Presence.ONLINE && !e.isBot
+            ChatFilter.ONLINE -> e.online && !e.isBot
             ChatFilter.WAITING -> msgs.any { it.fromMe && (it.status == MessageStatus.PENDING || it.status == MessageStatus.SENT) }
         }
     }
-    val onlineNow = people.filter { it.presence == Presence.ONLINE }
+    val onlineNow = people.filter { it.presence == Presence.ONLINE || it.reach != null }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 120.dp)) {
         item { LargeTitle("Chats", modifier = Modifier.padding(horizontal = Space.lg)) }
@@ -191,7 +194,7 @@ fun ChatsScreen(
             }
         }
         if (onlineNow.isNotEmpty() && query.isBlank()) {
-            item { Text("ONLINE NEARBY", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
+            item { Text("ONLINE NOW", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = Space.lg), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     items(onlineNow, key = { it.nodeId }) { p ->

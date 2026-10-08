@@ -530,7 +530,11 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     vm.techDetails.collectAsStateWithLifecycle().value, vm::setTechDetails, log, remember { vm.lastError() },
                     onBack = ::pop, onBridge = { push("bridge") }, onAudit = { push("audit") },
                     onReport = { text, details -> vm.reportProblem(text, details, log) },
+                    onOpenReport = { push("report") },
                 )
+                route == "report" -> com.bluemob.app.ui.profile.ReportScreen(::pop,
+                    onAddPhoto = { done -> actions.pickFile("photo") { uri -> vm.reportPhoto(uri, done) } },
+                    onSend = { c, sub, text, details, photos -> vm.reportProblem(text, details, log, c, sub, photos) })
                 route == "account" -> com.bluemob.app.ui.account.AccountScreen(
                     shortId = com.bluemob.app.util.formatId(vm.nodeId),
                     profile = vm.profile.collectAsStateWithLifecycle().value, hasPin = vm.pinSet.collectAsStateWithLifecycle().value,

@@ -153,6 +153,19 @@ test("problem reports are kept and readable only with the token", async () => {
   assert.equal((await fetch(`${base}/v1/reports?token=wrong`)).status, 403);
   const list = await (await fetch(`${base}/v1/reports?token=secret-token`)).json();
   assert.equal(list.reports[0].text, "Sky gave a wrong answer");
+  // With a category, a sub-category and a photo; filtering and counts.
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(100, 7)]);
+  const r2 = await fetch(`${base}/v1/report`, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text: "No voice", category: "Calls", sub: "No voice", photos: [jpeg.toString("base64"), Buffer.from("not a jpeg").toString("base64")] }) });
+  const id = (await r2.json()).id;
+  const calls = await (await fetch(`${base}/v1/reports?token=secret-token&category=Calls`)).json();
+  assert.equal(calls.reports.length, 1);
+  assert.equal(calls.reports[0].photos, 1, "only the real JPEG is kept");
+  assert.equal(calls.counts.Calls["No voice"], 1);
+  const photo = await fetch(`${base}/v1/reports/${id}/0?token=secret-token`);
+  assert.equal(photo.headers.get("content-type"), "image/jpeg");
+  assert.deepEqual(Buffer.from(await photo.arrayBuffer()), jpeg);
+  assert.equal((await fetch(`${base}/v1/reports/${id}/0?token=wrong`)).status, 403);
   srv.close();
 });
 

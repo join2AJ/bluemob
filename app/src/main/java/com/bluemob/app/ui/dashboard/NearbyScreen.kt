@@ -82,7 +82,7 @@ data class NearbyState(
 )
 
 /** Which people to list under the radar. */
-private enum class NearbyFilter(val label: String) { ALL("All"), ONLINE("Online"), IN_RANGE("In range"), SOS("SOS"), LOW("Low battery") }
+private enum class NearbyFilter(val label: String) { ALL("All"), ONLINE("Nearby"), IN_RANGE("In range"), INTERNET("Internet"), SOS("SOS"), LOW("Low battery") }
 
 @Composable
 fun NearbyScreen(
@@ -110,6 +110,7 @@ fun NearbyScreen(
             NearbyFilter.ALL -> true
             NearbyFilter.ONLINE -> p.presence == Presence.ONLINE
             NearbyFilter.IN_RANGE -> p.presence != Presence.OFFLINE
+            NearbyFilter.INTERNET -> p.reach != null
             NearbyFilter.SOS -> p.sos || p.lost != null
             NearbyFilter.LOW -> (state.batteries[p.nodeId]?.pct ?: 100) <= 20
         }
@@ -181,11 +182,12 @@ fun NearbyScreen(
                     )
                 }
                 Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Bottom) {
-                    Stat("$online", "online"); Spacer(Modifier.width(18.dp))
-                    Stat("$inRange", "in range"); Spacer(Modifier.width(18.dp))
+                    Stat("$online", "nearby"); Spacer(Modifier.width(14.dp))
+                    Stat("$inRange", "in range"); Spacer(Modifier.width(14.dp))
+                    Stat("${list.count { it.presence == Presence.OFFLINE && it.reach != null }}", "internet"); Spacer(Modifier.width(14.dp))
                     Stat("${list.size}", "met")
                     Spacer(Modifier.weight(1f))
-                    Text(if (state.sharingLocation && state.hasMyFix) "10 m · 300 m · 10 km" else "inner ring = online",
+                    Text(if (state.sharingLocation && state.hasMyFix) "nearby ring:\nby distance" else "",
                         color = Color(0xFFEAF5F0).copy(alpha = 0.6f), style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -275,7 +277,7 @@ private fun PersonCard(p: Person, battery: com.bluemob.app.nearby.Battery? = nul
             Box(Modifier.fillMaxWidth().height(96.dp).background(avatarTint(p.nodeId)), contentAlignment = Alignment.Center) {
                 Text(p.avatar ?: p.name.take(1), fontSize = 44.sp)
                 Box(Modifier.align(Alignment.TopStart).padding(8.dp)) {
-                    Tag(if (p.sos) "SOS" else when (p.presence) { Presence.ONLINE -> "Online"; Presence.IN_RANGE -> "In range"; Presence.OFFLINE -> "Away" },
+                    Tag(if (p.sos) "SOS" else when (p.presence) { Presence.ONLINE -> "Nearby"; Presence.IN_RANGE -> "In range"; Presence.OFFLINE -> if (p.reach != null) "Internet" else "Away" },
                         container = Color.White.copy(alpha = 0.85f), content = Palette.Ink, dot = if (p.sos) Palette.Rose else presenceColor(p.presence))
                 }
             }
@@ -301,7 +303,7 @@ private fun PersonCard(p: Person, battery: com.bluemob.app.nearby.Battery? = nul
 fun statusLine(p: Person): String = when (p.presence) {
     Presence.ONLINE -> listOfNotNull(p.distanceM?.let { Geo.formatDistance(it) }, linkWords(p.quality)).joinToString(" · ")
     Presence.IN_RANGE -> "Connecting…"
-    Presence.OFFLINE -> if (p.lastSeen == 0L) "Added by ID · not met yet" else "Seen " + TimeText.ago(p.lastSeen)
+    Presence.OFFLINE -> p.reach?.let { "🌐 $it" } ?: if (p.lastSeen == 0L) "Added by ID · not met yet" else "Seen " + TimeText.ago(p.lastSeen)
 }
 
 fun linkWords(q: LinkQuality?): String = when (q) {
@@ -317,10 +319,15 @@ fun linkWords(q: LinkQuality?): String = when (q) {
 private fun Person.toBlip(useDistance: Boolean): RadarBlip {
     val d = distanceM
     val b = bearingDeg
-    val radius = if (useDistance && d != null && b != null) ((log10(d.coerceAtLeast(1.0)) + 0.5) / 4.5).toFloat().coerceIn(0.14f, 0.9f)
-    else when (presence) { Presence.ONLINE -> 0.36f; Presence.IN_RANGE -> 0.6f; Presence.OFFLINE -> 0.84f }
-    return RadarBlip(nodeId, avatar, b ?: (abs(nodeId.hashCode()) % 360).toDouble(), radius, presenceColor(presence),
-        faded = presence == Presence.OFFLINE, sos = sos)
+    val radius = when {
+        presence == Presence.ONLINE -> RadarBands.nearby(if (useDistance && d != null) ((log10(d.coerceAtLeast(1.0)) / 4.0)).toFloat() else 0.5f)
+        presence == Presence.IN_RANGE -> RadarBands.IN_RANGE
+        reach != null -> RadarBands.INTERNET
+        else -> RadarBands.AWAY
+    }
+    val color = if (presence == Presence.OFFLINE && reach != null) Color(0xFF6FB3F2) else presenceColor(presence)
+    return RadarBlip(nodeId, avatar, if (useDistance && b != null) b else (abs(nodeId.hashCode()) % 360).toDouble(), radius, color,
+        faded = presence == Presence.OFFLINE && reach == null, sos = sos)
 }
 
 private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {

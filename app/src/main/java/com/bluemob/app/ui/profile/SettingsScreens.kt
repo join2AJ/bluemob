@@ -105,6 +105,8 @@ fun DiagnosticsScreen(
     onBack: () -> Unit, onBridge: () -> Unit, onAudit: () -> Unit,
     /** Sends a problem report: (what happened, include technical details). Returns null when sent, or why not. */
     onReport: suspend (String, Boolean) -> String? = { _, _ -> null },
+    /** Opens the full report screen (categories and photos). */
+    onOpenReport: (() -> Unit)? = null,
 ) {
     val clipboard = LocalClipboardManager.current
     var reporting by rememberSaveable { mutableStateOf(false) }
@@ -144,7 +146,7 @@ fun DiagnosticsScreen(
         }
         item {
             Group {
-                SettingRow(Icons.Outlined.Terminal, Extra.rose, "Report a problem", reportNote ?: "Tell the BlueMob team what went wrong", onClick = { reporting = true }) { chevron() }
+                SettingRow(Icons.Outlined.Terminal, Extra.rose, "Report a problem", reportNote ?: "Tell the BlueMob team what went wrong, with screenshots", onClick = { onOpenReport?.invoke() ?: run { reporting = true } }) { chevron() }
             }
         }
         item { GroupLabel("Show") }

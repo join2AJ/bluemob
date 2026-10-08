@@ -13,8 +13,10 @@
 //   GET  /v1/blob/<fid>?id&at&sig  (signed by the recipient)  download it; POST /v1/blob/<fid>/done deletes it
 //   PUT  /v1/backup          (signed by the phone)          BlueMob Cloud: an encrypted backup (password-locked on the phone)
 //   GET  /v1/backups?id&at&sig  /v1/backups/<name>?…       list / download your own backups (newest 3 kept)
-//   POST /v1/report          {text, app, device, details}  a problem report from the app (Diagnostics → Report a problem)
-//   GET  /v1/reports?token=REPORTS_TOKEN                   read them (only with the REPORTS_TOKEN set on the server)
+//   POST /v1/report          {text, category, sub, app, device, details, photos[]}  a problem report from the app
+//                                                          (Diagnostics → Report a problem); up to 3 JPEG photos, base64
+//   GET  /v1/reports?token=REPORTS_TOKEN[&category&sub]    read them, filtered, with counts per category / sub-category
+//   GET  /v1/reports/<id>/<n>?token=REPORTS_TOKEN          one report's photo
 //   POST /v1/phone  {pk, at, h, sig}                       "my verified number's fingerprint is h" (signed by the phone)
 //   GET  /v1/phone?h&id&at&sig                             which BlueMob ID has that number (signed lookup, 30 a day)
 //   POST /v1/email  {pk, at, email, sig}                   optional recovery email for this BlueMob ID ("" removes it);
@@ -29,6 +31,7 @@ const path = require("path");
 
 const TTL_MS = 7 * 24 * 3600e3;
 const MAX_BODY = 256 * 1024;
+const MAX_REPORT_BODY = 3 * 1024 * 1024; // a report may carry up to 3 photos
 const MAX_IDS = 50;
 const PER_DEVICE_PER_HOUR = 600;
 
@@ -215,14 +218,32 @@ function signer(pk, text, sig) {
 /** Problem reports from users. Kept as files (newest 500); readable only with the server's REPORTS_TOKEN. */
 class Reports {
   constructor(dir, token = "") { this.dir = dir; this.token = token; if (dir) fs.mkdirSync(dir, { recursive: true }); }
-  add(r) {
-    const name = Date.now() + "-" + crypto.randomBytes(3).toString("hex") + ".json";
-    fs.writeFileSync(path.join(this.dir, name), JSON.stringify(r));
-    const all = fs.readdirSync(this.dir).sort();
-    for (const old of all.slice(0, Math.max(0, all.length - 500))) fs.rmSync(path.join(this.dir, old), { force: true });
-    return name;
+  /** Saves a report and its photos (JPEG buffers). Keeps the newest 500. */
+  add(r, photos = []) {
+    const id = Date.now() + "-" + crypto.randomBytes(3).toString("hex");
+    photos.forEach((p, i) => fs.writeFileSync(path.join(this.dir, `${id}-${i}.jpg`), p));
+    fs.writeFileSync(path.join(this.dir, id + ".json"), JSON.stringify({ ...r, photos: photos.length }));
+    const all = fs.readdirSync(this.dir).filter((f) => f.endsWith(".json")).sort();
+    for (const old of all.slice(0, Math.max(0, all.length - 500))) {
+      const base = old.slice(0, -5);
+      for (const f of fs.readdirSync(this.dir)) if (f === old || f.startsWith(base + "-")) fs.rmSync(path.join(this.dir, f), { force: true });
+    }
+    return id + ".json";
   }
-  list() { return fs.readdirSync(this.dir).sort().reverse().slice(0, 200).map((f) => { try { return { id: f, ...JSON.parse(fs.readFileSync(path.join(this.dir, f), "utf8")) }; } catch { return null; } }).filter(Boolean); }
+  all() { return fs.readdirSync(this.dir).filter((f) => f.endsWith(".json")).sort().reverse().map((f) => { try { return { id: f, ...JSON.parse(fs.readFileSync(path.join(this.dir, f), "utf8")) }; } catch { return null; } }).filter(Boolean); }
+  /** Newest first, optionally only one category / sub-category; plus how many there are of each. */
+  list(category = "", sub = "") {
+    const all = this.all();
+    const counts = {};
+    for (const r of all) { const c = r.category || "Other"; const sc = r.sub || "Other"; counts[c] = counts[c] || {}; counts[c][sc] = (counts[c][sc] || 0) + 1; }
+    const shown = all.filter((r) => (!category || (r.category || "Other") === category) && (!sub || (r.sub || "Other") === sub)).slice(0, 200);
+    return { reports: shown, counts };
+  }
+  photo(id, n) {
+    if (!/^[0-9]+-[0-9a-f]{6}\.json$/.test(id) || !/^[0-2]$/.test(n)) return null;
+    const f = path.join(this.dir, `${id.slice(0, -5)}-${n}.jpg`);
+    return fs.existsSync(f) ? fs.readFileSync(f) : null;
+  }
 }
 
 function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null), reports = new Reports(null)) {
@@ -258,11 +279,18 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
       });
       return;
     }
-    if (reports.dir && url.pathname === "/v1/reports" && req.method === "GET") {
+    const rp = url.pathname.match(/^\/v1\/reports(?:\/([^/]+)\/([0-9]))?$/);
+    if (reports.dir && rp && req.method === "GET") {
       const given = Buffer.from(url.searchParams.get("token") || "");
       const want = Buffer.from(reports.token);
       if (!reports.token || given.length !== want.length || !crypto.timingSafeEqual(given, want)) return send(res, 403, { error: "no" });
-      return send(res, 200, { reports: reports.list() });
+      if (rp[1]) {
+        const img = reports.photo(rp[1], rp[2]);
+        if (!img) return send(res, 404, { error: "not found" });
+        res.writeHead(200, { "content-type": "image/jpeg", "cache-control": "no-store" });
+        return res.end(img);
+      }
+      return send(res, 200, reports.list(url.searchParams.get("category") || "", url.searchParams.get("sub") || ""));
     }
     const bk = url.pathname.match(/^\/v1\/backups(?:\/([^/]+))?$/);
     if (backups.dir && bk && req.method === "GET") {
@@ -347,7 +375,8 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
     if (req.method !== "POST") return send(res, 404, { error: "not found" });
     let size = 0;
     const chunks = [];
-    req.on("data", (c) => { size += c.length; if (size > MAX_BODY) { send(res, 413, { error: "too large" }); req.destroy(); } else chunks.push(c); });
+    const maxBody = url.pathname === "/v1/report" ? MAX_REPORT_BODY : MAX_BODY;
+    req.on("data", (c) => { size += c.length; if (size > maxBody) { send(res, 413, { error: "too large" }); req.destroy(); } else chunks.push(c); });
     req.on("end", () => {
       if (res.writableEnded) return;
       let body;
@@ -356,7 +385,11 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         if (limited("report:" + ip)) return send(res, 429, { error: "slow down" });
         const str = (v, n) => (typeof v === "string" ? v : "").slice(0, n);
         if (!str(body.text, 4000).trim()) return send(res, 400, { error: "empty" });
-        const id = reports.add({ at: Date.now(), text: str(body.text, 4000), app: str(body.app, 40), device: str(body.device, 300), details: str(body.details, 20000) });
+        // Up to 3 photos, each a real JPEG of at most 900 KB.
+        const photos = (Array.isArray(body.photos) ? body.photos.slice(0, 3) : []).map((b) => { try { return Buffer.from(String(b), "base64"); } catch { return null; } })
+          .filter((b) => b && b.length > 3 && b.length <= 900 * 1024 && b[0] === 0xff && b[1] === 0xd8);
+        const id = reports.add({ at: Date.now(), text: str(body.text, 4000), category: str(body.category, 40), sub: str(body.sub, 60),
+          app: str(body.app, 40), device: str(body.device, 300), details: str(body.details, 20000) }, photos);
         return send(res, 200, { ok: true, id });
       }
       if (url.pathname === "/v1/phone") {

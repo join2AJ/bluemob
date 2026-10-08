@@ -53,6 +53,21 @@ data class RadarBlip(
 
 private val Mist = Color(0xFFEAF5F0)
 
+/**
+ * The rings, from the middle out: connected nearby (Wi-Fi or Bluetooth, placed by distance when known), in Bluetooth
+ * range but not linked yet, online over the internet, and away. People are drawn in the band inside their ring.
+ */
+val RINGS = listOf(0.32f, 0.54f, 0.76f, 1f)
+private val RING_LABELS = listOf("nearby", "in range", "internet", "away")
+
+/** Where in the radar (0 = you, 1 = edge) each kind of person sits. */
+object RadarBands {
+    fun nearby(fraction: Float) = 0.12f + 0.17f * fraction.coerceIn(0f, 1f)
+    const val IN_RANGE = 0.44f
+    const val INTERNET = 0.66f
+    const val AWAY = 0.88f
+}
+
 /** An animated radar drawn on a night sky: twinkling stars, rings, a mint sweep, you in the middle. */
 @Composable
 fun RadarSweep(people: List<RadarBlip>, modifier: Modifier = Modifier, active: Boolean = true, onTap: ((String) -> Unit)? = null) {
@@ -69,7 +84,7 @@ fun RadarSweep(people: List<RadarBlip>, modifier: Modifier = Modifier, active: B
             stars.forEach { (x, y, s) ->
                 drawCircle(Mist.copy(alpha = 0.12f + 0.35f * pulse * s), (0.6f + s) * 1.2.dp.toPx(), Offset(x * size.width, y * size.height))
             }
-            for (i in 1..3) drawCircle(Mist.copy(alpha = 0.10f), r * i / 3f, c, style = Stroke(1.dp.toPx()))
+            RINGS.forEach { f -> drawCircle(Mist.copy(alpha = 0.12f), r * f, c, style = Stroke(1.dp.toPx())) }
             val dash = PathEffect.dashPathEffect(floatArrayOf(4f, 10f))
             drawLine(Mist.copy(alpha = 0.10f), Offset(c.x - r, c.y), Offset(c.x + r, c.y), 1.dp.toPx(), pathEffect = dash)
             drawLine(Mist.copy(alpha = 0.10f), Offset(c.x, c.y - r), Offset(c.x, c.y + r), 1.dp.toPx(), pathEffect = dash)
@@ -87,6 +102,10 @@ fun RadarSweep(people: List<RadarBlip>, modifier: Modifier = Modifier, active: B
             drawCircle(Color.White, 6.5.dp.toPx(), c, style = Stroke(2.dp.toPx()))
         }
         val half = side / 2
+        // What each ring means, written along it.
+        RING_LABELS.forEachIndexed { i, label ->
+            Text(label, color = Mist.copy(alpha = 0.45f), fontSize = 9.sp, modifier = Modifier.offset(0.dp, -(half * 0.92f * RINGS[i]) + 7.dp))
+        }
         people.forEach { b ->
             val rad = Math.toRadians(b.bearingDeg)
             val x = half * b.radius * sin(rad).toFloat()
