@@ -244,6 +244,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         blueMob.groups.put(g.copy(members = g.members + people))
         repo.send(id, "➕ ${identity.displayName.value} added " + people.values.joinToString(", "))
     }
+    // ---- Nearby: batteries and check-ins ----
+    val batteries = blueMob.peerStatus.batteries
+    val checkIn = blueMob.peerStatus.check
+    val checkRequests = blueMob.peerStatus.requests
+    fun checkOnEveryone(): Int = blueMob.peerStatus.checkOnEveryone().also { if (it == 0) toast("No one is connected nearby right now.") }
+    fun answerCheck(r: com.bluemob.app.nearby.CheckRequest, ok: Boolean) {
+        blueMob.peerStatus.answer(r, if (ok) com.bluemob.app.nearby.CheckIn.OK else com.bluemob.app.nearby.CheckIn.HELP)
+        // "I need help" also opens their chat, so they can say what's wrong.
+        if (!ok) { send(r.from, "🆘 I need help"); pendingRoute.value = "chat:" + r.from }
+    }
+    fun clearCheck() = blueMob.peerStatus.clearCheck()
+
     val pinnedChats = settings.pinnedChats
     fun setPinned(id: String, on: Boolean) = settings.setPinned(id, on)
     val callsSeenAt = settings.callsSeenAt

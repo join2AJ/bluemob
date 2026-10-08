@@ -34,6 +34,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,7 +75,14 @@ data class NearbyState(
     val radios: RadioState? = null,
     /** Names of BlueMob users nearby whose version can't link with this one. */
     val otherVersions: List<String> = emptyList(),
+    /** Batteries nearby phones told us about. */
+    val batteries: Map<String, com.bluemob.app.nearby.Battery> = emptyMap(),
+    /** Our latest "Check on everyone". */
+    val check: com.bluemob.app.nearby.CheckIn? = null,
 )
+
+/** Which people to list under the radar. */
+private enum class NearbyFilter(val label: String) { ALL("All"), ONLINE("Online"), IN_RANGE("In range"), SOS("SOS"), LOW("Low battery") }
 
 @Composable
 fun NearbyScreen(
@@ -91,8 +100,20 @@ fun NearbyScreen(
     onFixRadio: (Radio) -> Unit = {},
     onGames: () -> Unit = {},
     onFindLost: (String) -> Unit = {},
+    onCheckEveryone: () -> Unit = {},
+    onClearCheck: () -> Unit = {},
 ) {
     val list = state.people
+    var filter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(NearbyFilter.ALL) }
+    val shown = list.filter { p ->
+        when (filter) {
+            NearbyFilter.ALL -> true
+            NearbyFilter.ONLINE -> p.presence == Presence.ONLINE
+            NearbyFilter.IN_RANGE -> p.presence != Presence.OFFLINE
+            NearbyFilter.SOS -> p.sos || p.lost != null
+            NearbyFilter.LOW -> (state.batteries[p.nodeId]?.pct ?: 100) <= 20
+        }
+    }
     val online = list.count { it.presence == Presence.ONLINE }
     val inRange = list.count { it.presence == Presence.IN_RANGE }
 
@@ -170,9 +191,37 @@ fun NearbyScreen(
             }
         }
 
-        item { SectionHeader("Around you") }
+        // "Check on everyone": one tap asks every phone nearby "Are you OK?".
         item {
-            if (list.isEmpty()) {
+            val c = state.check
+            Surface(onClick = if (c == null) onCheckEveryone else ({}), shape = MaterialTheme.shapes.large, color = if (c?.help?.isNotEmpty() == true) Extra.emberTint else Extra.pineTint,
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (c == null) "🙋" else if (c.help.isNotEmpty()) "🆘" else "✅", fontSize = 24.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        if (c == null) {
+                            Text("Check on everyone", style = MaterialTheme.typography.titleMedium)
+                            Text("Asks every phone nearby \"Are you OK?\". Answers come back as they tap", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                        } else {
+                            val names = { ids: Collection<String> -> ids.map { id -> list.firstOrNull { it.nodeId == id }?.name ?: "someone" } }
+                            Text("${c.ok} OK" + (if (c.help.isNotEmpty()) " · ${c.help.size} need help" else "") + " · ${c.waiting.size} waiting", style = MaterialTheme.typography.titleMedium)
+                            if (c.help.isNotEmpty()) Text("Need help: " + names(c.help).joinToString(), style = MaterialTheme.typography.bodySmall, color = Extra.rose)
+                            if (c.waiting.isNotEmpty()) Text("Waiting for " + names(c.waiting).joinToString(), style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 2)
+                        }
+                    }
+                    if (c != null) androidx.compose.material3.TextButton(onClick = onClearCheck) { Text("Done") }
+                }
+            }
+        }
+        item { SectionHeader("Around you") }
+        if (list.isNotEmpty()) item {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
+                items(NearbyFilter.entries) { f -> com.bluemob.app.ui.components.Chip(f.label, filter == f) { filter = f } }
+            }
+        }
+        item {
+            if (list.isNotEmpty() && shown.isEmpty()) Text("No one matches this filter.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(8.dp))
+            else if (list.isEmpty()) {
                 Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, Extra.line)) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("🏕️", fontSize = 34.sp)
@@ -183,7 +232,7 @@ fun NearbyScreen(
                 }
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 4.dp)) {
-                    items(list, key = { it.nodeId }) { PersonCard(it, onClick = { onOpenChat(it.nodeId) }) }
+                    items(shown, key = { it.nodeId }) { PersonCard(it, state.batteries[it.nodeId], onClick = { onOpenChat(it.nodeId) }) }
                 }
             }
         }
@@ -219,7 +268,7 @@ private fun Stat(value: String, label: String) {
 }
 
 @Composable
-private fun PersonCard(p: Person, onClick: () -> Unit) {
+private fun PersonCard(p: Person, battery: com.bluemob.app.nearby.Battery? = null, onClick: () -> Unit) {
     Surface(onClick = onClick, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, Extra.line), modifier = Modifier.width(148.dp)) {
         Column {
@@ -238,6 +287,12 @@ private fun PersonCard(p: Person, onClick: () -> Unit) {
                 Text("BM " + com.bluemob.app.util.formatId(p.nodeId).take(9), style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                     color = Extra.ink3, maxLines = 1)
                 Text(statusLine(p), style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Battery (as their phone last said) and when we last saw them.
+                Text(listOfNotNull(
+                    battery?.let { b -> (if (b.charging) "⚡" else if (b.pct <= 20) "🪫" else "🔋") + " ${b.pct}%" },
+                    if (p.presence == Presence.OFFLINE && p.lastSeen > 0) "seen " + com.bluemob.app.util.TimeText.ago(p.lastSeen) else null,
+                ).joinToString(" · ").ifBlank { " " }, style = MaterialTheme.typography.labelSmall,
+                    color = if ((battery?.pct ?: 100) <= 20 && battery?.charging != true) Extra.rose else Extra.ink3, maxLines = 1)
             }
         }
     }

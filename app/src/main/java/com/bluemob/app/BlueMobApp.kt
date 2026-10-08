@@ -63,6 +63,7 @@ class BlueMobApp : Application() {
     lateinit var sos: SosManager private set
     lateinit var groups: com.bluemob.app.chat.GroupStore private set
     lateinit var sosCircle: com.bluemob.app.sos.SosCircle private set
+    lateinit var peerStatus: com.bluemob.app.nearby.PeerStatus private set
     lateinit var heading: HeadingSensor private set
     lateinit var audit: AuditLog private set
     lateinit var trail: TrailRecorder private set
@@ -242,6 +243,9 @@ class BlueMobApp : Application() {
             { profile.profile.value.takeIf { it.verified }?.phone }, { settings.bridgeUrl.value.takeIf { it.isNotBlank() } },
             sendChat = { peer, text -> messages.send(peer, text) }, sos = sos, prefs = SecurePrefs.open(this, "sos_circle"), scope = appScope,
             onRequest = { r -> notifier.note("${r.name} wants you as their SOS contact", "Open BlueMob to accept: you'd get an alert if they ever send an SOS.", null) })
+        peerStatus = com.bluemob.app.nearby.PeerStatus(mesh, appScope,
+            battery = { sos.batteryPct()?.let { it to (getSystemService(android.os.BatteryManager::class.java)?.isCharging == true) } },
+            onRequest = { r -> if (!inForeground) notifier.note("${r.name} is checking on everyone", "Open BlueMob and tap I'm OK, or I need help.", null) })
         sos.onSent = { sosCircle.alert(it) }
         sos.onSafe = { sosCircle.safe(it) }
         appScope.launch { live.connected.collect { if (it) { sosCircle.registerNumber(); syncEmail(); sosCircle.recheck() } } }

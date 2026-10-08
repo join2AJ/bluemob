@@ -305,13 +305,15 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     when (tab) {
                         Tab.NEARBY -> NearbyScreen(
                             NearbyState(name, running, people, system.permissionsGranted, system.locationServicesOff, sharing, myFix != null, online, radios,
-                                vm.otherVersions.collectAsStateWithLifecycle().value.values.map { it.name }),
+                                vm.otherVersions.collectAsStateWithLifecycle().value.values.map { it.name },
+                                batteries = vm.batteries.collectAsStateWithLifecycle().value, check = vm.checkIn.collectAsStateWithLifecycle().value),
                             padding, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onRequestPermissions = actions.requestMeshPermissions, onOpenLocationSettings = actions.openLocationSettings,
                             onShareLocation = { toggleLocation(true) }, onOpenChat = { push("chat:$it") },
                             onTalkToSky = { push("chat:" + SkyBot.NODE_ID) }, onOpenGuide = { tab = Tab.GUIDE }, onOpenBattery = { tab = Tab.YOU },
                             onConnections = { push("connections") }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push("games") },
                             onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
+                            onCheckEveryone = { vm.checkOnEveryone() }, onClearCheck = vm::clearCheck,
                         )
                         Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push("rescues") else push("rescue:$it") }, onNewChat = { push("newchat") },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
@@ -519,6 +521,15 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             }
         }
 
+        vm.checkRequests.collectAsStateWithLifecycle().value.firstOrNull()?.let { r ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = {},
+                title = { Text("🙋 ${r.name} is checking on everyone") },
+                text = { Text("Are you OK?") },
+                confirmButton = { androidx.compose.material3.Button(onClick = { vm.answerCheck(r, true) }) { Text("I'm OK") } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { vm.answerCheck(r, false) }) { Text("I need help", color = com.bluemob.app.ui.theme.Extra.rose) } },
+            )
+        }
         vm.sosRequests.collectAsStateWithLifecycle().value.firstOrNull()?.let { r ->
             com.bluemob.app.ui.sos.SosContactRequest(r.name) { yes -> vm.answerSosRequest(r, yes) }
         }
