@@ -1,4 +1,5 @@
 [versions]
+mediapipeGenai = "0.10.35"
 agp = "8.7.3"
 kotlin = "2.0.21"
 coreKtx = "1.15.0"
@@ -22,6 +23,7 @@ work = "2.9.1"
 firebaseBom = "33.7.0"
 
 [libraries]
+mediapipe-genai = { group = "com.google.mediapipe", name = "tasks-genai", version.ref = "mediapipeGenai" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }

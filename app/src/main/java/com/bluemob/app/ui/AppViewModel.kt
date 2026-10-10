@@ -261,8 +261,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---- You: theme, emergency card, badges ----
     val theme = settings.theme
     fun setTheme(t: String) = settings.setTheme(t)
-    val smartSky = settings.smartSky
-    fun setSmartSky(on: Boolean) = settings.setSmartSky(on)
+    /** Sky's offline AI: download, import, switch on/off, delete. */
+    val offlineAi get() = blueMob.offlineAi
+    val aiStatus = blueMob.offlineAi.status
+    fun importAi(uri: android.net.Uri, name: String) { viewModelScope.launch { blueMob.offlineAi.import(uri, name) } }
+    fun deleteAi() { viewModelScope.launch { blueMob.offlineAi.delete() } }
     val emergencyCard = settings.emergencyCard
     fun setEmergencyCard(on: Boolean) = settings.setEmergencyCard(on)
     // Lazy: it uses flows declared further down this class.

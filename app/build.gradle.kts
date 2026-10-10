@@ -7,6 +7,8 @@ plugins {
 }
 
 android {
+    // Native libraries (the offline-AI engine is the big one) are compressed in the APK, so downloads stay small.
+    packaging { jniLibs { useLegacyPackaging = true } }
     namespace = "com.bluemob.app"
     compileSdk = 35
 
@@ -26,8 +28,8 @@ android {
         // Optional: `-PonlyAbi=arm64-v8a` builds for one phone type only (a smaller APK to share for testing).
         (project.findProperty("onlyAbi") as String?)?.let { ndk { abiFilters += it } }
         targetSdk = 35
-        versionCode = 30
-        versionName = "0.20.0"
+        versionCode = 31
+        versionName = "0.21.0"
     }
 
     signingConfigs {
@@ -93,6 +95,8 @@ dependencies {
     implementation(libs.androidx.biometric)
     // Internet calls: a WebSocket to the BlueMob relay.
     implementation(libs.okhttp)
+    // Sky's optional offline AI: runs a downloaded language model on the phone (the model itself is not in the APK).
+    implementation(libs.mediapipe.genai)
     // Scheduled encrypted backups.
     implementation(libs.work.runtime)
     // Optional wake-ups for calls and messages when closed, and real SMS codes (only used when configured).

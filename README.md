@@ -36,14 +36,18 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
-## Android 0.20: Smart Sky
+## Android 0.21: Sky's offline AI
 
-- **Ask Sky anything.** Turn on Smart Sky at the top of the Sky chat. With internet, Sky becomes a full AI assistant
-  (Claude, by Anthropic) for questions, writing, planning, learning, first aid and more. It remembers the recent Sky chat.
-- **Offline as backup.** No internet, the daily allowance used up, or the server not set up: Sky answers from the phone
-  as before, and says so. Your own status questions ("who's nearby?") and answers you taught Sky stay on the phone.
-- **Private by design.** Only the question and recent Sky chat are sent, signed by the phone; no name, number,
-  location or other chats. Server needs `ANTHROPIC_API_KEY` (see `server/README.md`).
+- **Ask Sky anything, with no internet.** In the Sky chat, tap "Make Sky smarter, offline" and download an AI brain
+  once: Lite (Qwen 2.5 0.5B, 547 MB) or Standard (Qwen 2.5 1.5B, 1.6 GB, for phones with 6 GB+ memory). It's never
+  in the APK and never downloaded unless the user asks. Wi-Fi only by default; the file is checked against its
+  SHA-256 before use.
+- **Runs on the phone** with Google's MediaPipe LLM engine. Questions never leave the phone. Answers appear as they're
+  written. The model is loaded only while in use and released after a few idle minutes.
+- Sky still answers its own status questions and taught answers itself, and links the checked survival guide for
+  first-aid topics. Gemma or another MediaPipe `.task` model can be brought in from a file. Switch off or delete
+  any time.
+- The online Smart Sky from 0.20 is removed: nothing Sky does goes to a server.
 
 ## Android 0.19: trips you can replay and export, hunting mode, a new call screen
 

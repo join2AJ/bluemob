@@ -1,8 +1,0 @@
-{
-  "name": "bluemob-relay",
-  "private": true,
-  "description": "BlueMob internet relay. Only dependency: the Anthropic SDK, used by Smart Sky when ANTHROPIC_API_KEY is set.",
-  "main": "relay.js",
-  "scripts": { "start": "node relay.js", "test": "node --test" },
-  "dependencies": { "@anthropic-ai/sdk": "^0.133.0" }
-}

@@ -71,9 +71,6 @@ relay sleeps after 15 minutes with no one connected; phones keep it awake while 
 | Environment variable | What it does |
 |---|---|
 | `FCM_SERVICE_ACCOUNT` | Firebase service account JSON. Turns on wake-ups: calls ring and messages arrive on phones whose BlueMob is closed. See `docs/firebase.md`. |
-| `ANTHROPIC_API_KEY` | Turns on **Smart Sky** (0.20): phones that switch it on can ask Sky anything, answered by Claude. Get a key at console.anthropic.com. Without it, Sky stays offline-only. |
-| `SKY_MODEL` | Which Claude model Smart Sky uses. Default `claude-opus-5-5` (best answers). `claude-sonnet-5-5` is about half the price; `claude-haiku-5-5` is the cheapest. |
-| `SKY_PER_DAY` | Smart Sky questions per phone per day (default 30). Keeps the bill predictable. |
 | `PERSISTENT_DISK=1` | Set when `DATA_DIR` is on a disk that survives restarts (Render: a paid plan with a disk mounted at `/data`). Phones then show BlueMob Cloud backups as kept, not temporary. |
 
 Files sent in chats to people who aren't nearby are held under `DATA_DIR/blobs` (encrypted on the phone, deleted once

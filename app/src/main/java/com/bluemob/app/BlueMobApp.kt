@@ -71,6 +71,8 @@ class BlueMobApp : Application() {
     lateinit var lost: LostMode private set
     lateinit var radios: Radios private set
     lateinit var rescue: RescueManager private set
+    /** Sky's optional offline AI (downloaded only if the user asks). */
+    lateinit var offlineAi: com.bluemob.app.bot.OfflineAi private set
     lateinit var keyBook: KeyBook private set
     lateinit var notifier: Notifier private set
     lateinit var witness: AuditWitness private set
@@ -236,7 +238,8 @@ class BlueMobApp : Application() {
         callLog = db.calls()
         backups = com.bluemob.app.backup.BackupManager(this)
         groups = com.bluemob.app.chat.GroupStore(SecurePrefs.open(this, "groups"))
-        messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text -> skyReply(text) },
+        offlineAi = com.bluemob.app.bot.OfflineAi(this, appScope)
+        messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text, partial -> skyReply(text, partial) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
             onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
             groups = groups, me = { identity.nodeId to identity.displayName.value },
@@ -366,23 +369,21 @@ class BlueMobApp : Application() {
     }
 
     /**
-     * Sky's answer. With Smart Sky on and internet, anything the phone can't answer itself (its own status, what the user
-     * taught it) goes to Claude through the relay; otherwise, or if that fails, Sky answers offline as before.
+     * Sky's answer. With the offline AI downloaded and on, anything the phone can't answer from its own state (who's
+     * nearby, battery, what the user taught Sky) is written by the model on this phone. Nothing goes online.
      */
-    private suspend fun skyReply(text: String): SkyAnswer {
+    private suspend fun skyReply(text: String, onPartial: (String) -> Unit): SkyAnswer {
         val facts = skyFacts()
-        val url = settings.bridgeUrl.value
-        if (!settings.smartSky.value || !connectivity.online.value || url.isBlank()) return SkyBot.reply(text, facts)
+        if (!offlineAi.status.value.ready) return SkyBot.reply(text, facts)
         SkyBot.phoneAnswer(text, facts)?.let { return it }
         val lines = messages.conversations.value[SkyBot.NODE_ID].orEmpty().sortedBy { it.createdAt }
             .let { l -> if (l.lastOrNull()?.let { it.fromMe && it.text == text.trim() } == true) l.dropLast(1) else l }
-            .map { com.bluemob.app.bot.SmartSky.Turn(it.fromMe, it.text) }
-        val history = com.bluemob.app.bot.SmartSky.history(lines, SkyBot.greeting)
-        return when (val r = com.bluemob.app.bot.SmartSky.ask(url, identity.keys, text, history)) {
-            is com.bluemob.app.bot.SmartSky.Result.Answer -> SkyAnswer("✨ " + r.text + if (r.left in 0..3) "\n\n(${r.left} Smart Sky question${if (r.left == 1) "" else "s"} left today)" else "",
-                listOfNotNull(SkyBot.guideIdFor(text)?.let { com.bluemob.app.bot.SkyAction("Open the offline guide", "guide:$it") }))
-            else -> SkyBot.reply(text, facts).let { it.copy(text = com.bluemob.app.bot.SmartSky.note(r) + "\n\n" + it.text) }
-        }
+            .filter { it.text !in SkyBot.greeting }
+            .map { com.bluemob.app.bot.AiPrompt.Turn(it.fromMe, it.text) }
+        val guide = SkyBot.guideIdFor(text)?.let { com.bluemob.app.bot.SkyAction("Check the survival guide", "guide:$it") }
+        val written = offlineAi.answer(text, lines, onPartial)
+            ?: return SkyBot.reply(text, facts).let { it.copy(text = "🧠 The offline AI couldn't answer just now, so here's what I know:\n\n" + it.text) }
+        return SkyAnswer(written, listOfNotNull(guide))
     }
 
     /** What Sky can see on this phone right now. */

@@ -393,7 +393,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         files = chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
                         group = vm.groups.collectAsStateWithLifecycle().value[id],
                         onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onGroupInfo = { push("group:$id") },
-                        smartSky = vm.smartSky.collectAsStateWithLifecycle().value, online = vm.online.collectAsStateWithLifecycle().value, onSmartSky = vm::setSmartSky,
+                        aiReady = vm.aiStatus.collectAsStateWithLifecycle().value.ready, onAiSetup = if (id == SkyBot.NODE_ID) ({ push("skyai") }) else null,
                         onCall = { video ->
                             val who = people.firstOrNull { it.nodeId == id }?.name ?: "them"
                             actions.requestCallPermissions(video) { vm.startCall(id, who, video) }
@@ -449,6 +449,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     onText = actions.textSos, onPreviewAlert = vm::previewSosAlert,
                     rescue = rescues.firstOrNull { it.mine && it.id == mySos?.id }, onOpenRescue = { mySos?.let { push("rescue:" + it.id) } },
                 )
+                route == "skyai" -> com.bluemob.app.ui.chat.SkyAiScreen(vm, ::pop)
                 route == "newchat" -> NewChatScreen(vm.nodeId, people, ::pop,
                     onStart = { id, n -> vm.startChatById(id, n); pop(); push("chat:$id") },
                     onOpen = { pop(); push("chat:$it") }, onShareId = actions.shareId)

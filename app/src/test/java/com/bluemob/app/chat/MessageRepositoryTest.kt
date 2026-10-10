@@ -101,7 +101,7 @@ class MessageRepositoryTest {
         val radio = Radio()
         val daoA = FakeDao()
         val daoB = FakeDao()
-        val sky: (String) -> SkyAnswer = { SkyAnswer("hi") }
+        val sky: suspend (String, (String) -> Unit) -> SkyAnswer = { _, _ -> SkyAnswer("hi") }
         val groupsA = GroupStore(null)
         val groupsB = GroupStore(null)
         val a = MessageRepository(daoA, radio.a, scope.backgroundScope, sky, groups = groupsA, me = { "A" to "Asha" })

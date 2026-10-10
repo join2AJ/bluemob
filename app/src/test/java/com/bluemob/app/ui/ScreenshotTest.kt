@@ -126,11 +126,18 @@ class ScreenshotTest {
     @Test fun skyChat() = shot {
         ChatScreen(SkyBot.NODE_ID, null, sky, false, MutableSharedFlow(), "Arjun", "3f9a1c2b7d4e8a01", {}, {}, { true }, {}, {}, {})
     }
-    @Test fun smartSkyChat() = shot {
-        ChatScreen(SkyBot.NODE_ID, null, sky.take(2) + MessageEntity("s4", SkyBot.NODE_ID, false,
-            "✨ Yes, if you treat it first. Clear water: boil it for 1 minute (3 at high altitude). Cloudy water: let it settle, filter through cloth, then boil.\n\nNo fuel? Leave a clear bottle in strong sun for 6 hours (cloudy day: 2 days).",
-            now - 50_000, MessageStatus.READ), false, MutableSharedFlow(), "Arjun", "3f9a1c2b7d4e8a01", {}, {}, { true }, {}, {}, {},
-            smartSky = true, online = true, onSmartSky = {})
+    @Test fun skyAiChat() = shot {
+        ChatScreen(SkyBot.NODE_ID, null, sky.take(1) + listOf(
+            MessageEntity("s5", SkyBot.NODE_ID, true, "Help me write a short message to my team: I'll be 2 hours late, the road is blocked", now - 60_000, MessageStatus.LOCAL),
+            MessageEntity("s6", SkyBot.NODE_ID, false, "Here's one you can send:\n\n\"Hi team, the road is blocked so I'll be about 2 hours late. I'm safe and will update you when I'm moving again.\"", now - 50_000, MessageStatus.READ)),
+            false, MutableSharedFlow(), "Arjun", "3f9a1c2b7d4e8a01", {}, {}, { true }, {}, {}, {}, aiReady = true, onAiSetup = {})
+    }
+    @Test fun skyAiDownload() = shot(tall = true) {
+        com.bluemob.app.ui.chat.SkyAiContent(com.bluemob.app.bot.OfflineAi.Status(), 8, 40_000_000_000, { _, _ -> }, {}, {}, {}, {}, {})
+    }
+    @Test fun skyAiDownloading() = shot {
+        com.bluemob.app.ui.chat.SkyAiContent(com.bluemob.app.bot.OfflineAi.Status(download = com.bluemob.app.bot.OfflineAi.Download(com.bluemob.app.bot.AiModels.STANDARD, 640_000_000, 1_598_556_720, false)),
+            8, 40_000_000_000, { _, _ -> }, {}, {}, {}, {}, {})
     }
     @Test fun messageInfo() = shot(tall = true) { MessageInfoScreen(chat[2], "Arjun", "3f9a1c2b7d4e8a01", "Asha") {} }
     @Test fun compass() = shot {

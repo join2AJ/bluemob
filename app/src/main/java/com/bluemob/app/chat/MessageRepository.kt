@@ -42,8 +42,11 @@ class MessageRepository(
     private val dao: MessageDao,
     private val mesh: MessageLink,
     private val scope: CoroutineScope,
-    /** Sky's answer: from the phone, or from Smart Sky when it's on and online (so it may take a few seconds). */
-    private val sky: suspend (String) -> SkyAnswer,
+    /**
+     * Sky's answer. With the offline AI it's written a bit at a time: the second argument gets the answer so far, and
+     * the chat shows it growing.
+     */
+    private val sky: suspend (String, (String) -> Unit) -> SkyAnswer,
     /** Writes to the audit trail: (kind, other person's node ID, what happened). */
     private val record: (AuditKind, String, String) -> Unit = { _, _, _ -> },
     /** Called once per new incoming message (not for copies), e.g. to show a notification. */
@@ -382,16 +385,43 @@ class MessageRepository(
         delay(350)
         _typing.update { it + SkyBot.NODE_ID }
         val started = System.currentTimeMillis()
-        val answer = runCatching { sky(text) }.getOrElse { SkyAnswer("Sorry, something went wrong. Please ask again.") }
-        delay((SkyBot.typingDelayMs(answer.text) - (System.currentTimeMillis() - started)).coerceAtLeast(0))
+        // The answer as it's being written: shown as one message that grows.
+        val streamLock = Mutex()
+        var shown: MessageEntity? = null
+        var finished = false
+        var lastShown = 0L
+        val status = { if (openConversation == SkyBot.NODE_ID) MessageStatus.READ else MessageStatus.RECEIVED }
+        val answer = runCatching {
+            sky(text) { partial ->
+                val t = System.currentTimeMillis()
+                if (partial.isNotBlank() && t - lastShown >= 250) {
+                    lastShown = t
+                    scope.launch {
+                        streamLock.withLock {
+                            if (finished) return@withLock
+                            val m = shown
+                            if (m == null) {
+                                val fresh = MessageEntity(newId(), SkyBot.NODE_ID, false, partial, System.currentTimeMillis(), status())
+                                dao.insert(fresh); shown = fresh
+                                _typing.update { it - SkyBot.NODE_ID }
+                            } else dao.update(m.copy(text = partial).also { shown = it })
+                        }
+                    }
+                }
+            }
+        }.getOrElse { SkyAnswer("Sorry, something went wrong. Please ask again.") }
+        val actions = answer.actions.joinToString("\n") { "${it.label}|${it.target}" }
+        streamLock.withLock {
+            finished = true
+            val m = shown
+            if (m != null) {
+                dao.update(m.copy(text = answer.text, actions = actions, status = if (openConversation == SkyBot.NODE_ID) MessageStatus.READ else m.status))
+            } else {
+                delay((SkyBot.typingDelayMs(answer.text) - (System.currentTimeMillis() - started)).coerceAtLeast(0))
+                dao.insert(MessageEntity(newId(), SkyBot.NODE_ID, false, answer.text, System.currentTimeMillis(), status(), actions = actions))
+            }
+        }
         _typing.update { it - SkyBot.NODE_ID }
-        dao.insert(
-            MessageEntity(
-                newId(), SkyBot.NODE_ID, false, answer.text, System.currentTimeMillis(),
-                if (openConversation == SkyBot.NODE_ID) MessageStatus.READ else MessageStatus.RECEIVED,
-                actions = answer.actions.joinToString("\n") { "${it.label}|${it.target}" },
-            )
-        )
     }
 
     companion object {

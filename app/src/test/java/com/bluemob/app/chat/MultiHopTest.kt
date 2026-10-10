@@ -32,7 +32,7 @@ class MultiHopTest {
             override fun linkName(nodeId: String) = "Bluetooth"
             override fun nameOf(nodeId: String) = links.firstOrNull { it.id == nodeId }?.name ?: "?"
         }, keys, book, myName = { name })
-        val repo = MessageRepository(dao, router, scope.backgroundScope, { SkyAnswer("") })
+        val repo = MessageRepository(dao, router, scope.backgroundScope, { _, _ -> SkyAnswer("") })
     }
 
     private fun TestScope.settle() { advanceTimeBy(10_000); runCurrent() }
