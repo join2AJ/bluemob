@@ -109,8 +109,13 @@ fun ChatScreen(
     onReact: (MessageEntity, String) -> Unit = { _, _ -> },
     /** Group info: members, adding people, leaving. */
     onGroupInfo: () -> Unit = {},
+    /** Sky only: Smart Sky (ask Claude when online) and whether the phone is online. */
+    smartSky: Boolean = false,
+    online: Boolean = false,
+    onSmartSky: ((Boolean) -> Unit)? = null,
 ) {
     val isBot = nodeId == SkyBot.NODE_ID
+    var explainSmart by remember { mutableStateOf(false) }
     val isGroup = group != null
     val name = if (isBot) SkyBot.NAME else group?.name ?: person?.name ?: "Someone"
     val emoji = if (isBot) SkyBot.AVATAR else if (isGroup) "👥" else person?.avatar
@@ -147,6 +152,8 @@ fun ChatScreen(
                                 when {
                                     group != null -> "${group.members.size + 1} members · " + (listOf("You") + group.members.values).joinToString(", ")
                                     typing -> "typing…"
+                                    isBot && smartSky && online -> "✨ Smart · ask anything"
+                                    isBot && smartSky -> "Offline now · answering from your phone"
                                     isBot -> "Lives on your phone · works offline"
                                     presence == Presence.ONLINE -> "Online nearby · " + linkWords(person?.quality)
                                     presence == Presence.IN_RANGE -> "In range · connecting…"
@@ -171,7 +178,8 @@ fun ChatScreen(
             }
 
             LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
-                item { if (group != null) GroupIntro(group) else Intro(isBot, nodeId, name, emoji, person) }
+                item { if (group != null) GroupIntro(group) else Intro(isBot, nodeId, name, emoji, person, smartSky) }
+                if (isBot && onSmartSky != null) item(key = "smart") { SmartSkyCard(smartSky, online) { on -> if (on) explainSmart = true else onSmartSky(false) } }
                 item {
                     Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) { Tag("Today") }
                 }
@@ -208,6 +216,19 @@ fun ChatScreen(
             Composer(draft, onDraft = { draft = it }, onSend = { val r = replying; if (r != null) onReply(draft, r) else onSend(draft); draft = ""; replying = null },
                 files = if (isBot || isGroup) null else files)
         }
+        if (explainSmart && onSmartSky != null) androidx.compose.material3.AlertDialog(
+            onDismissRequest = { explainSmart = false },
+            title = { Text("Turn on Smart Sky?") },
+            text = {
+                Text("Sky becomes an AI assistant: ask anything and get a real answer, help with writing, plans, maths, learning and more.\n\n" +
+                    "• Uses internet. Offline, Sky answers from your phone as before.\n" +
+                    "• Your question and the recent Sky chat go to Claude, an AI by Anthropic, through the BlueMob server. Your name, number, location and other chats are not sent.\n" +
+                    "• Don't share passwords or very private details.\n" +
+                    "• A daily number of questions is free. SOS never depends on it.")
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { explainSmart = false; onSmartSky(true) }) { Text("Turn on") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { explainSmart = false }) { Text("Not now") } },
+        )
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 90.dp))
     }
 }
@@ -233,15 +254,16 @@ private fun RouteStrip(last: MessageEntity?, myName: String, myId: String, name:
 }
 
 @Composable
-private fun Intro(isBot: Boolean, nodeId: String, name: String, emoji: String?, person: Person?) {
+private fun Intro(isBot: Boolean, nodeId: String, name: String, emoji: String?, person: Person?, smart: Boolean = false) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Avatar(emoji, name, nodeId, 80.dp)
         Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
-        if (isBot) Tag("On this phone · offline", Extra.skyTint, Extra.sky) else Tag("Direct · by BlueMob ID", Extra.pineTint, MaterialTheme.colorScheme.primary)
+        if (isBot) Tag(if (smart) "✨ Smart Sky · offline as backup" else "On this phone · offline", Extra.skyTint, Extra.sky) else Tag("Direct · by BlueMob ID", Extra.pineTint, MaterialTheme.colorScheme.primary)
         if (!isBot) Text("BM " + com.bluemob.app.util.formatId(nodeId), style = MaterialTheme.typography.labelMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
             color = Extra.ink3, modifier = Modifier.padding(top = 6.dp))
         Text(
-            if (isBot) "Built into BlueMob, on your phone. No internet, no server: what you ask stays here. I know the app, the survival guide, and what's happening around you."
+            if (isBot && smart) "With internet, ask me anything: questions, writing, planning, learning, first aid, travel. Your questions go to Claude, an AI by Anthropic, through the BlueMob server. With no internet I answer from your phone, as always."
+            else if (isBot) "Built into BlueMob, on your phone. No internet, no server: what you ask stays here. I know the app, the survival guide, and what's happening around you."
             else "Write any time, wherever ${person?.name ?: "they"} is. In range, it goes straight over Bluetooth or Wi-Fi. If not, phones nearby carry it " +
                 "toward them, end-to-end encrypted so no one else can read it. Shown exactly once; the ticks tell you when it arrives.",
             style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp),
@@ -388,5 +410,28 @@ private fun Composer(draft: String, onDraft: (String) -> Unit, onSend: () -> Uni
         ) {
             Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = if (draft.isBlank()) Extra.ink3 else MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(22.dp))
         }
+    }
+}
+
+/** The Smart Sky switch at the top of the Sky chat. */
+@Composable
+private fun SmartSkyCard(on: Boolean, online: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(RoundedCornerShape(16.dp)).background(Extra.skyTint).clickable { onChange(!on) }.padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("✨", style = MaterialTheme.typography.titleLarge)
+        Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+            Text("Smart Sky", style = MaterialTheme.typography.titleSmall, color = Extra.sky)
+            Text(
+                when {
+                    !on -> "Ask anything, like a full AI assistant. Uses internet."
+                    online -> "On · AI answers while you're online"
+                    else -> "On · no internet now, answering offline"
+                },
+                style = MaterialTheme.typography.bodySmall, color = Extra.ink2,
+            )
+        }
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = onChange)
     }
 }

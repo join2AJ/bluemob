@@ -21,6 +21,8 @@
 //   GET  /v1/phone?h&id&at&sig                             which BlueMob ID has that number (signed lookup, 30 a day)
 //   POST /v1/email  {pk, at, email, sig}                   optional recovery email for this BlueMob ID ("" removes it);
 //                                                          kept for account recovery and receipts, never shown to anyone
+//   GET  /v1/sky                                           {on, perDay}: is Smart Sky available
+//   POST /v1/sky  {pk, at, q, history, sig}                ask Claude (signed by the phone; SKY_PER_DAY a day)
 //   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
@@ -28,6 +30,7 @@ const http = require("http");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { claudeAsker, toMessages, SkyLimits } = require("./sky");
 
 const TTL_MS = 7 * 24 * 3600e3;
 const MAX_BODY = 256 * 1024;
@@ -246,7 +249,8 @@ class Reports {
   }
 }
 
-function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null), reports = new Reports(null)) {
+function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null), reports = new Reports(null), sky = { ask: null }) {
+  const skyLimits = sky.limits || new SkyLimits(Number(process.env.SKY_PER_DAY || 30));
   const hits = new Map(); // device or IP -> {hour, n}
   const lookups = new Map(); // device|day -> phone lookups
   const limited = (who) => {
@@ -304,6 +308,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
       res.writeHead(200, { "content-type": "application/octet-stream", "content-length": buf.length, "cache-control": "no-store" });
       return res.end(buf);
     }
+    if (req.method === "GET" && url.pathname === "/v1/sky") return send(res, 200, { on: !!sky.ask, perDay: skyLimits.perDay });
     if (req.method === "GET" && url.pathname === "/v1/guides") {
       return send(res, 200, { packs: [...guides.values()].map((p) => ({ id: p.id, version: p.version || 1, emoji: p.emoji || "📘", title: p.title, about: p.about || "",
         articles: p.articles.length, bytes: Buffer.byteLength(JSON.stringify(p)) })) });
@@ -412,6 +417,20 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         store.apply({ op: "email", id, email });
         return send(res, 200, { ok: true });
       }
+      if (url.pathname === "/v1/sky") {
+        if (!sky.ask) return send(res, 503, { error: "off" });
+        const q = String(body.q || "").trim().slice(0, 4000), at = Number(body.at);
+        if (!q || Math.abs(Date.now() - at) > 10 * 60e3) return send(res, 400, { error: "bad request" });
+        const h = crypto.createHash("sha256").update(q).digest("hex");
+        const id = signer(String(body.pk || ""), ["bluemob-sky", at, h].join("|"), String(body.sig || ""));
+        if (!id) return send(res, 401, { error: "bad signature" });
+        const left = skyLimits.take(id);
+        if (left < 0) return send(res, 429, { error: "daily limit", left: 0 });
+        sky.ask(toMessages(body.history, q))
+          .then((r) => send(res, 200, { ...r, left }))
+          .catch((e) => { console.error("sky:", e && e.status, e && e.message); send(res, 502, { error: "sky unavailable" }); });
+        return;
+      }
       if (url.pathname === "/v1/push") {
         if (limited("ip:" + ip)) return send(res, 429, { error: "slow down" });
         const results = (Array.isArray(body.packets) ? body.packets.slice(0, 200) : []).map((p) => {
@@ -446,7 +465,9 @@ if (require.main === module) {
   setInterval(() => blobs.prune(), 3600e3).unref();
   const backups = new Backups(path.join(dataDir, "backups"), { persistent: process.env.PERSISTENT_DISK === "1" });
   const reports = new Reports(path.join(dataDir, "reports"), process.env.REPORTS_TOKEN || "");
-  const server = createServer(store, loadGuides(), blobs, backups, reports);
+  const ask = claudeAsker();
+  if (ask) console.log("Smart Sky on");
+  const server = createServer(store, loadGuides(), blobs, backups, reports, { ask });
   const { createPusher, loadAccount } = require("./push");
   const pusher = createPusher(loadAccount());
   if (pusher.configured) console.log("Firebase wake-ups on");

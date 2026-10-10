@@ -11,3 +11,4 @@ captures/
 *.jks
 .kotlin/
 !app/debug.keystore
+server/node_modules/

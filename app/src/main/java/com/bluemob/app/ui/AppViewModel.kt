@@ -261,6 +261,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---- You: theme, emergency card, badges ----
     val theme = settings.theme
     fun setTheme(t: String) = settings.setTheme(t)
+    val smartSky = settings.smartSky
+    fun setSmartSky(on: Boolean) = settings.setSmartSky(on)
     val emergencyCard = settings.emergencyCard
     fun setEmergencyCard(on: Boolean) = settings.setEmergencyCard(on)
     // Lazy: it uses flows declared further down this class.

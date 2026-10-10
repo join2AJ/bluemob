@@ -79,6 +79,11 @@ class AppSettings(context: Context) {
     val allowRemoteSignal: StateFlow<Boolean> = _remoteSignal.asStateFlow()
     fun setAllowRemoteSignal(on: Boolean) { _remoteSignal.value = on; prefs.edit().putBoolean("remote_signal", on).apply() }
 
+    private val _smartSky = MutableStateFlow(prefs.getBoolean("smart_sky", false))
+    /** Sky asks Claude (through the relay) when the phone is online; off until the user turns it on. */
+    val smartSky: StateFlow<Boolean> = _smartSky.asStateFlow()
+    fun setSmartSky(on: Boolean) { _smartSky.value = on; prefs.edit().putBoolean("smart_sky", on).apply() }
+
     private val _theme = MutableStateFlow(prefs.getString("theme", "auto") ?: "auto")
     /** "auto" (follow the phone), "light" or "dark". */
     val theme: StateFlow<String> = _theme.asStateFlow()

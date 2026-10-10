@@ -126,6 +126,12 @@ class ScreenshotTest {
     @Test fun skyChat() = shot {
         ChatScreen(SkyBot.NODE_ID, null, sky, false, MutableSharedFlow(), "Arjun", "3f9a1c2b7d4e8a01", {}, {}, { true }, {}, {}, {})
     }
+    @Test fun smartSkyChat() = shot {
+        ChatScreen(SkyBot.NODE_ID, null, sky.take(2) + MessageEntity("s4", SkyBot.NODE_ID, false,
+            "✨ Yes, if you treat it first. Clear water: boil it for 1 minute (3 at high altitude). Cloudy water: let it settle, filter through cloth, then boil.\n\nNo fuel? Leave a clear bottle in strong sun for 6 hours (cloudy day: 2 days).",
+            now - 50_000, MessageStatus.READ), false, MutableSharedFlow(), "Arjun", "3f9a1c2b7d4e8a01", {}, {}, { true }, {}, {}, {},
+            smartSky = true, online = true, onSmartSky = {})
+    }
     @Test fun messageInfo() = shot(tall = true) { MessageInfoScreen(chat[2], "Arjun", "3f9a1c2b7d4e8a01", "Asha") {} }
     @Test fun compass() = shot {
         CompassScreen(people, listOf(Spot("s", "Base camp", 30.0830, 78.2640, now)), me, flowOf(20f), true, true, "s", pad, {}, {}, {}, {}, {})

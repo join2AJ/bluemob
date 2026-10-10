@@ -42,7 +42,8 @@ class MessageRepository(
     private val dao: MessageDao,
     private val mesh: MessageLink,
     private val scope: CoroutineScope,
-    private val sky: (String) -> SkyAnswer,
+    /** Sky's answer: from the phone, or from Smart Sky when it's on and online (so it may take a few seconds). */
+    private val sky: suspend (String) -> SkyAnswer,
     /** Writes to the audit trail: (kind, other person's node ID, what happened). */
     private val record: (AuditKind, String, String) -> Unit = { _, _, _ -> },
     /** Called once per new incoming message (not for copies), e.g. to show a notification. */
@@ -378,10 +379,11 @@ class MessageRepository(
 
     private suspend fun talkToSky(text: String, now: Long) {
         dao.insert(MessageEntity(newId(), SkyBot.NODE_ID, true, text, now, MessageStatus.LOCAL))
-        val answer = sky(text)
         delay(350)
         _typing.update { it + SkyBot.NODE_ID }
-        delay(SkyBot.typingDelayMs(answer.text))
+        val started = System.currentTimeMillis()
+        val answer = runCatching { sky(text) }.getOrElse { SkyAnswer("Sorry, something went wrong. Please ask again.") }
+        delay((SkyBot.typingDelayMs(answer.text) - (System.currentTimeMillis() - started)).coerceAtLeast(0))
         _typing.update { it - SkyBot.NODE_ID }
         dao.insert(
             MessageEntity(

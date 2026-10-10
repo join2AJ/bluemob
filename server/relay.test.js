@@ -208,3 +208,40 @@ test("recovery email: signed, checked, removable", async () => {
   assert.equal(store.emails.has(me.id), false);
   srv.close();
 });
+
+test("Smart Sky: off without a key, signed questions only, daily limit, history cleaned", async () => {
+  const { createServer, Store } = require("./relay");
+  const { SkyLimits, toMessages } = require("./sky");
+  const off = createServer(new Store(null), new Map());
+  await new Promise((r) => off.listen(0, r));
+  const offBase = `http://127.0.0.1:${off.address().port}`;
+  assert.deepEqual(await (await fetch(offBase + "/v1/sky")).json(), { on: false, perDay: 30 });
+  assert.equal((await fetch(offBase + "/v1/sky", { method: "POST", body: "{}" })).status, 503);
+  off.close();
+
+  let seen = null;
+  const srv = createServer(new Store(null), new Map(), undefined, undefined, undefined,
+    { ask: async (m) => { seen = m; return { answer: "Boil it for a minute." }; }, limits: new SkyLimits(2) });
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const a = device();
+  const ask = (q, dev = a, extra = {}) => {
+    const at = Date.now(), h = crypto.createHash("sha256").update(q).digest("hex");
+    const sig = crypto.sign("sha256", Buffer.from(["bluemob-sky", at, h].join("|")), dev.privateKey).toString("base64");
+    return fetch(base + "/v1/sky", { method: "POST", body: JSON.stringify({ pk: dev.pk, at, q, sig, ...extra }) });
+  };
+  const history = [{ role: "assistant", text: "Hi, I'm Sky" }, { role: "user", text: "water?" }, { role: "assistant", text: "Which?" }];
+  const r = await ask("Is river water safe?", a, { history });
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { answer: "Boil it for a minute.", left: 1 });
+  assert.deepEqual(seen.map((m) => m.role), ["user", "assistant", "user"]);
+  assert.equal(seen[2].content, "Is river water safe?");
+  // A forged signature is refused.
+  const forged = await fetch(base + "/v1/sky", { method: "POST", body: JSON.stringify({ pk: a.pk, at: Date.now(), q: "hi", sig: "AAAA" }) });
+  assert.equal(forged.status, 401);
+  assert.equal((await ask("second")).status, 200);
+  assert.equal((await ask("third")).status, 429);
+  assert.equal((await ask("other phone", device())).status, 200);
+  srv.close();
+  assert.deepEqual(toMessages([], "q"), [{ role: "user", content: "q" }]);
+});

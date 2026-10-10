@@ -36,6 +36,15 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.20: Smart Sky
+
+- **Ask Sky anything.** Turn on Smart Sky at the top of the Sky chat. With internet, Sky becomes a full AI assistant
+  (Claude, by Anthropic) for questions, writing, planning, learning, first aid and more. It remembers the recent Sky chat.
+- **Offline as backup.** No internet, the daily allowance used up, or the server not set up: Sky answers from the phone
+  as before, and says so. Your own status questions ("who's nearby?") and answers you taught Sky stay on the phone.
+- **Private by design.** Only the question and recent Sky chat are sent, signed by the phone; no name, number,
+  location or other chats. Server needs `ANTHROPIC_API_KEY` (see `server/README.md`).
+
 ## Android 0.19: trips you can replay and export, hunting mode, a new call screen
 
 - **Trips** are always reachable (Compass → All trips), even with recording off, and recorded in more detail (every

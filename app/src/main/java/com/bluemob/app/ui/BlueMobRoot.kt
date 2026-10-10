@@ -393,6 +393,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         files = chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
                         group = vm.groups.collectAsStateWithLifecycle().value[id],
                         onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onGroupInfo = { push("group:$id") },
+                        smartSky = vm.smartSky.collectAsStateWithLifecycle().value, online = vm.online.collectAsStateWithLifecycle().value, onSmartSky = vm::setSmartSky,
                         onCall = { video ->
                             val who = people.firstOrNull { it.nodeId == id }?.name ?: "them"
                             actions.requestCallPermissions(video) { vm.startCall(id, who, video) }

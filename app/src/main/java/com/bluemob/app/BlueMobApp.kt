@@ -11,6 +11,7 @@ import com.bluemob.app.audit.AuditWitness
 import com.bluemob.app.bridge.InternetBridge
 import com.bluemob.app.trust.TrustManager
 import com.bluemob.app.crypto.SecurePrefs
+import com.bluemob.app.bot.SkyAnswer
 import com.bluemob.app.bot.SkyBot
 import com.bluemob.app.bot.SkyFacts
 import com.bluemob.app.chat.MessageRepository
@@ -235,7 +236,7 @@ class BlueMobApp : Application() {
         callLog = db.calls()
         backups = com.bluemob.app.backup.BackupManager(this)
         groups = com.bluemob.app.chat.GroupStore(SecurePrefs.open(this, "groups"))
-        messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text -> SkyBot.reply(text, skyFacts()) },
+        messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text -> skyReply(text) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
             onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
             groups = groups, me = { identity.nodeId to identity.displayName.value },
@@ -362,6 +363,26 @@ class BlueMobApp : Application() {
         var latest = initial
         val save = com.bluemob.app.util.Debounced(2_000) { prefs.edit().putString("book", org.json.JSONObject(latest).toString()).apply() }
         return KeyBook(initial) { latest = it; save() }
+    }
+
+    /**
+     * Sky's answer. With Smart Sky on and internet, anything the phone can't answer itself (its own status, what the user
+     * taught it) goes to Claude through the relay; otherwise, or if that fails, Sky answers offline as before.
+     */
+    private suspend fun skyReply(text: String): SkyAnswer {
+        val facts = skyFacts()
+        val url = settings.bridgeUrl.value
+        if (!settings.smartSky.value || !connectivity.online.value || url.isBlank()) return SkyBot.reply(text, facts)
+        SkyBot.phoneAnswer(text, facts)?.let { return it }
+        val lines = messages.conversations.value[SkyBot.NODE_ID].orEmpty().sortedBy { it.createdAt }
+            .let { l -> if (l.lastOrNull()?.let { it.fromMe && it.text == text.trim() } == true) l.dropLast(1) else l }
+            .map { com.bluemob.app.bot.SmartSky.Turn(it.fromMe, it.text) }
+        val history = com.bluemob.app.bot.SmartSky.history(lines, SkyBot.greeting)
+        return when (val r = com.bluemob.app.bot.SmartSky.ask(url, identity.keys, text, history)) {
+            is com.bluemob.app.bot.SmartSky.Result.Answer -> SkyAnswer("✨ " + r.text + if (r.left in 0..3) "\n\n(${r.left} Smart Sky question${if (r.left == 1) "" else "s"} left today)" else "",
+                listOfNotNull(SkyBot.guideIdFor(text)?.let { com.bluemob.app.bot.SkyAction("Open the offline guide", "guide:$it") }))
+            else -> SkyBot.reply(text, facts).let { it.copy(text = com.bluemob.app.bot.SmartSky.note(r) + "\n\n" + it.text) }
+        }
     }
 
     /** What Sky can see on this phone right now. */

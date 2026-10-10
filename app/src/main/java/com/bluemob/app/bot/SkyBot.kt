@@ -173,12 +173,18 @@ object SkyBot {
 
     private var turn = 0
 
+    /** Answers only this phone can give (what the user taught Sky, live status), which Smart Sky shouldn't replace. */
+    fun phoneAnswer(input: String, facts: SkyFacts): SkyAnswer? {
+        val t = input.lowercase()
+        // Something the user taught Sky on this phone comes first.
+        SkyMemory.answer(t)?.let { return SkyAnswer("You taught me this: $it", listOf(SkyAction("Teach me a better answer", "teach:" + input.take(120)))) }
+        return live(t, facts)
+    }
+
     fun reply(input: String, facts: SkyFacts): SkyAnswer {
         val t = input.lowercase()
         turn++
-        // Something the user taught Sky on this phone comes first.
-        SkyMemory.answer(t)?.let { return SkyAnswer("You taught me this: $it", listOf(SkyAction("Teach me a better answer", "teach:" + input.take(120)))) }
-        live(t, facts)?.let { return it }
+        phoneAnswer(input, facts)?.let { return it }
         appHelp.firstOrNull { h -> h.keys.any { atWord(t, it) } }?.let { return SkyAnswer(it.text, it.actions) }
         if (freeTime.containsMatchIn(t)) return SkyAnswer(
             "Some ideas for free time out here 🌿\n• Play Tic-tac-toe or Connect 4 with someone nearby over the mesh, or against the computer if no one's around\n" +
