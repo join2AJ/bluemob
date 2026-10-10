@@ -1,5 +1,15 @@
 package com.bluemob.app.ui.call
 
+import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.SettingsInputAntenna
+import androidx.compose.material.icons.rounded.VideocamOff
+import androidx.compose.material.icons.rounded.Cameraswitch
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+
 import androidx.compose.animation.core.animateFloatAsState
 import android.graphics.Bitmap
 import android.util.Size
@@ -188,25 +198,25 @@ fun CallScreen(
                     when (call.phase) {
                         CallPhase.INCOMING -> {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                RoundButton("✕", "Decline", Rose, onDecline, big = true)
-                                RoundButton(if (call.video) "🎥" else "📞", "Answer", Color(0xFF2E9E6A), onAccept, big = true)
+                                RoundButton(androidx.compose.material.icons.Icons.Rounded.CallEnd, "Decline", Rose, onDecline, big = true)
+                                RoundButton(if (call.video) androidx.compose.material.icons.Icons.Rounded.Videocam else androidx.compose.material.icons.Icons.Rounded.Call, "Answer", Color(0xFF2E9E6A), onAccept, big = true)
                             }
                             Text("💬  Reply with a message", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp,
                                 modifier = Modifier.padding(top = 18.dp).clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.12f)).clickable { replies = true }.padding(horizontal = 16.dp, vertical = 8.dp))
                         }
-                        CallPhase.OUTGOING -> RoundButton("✕", "Cancel", Rose, onDecline, big = true)
+                        CallPhase.OUTGOING -> RoundButton(androidx.compose.material.icons.Icons.Rounded.CallEnd, "Cancel", Rose, onDecline, big = true)
                         CallPhase.ACTIVE -> {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                Toggle(if (call.muted) "🔇" else "🎙", if (call.muted) "Unmute" else "Mute", call.muted, onMute)
-                                Toggle("🔊", "Speaker", call.speaker, onSpeaker)
-                                Toggle("📻", "Walkie-talkie", call.ptt, onPtt)
+                                Toggle(if (call.muted) androidx.compose.material.icons.Icons.Rounded.MicOff else androidx.compose.material.icons.Icons.Rounded.Mic, if (call.muted) "Unmute" else "Mute", call.muted, onMute)
+                                Toggle(androidx.compose.material.icons.Icons.AutoMirrored.Rounded.VolumeUp, "Speaker", call.speaker, onSpeaker)
+                                Toggle(androidx.compose.material.icons.Icons.Rounded.SettingsInputAntenna, "Walkie-talkie", call.ptt, onPtt)
                                 if (call.video) {
-                                    Toggle(if (call.cameraOn) "📷" else "🚫", "Camera", call.cameraOn, onCamera)
-                                    if (call.cameraOn) Toggle("🔄", "Flip", false) { front = !front }
+                                    Toggle(if (call.cameraOn) androidx.compose.material.icons.Icons.Rounded.Videocam else androidx.compose.material.icons.Icons.Rounded.VideocamOff, "Camera", call.cameraOn, onCamera)
+                                    if (call.cameraOn) Toggle(androidx.compose.material.icons.Icons.Rounded.Cameraswitch, "Flip", false) { front = !front }
                                 }
                             }
                             Spacer(Modifier.height(22.dp))
-                            RoundButton("✕", "End call", Rose, onDecline, big = true)
+                            RoundButton(androidx.compose.material.icons.Icons.Rounded.CallEnd, "End call", Rose, onDecline, big = true)
                         }
                         CallPhase.ENDED -> Unit
                     }
@@ -259,12 +269,12 @@ private fun Ringed(active: Boolean, talking: Boolean, content: @Composable () ->
 }
 
 @Composable
-private fun RoundButton(icon: String, label: String, color: Color, onClick: () -> Unit, big: Boolean = false) {
+private fun RoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, color: Color, onClick: () -> Unit, big: Boolean = false) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(if (big) 76.dp else 60.dp).graphicsLayer { shadowElevation = 24f; shape = CircleShape; ambientShadowColor = color; spotShadowColor = color }
             .clip(CircleShape).background(Brush.radialGradient(listOf(color, color.copy(alpha = 0.75f))))
             .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-            Text(icon, fontSize = if (big) 28.sp else 24.sp, color = Color.White)
+            androidx.compose.material3.Icon(icon, label, tint = Color.White, modifier = Modifier.size(if (big) 34.dp else 28.dp))
         }
         Text(label, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
     }
@@ -272,12 +282,12 @@ private fun RoundButton(icon: String, label: String, color: Color, onClick: () -
 
 /** A glass circle; lit blue while on. */
 @Composable
-private fun Toggle(icon: String, label: String, on: Boolean, onClick: () -> Unit) {
+private fun Toggle(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, on: Boolean, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(66.dp)) {
         Box(Modifier.size(56.dp).clip(CircleShape)
             .background(if (on) Brush.radialGradient(listOf(Glow, Glow.copy(alpha = 0.55f))) else Brush.radialGradient(listOf(Color.White.copy(alpha = 0.10f), Color.White.copy(alpha = 0.05f))))
             .border(1.dp, if (on) GlowSoft else Color.White.copy(alpha = 0.18f), CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-            Text(icon, fontSize = 22.sp, color = Color.White)
+            androidx.compose.material3.Icon(icon, label, tint = Color.White, modifier = Modifier.size(26.dp))
         }
         Text(label, color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
     }
@@ -358,7 +368,7 @@ private fun TalkButton(talking: Boolean, theyTalking: Boolean, onTalk: (Boolean)
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("🎙", fontSize = 34.sp)
+                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Mic, null, tint = Color.White, modifier = Modifier.size(40.dp))
                 Text(if (talking) "Talking…" else "Hold to talk", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
