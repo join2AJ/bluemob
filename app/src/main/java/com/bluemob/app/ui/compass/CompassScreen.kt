@@ -84,7 +84,8 @@ fun CompassScreen(
     onHoldLocation: () -> Unit,
     onReleaseLocation: () -> Unit,
     onRequestLocation: () -> Unit,
-    onSaveSpot: () -> Unit,
+    /** Saves where we are, under the name the user gives it. */
+    onSaveSpot: (String) -> Unit,
     onRemoveSpot: (String) -> Unit,
     trail: TrailUi = TrailUi(),
     trailActions: TrailActions = TrailActions(),
@@ -102,6 +103,25 @@ fun CompassScreen(
         onDispose { if (hasLocationPermission) onReleaseLocation() }
     }
     val heading by remember(headings) { headings }.collectAsStateWithLifecycle(initialValue = 0f)
+    // "Save this spot" asks for a name; the date and time are kept with it.
+    var naming by rememberSaveable { mutableStateOf(false) }
+    if (naming) {
+        val stamp = remember { java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.getDefault()).format(java.util.Date()) }
+        var spotName by rememberSaveable { mutableStateOf("Spot ${spots.count { !it.isBaseCamp } + 1}") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { naming = false },
+            title = { Text("Save this spot") },
+            text = {
+                Column {
+                    androidx.compose.material3.OutlinedTextField(spotName, { spotName = it.take(40) }, label = { Text("Name") }, singleLine = true,
+                        placeholder = { Text("e.g. Water source, Car park, Camp 2") })
+                    Text("Saved with today's date and time: $stamp", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
+                }
+            },
+            confirmButton = { Button(onClick = { onSaveSpot(spotName.trim().ifBlank { "Spot" }); naming = false }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { naming = false }) { Text("Cancel") } },
+        )
+    }
     val targets = spots.map { Target(it.id, it.name, if (it.isBaseCamp) "⛺" else "📍", GeoPoint(it.lat, it.lon, 0f, it.time)) } +
         people.mapNotNull { p -> p.location?.let { Target(p.nodeId, if (p.lost != null) "${p.name} (lost)" else p.name, p.avatar ?: "🙂", it, p) } }
     var selected by rememberSaveable { mutableStateOf(initialTarget) }
@@ -217,12 +237,12 @@ fun CompassScreen(
         }
         item {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
-                TextButton(onClick = onSaveSpot) { Text("+ Save this spot") }
+                TextButton(onClick = { naming = true }) { Text("+ Save this spot") }
                 TextButton(onClick = trailActions.onBaseCamp) { Text("⛺ Set base camp here") }
             }
         }
         item { GroupLabel("Trail & lost mode") }
-        item { if (trail.on) TrailCard(trail, spots, myLocation, trailActions) else TrailOptIn(trailActions.onTrail) }
+        item { if (trail.on) TrailCard(trail, spots, myLocation, trailActions) else TrailOptIn(trailActions.onTrail, trailActions.onTrips) }
         item { Box(Modifier.padding(top = 12.dp)) { LostCard(trail, trailActions.onLost) } }
         if (spots.any { !it.isBaseCamp }) {
             item { GroupLabel("Saved spots") }
@@ -230,7 +250,8 @@ fun CompassScreen(
                 Group {
                     spots.filterNot { it.isBaseCamp }.forEachIndexed { i, s ->
                         SettingRow(Icons.Outlined.Place, MaterialTheme.colorScheme.primary, s.name,
-                            myLocation?.let { Geo.formatDistance(Geo.distanceM(it, GeoPoint(s.lat, s.lon, 0f, 0))) + " away" } ?: "Saved place", divider = i > 0) {
+                            listOfNotNull(myLocation?.let { Geo.formatDistance(Geo.distanceM(it, GeoPoint(s.lat, s.lon, 0f, 0))) + " away" },
+                                "saved " + java.text.SimpleDateFormat("d MMM yyyy, h:mm a", java.util.Locale.getDefault()).format(java.util.Date(s.time))).joinToString(" · "), divider = i > 0) {
                             TextButton(onClick = { onRemoveSpot(s.id) }) { Text("Remove") }
                         }
                     }

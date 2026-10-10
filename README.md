@@ -36,6 +36,19 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.19: trips you can replay and export, hunting mode, a new call screen
+
+- **Trips** are always reachable (Compass → All trips), even with recording off, and recorded in more detail (every
+  5 m, with speed and altitude). Each trip has a zoomable map, **playback** with a time slider (10×, 60×, 300×), a
+  speed chart, and **how they travelled** (on foot, cycle, motorbike, car or bus, judged from speed). **Export picture +
+  data** shares a picture of the trail with its numbers, a CSV of every point (date, time, position, accuracy, speed,
+  altitude, travel mode) and a GPX file.
+- **Save this spot** asks for a name and keeps the date and time.
+- **SOS hunting mode:** while an SOS is on, the phone keeps scanning for phones nearby. People coming to help can make
+  it sound, flash its light or light up its screen for 20 seconds, to find someone who can't answer. On by default;
+  You → Safety → "Helpers can signal my phone" turns it off.
+- **Call screen:** dark, with glowing blue waves round the caller that move with the voices.
+
 ## Android 0.18: a fuller dashboard, new game look, real-life quiz
 
 - **Your activity** now shows time spent in each part of BlueMob (Chats, Calls, Guide, Settings…) with a bar per day,

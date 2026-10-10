@@ -29,6 +29,10 @@ class LocationTracker(context: Context) {
     /** Height above sea level from GPS, in metres, when the fix has one. */
     val altitude: StateFlow<Double?> = _altitude.asStateFlow()
 
+    private val _speed = MutableStateFlow<Float?>(null)
+    /** Ground speed from GPS (metres a second), when the last fix had one. */
+    val speed: StateFlow<Float?> = _speed.asStateFlow()
+
     private var active = false
 
     private val listener = LocationListener { loc: Location ->
@@ -39,6 +43,7 @@ class LocationTracker(context: Context) {
             return@LocationListener
         }
         _location.value = GeoPoint(loc.latitude, loc.longitude, loc.accuracy, loc.time)
+        _speed.value = if (loc.hasSpeed()) loc.speed else null
         if (loc.hasAltitude()) _altitude.value = if (android.os.Build.VERSION.SDK_INT >= 34 && loc.hasMslAltitude()) loc.mslAltitudeMeters else loc.altitude
     }
 

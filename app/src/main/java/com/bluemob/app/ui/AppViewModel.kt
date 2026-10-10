@@ -279,6 +279,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val badges: StateFlow<List<com.bluemob.app.ui.profile.Badge>> by lazy { badgeInputs.map { com.bluemob.app.ui.profile.Badges.of(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.bluemob.app.ui.profile.Badges.of(com.bluemob.app.ui.profile.BadgeStats())) }
 
+    val allowRemoteSignal = settings.allowRemoteSignal
+    fun setAllowRemoteSignal(on: Boolean) = settings.setAllowRemoteSignal(on)
+    val screenFlash = lostMode.screenFlash
+    fun stopSignalling() = lostMode.stopRinging()
+
     val pinnedChats = settings.pinnedChats
     fun setPinned(id: String, on: Boolean) = settings.setPinned(id, on)
     val callsSeenAt = settings.callsSeenAt
@@ -382,10 +387,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 .resolve(com.bluemob.app.files.Attachment.safeName(t.name) + ".gpx").apply { writeText(gpx) }
         }
     }
+    /** Picture (PNG), every point with timestamps (CSV), and GPX: everything about a trip, ready to share. */
+    suspend fun exportTrip(id: String): List<java.io.File> {
+        val t = trips.value.firstOrNull { it.id == id } ?: return emptyList()
+        val points = trail.pointsOf(id)
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val dir = java.io.File(getApplication<android.app.Application>().cacheDir, "open").apply { mkdirs() }
+            val base = com.bluemob.app.files.Attachment.safeName(t.name)
+            val png = dir.resolve("$base.png").apply {
+                outputStream().use { com.bluemob.app.trail.TripImage.render(t, points).compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            }
+            val csv = dir.resolve("$base.csv").apply { writeText(com.bluemob.app.ui.compass.tripCsv(points)) }
+            val gpx = dir.resolve("$base.gpx").apply { writeText(com.bluemob.app.ui.compass.tripGpx(t, points)) }
+            listOf(png, csv, gpx)
+        }
+    }
     fun clearTrail() = trail.clear()
     fun onStepPermission() = trail.onStepPermission()
     fun setLost(on: Boolean) = if (on) lostMode.start() else lostMode.stop()
-    fun ring(nodeId: String) { if (tooOld(nodeId, blueMob.contacts.contacts.value[nodeId]?.name ?: "They", "ring", "ringing")) return; if (!lostMode.ring(nodeId)) toast("No one is in range to pass this on. Get closer, or wait for the mesh to reconnect.") else toast("Ringing… ask everyone to be quiet and listen.") }
+    fun ring(nodeId: String, what: String = com.bluemob.app.trail.LostMode.ALL) { if (tooOld(nodeId, blueMob.contacts.contacts.value[nodeId]?.name ?: "They", "ring", "ringing")) return; if (!lostMode.ring(nodeId, what)) toast("No one is in range to pass this on. Get closer, or wait for the mesh to reconnect.") else toast("Ringing… ask everyone to be quiet and listen.") }
     fun setBaseCamp() = savePlace("Base camp", baseCamp = true)
     fun refreshRadios() {
         blueMob.radios.refresh()
@@ -622,6 +642,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private val calls = blueMob.calls
+    fun callLevels() = calls.levels()
     val call = calls.call
     val remoteFrame = calls.remoteFrame
     val localFrame = calls.localFrame

@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.rescue
 
+import androidx.compose.foundation.border
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -95,6 +96,8 @@ class RescueActions(
     /** For the person in need: what's on that helps them be found ("location", "bluetooth", "mesh", "internet"), and turning one on. */
     val readiness: Map<String, Boolean> = emptyMap(),
     val onTurnOn: (String) -> Unit = {},
+    /** For helpers: make their phone sound, flash its light or light up its screen ("sound", "flash", "screen", "all"). */
+    val onSignalThem: (String) -> Unit = {},
 )
 
 private val HELPER_REPLIES = listOf("On my way 🏃", "Stay where you are", "Can you hear my whistle?", "Shine your light", "I see you!", "Need more people")
@@ -145,6 +148,23 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
             }
             item { GroupLabel(if (room.mine) "Who's coming" else "Who's helping") }
             item { HelpersCard(room, myId) }
+            // Helpers close by: make their phone call out, so you find them even if they can't answer.
+            if (!room.mine && !room.ended) item {
+                Surface(shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.padding(top = 12.dp)) {
+                    Column(Modifier.padding(14.dp).fillMaxWidth()) {
+                        Text("Find ${room.victimName}", style = MaterialTheme.typography.titleMedium)
+                        Text("Close but can't see them? Make their phone call out for 20 seconds. Works even if they can't answer.",
+                            style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("sound" to "🔊 Sound", "flash" to "🔦 Flash", "screen" to "📱 Screen", "all" to "All").forEach { (k, l) ->
+                                OutlinedButton(onClick = { actions.onSignalThem(k) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) {
+                                    Text(l, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             if (!room.mine && room.myStatus == HelperStatus.COMING) item {
                 GroupLabel("Before you set off")
                 Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, Extra.line)) {
@@ -273,7 +293,7 @@ private fun VictimCard(room: RescueRoom, actions: RescueActions) {
                 listOf(
                     "location" to ("📍 Location" to "so helpers know where you are"),
                     "bluetooth" to ("📶 Bluetooth" to "so phones nearby find you without signal"),
-                    "mesh" to ("📡 Searching nearby" to "your SOS goes to every phone in range"),
+                    "mesh" to ("📡 Hunting mode" to "keeps scanning for phones nearby, so your SOS reaches everyone in range"),
                     "internet" to ("🌐 Internet" to "reaches your SOS contacts anywhere"),
                 ).forEach { (k, v) ->
                     val on = actions.readiness[k] ?: return@forEach
@@ -417,24 +437,36 @@ private fun RateRescue(room: RescueRoom, myId: String, rated: Set<String>, actio
 
 /** Every rescue on this phone, in two lists: when you asked for help, and when you helped. Newest first. */
 @Composable
-fun RescuesScreen(rescues: List<com.bluemob.app.rescue.RescueRoom>, onBack: () -> Unit, onOpen: (String) -> Unit) {
+fun RescuesScreen(rescues: List<com.bluemob.app.rescue.RescueRoom>, onBack: () -> Unit, onOpen: (String) -> Unit, mySosId: String? = null) {
+    // Ongoing: our own SOS that's on right now, or one we're on the way to (or at) that hasn't ended. These go first.
+    val now = System.currentTimeMillis()
+    val ongoing = { r: com.bluemob.app.rescue.RescueRoom ->
+        !r.ended && (if (r.mine) r.id == mySosId else (r.myStatus == HelperStatus.COMING || r.myStatus == HelperStatus.ARRIVED) && now - r.startedAt < 24 * 3_600_000L)
+    }
     com.bluemob.app.ui.components.SubScreen("Rescues", onBack) {
-        val asked = rescues.filter { it.mine }.sortedByDescending { it.startedAt }
-        val helped = rescues.filter { !it.mine }.sortedByDescending { it.startedAt }
+        val asked = rescues.filter { it.mine }.sortedWith(compareByDescending<com.bluemob.app.rescue.RescueRoom> { ongoing(it) }.thenByDescending { it.startedAt })
+        val helped = rescues.filter { !it.mine }.sortedWith(compareByDescending<com.bluemob.app.rescue.RescueRoom> { ongoing(it) }.thenByDescending { it.startedAt })
         if (rescues.isEmpty()) item { Text("No rescues yet.", color = Extra.ink2, modifier = Modifier.padding(top = 16.dp)) }
         listOf("You asked for help" to asked, "You helped" to helped).forEach { (label, list) ->
             if (list.isNotEmpty()) {
                 item { com.bluemob.app.ui.components.GroupLabel("$label · ${list.size}") }
                 list.forEach { r ->
                     item(key = r.id) {
-                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
+                        val live = ongoing(r)
+                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(16.dp))
+                            .background(if (live) Extra.rose.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
+                            .then(if (live) Modifier.border(1.5.dp, Extra.rose, RoundedCornerShape(16.dp)) else Modifier)
                             .clickable { onOpen(r.id) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(if (r.ended) "✅" else "🆘", fontSize = 24.sp)
                             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                Text(if (r.mine) "Your SOS" + (r.note.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") else "Helping ${r.victimName}",
-                                    style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                                Text(rescueStamp(r.startedAt) + " · " + (if (r.ended) "ended" else "active") + " · ${r.coming.size} came to help",
-                                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(if (r.mine) "Your SOS" + (r.note.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") else "Helping ${r.victimName}",
+                                        style = MaterialTheme.typography.titleMedium, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+                                    if (live) Text("ONGOING", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(6.dp)).background(Extra.rose).padding(horizontal = 7.dp, vertical = 2.dp))
+                                }
+                                Text(rescueStamp(r.startedAt) + " · " + (if (r.ended) "ended" else if (live) "happening now" else "no news") + " · ${r.coming.size} came to help",
+                                    style = MaterialTheme.typography.bodySmall, color = if (live) Extra.rose else Extra.ink2)
                             }
                         }
                     }

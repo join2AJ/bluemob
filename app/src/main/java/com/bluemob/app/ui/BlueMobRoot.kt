@@ -133,6 +133,8 @@ class SystemActions(
     val leaveApp: () -> Unit = {},
     /** Shares a file (e.g. a trip as GPX) through Android's share sheet. */
     val shareFile: (java.io.File, String) -> Unit = { _, _ -> },
+    /** Shares several files at once (e.g. a trip's picture, CSV and GPX). */
+    val shareFiles: (List<java.io.File>) -> Unit = {},
     val backup: com.bluemob.app.ui.system.BackupActions = com.bluemob.app.ui.system.BackupActions({}, { _, _ -> }, {}, {}),
     /** Opens the phone's picker: "photo", "video" or "doc". */
     val pickFile: (String, (android.net.Uri) -> Unit) -> Unit = { _, _ -> },
@@ -342,7 +344,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             altitude = vm.altitude.collectAsStateWithLifecycle().value, compassAccuracy = vm.compassAccuracy.collectAsStateWithLifecycle().value,
                             onShareLocation = { g -> actions.shareText(com.bluemob.app.util.Geo.shareText(g)) },
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
-                            onSaveSpot = { if (!system.locationPermission) actions.requestLocation() else vm.saveSpot("Spot ${spots.count { !it.isBaseCamp } + 1}") }, onRemoveSpot = vm::removeSpot,
+                            onSaveSpot = { n -> if (!system.locationPermission) actions.requestLocation() else vm.saveSpot(n) }, onRemoveSpot = vm::removeSpot,
                             trail = TrailUi(trailOn, trailPoints, estimate, lostOn, vm.hasStepPermission() && vm.stepCounterAvailable, vm.stepCounterAvailable),
                             trailActions = TrailActions(
                                 onTrail = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setTrail(on) },
@@ -365,6 +367,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onBadges = { push("badges") },
                             theme = vm.theme.collectAsStateWithLifecycle().value, onTheme = vm::setTheme,
                             emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value, onEmergencyCard = vm::setEmergencyCard,
+                            remoteSignal = vm.allowRemoteSignal.collectAsStateWithLifecycle().value, onRemoteSignal = vm::setAllowRemoteSignal,
                             activitySummary = vm.activity.collectAsStateWithLifecycle().value.let { ev ->
                                 val week = System.currentTimeMillis() - 7 * 86_400_000L
                                 val recent = ev.filter { it.at >= week }
@@ -448,7 +451,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "newchat" -> NewChatScreen(vm.nodeId, people, ::pop,
                     onStart = { id, n -> vm.startChatById(id, n); pop(); push("chat:$id") },
                     onOpen = { pop(); push("chat:$it") }, onShareId = actions.shareId)
-                route == "rescues" -> com.bluemob.app.ui.rescue.RescuesScreen(rescues, ::pop) { push("rescue:$it") }
+                route == "rescues" -> com.bluemob.app.ui.rescue.RescuesScreen(rescues, ::pop, onOpen = { push("rescue:$it") }, mySosId = mySos?.id)
                 route.startsWith("rescue:") -> {
                     val room = rescues.firstOrNull { it.id == route.removePrefix("rescue:") }
                     if (room == null) LaunchedEffect(Unit) { delay(1_500); pop() }
@@ -463,6 +466,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             "location" to (system.locationPermission && radios.location), "bluetooth" to radios.bluetooth,
                             "mesh" to running, "internet" to online),
                         onTurnOn = { k -> turnOnForSos(k) },
+                        onSignalThem = { what -> vm.ring(room.victimId, what) },
                         onRate = { who, kind -> vm.rate(who, kind, room.id, "") },
                     ))
                 }
@@ -531,7 +535,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     if (trip == null) LaunchedEffect(Unit) { pop() }
                     else com.bluemob.app.ui.compass.TripScreen(trip, if (id == current) live else stored.orEmpty(), spots, id == current, ::pop,
                         onRename = { vm.renameTrip(id, it) }, onDelete = { vm.deleteTrip(id) },
-                        onShareGpx = { scope.launch { vm.tripGpxFile(id)?.let { actions.shareFile(it, "application/gpx+xml") } } })
+                        onShareGpx = { scope.launch { vm.tripGpxFile(id)?.let { actions.shareFile(it, "application/gpx+xml") } } },
+                        onExport = { scope.launch { vm.exportTrip(id).takeIf { it.isNotEmpty() }?.let { actions.shareFiles(it) } } })
                 }
                 route == "backup" -> com.bluemob.app.ui.system.BackupScreen(vm.backups, vm.backups.status.collectAsStateWithLifecycle().value,
                     vm.backups.every.collectAsStateWithLifecycle().value, vm.backups.folder.collectAsStateWithLifecycle().value, actions.backup, ::pop)
@@ -572,6 +577,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             }
         }
 
+        // A helper asked this phone to light up its screen: full brightness, flashing, so it can be seen from far.
+        val flashUntil by vm.screenFlash.collectAsStateWithLifecycle()
+        if (flashUntil > 0L) com.bluemob.app.ui.sos.HelperFlash(flashUntil, onStop = vm::stopSignalling)
         vm.checkRequests.collectAsStateWithLifecycle().value.firstOrNull()?.let { r ->
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = {},
@@ -651,6 +659,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 wantsFrame = vm::wantsFrame, onFrame = vm::onCameraFrame,
                 onPtt = vm::togglePtt, onTalk = vm::talk, avatar = people.firstOrNull { it.nodeId == c.peer }?.avatar,
                 onQuickReply = { text -> vm.hangUp(); vm.send(c.peer, text) },
+                levels = vm::callLevels,
             )
         }
 

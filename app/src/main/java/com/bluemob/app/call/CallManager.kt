@@ -160,6 +160,12 @@ class CallManager(
         }
     }
 
+    /** (their voice, my voice), 0..1, for the call screen. Fades to 0 when nothing arrives. */
+    fun levels(): Pair<Float, Float> {
+        val quiet = SystemClock.elapsedRealtime() - lastAudioAt > 400
+        return (if (quiet) 0f else voice.theirLevel) to voice.myLevel
+    }
+
     fun hasMic() = ContextCompat.checkSelfPermission(app, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     fun hasCamera() = ContextCompat.checkSelfPermission(app, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 

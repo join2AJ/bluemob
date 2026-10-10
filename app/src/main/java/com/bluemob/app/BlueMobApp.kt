@@ -182,7 +182,8 @@ class BlueMobApp : Application() {
         identity.previousNodeId?.let { audit.add(AuditKind.APP, "BlueMob ID changed from BM ${formatId(it)} to a key-based ID that can't be copied") }
         trail = TrailRecorder(this, location, heading, db.trail(), db.trips(), settings, audit, appScope) { identity.shareLocation.value }
         sos = SosManager(this, mesh, identity, trail, signals, audit, appScope) { profile.profile.value.let { it.age to it.bloodGroup } }
-        lost = LostMode(mesh, identity, trail, audit, appScope, location, signals, sosActive = { sos.mine.value != null }, say = ::say)
+        lost = LostMode(mesh, identity, trail, audit, appScope, location, signals, sosActive = { sos.mine.value != null }, say = ::say,
+            allowed = { settings.allowRemoteSignal.value })
         matches = com.bluemob.app.games.Matches(mesh, appScope) { m ->
             if (!inForeground) notifier.note("${m.opponentName} wants to play", "${com.bluemob.app.games.Match.title(m.game)} over the mesh. Tap to answer.", "games")
         }

@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.call
 
+import androidx.compose.animation.core.animateFloatAsState
 import android.graphics.Bitmap
 import android.util.Size
 import androidx.camera.core.CameraSelector
@@ -73,7 +74,9 @@ import com.bluemob.app.call.CallPhase
 import kotlinx.coroutines.delay
 import java.util.concurrent.Executors
 
-private val Ink = Color(0xFF0B1A15)
+private val Ink = Color(0xFF050B1A)
+private val Glow = Color(0xFF3D8BFF)
+private val GlowSoft = Color(0xFF6FB3FF)
 private val Pine = Color(0xFF2E9E6A)
 private val Rose = Color(0xFFE0545A)
 private val Amber = Color(0xFFFFD27A)
@@ -100,6 +103,8 @@ fun CallScreen(
     avatar: String? = null,
     /** Declines with a short message, like "Can't talk now, I'll call you back". */
     onQuickReply: (String) -> Unit = {},
+    /** (their voice, my voice) loudness 0..1: the waves move with whoever is speaking. */
+    levels: () -> Pair<Float, Float> = { 0f to 0f },
 ) {
     var replies by remember { mutableStateOf(false) }
     if (replies) androidx.compose.material3.AlertDialog(
@@ -119,9 +124,12 @@ fun CallScreen(
     val showVideo = call.phase == CallPhase.ACTIVE && remote != null
     // In a video call, controls hide after a few seconds; tap the picture to bring them back.
     LaunchedEffect(controls, showVideo) { if (showVideo && controls) { delay(5_000); controls = false } }
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF123A2E), Ink)))
+    var level by remember { mutableStateOf(0f to 0f) }
+    LaunchedEffect(call.phase) { while (call.phase == CallPhase.ACTIVE) { level = levels(); delay(80) } }
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0B1630), Ink, Color(0xFF02050C))))
         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { controls = !controls }) {
         if (showVideo) Image(remote!!.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else AmbientWaves(level.first.coerceAtLeast(level.second), Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(220.dp))
         if (call.phase == CallPhase.ACTIVE && call.video && call.cameraOn && canUseCamera) {
             CameraFrames(front, wantsFrame, onFrame)
             local?.let {
@@ -141,13 +149,16 @@ fun CallScreen(
                     LinkChip(call)
                     if (!showVideo) {
                         Spacer(Modifier.height(36.dp))
-                        Ringed(call.phase == CallPhase.OUTGOING || call.phase == CallPhase.INCOMING, call.theyTalking) {
-                            Box(Modifier.size(120.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                                Text(avatar ?: call.name.take(1).uppercase(), fontSize = if (avatar != null) 56.sp else 48.sp, color = Color.White)
+                        // Glowing waves round their picture: they breathe while ringing and swell with the voices.
+                        GlowWave(ringing = call.phase == CallPhase.OUTGOING || call.phase == CallPhase.INCOMING, level = maxOf(level.first, level.second * 0.6f),
+                            modifier = Modifier.size(260.dp)) {
+                            Box(Modifier.size(112.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).border(1.dp, GlowSoft.copy(alpha = 0.4f), CircleShape),
+                                contentAlignment = Alignment.Center) {
+                                Text(avatar ?: call.name.take(1).uppercase(), fontSize = if (avatar != null) 54.sp else 46.sp, color = Color.White)
                             }
                         }
                     }
-                    Text(call.name, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 22.dp))
+                    Text(call.name, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = if (showVideo) 22.dp else 4.dp))
                     Text(
                         when (call.phase) {
                             CallPhase.OUTGOING -> when {
@@ -159,7 +170,8 @@ fun CallScreen(
                             CallPhase.ACTIVE -> "%d:%02d".format(elapsed / 60, elapsed % 60) + (if (call.video && remote == null) " · waiting for video…" else "")
                             CallPhase.ENDED -> call.ended ?: "Call ended"
                         },
-                        color = Color.White.copy(alpha = 0.8f), fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp, start = 24.dp, end = 24.dp),
+                        color = if (call.phase == CallPhase.ACTIVE) GlowSoft else Color.White.copy(alpha = 0.75f), fontSize = 16.sp, textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 6.dp, start = 24.dp, end = 24.dp),
                     )
                     problem(call)?.let {
                         Text(it, color = Amber, fontSize = 14.sp, textAlign = TextAlign.Center,
@@ -177,7 +189,7 @@ fun CallScreen(
                         CallPhase.INCOMING -> {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 RoundButton("✕", "Decline", Rose, onDecline, big = true)
-                                RoundButton(if (call.video) "🎥" else "📞", "Answer", Pine, onAccept, big = true)
+                                RoundButton(if (call.video) "🎥" else "📞", "Answer", Color(0xFF2E9E6A), onAccept, big = true)
                             }
                             Text("💬  Reply with a message", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp,
                                 modifier = Modifier.padding(top = 18.dp).clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.12f)).clickable { replies = true }.padding(horizontal = 16.dp, vertical = 8.dp))
@@ -249,20 +261,80 @@ private fun Ringed(active: Boolean, talking: Boolean, content: @Composable () ->
 @Composable
 private fun RoundButton(icon: String, label: String, color: Color, onClick: () -> Unit, big: Boolean = false) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(if (big) 72.dp else 60.dp).clip(CircleShape).background(color).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(if (big) 76.dp else 60.dp).graphicsLayer { shadowElevation = 24f; shape = CircleShape; ambientShadowColor = color; spotShadowColor = color }
+            .clip(CircleShape).background(Brush.radialGradient(listOf(color, color.copy(alpha = 0.75f))))
+            .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
             Text(icon, fontSize = if (big) 28.sp else 24.sp, color = Color.White)
         }
-        Text(label, color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        Text(label, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
+/** A glass circle; lit blue while on. */
 @Composable
 private fun Toggle(icon: String, label: String, on: Boolean, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(66.dp)) {
-        Box(Modifier.size(56.dp).clip(CircleShape).background(if (on) Color.White else Color.White.copy(alpha = 0.14f)).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-            Text(icon, fontSize = 22.sp, color = if (on) Ink else Color.White)
+        Box(Modifier.size(56.dp).clip(CircleShape)
+            .background(if (on) Brush.radialGradient(listOf(Glow, Glow.copy(alpha = 0.55f))) else Brush.radialGradient(listOf(Color.White.copy(alpha = 0.10f), Color.White.copy(alpha = 0.05f))))
+            .border(1.dp, if (on) GlowSoft else Color.White.copy(alpha = 0.18f), CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+            Text(icon, fontSize = 22.sp, color = Color.White)
         }
-        Text(label, color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
+        Text(label, color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+/**
+ * Glowing light-blue waves round the caller: several thin closed curves, each gently deformed, slowly turning.
+ * While ringing they breathe; in a call they swell with the voice ([level] 0..1).
+ */
+@Composable
+private fun GlowWave(ringing: Boolean, level: Float, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val t = rememberInfiniteTransition(label = "wave")
+    val phase by t.animateFloat(0f, (2 * Math.PI).toFloat(), infiniteRepeatable(tween(7_000, easing = LinearEasing)), label = "phase")
+    val breathe by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1_400), RepeatMode.Reverse), label = "breathe")
+    val loud by animateFloatAsState(level, tween(120), label = "loud")
+    Box(modifier, contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val c = center
+            val base = size.minDimension * 0.30f
+            val amp = size.minDimension * (0.025f + (if (ringing) 0.03f * breathe else 0f) + 0.09f * loud)
+            // A soft halo behind.
+            drawCircle(Brush.radialGradient(listOf(Glow.copy(alpha = 0.28f + 0.25f * loud), Color.Transparent), c, base * 1.7f), base * 1.7f, c)
+            for (k in 0 until 9) {
+                val path = androidx.compose.ui.graphics.Path()
+                val off = k * 0.35f
+                for (i in 0..120) {
+                    val a = i / 120f * 2 * Math.PI.toFloat()
+                    val r = base + k * 2.2f + amp * (kotlin.math.sin(3 * a + phase + off) * 0.6f + kotlin.math.sin(5 * a - phase * 1.3f + off) * 0.4f)
+                    val x = c.x + r * kotlin.math.cos(a); val y = c.y + r * kotlin.math.sin(a)
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                path.close()
+                drawPath(path, (if (k % 3 == 0) GlowSoft else Glow).copy(alpha = 0.55f - k * 0.045f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.6f))
+            }
+        }
+        content()
+    }
+}
+
+/** Slow light-blue waves along the bottom of a voice call, rising with the voices. */
+@Composable
+private fun AmbientWaves(level: Float, modifier: Modifier) {
+    val t = rememberInfiniteTransition(label = "ambient")
+    val phase by t.animateFloat(0f, (2 * Math.PI).toFloat(), infiniteRepeatable(tween(9_000, easing = LinearEasing)), label = "p")
+    val loud by animateFloatAsState(level, tween(150), label = "l")
+    androidx.compose.foundation.Canvas(modifier) {
+        for (k in 0 until 7) {
+            val path = androidx.compose.ui.graphics.Path()
+            val amp = size.height * (0.10f + 0.05f * k / 7f + 0.25f * loud)
+            val mid = size.height * (0.55f + k * 0.03f)
+            for (i in 0..80) {
+                val x = size.width * i / 80f
+                val y = mid + amp * kotlin.math.sin(x / size.width * 2.5f * Math.PI.toFloat() + phase + k * 0.5f) * (0.6f + 0.4f * kotlin.math.sin(phase * 0.7f + k).toFloat())
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, Glow.copy(alpha = 0.32f - k * 0.035f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.5f))
+        }
     }
 }
 

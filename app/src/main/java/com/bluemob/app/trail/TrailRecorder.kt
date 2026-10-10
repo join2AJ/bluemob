@@ -200,10 +200,12 @@ class TrailRecorder(
         val last = lastSaved ?: points.value.lastOrNull()
         if (last != null) {
             val d = Geo.distanceM(GeoPoint(last.lat, last.lon, 0f, 0), p)
-            if (estimated) { if (d < 20) return } else if (d < 10 && p.time - last.time < 3 * 60_000) return
+            // Detailed enough to replay the trip and tell walking from riding: every 5 m, or every minute when still.
+            if (estimated) { if (d < 20) return } else if (d < 5 && p.time - last.time < 60_000) return
         }
         val tripId = settings.currentTrip.value ?: return
-        val point = TrailPoint(time = p.time.takeIf { it > 0 } ?: System.currentTimeMillis(), lat = p.lat, lon = p.lon, accuracyM = p.accuracyM, estimated = estimated, tripId = tripId)
+        val point = TrailPoint(time = p.time.takeIf { it > 0 } ?: System.currentTimeMillis(), lat = p.lat, lon = p.lon, accuracyM = p.accuracyM, estimated = estimated, tripId = tripId,
+            speedMps = if (estimated) null else location.speed.value, altitudeM = if (estimated) null else location.altitude.value)
         val step = last?.takeIf { it.tripId == tripId }?.let { Geo.distanceM(GeoPoint(it.lat, it.lon, 0f, 0), p) } ?: 0.0
         lastSaved = point
         dao.insert(point)

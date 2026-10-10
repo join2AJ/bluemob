@@ -71,6 +71,14 @@ class AppSettings(context: Context) {
         prefs.edit().putStringSet("bookmarks", _bookmarks.value).apply()
     }
 
+    private val _remoteSignal = MutableStateFlow(prefs.getBoolean("remote_signal", true))
+    /**
+     * During our SOS (or lost mode), people helping can make this phone sound, flash its light or light up its screen,
+     * so they can find us even if we can't answer. On unless turned off.
+     */
+    val allowRemoteSignal: StateFlow<Boolean> = _remoteSignal.asStateFlow()
+    fun setAllowRemoteSignal(on: Boolean) { _remoteSignal.value = on; prefs.edit().putBoolean("remote_signal", on).apply() }
+
     private val _theme = MutableStateFlow(prefs.getString("theme", "auto") ?: "auto")
     /** "auto" (follow the phone), "light" or "dark". */
     val theme: StateFlow<String> = _theme.asStateFlow()

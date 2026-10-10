@@ -121,6 +121,8 @@ fun ProfileScreen(
     onTheme: (String) -> Unit = {},
     emergencyCard: Boolean = false,
     onEmergencyCard: (Boolean) -> Unit = {},
+    remoteSignal: Boolean = true,
+    onRemoteSignal: (Boolean) -> Unit = {},
 ) {
     var draft by remember(name) { mutableStateOf(name) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
@@ -213,6 +215,9 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Emergency card on lock screen",
                     if (emergencyCard) "On: blood group and SOS contacts show without unlocking" else "Off: let whoever finds you see who to call",
                     divider = true) { androidx.compose.material3.Switch(emergencyCard, onEmergencyCard) }
+                SettingRow(Icons.Outlined.WarningAmber, Extra.ember, "Helpers can signal my phone",
+                    if (remoteSignal) "During your SOS, people coming to help can make it sound, flash or light up, to find you" else "Off: helpers can't make your phone sound or flash",
+                    divider = true) { androidx.compose.material3.Switch(remoteSignal, onRemoteSignal) }
             }
         }
 

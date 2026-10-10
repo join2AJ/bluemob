@@ -204,6 +204,9 @@ data class TrailPoint(
     val estimated: Boolean,
     /** The trip this point belongs to ("" for points recorded before trips existed). */
     @ColumnInfo(defaultValue = "''") val tripId: String = "",
+    /** Speed from GPS (metres a second), and height above sea level, when the fix had them. */
+    val speedMps: Float? = null,
+    val altitudeM: Double? = null,
 )
 
 /** One trip: a trail recorded from "start" to "stop", kept on the phone as long as the user wants. */
@@ -344,7 +347,7 @@ interface RatingDao {
     suspend fun recent(limit: Int): List<RatingRow>
 }
 
-@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class, CallLogEntry::class, Trip::class], version = 8, exportSchema = false)
+@Database(entities = [MessageEntity::class, SeenId::class, AuditEntry::class, TrailPoint::class, RescueMessage::class, RelayRow::class, RatingRow::class, CallLogEntry::class, Trip::class], version = 9, exportSchema = false)
 abstract class BlueMobDatabase : RoomDatabase() {
     abstract fun messages(): MessageDao
     abstract fun audit(): AuditDao
@@ -366,7 +369,7 @@ abstract class BlueMobDatabase : RoomDatabase() {
                 builder.openHelperFactory(net.zetetic.database.sqlcipher.SupportOpenHelperFactory(pass))
             }
             return builder
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) = lockAudit(db)
                 })
@@ -443,6 +446,14 @@ abstract class BlueMobDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 listOf("sender", "senderName", "replyTo", "reactions", "parent").forEach { db.execSQL("ALTER TABLE `messages` ADD COLUMN `$it` TEXT NOT NULL DEFAULT ''") }
                 db.execSQL("ALTER TABLE `messages` ADD COLUMN `hidden` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** Trail points keep speed and altitude, for playback, travel mode and export. */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `trail` ADD COLUMN `speedMps` REAL")
+                db.execSQL("ALTER TABLE `trail` ADD COLUMN `altitudeM` REAL")
             }
         }
 

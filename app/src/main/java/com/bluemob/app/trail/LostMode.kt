@@ -37,7 +37,12 @@ class LostMode(
     private val sosActive: () -> Boolean = { false },
     /** Tells the user something (a toast while BlueMob is open, a notification otherwise). */
     private val say: (String) -> Unit = {},
+    /** Whether helpers may make this phone sound, flash or light up during an SOS (on by default). */
+    private val allowed: () -> Boolean = { true },
 ) {
+    private val _screenFlash = MutableStateFlow(0L)
+    /** Until when the screen should flash (a helper asked), or 0. The app shows a full-screen flashing light. */
+    val screenFlash: StateFlow<Long> = _screenFlash.asStateFlow()
     private val _on = MutableStateFlow(false)
     val on: StateFlow<Boolean> = _on.asStateFlow()
 
@@ -119,8 +124,8 @@ class LostMode(
     }
 
     /** Asks a lost or SOS person's phone to whistle and flash so we can find them. False if no one is in range. */
-    fun ring(nodeId: String): Boolean {
-        val sent = mesh.sendApp(nodeId, RING)
+    fun ring(nodeId: String, what: String = ALL): Boolean {
+        val sent = mesh.sendApp(nodeId, RING, org.json.JSONObject().put("what", what))
         if (sent) {
             audit.add(AuditKind.POSITION, "Asked ${mesh.nameOf(nodeId)}'s phone to ring and flash")
             awaitingReply += nodeId
@@ -140,14 +145,20 @@ class LostMode(
     private fun onApp(e: MeshEvent.App) {
         when (e.kind) {
             RING -> {
-                val canRing = _on.value || sosActive()
-                mesh.sendApp(e.fromNodeId, RING_REPLY, org.json.JSONObject().put("ok", canRing))
+                val inNeed = _on.value || sosActive()
+                val canRing = inNeed && allowed()
+                mesh.sendApp(e.fromNodeId, RING_REPLY, org.json.JSONObject().put("ok", canRing).put("why", if (!inNeed) "not-in-need" else if (!canRing) "off" else ""))
                 if (!canRing) return
+                val what = e.body.optString("what").ifBlank { ALL }
                 val now = System.currentTimeMillis()
                 if (now - lastRing < RING_GAP_MS) return
                 lastRing = now
-                audit.add(AuditKind.POSITION, "${e.name} rang this phone to find me")
+                val sound = what == ALL || what == SOUND
+                val flash = what == ALL || what == FLASH
+                val screen = what == ALL || what == SCREEN
+                audit.add(AuditKind.POSITION, "${e.name} signalled this phone to find me (" + listOfNotNull("sound".takeIf { sound }, "light".takeIf { flash }, "screen".takeIf { screen }).joinToString() + ")")
                 say("${e.name} is close and looking for you. Shout, wave and stay where you are.")
+                if (screen) _screenFlash.value = System.currentTimeMillis() + RING_MS
                 ringJob?.cancel()
                 ringJob = scope.launch {
                     try {
@@ -155,25 +166,30 @@ class LostMode(
                         var on = false
                         while (System.currentTimeMillis() < end) {
                             on = !on
-                            signals?.torch(on)
-                            if (on) signals?.beep(450)
+                            if (flash) signals?.torch(on)
+                            if (on && sound) signals?.beep(450)
                             delay(500)
                         }
-                    } finally { signals?.torch(false) }
+                    } finally { signals?.torch(false); _screenFlash.value = 0L }
                 }
             }
             RING_REPLY -> if (awaitingReply.remove(e.fromNodeId)) say(
-                if (e.body.optBoolean("ok")) "🔔 ${e.name}'s phone is whistling and flashing now. Listen and look around."
+                if (e.body.optBoolean("ok")) "🔔 ${e.name}'s phone is signalling now. Listen and look around."
+                else if (e.body.optString("why") == "off") "${e.name} has turned off signals from helpers. Call out and look for them."
                 else "${e.name} isn't in lost mode or SOS, so their phone won't ring. Message them instead."
             )
         }
     }
 
-    fun stopRinging() { ringJob?.cancel(); ringJob = null; signals?.torch(false) }
+    fun stopRinging() { ringJob?.cancel(); ringJob = null; signals?.torch(false); _screenFlash.value = 0L }
 
     companion object {
         const val RING = "ring"
         const val RING_REPLY = "ring-reply"
+        const val ALL = "all"
+        const val SOUND = "sound"
+        const val FLASH = "flash"
+        const val SCREEN = "screen"
         const val SHARE_EVERY_MS = 15_000L
         const val SHARE_MOVE_M = 10.0
         const val TICK_MS = 3_000L

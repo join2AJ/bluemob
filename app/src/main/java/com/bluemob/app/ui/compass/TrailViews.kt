@@ -72,7 +72,7 @@ class TrailActions(
 
 /** Trail off: explain it, and let the user opt in. */
 @Composable
-fun TrailOptIn(onTrail: (Boolean) -> Unit) {
+fun TrailOptIn(onTrail: (Boolean) -> Unit, onTrips: (() -> Unit)? = null) {
     Group {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
@@ -83,6 +83,10 @@ fun TrailOptIn(onTrail: (Boolean) -> Unit) {
             }
             Spacer(Modifier.width(12.dp))
             Switch(checked = false, onCheckedChange = onTrail)
+        }
+        // Past trips stay viewable with recording off.
+        if (onTrips != null) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onTrips) { Text("All trips: map, playback, export") }
         }
     }
 }

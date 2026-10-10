@@ -54,6 +54,17 @@ class VoiceLink(context: Context, private val send: (ByteArray) -> Unit) {
     @Volatile private var speakerRestarts = 0
     fun stats() = Stats(sent, received, played, micRestarts, speakerRestarts)
 
+    /** How loud each side is right now, 0..1, for the call screen's moving waves. */
+    @Volatile var theirLevel = 0f
+        private set
+    @Volatile var myLevel = 0f
+        private set
+    private fun level(pcm: ShortArray, n: Int = pcm.size): Float {
+        var sum = 0.0
+        for (i in 0 until n) { val v = pcm[i] / 32768.0; sum += v * v }
+        return (kotlin.math.sqrt(sum / n.coerceAtLeast(1)) * 6).toFloat().coerceIn(0f, 1f)
+    }
+
     private var focus: android.media.AudioFocusRequest? = null
 
     @SuppressLint("MissingPermission")
@@ -119,6 +130,7 @@ class VoiceLink(context: Context, private val send: (ByteArray) -> Unit) {
         s.lastSeq = seq
         val pcm = MuLaw.decode(bytes, 3)
         received++
+        theirLevel = theirLevel * 0.5f + level(pcm) * 0.5f
         while (s.queue.size >= QUEUE_KEEP) s.queue.poll()
         s.queue.offer(pcm)
     }
@@ -171,6 +183,7 @@ class VoiceLink(context: Context, private val send: (ByteArray) -> Unit) {
                     // Exact digital silence for a few seconds means the phone muted our capture, not a quiet room.
                     silentFrames = if (pcm.all { it.toInt() == 0 }) silentFrames + 1 else 0
                     if (silentFrames >= SILENT_RESTART && !muted) { Log.w(TAG, "Microphone gives only silence: restarting it"); break }
+                    myLevel = if (muted) 0f else myLevel * 0.5f + level(pcm) * 0.5f
                     if (muted) continue
                     val packet = ByteArray(3 + FRAME)
                     packet[0] = NearbyMeshTransport.MEDIA_AUDIO

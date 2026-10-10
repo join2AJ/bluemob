@@ -160,6 +160,13 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                 openFile = { then -> onOpened = then; runCatching { openLauncher.launch(arrayOf("*/*")) } },
                 restart = ::restart,
             ),
+            shareFiles = { files ->
+                runCatching {
+                    val uris = ArrayList(files.map { androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", it) })
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND_MULTIPLE).setType("*/*").putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share trip"))
+                }
+            },
             shareFile = { file, mime ->
                 runCatching {
                     val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", file)

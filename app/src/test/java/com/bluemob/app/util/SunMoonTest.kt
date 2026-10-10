@@ -40,3 +40,26 @@ class RetraceTest {
         assertEquals(trail.first(), com.bluemob.app.trail.TrailMath.retracePoint(trail, trail[1]))
     }
 }
+
+class TripAnalysisTest {
+    private fun pt(i: Int, metresNorth: Double, t: Long, speed: Float? = null) =
+        com.bluemob.app.data.TrailPoint(i.toLong(), t, 28.0 + metresNorth / 110_540, 77.0, 5f, false, "t", speed)
+
+    @Test fun walkingIsOnFootAndDrivingIsACar() {
+        // 1.4 m/s for 10 minutes: a walk.
+        val walk = (0..60).map { pt(it, it * 14.0, it * 10_000L) }
+        assertEquals(com.bluemob.app.trail.TravelMode.FOOT, com.bluemob.app.trail.TripAnalysis.of(walk).likelyMode)
+        // 20 m/s (72 km/h): a car.
+        val drive = (0..60).map { pt(it, it * 200.0, it * 10_000L) }
+        assertEquals(com.bluemob.app.trail.TravelMode.CAR, com.bluemob.app.trail.TripAnalysis.of(drive).likelyMode)
+        // One GPS jump in a walk doesn't change it.
+        val jumpy = walk.mapIndexed { i, p -> if (i == 30) p.copy(lat = p.lat + 0.01) else p }
+        assertEquals(com.bluemob.app.trail.TravelMode.FOOT, com.bluemob.app.trail.TripAnalysis.of(jumpy).likelyMode)
+    }
+
+    @Test fun playbackInterpolates() {
+        val pts = listOf(pt(0, 0.0, 0), pt(1, 100.0, 100_000))
+        val (lat, _) = com.bluemob.app.trail.TripAnalysis.positionAt(pts, 50_000)!!
+        assertEquals((pts[0].lat + pts[1].lat) / 2, lat, 1e-9)
+    }
+}

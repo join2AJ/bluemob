@@ -521,3 +521,35 @@ fun SosAlert(
     }
 }
 
+
+/**
+ * A helper asked this phone to light up: the whole screen flashes white and red at full brightness until [until],
+ * so it can be seen from far away in the dark. Tap to stop.
+ */
+@Composable
+fun HelperFlash(until: Long, onStop: () -> Unit) {
+    val activity = LocalContext.current as? Activity
+    DisposableEffect(Unit) {
+        val w = activity?.window
+        val before = w?.attributes?.screenBrightness
+        w?.attributes = w?.attributes?.apply { screenBrightness = 1f }
+        w?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            w?.attributes = w?.attributes?.apply { screenBrightness = before ?: -1f }
+            w?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+    var lit by remember { mutableStateOf(true) }
+    LaunchedEffect(until) {
+        while (System.currentTimeMillis() < until) { lit = !lit; kotlinx.coroutines.delay(400) }
+        onStop()
+    }
+    Box(Modifier.fillMaxSize().background(if (lit) Color.White else Color(0xFFE5484D)).clickable(onClick = onStop), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("🔦", style = MaterialTheme.typography.displayLarge)
+            Text("Help is near", style = MaterialTheme.typography.headlineMedium, color = if (lit) Color.Black else Color.White)
+            Text("Someone coming to help is looking for this light. Hold the phone up. Tap to stop.",
+                style = MaterialTheme.typography.bodyLarge, color = if (lit) Color.Black else Color.White, textAlign = TextAlign.Center, modifier = Modifier.padding(24.dp))
+        }
+    }
+}
