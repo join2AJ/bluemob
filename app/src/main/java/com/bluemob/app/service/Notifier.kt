@@ -60,16 +60,21 @@ class Notifier(private val context: Context) {
         })
     }
 
-    fun ongoing(connected: Int, carrying: Int): Notification = NotificationCompat.Builder(context, CH_MESH)
+    fun ongoing(connected: Int, carrying: Int, meshOn: Boolean = true): Notification = NotificationCompat.Builder(context, CH_MESH)
         .setSmallIcon(R.drawable.ic_stat_bluemob)
-        .setContentTitle(if (connected == 0) "BlueMob is listening for people nearby" else "Connected to $connected ${if (connected == 1) "person" else "people"} nearby")
-        .setContentText("SOS and messages reach you with the screen off" + if (carrying > 0) " · carrying $carrying for others" else "")
+        .setContentTitle(when {
+            !meshOn -> "BlueMob is on: calls and messages can reach you"
+            connected == 0 -> "BlueMob is listening for people nearby"
+            else -> "Connected to $connected ${if (connected == 1) "person" else "people"} nearby"
+        })
+        .setContentText((if (meshOn) "Calls, messages and SOS reach you with BlueMob closed" else "Over the internet. Turn on the mesh to reach people nearby too") +
+            if (carrying > 0) " · carrying $carrying for others" else "")
         .setOngoing(true).setSilent(true).setShowWhen(false)
         .setContentIntent(open(null, 1))
         .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         .build()
 
-    fun updateOngoing(connected: Int, carrying: Int) = post(ONGOING_ID, ongoing(connected, carrying))
+    fun updateOngoing(connected: Int, carrying: Int, meshOn: Boolean = true) = post(ONGOING_ID, ongoing(connected, carrying, meshOn))
 
     fun sos(s: SosSignal) = post(s.id.hashCode(), NotificationCompat.Builder(context, CH_SOS)
         .setSmallIcon(R.drawable.ic_stat_bluemob)

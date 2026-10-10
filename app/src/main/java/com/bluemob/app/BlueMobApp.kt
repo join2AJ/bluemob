@@ -192,7 +192,7 @@ class BlueMobApp : Application() {
             if (!inForeground) notifier.note("${m.opponentName} wants to play", "${com.bluemob.app.games.Match.title(m.game)} over the mesh. Tap to answer.", "games")
         }
         calls = com.bluemob.app.call.CallManager(this, mesh, audit, appScope, onIncoming = { c ->
-            if (!inForeground) notifier.note("${c.name} is calling", "${if (c.video) "Video" else "Voice"} call from someone nearby. Tap to answer.", "call", id = 7_007)
+            if (!inForeground) notifier.incomingCall(c.name, c.video)
         }, relaySet = { settings.bridgeUrl.value.isNotBlank() },
             cipherFor = { peer, cid -> keyBook.key(peer)?.let { com.bluemob.app.mesh.CallCipher(com.bluemob.app.crypto.Crypto.sharedKey(identity.keys.keyPair.private, it, identity.nodeId, peer), cid, identity.nodeId) } },
             keepAlive = { active, video -> com.bluemob.app.service.CallService.update(this, active, video) },
@@ -307,13 +307,15 @@ class BlueMobApp : Application() {
         // "I'm safe": take the alarm notification down too.
         appScope.launch { sos.incoming.collect { if (it.cancelled) notifier.sosEnded(it) } }
         appScope.launch { rescue.notices.collect { n -> if (!inForeground) notifier.rescue(n.room, n.text) } }
+        // The ringing call notification goes once the call is answered, declined or missed.
+        appScope.launch { calls.call.collect { c -> if (c == null || c.phase != com.bluemob.app.call.CallPhase.INCOMING) notifier.cancel(Notifier.INCOMING_CALL_ID) } }
         // Start-up itself is done. Android also starts BlueMob with no screen (background service, scheduled backups,
         // wake-ups); the screen marks its own step when it opens (MainActivity), so a background start that's later
         // closed normally is never mistaken for a crash. The retry marker stays until a screen really opens.
         CrashLog.started(this, keepRetry = true)
         // The mesh keeps running in the background (with its notification) whenever it's on.
         appScope.launch {
-            combine(mesh.running, settings.background) { on, bg -> on && bg }.collect { keep ->
+            settings.background.collect { keep ->
                 if (keep) MeshService.start(this@BlueMobApp) else MeshService.stop(this@BlueMobApp)
             }
         }

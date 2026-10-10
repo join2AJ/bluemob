@@ -119,14 +119,22 @@ class AppSettings(context: Context) {
         saveSpots()
     }
 
-    private val _background = MutableStateFlow(prefs.getBoolean("background", false))
-    /** Keep the mesh running with the screen off (a foreground service with a notification). Off until the user turns it on. */
+    private val _background = MutableStateFlow(prefs.getBoolean("background", true))
+    /**
+     * Reachable when closed: BlueMob keeps running (a foreground service with a quiet notification), so calls, messages
+     * and SOS alerts arrive over the internet, and over the mesh when it's on, with BlueMob closed. On unless turned off.
+     */
     val background: StateFlow<Boolean> = _background.asStateFlow()
 
     fun setBackground(on: Boolean) {
         prefs.edit().putBoolean("background", on).apply()
         _background.value = on
     }
+
+    /** Whether we've asked once to let BlueMob run with Battery Saver on (so it isn't asked at every start). */
+    var askedKeepRunning: Boolean
+        get() = prefs.getBoolean("asked_keep_running", false)
+        set(v) { prefs.edit().putBoolean("asked_keep_running", v).apply() }
 
     private val _techDetails = MutableStateFlow(prefs.getBoolean("tech_details", false))
     /** Show link checks and routing details in chats (for testers). Off for everyone else. */

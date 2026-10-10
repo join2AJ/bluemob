@@ -36,6 +36,14 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.23: reachable when closed
+
+- **Calls and messages reach you with BlueMob closed.** "Reachable when closed" is now on by default and no longer
+  needs the mesh: BlueMob keeps a quiet notification and stays signed in to the relay, so internet calls ring
+  (full screen, over the lock screen) and messages arrive. With the mesh on, people nearby reach you too.
+- Starts again by itself after the phone restarts or BlueMob updates. Asks once to be allowed to run with Battery
+  Saver on. Turn it off in You → Connections & power.
+
 ## Android 0.22: do not disturb, safer and smarter Sky AI, fixes
 
 - **Do not disturb** (You tab): for 1 hour, 8 hours, until 7 am or until turned off. Messages, missed calls and

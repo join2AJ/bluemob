@@ -36,6 +36,8 @@
     <!-- Keep the mesh running in the background, with a visible notification, so SOS and messages arrive -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- During calls only: Android silences the microphone (and camera) of apps that aren't on screen otherwise -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
@@ -90,7 +92,17 @@
         <service
             android:name=".service.MeshService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
+            android:foregroundServiceType="connectedDevice|remoteMessaging" />
+
+        <!-- Starts BlueMob again after the phone restarts or BlueMob is updated (when "Reachable when closed" is on) -->
+        <receiver
+            android:name=".service.MeshService$Restart"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Wake-ups from the relay (Firebase), only when the build has a Firebase project -->
         <service

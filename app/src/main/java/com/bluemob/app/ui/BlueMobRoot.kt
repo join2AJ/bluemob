@@ -581,6 +581,17 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             }
         }
 
+        // Reachable when closed needs Android to let BlueMob run in the background: ask once, plainly.
+        var askKeep by remember { mutableStateOf(vm.background.value && !system.keepsRunning && !vm.askedKeepRunning) }
+        if (askKeep) androidx.compose.material3.AlertDialog(
+            onDismissRequest = { askKeep = false; vm.askedKeepRunning = true },
+            title = { Text("Get calls and messages when BlueMob is closed") },
+            text = { Text("So people can call and message you even when BlueMob isn't open, Android needs to let it keep running in the background. " +
+                "It uses little battery: it just stays signed in. You can change this in You → Connections & power.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { askKeep = false; vm.askedKeepRunning = true; actions.askKeepRunning() }) { Text("Allow") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { askKeep = false; vm.askedKeepRunning = true }) { Text("Not now") } },
+        )
+
         // A helper asked this phone to light up its screen: full brightness, flashing, so it can be seen from far.
         val flashUntil by vm.screenFlash.collectAsStateWithLifecycle()
         if (flashUntil > 0L) com.bluemob.app.ui.sos.HelperFlash(flashUntil, onStop = vm::stopSignalling)

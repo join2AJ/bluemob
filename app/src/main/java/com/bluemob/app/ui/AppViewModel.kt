@@ -460,6 +460,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun lastError(): String? = com.bluemob.app.util.CrashLog.lastNonFatal(getApplication())
 
     val background = settings.background
+    /** Ask once (not at every start) to let BlueMob run with Battery Saver on. */
+    var askedKeepRunning: Boolean
+        get() = settings.askedKeepRunning
+        set(v) { settings.askedKeepRunning = v }
     fun setBackground(on: Boolean) = settings.setBackground(on)
     val techDetails = settings.techDetails
     fun setTechDetails(on: Boolean) = settings.setTechDetails(on)
