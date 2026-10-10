@@ -36,6 +36,20 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.22: do not disturb, safer and smarter Sky AI, fixes
+
+- **Do not disturb** (You tab): for 1 hour, 8 hours, until 7 am or until turned off. Messages, missed calls and
+  invites arrive silently, and calls don't ring (the caller is told; it's logged as missed). SOS alerts and rescue
+  groups always sound; calls from your SOS contacts can still ring.
+- **Sky's AI knows BlueMob**: every question carries the phone's situation (SOS, battery, internet, people nearby) and
+  the best-matching survival guide, so urgent answers follow checked advice: most important action first, then steps.
+- **Safety**: talk of suicide or self-harm gets kind support with Tele-MANAS 14416 and 112, never advice; requests to
+  hurt others are declined. This works with or without the AI.
+- **Trips**: one vehicle per ride. The mode only changes where they stopped or walked for 3+ minutes, so a car
+  slowing at a junction no longer turns into a cycle. Zooming the trail map no longer crashes.
+- **Rescue groups**: "I'm coming" and "I'm safe" are re-sent every few minutes to members who were offline, and a
+  rescue with no news for a day closes on helpers' phones, so it no longer stays "On the way".
+
 ## Android 0.21: Sky's offline AI
 
 - **Ask Sky anything, with no internet.** In the Sky chat, tap "Make Sky smarter, offline" and download an AI brain

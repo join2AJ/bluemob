@@ -173,6 +173,32 @@ object SkyBot {
 
     private var turn = 0
 
+    /**
+     * What the offline AI should know for this question: the phone's situation right now, and the survival guide that
+     * fits best (checked advice it should follow rather than make up), cut to [maxChars].
+     */
+    fun aiContext(input: String, facts: SkyFacts, maxChars: Int): String = buildString {
+        append("Right now on this phone: ")
+        append(if (facts.sosActive) "the user's SOS is ACTIVE" else "no SOS sent")
+        facts.batteryPct?.let { append(", battery $it%") }
+        append(", internet ").append(if (facts.thisPhoneOnline) "yes" else "none")
+        append(", ").append(if (!facts.meshOn) "Nearby (mesh) off" else "${facts.nearby.size} people connected nearby")
+        append(".")
+        val a = guideIdFor(input)?.let { GuideContent.byId(it) } ?: closestGuides(input).firstOrNull()
+        if (a != null) {
+            val room = maxChars - length - 80
+            if (room > 200) {
+                val g = buildString {
+                    append("\nBlueMob survival guide \"").append(a.title).append("\": ").append(a.intro)
+                    a.steps.forEachIndexed { i, st -> append(" ").append(i + 1).append(". ").append(st) }
+                    if (a.avoid.isNotEmpty()) append(" Avoid: ").append(a.avoid.joinToString(" "))
+                }
+                append(g.take(room))
+                append("\nIf this guide fits the question, base your answer on it.")
+            }
+        }
+    }
+
     /** Answers only this phone can give (what the user taught Sky, live status), which Smart Sky shouldn't replace. */
     fun phoneAnswer(input: String, facts: SkyFacts): SkyAnswer? {
         val t = input.lowercase()
@@ -182,6 +208,7 @@ object SkyBot {
     }
 
     fun reply(input: String, facts: SkyFacts): SkyAnswer {
+        SkySafety.check(input)?.let { return it }
         val t = input.lowercase()
         turn++
         phoneAnswer(input, facts)?.let { return it }

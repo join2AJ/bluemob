@@ -368,6 +368,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             theme = vm.theme.collectAsStateWithLifecycle().value, onTheme = vm::setTheme,
                             emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value, onEmergencyCard = vm::setEmergencyCard,
                             remoteSignal = vm.allowRemoteSignal.collectAsStateWithLifecycle().value, onRemoteSignal = vm::setAllowRemoteSignal,
+                            dndUntil = vm.dndUntil.collectAsStateWithLifecycle().value, onDndUntil = vm::setDndUntil,
+                            dndSosCalls = vm.dndAllowSosContacts.collectAsStateWithLifecycle().value, onDndSosCalls = vm::setDndAllowSosContacts,
                             activitySummary = vm.activity.collectAsStateWithLifecycle().value.let { ev ->
                                 val week = System.currentTimeMillis() - 7 * 86_400_000L
                                 val recent = ev.filter { it.at >= week }

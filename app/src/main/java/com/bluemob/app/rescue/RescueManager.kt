@@ -40,6 +40,9 @@ data class RescueNotice(val room: String, val text: String)
  * phone that connects, so people who were out of range catch up. Helpers and the person in need share their position
  * every 45 seconds while it matters.
  */
+private const val RESEND_MS = 5 * 60_000L
+private const val STALE_MS = 24 * 3_600_000L
+
 class RescueManager(
     private val mesh: NearbyMeshTransport,
     private val identity: Identity,
@@ -83,6 +86,31 @@ class RescueManager(
             }
         }
         scope.launch { rooms.collect { reconcile(it) } }
+        // The internet only carries group messages to phones that are online at that moment. So every few minutes, our
+        // own recent messages go again to members who aren't nearby (duplicates are dropped on arrival): an "I'm
+        // coming" or "I'm safe" sent while they were offline still reaches them. Rescues with no news for a day close.
+        scope.launch {
+            delay(30_000)
+            while (true) {
+                runCatching { resendOnline(); closeStale() }
+                delay(RESEND_MS)
+            }
+        }
+    }
+
+    private suspend fun resendOnline() {
+        val now = System.currentTimeMillis()
+        rooms.value.filter { r -> r.iAmIn && (!r.ended || r.chat.lastOrNull()?.let { now - it.at < 6 * 3_600_000L } == true) && now - r.startedAt < 2 * 86_400_000L }
+            .forEach { r -> members(r).filter { !mesh.isConnected(it) }.forEach { catchUpOnline(it, r.id) } }
+    }
+
+    /** A rescue we're helping with that has had no news from the person for a day: closed here, with a note why. */
+    private suspend fun closeStale() {
+        val now = System.currentTimeMillis()
+        rooms.value.filter { !it.mine && !it.ended && now - it.lastNews > STALE_MS }.forEach { r ->
+            dao.insert(RescueMessage("end-" + r.id, r.id, r.victimId, r.victimName, RescueRoom.ENDED,
+                "No news from ${r.victimName} for a day, so this rescue was closed here. Message them to check they're OK.", now, local = true))
+        }
     }
 
     fun room(id: String): RescueRoom? = rooms.value.firstOrNull { it.id == id }
@@ -162,6 +190,7 @@ class RescueManager(
         }
         if (m.kind == RescueRoom.TEXT) audit.add(AuditKind.MESSAGE, "Rescue group for ${r?.victimName ?: "an SOS"}: ${m.fromName}: \"${m.text.take(80)}\"")
         if (r == null || !r.iAmIn) return
+        if (r.ended && m.kind != RescueRoom.ENDED) return
         val notice = when (m.kind) {
             RescueRoom.JOIN -> "${m.fromName} is coming to help" + (m.text.substringAfter(" · ", "").takeIf { it.isNotEmpty() }?.let { " · $it" } ?: "")
             RescueRoom.ARRIVED -> "${m.fromName} has arrived"

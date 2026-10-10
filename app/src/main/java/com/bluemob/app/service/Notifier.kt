@@ -22,6 +22,10 @@ import com.bluemob.app.mesh.SosSignal
 class Notifier(private val context: Context) {
     private val manager = NotificationManagerCompat.from(context)
 
+    /** Do not disturb: messages and other notes arrive silently. SOS alerts and rescue groups always sound. */
+    var quiet: () -> Boolean = { false }
+    private fun ch(normal: String) = if (quiet()) CH_QUIET else normal
+
     init {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CH_MESH, "Mesh running", NotificationManager.IMPORTANCE_LOW).apply {
@@ -35,6 +39,10 @@ class Notifier(private val context: Context) {
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
         nm.createNotificationChannel(NotificationChannel(CH_MSG, "Messages", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel(CH_QUIET, "During do not disturb", NotificationManager.IMPORTANCE_LOW).apply {
+            description = "Messages, missed calls and invites while BlueMob's do not disturb is on: no sound or vibration"
+            setSound(null, null); enableVibration(false)
+        })
         nm.createNotificationChannel(NotificationChannel(CH_CALLS, "Incoming calls", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Rings when someone calls you, even with BlueMob closed"
             enableVibration(true)
@@ -90,7 +98,7 @@ class Notifier(private val context: Context) {
         return PendingIntent.getActivity(context, 6 + s.id.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    fun message(fromId: String, name: String, text: String) = post(fromId.hashCode(), NotificationCompat.Builder(context, CH_MSG)
+    fun message(fromId: String, name: String, text: String) = post(fromId.hashCode(), NotificationCompat.Builder(context, ch(CH_MSG))
         .setSmallIcon(R.drawable.ic_stat_bluemob)
         .setContentTitle(name).setContentText(text)
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -98,7 +106,7 @@ class Notifier(private val context: Context) {
         .setContentIntent(open("chat:$fromId", fromId.hashCode()))
         .build())
 
-    fun rating(text: String) = post(4242, NotificationCompat.Builder(context, CH_MSG)
+    fun rating(text: String) = post(4242, NotificationCompat.Builder(context, ch(CH_MSG))
         .setSmallIcon(R.drawable.ic_stat_bluemob).setContentTitle("Your rating").setContentText(text).setAutoCancel(true)
         .setContentIntent(open("person:me", 4242)).build())
 
@@ -110,7 +118,7 @@ class Notifier(private val context: Context) {
         .build())
 
     /** Anything else worth knowing right away: someone ringing to find us, a game invite, a missed call. */
-    fun note(title: String, text: String, route: String? = null, id: Int = title.hashCode() + 11) = post(id, NotificationCompat.Builder(context, CH_RESCUE)
+    fun note(title: String, text: String, route: String? = null, id: Int = title.hashCode() + 11) = post(id, NotificationCompat.Builder(context, ch(CH_RESCUE))
         .setSmallIcon(R.drawable.ic_stat_bluemob)
         .setContentTitle(title).setContentText(text)
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -171,6 +179,7 @@ class Notifier(private val context: Context) {
         private const val CH_CALLS = "calls"
         private const val CH_SOS = "sos"
         private const val CH_MSG = "messages"
+        private const val CH_QUIET = "quiet"
         private const val CH_RESCUE = "rescue"
     }
 }

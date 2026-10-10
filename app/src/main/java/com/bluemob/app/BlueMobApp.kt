@@ -160,6 +160,7 @@ class BlueMobApp : Application() {
         location = LocationTracker(this)
         connectivity = Connectivity(this)
         settings = AppSettings(this)
+        notifier.quiet = { settings.dndOn() }
         signals = SignalController(this)
         heading = HeadingSensor(this)
         radios = Radios(this)
@@ -195,6 +196,7 @@ class BlueMobApp : Application() {
         }, relaySet = { settings.bridgeUrl.value.isNotBlank() },
             cipherFor = { peer, cid -> keyBook.key(peer)?.let { com.bluemob.app.mesh.CallCipher(com.bluemob.app.crypto.Crypto.sharedKey(identity.keys.keyPair.private, it, identity.nodeId, peer), cid, identity.nodeId) } },
             keepAlive = { active, video -> com.bluemob.app.service.CallService.update(this, active, video) },
+            blockCall = { peer -> dndBlocksCall(peer) },
             log = { entry ->
             db.calls().insert(entry)
             if (entry.outcome == "MISSED" && !inForeground) notifier.note("Missed call from ${entry.name}", "${if (entry.video) "Video" else "Voice"} call. Tap to call back.", "calls", id = 7_008)
@@ -375,16 +377,21 @@ class BlueMobApp : Application() {
     private suspend fun skyReply(text: String, onPartial: (String) -> Unit): SkyAnswer {
         val facts = skyFacts()
         if (!offlineAi.status.value.ready) return SkyBot.reply(text, facts)
+        com.bluemob.app.bot.SkySafety.check(text)?.let { return it }
         SkyBot.phoneAnswer(text, facts)?.let { return it }
         val lines = messages.conversations.value[SkyBot.NODE_ID].orEmpty().sortedBy { it.createdAt }
             .let { l -> if (l.lastOrNull()?.let { it.fromMe && it.text == text.trim() } == true) l.dropLast(1) else l }
             .filter { it.text !in SkyBot.greeting }
             .map { com.bluemob.app.bot.AiPrompt.Turn(it.fromMe, it.text) }
         val guide = SkyBot.guideIdFor(text)?.let { com.bluemob.app.bot.SkyAction("Check the survival guide", "guide:$it") }
-        val written = offlineAi.answer(text, lines, onPartial)
+        val written = offlineAi.answer(text, lines, SkyBot.aiContext(text, facts, offlineAi.contextChars()), onPartial)
             ?: return SkyBot.reply(text, facts).let { it.copy(text = "🧠 The offline AI couldn't answer just now, so here's what I know:\n\n" + it.text) }
         return SkyAnswer(written, listOfNotNull(guide))
     }
+
+    /** Do not disturb is on, and this caller isn't one of our SOS contacts allowed through. */
+    fun dndBlocksCall(peer: String?): Boolean = settings.dndOn() &&
+        !(settings.dndAllowSosContacts.value && peer != null && settings.sosContacts.value.any { it.nodeId == peer })
 
     /** What Sky can see on this phone right now. */
     private fun skyFacts(): SkyFacts {

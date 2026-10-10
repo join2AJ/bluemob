@@ -266,6 +266,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val aiStatus = blueMob.offlineAi.status
     fun importAi(uri: android.net.Uri, name: String) { viewModelScope.launch { blueMob.offlineAi.import(uri, name) } }
     fun deleteAi() { viewModelScope.launch { blueMob.offlineAi.delete() } }
+    val dndUntil = settings.dndUntil
+    fun setDndUntil(until: Long) { settings.setDndUntil(until); if (until > System.currentTimeMillis()) toast("Do not disturb on " + com.bluemob.app.ui.profile.dndText(until)) }
+    val dndAllowSosContacts = settings.dndAllowSosContacts
+    fun setDndAllowSosContacts(on: Boolean) = settings.setDndAllowSosContacts(on)
     val emergencyCard = settings.emergencyCard
     fun setEmergencyCard(on: Boolean) = settings.setEmergencyCard(on)
     // Lazy: it uses flows declared further down this class.

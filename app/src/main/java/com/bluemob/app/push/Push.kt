@@ -52,7 +52,7 @@ class PushService : FirebaseMessagingService() {
         val d = message.data
         when (d["k"]) {
             // Someone is calling: ring now (full screen), while BlueMob connects and the call itself comes through.
-            "call" -> if (app.calls.call.value == null) app.notifier.incomingCall(d["name"]?.take(40).orEmpty().ifBlank { "Someone" }, d["video"] == "true")
+            "call" -> if (app.calls.call.value == null && !app.dndBlocksCall(d["from"])) app.notifier.incomingCall(d["name"]?.take(40).orEmpty().ifBlank { "Someone" }, d["video"] == "true")
             // A message is waiting on the relay: fetch it (the usual notification shows once it's here).
             "msg" -> app.bridge.syncNow()
             // An SOS from someone whose SOS contact we are: the full-screen alarm right away, then fetch the rest.

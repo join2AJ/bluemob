@@ -79,6 +79,17 @@ class AppSettings(context: Context) {
     val allowRemoteSignal: StateFlow<Boolean> = _remoteSignal.asStateFlow()
     fun setAllowRemoteSignal(on: Boolean) { _remoteSignal.value = on; prefs.edit().putBoolean("remote_signal", on).apply() }
 
+    private val _dndUntil = MutableStateFlow(prefs.getLong("dnd_until", 0L))
+    /** Do not disturb until this time (0 = off, Long.MAX_VALUE = until turned off). SOS and rescue alerts always come through. */
+    val dndUntil: StateFlow<Long> = _dndUntil.asStateFlow()
+    fun setDndUntil(until: Long) { _dndUntil.value = until; prefs.edit().putLong("dnd_until", until).apply() }
+    fun dndOn(now: Long = System.currentTimeMillis()) = _dndUntil.value > now
+
+    private val _dndSosCalls = MutableStateFlow(prefs.getBoolean("dnd_sos_calls", true))
+    /** During do not disturb, calls from our SOS contacts still ring. */
+    val dndAllowSosContacts: StateFlow<Boolean> = _dndSosCalls.asStateFlow()
+    fun setDndAllowSosContacts(on: Boolean) { _dndSosCalls.value = on; prefs.edit().putBoolean("dnd_sos_calls", on).apply() }
+
     private val _theme = MutableStateFlow(prefs.getString("theme", "auto") ?: "auto")
     /** "auto" (follow the phone), "light" or "dark". */
     val theme: StateFlow<String> = _theme.asStateFlow()

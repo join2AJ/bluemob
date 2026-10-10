@@ -91,6 +91,8 @@ class CallManager(
     private val relaySet: () -> Boolean = { false },
     /** The end-to-end key for a call with someone, or null if we don't have their public key. */
     private val cipherFor: (peer: String, callId: String) -> com.bluemob.app.mesh.CallCipher? = { _, _ -> null },
+    /** Do not disturb: true when a call from this person shouldn't ring. It's logged as missed and they're told. */
+    private val blockCall: (peer: String) -> Boolean = { false },
     /** Keeps the microphone (and camera) working while the screen is off or another app is open. */
     private val keepAlive: (active: Boolean, video: Boolean) -> Unit = { _, _ -> },
 ) {
@@ -313,6 +315,13 @@ class CallManager(
                     mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("cid", id).put("a", "busy"))
                     return
                 }
+                if (blockCall(e.fromNodeId)) {
+                    mesh.sendApp(e.fromNodeId, KIND, JSONObject().put("cid", id).put("a", "busy").put("dnd", true))
+                    val name = e.name.ifBlank { "Someone" }
+                    scope.launch { log(com.bluemob.app.data.CallLogEntry(id, e.fromNodeId, name, b.optBoolean("video"), false, "MISSED", System.currentTimeMillis(), 0)) }
+                    audit.add(AuditKind.MESH, "Call from $name not rung: do not disturb")
+                    return
+                }
                 val e2e = b.optBoolean("e2e") && cipherFor(e.fromNodeId, id) != null
                 val c = Call(id, e.fromNodeId, e.name.ifBlank { "Someone" }, b.optBoolean("video"), CallPhase.INCOMING,
                     link = if (e.direct) mesh.linkName(e.fromNodeId) else mesh.callLink(e.fromNodeId), e2e = e2e)
@@ -325,7 +334,7 @@ class CallManager(
             // An older BlueMob doesn't answer "e2e": then the call isn't encrypted (it can only be nearby or over the relay).
             "accept" -> if (current?.id == id && current.phase == CallPhase.OUTGOING && current.peer == e.fromNodeId) begin(current.copy(e2e = current.e2e && b.optBoolean("e2e")))
             "decline" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} can't talk right now", "DECLINED")
-            "busy" -> if (current?.id == id && current.peer == e.fromNodeId) finish("${current.name} is on another call", "BUSY")
+            "busy" -> if (current?.id == id && current.peer == e.fromNodeId) finish(if (b.optBoolean("dnd")) "${current.name} has do not disturb on. Try a message" else "${current.name} is on another call", "BUSY")
             "ptt" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyPtt = b.optBoolean("on"), theyTalking = false, noAudio = false) }
             "talk" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyTalking = b.optBoolean("on"), noAudio = false) }
             "mute" -> if (current?.id == id && current.peer == e.fromNodeId) _call.update { it?.copy(theyMuted = b.optBoolean("on"), noAudio = false) }

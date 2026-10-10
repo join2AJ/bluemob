@@ -36,6 +36,8 @@ data class RescueRoom(
     /** True on the phone of the person who sent the SOS. */
     val mine: Boolean,
     val myStatus: HelperStatus?,
+    /** When we last heard anything from the person in need (their SOS, a message or a position). */
+    val lastNews: Long = startedAt,
 ) {
     val coming: List<Helper> get() = helpers.filter { it.status != HelperStatus.LEFT }
     val iAmIn: Boolean get() = mine || (myStatus != null && myStatus != HelperStatus.LEFT)
@@ -84,6 +86,7 @@ data class RescueRoom(
                 id = id, victimId = victim, victimName = open.fromName, note = open.text, battery = list.lastOrNull { it.fromNodeId == victim && it.battery != null }?.battery,
                 startedAt = open.at, victimPos = victimPos, ended = list.any { it.kind == ENDED }, helpers = helpers,
                 chat = list.filter { it.kind in CHAT_KINDS }, mine = victim == myId, myStatus = helpers.firstOrNull { it.nodeId == myId }?.status,
+                lastNews = list.filter { it.fromNodeId == victim }.maxOfOrNull { it.at } ?: open.at,
             )
         }
     }

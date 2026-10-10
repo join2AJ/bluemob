@@ -66,11 +66,17 @@ object AiModels {
 
 /** Writing the conversation out for the model, and tidying what comes back. No Android here, so it's unit-tested. */
 object AiPrompt {
-    const val SYSTEM = "You are Sky, a friendly assistant inside BlueMob, an app for messaging and SOS over Bluetooth and Wi-Fi when there is no " +
-        "mobile network. You run fully offline on the user's phone. Help with whatever they ask: questions, explanations, writing, plans, maths, " +
-        "learning, first aid and survival. Keep answers short and clear for a phone screen, in the user's language. If you are not sure, say so " +
-        "instead of guessing. If someone may be in danger, tell them first to call emergency services if they can and to press BlueMob's SOS " +
-        "button, which reaches nearby phones without signal."
+    const val SYSTEM = "You are Sky, the assistant inside BlueMob. You run offline on the user's phone. BlueMob lets people message, " +
+        "call and send SOS over Bluetooth and Wi-Fi with no mobile network, phone to phone, and over the internet when there is one.\n" +
+        "BlueMob: red SOS button on every tab (alerts phones nearby, even strangers, and the user's SOS contacts; helpers tap " +
+        "I'm coming and join a rescue group with live positions). Chats tab: messages, groups, calls, files. Nearby tab: radar of phones " +
+        "around. Compass tab: direction, trail, back to base, offline map, sun times. Guide tab: survival guides, quizzes, Sky. " +
+        "You tab: profile, blood group, SOS contacts, backup, settings.\n" +
+        "Most questions are about survival, first aid, safety and urgent help. For those: put the most important action first, " +
+        "then short numbered steps, and say when to press SOS or call 112. Use the survival guide below when it fits. " +
+        "For anything else, help normally. Keep answers short and simple for a phone, in the user's language. If unsure, say so.\n" +
+        "Never give instructions for hurting yourself or others, weapons, or poisons. If someone talks about suicide or self-harm, " +
+        "be kind, give India's Tele-MANAS helpline 14416 and emergency number 112, and urge them to talk to someone."
 
     /** One earlier line of the Sky chat: [fromMe] is the user. */
     data class Turn(val fromMe: Boolean, val text: String)
@@ -82,9 +88,10 @@ object AiPrompt {
      * The full prompt: instructions, as much recent chat as fits in [contextTokens] (leaving room for the answer), then
      * the question, ending where the model should start answering.
      */
-    fun build(family: AiFamily, history: List<Turn>, question: String, contextTokens: Int): String {
+    fun build(family: AiFamily, history: List<Turn>, question: String, contextTokens: Int, context: String = ""): String {
         val answerRoom = if (contextTokens >= 2048) 768 else 480
-        var budget = charsFor(contextTokens - answerRoom) - SYSTEM.length - question.length
+        val system = if (context.isBlank()) SYSTEM else SYSTEM + "\n\n" + context.trim()
+        var budget = charsFor(contextTokens - answerRoom) - system.length - question.length
         val kept = ArrayList<Turn>()
         for (t in history.asReversed()) {
             val text = t.text.trim().take(800)
@@ -95,10 +102,10 @@ object AiPrompt {
         }
         // A conversation starts with the user.
         while (kept.isNotEmpty() && !kept.first().fromMe) kept.removeAt(0)
-        val q = question.trim()
+        val q = question.trim().take(1000)
         return when (family) {
             AiFamily.QWEN -> buildString {
-                append("<|im_start|>system\n").append(SYSTEM).append("<|im_end|>\n")
+                append("<|im_start|>system\n").append(system).append("<|im_end|>\n")
                 kept.forEach { append(if (it.fromMe) "<|im_start|>user\n" else "<|im_start|>assistant\n").append(it.text).append("<|im_end|>\n") }
                 append("<|im_start|>user\n").append(q).append("<|im_end|>\n<|im_start|>assistant\n")
             }
@@ -107,13 +114,13 @@ object AiPrompt {
                 val turns = kept + Turn(true, q)
                 turns.forEachIndexed { i, t ->
                     append(if (t.fromMe) "<start_of_turn>user\n" else "<start_of_turn>model\n")
-                    if (i == 0) append(SYSTEM).append("\n\n")
+                    if (i == 0) append(system).append("\n\n")
                     append(t.text).append("<end_of_turn>\n")
                 }
                 append("<start_of_turn>model\n")
             }
             AiFamily.OTHER -> buildString {
-                append(SYSTEM).append("\n\n")
+                append(system).append("\n\n")
                 kept.forEach { append(if (it.fromMe) "User: " else "Sky: ").append(it.text).append("\n") }
                 append("User: ").append(q).append("\nSky:")
             }
@@ -337,7 +344,10 @@ class OfflineAi(private val context: Context, private val scope: CoroutineScope)
      * Sky's answer to [question], written by the model on this phone. [onPartial] gets the answer so far as it's
      * written. Null if no model is ready or it failed.
      */
-    suspend fun answer(question: String, history: List<AiPrompt.Turn>, onPartial: (String) -> Unit): String? {
+    /** How much guide and status text fits alongside the question for the installed model. */
+    fun contextChars(): Int = if (prefs.getInt("context", 2048) >= 2048) 1500 else 600
+
+    suspend fun answer(question: String, history: List<AiPrompt.Turn>, context: String, onPartial: (String) -> Unit): String? {
         val st = _status.value
         if (!st.ready) return null
         val path = prefs.getString("model_path", null) ?: return null
@@ -355,7 +365,7 @@ class OfflineAi(private val context: Context, private val scope: CoroutineScope)
                     val session = LlmInferenceSession.createFromOptions(llm, LlmInferenceSession.LlmInferenceSessionOptions.builder()
                         .setTopK(40).setTopP(0.95f).setTemperature(0.6f).setPromptTemplates(none).build())
                     try {
-                        session.addQueryChunk(AiPrompt.build(family, history, question, ctx))
+                        session.addQueryChunk(AiPrompt.build(family, history, question, ctx, context))
                         val sb = StringBuilder()
                         val future = session.generateResponseAsync { partial, _ -> sb.append(partial); onPartial(AiPrompt.clean(sb.toString())) }
                         try { runInterruptible(Dispatchers.IO) { future.get() } } catch (e: CancellationException) { session.cancelGenerateResponseAsync(); throw e }

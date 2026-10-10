@@ -57,6 +57,22 @@ class TripAnalysisTest {
         assertEquals(com.bluemob.app.trail.TravelMode.FOOT, com.bluemob.app.trail.TripAnalysis.of(jumpy).likelyMode)
     }
 
+    @Test fun oneVehiclePerRideUnlessTheyStop() {
+        // A motorbike ride: 45 km/h, slowing to 15 at a junction and touching 70 once. All one motorbike ride.
+        var north = 0.0
+        val speeds = List(20) { 45.0 } + List(3) { 15.0 } + List(20) { 45.0 } + listOf(70.0) + List(20) { 45.0 }
+        val ride = listOf(pt(0, 0.0, 0)) + speeds.mapIndexed { i, kmh -> north += kmh / 3.6 * 10; pt(i + 1, north, (i + 1) * 10_000L) }
+        val a = com.bluemob.app.trail.TripAnalysis.of(ride)
+        assertEquals(setOf(com.bluemob.app.trail.TravelMode.BIKE), a.legs.map { it.mode }.toSet())
+        // Walk for 5 minutes, then a car: two different modes, because they changed where they walked.
+        north = 0.0
+        val mixed = List(30) { 5.0 } + List(40) { 80.0 }
+        val trip = listOf(pt(0, 0.0, 0)) + mixed.mapIndexed { i, kmh -> north += kmh / 3.6 * 10; pt(i + 1, north, (i + 1) * 10_000L) }
+        val modes = com.bluemob.app.trail.TripAnalysis.of(trip).legs.map { it.mode }
+        assertEquals(com.bluemob.app.trail.TravelMode.FOOT, modes[5])
+        assertEquals(com.bluemob.app.trail.TravelMode.CAR, modes[60])
+    }
+
     @Test fun playbackInterpolates() {
         val pts = listOf(pt(0, 0.0, 0), pt(1, 100.0, 100_000))
         val (lat, _) = com.bluemob.app.trail.TripAnalysis.positionAt(pts, 50_000)!!

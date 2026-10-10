@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.DoNotDisturbOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -123,7 +124,14 @@ fun ProfileScreen(
     onEmergencyCard: (Boolean) -> Unit = {},
     remoteSignal: Boolean = true,
     onRemoteSignal: (Boolean) -> Unit = {},
+    /** Do not disturb: until when (0 = off), and whether SOS contacts' calls still ring. */
+    dndUntil: Long = 0L,
+    onDndUntil: (Long) -> Unit = {},
+    dndSosCalls: Boolean = true,
+    onDndSosCalls: (Boolean) -> Unit = {},
 ) {
+    var dndPicker by remember { mutableStateOf(false) }
+    if (dndPicker) DndDialog(dndSosCalls, onDndSosCalls, { onDndUntil(it); dndPicker = false }) { dndPicker = false }
     var draft by remember(name) { mutableStateOf(name) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     when (editing) {
@@ -206,6 +214,17 @@ fun ProfileScreen(
             }
         }
 
+        item { GroupLabel("Do not disturb") }
+        item {
+            val on = dndUntil > System.currentTimeMillis()
+            Group {
+                SettingRow(Icons.Outlined.DoNotDisturbOn, Extra.sky, "Do not disturb",
+                    if (on) "On ${dndText(dndUntil)} · SOS and rescue alerts still come through" + (if (dndSosCalls) ", and calls from your SOS contacts" else "")
+                    else "Off · messages and calls make sound as usual",
+                    onClick = { dndPicker = true }) { androidx.compose.material3.Switch(on, { if (it) dndPicker = true else onDndUntil(0L) }) }
+            }
+        }
+
         item { GroupLabel("Safety") }
         item {
             Group {
@@ -256,3 +275,39 @@ fun ProfileScreen(
 
 private val logTime = SimpleDateFormat("HH:mm:ss", Locale.US)
 
+
+
+/** "until 7:00 am", "until you turn it off". */
+fun dndText(until: Long): String = if (until == Long.MAX_VALUE) "until you turn it off"
+    else "until " + java.text.SimpleDateFormat(if (until - System.currentTimeMillis() > 20 * 3_600_000L) "EEE h:mm a" else "h:mm a", java.util.Locale.getDefault()).format(java.util.Date(until))
+
+/** The next 7 am (tomorrow if it's already past 7 am). */
+private fun nextMorning(): Long = java.util.Calendar.getInstance().apply {
+    val past = get(java.util.Calendar.HOUR_OF_DAY) >= 7
+    set(java.util.Calendar.HOUR_OF_DAY, 7); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+    if (past) add(java.util.Calendar.DAY_OF_MONTH, 1)
+}.timeInMillis
+
+@Composable
+private fun DndDialog(sosCalls: Boolean, onSosCalls: (Boolean) -> Unit, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
+    val now = System.currentTimeMillis()
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Do not disturb") },
+        text = {
+            Column {
+                Text("Messages, calls and invites arrive silently. SOS alerts and rescue groups always sound, so you never miss someone who needs help.",
+                    style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                listOf("For 1 hour" to now + 3_600_000L, "For 8 hours" to now + 8 * 3_600_000L, "Until 7 am" to nextMorning(), "Until I turn it off" to Long.MAX_VALUE).forEach { (label, until) ->
+                    androidx.compose.material3.TextButton(onClick = { onPick(until) }, modifier = Modifier.fillMaxWidth()) { Text(label, modifier = Modifier.fillMaxWidth()) }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    Text("Let calls from my SOS contacts ring", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(sosCalls, onSosCalls)
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}

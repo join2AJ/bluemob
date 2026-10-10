@@ -193,7 +193,7 @@ fun TripScreen(trip: Trip, points: List<TrailPoint>, spots: List<Spot>, recordin
                 Group {
                     Column(Modifier.padding(16.dp)) {
                         analysis.likelyMode?.let { m -> Text("Probably ${m.emoji} ${m.label.lowercase()}", style = MaterialTheme.typography.titleMedium) }
-                        Text("Judged from speed: on foot up to 7 km/h, cycle up to 25, motorbike up to 60, car or bus above.",
+                        Text("Judged from speed: on foot up to 7 km/h, cycle up to 25, motorbike up to 60, car or bus above. The vehicle only changes where they stopped or walked for 3 minutes or more, since nobody switches from a car to a cycle while moving.",
                             style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 2.dp))
                         SpeedChart(analysis, start, end, at, Modifier.padding(top = 10.dp).fillMaxWidth().height(110.dp))
                         val total = analysis.timeByMode.values.sum().coerceAtLeast(1.0)
@@ -254,7 +254,7 @@ private fun SpeedChart(a: com.bluemob.app.trail.TripAnalysis, start: Long, end: 
         drawLine(ink3, Offset(0f, size.height), Offset(size.width, size.height), 2f)
         val x = (at - start) / span * size.width
         drawLine(Color.Black.copy(alpha = 0.6f), Offset(x, 0f), Offset(x, size.height), 3f)
-        drawText(measurer, "${top.toInt()} km/h", Offset(4f, 0f), TextStyle(color = ink3, fontSize = 10.sp))
+        safeText(measurer, "${top.toInt()} km/h", Offset(4f, 0f), TextStyle(color = ink3, fontSize = 10.sp))
     }
 }
 
@@ -289,7 +289,7 @@ fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, modifier: Modifier = M
     Box(modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp)).background(surface)) {
     Canvas(Modifier.fillMaxSize().transformable(state).pointerInput(Unit) { detectTapGestures(onDoubleTap = { zoom = 1f; pan = Offset.Zero }) }) {
         if (points.isEmpty()) {
-            drawText(measurer, "No points yet", Offset(size.width / 2 - 120, size.height / 2), TextStyle(color = ink, fontSize = 14.sp))
+            safeText(measurer, "No points yet", Offset(size.width / 2 - 120, size.height / 2), TextStyle(color = ink, fontSize = 14.sp))
             return@Canvas
         }
         val all = points.map { it.lat to it.lon } + spots.map { it.lat to it.lon }
@@ -314,9 +314,9 @@ fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, modifier: Modifier = M
         g = ((size.height / 2 + pan.y) % gridPx + gridPx) % gridPx
         while (g < size.height) { drawLine(grid, Offset(0f, g), Offset(size.width, g), 1f); g += gridPx }
         drawLine(ink, Offset(pad, size.height - pad / 2), Offset(pad + gridPx, size.height - pad / 2), 4f, cap = StrokeCap.Round)
-        drawText(measurer, if (gridM >= 1000) "${(gridM / 1000).toInt()} km" else "${gridM.toInt()} m",
+        safeText(measurer, if (gridM >= 1000) "${(gridM / 1000).toInt()} km" else "${gridM.toInt()} m",
             Offset(pad, size.height - pad / 2 - 40), TextStyle(color = ink, fontSize = 11.sp))
-        drawText(measurer, "N ↑", Offset(size.width - pad, pad / 3), TextStyle(color = ink, fontSize = 12.sp))
+        safeText(measurer, "N ↑", Offset(size.width - pad, pad / 3), TextStyle(color = ink, fontSize = 12.sp))
         // The trail: coloured by travel mode when known; estimated stretches dashed.
         val modeAt = legs.associate { it.to.time to it.mode }
         points.zipWithNext().forEach { (a, b) ->
@@ -327,7 +327,7 @@ fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, modifier: Modifier = M
         drawCircle(pine, 14f, screen(xy(points.first().lat, points.first().lon)))
         drawCircle(rose, 14f, screen(xy(points.last().lat, points.last().lon)))
         drawCircle(surface, 6f, screen(xy(points.last().lat, points.last().lon)))
-        spots.forEach { s -> drawText(measurer, if (s.isBaseCamp) "⛺" else "📍", screen(xy(s.lat, s.lon)) - Offset(18f, 30f), TextStyle(fontSize = 16.sp)) }
+        spots.forEach { s -> safeText(measurer, if (s.isBaseCamp) "⛺" else "📍", screen(xy(s.lat, s.lon)) - Offset(18f, 30f), TextStyle(fontSize = 16.sp)) }
         marker?.let { (la, lo) ->
             val p = screen(xy(la, lo))
             drawCircle(Color.White, 18f, p); drawCircle(Color(0xFF2F8FD8), 13f, p)
@@ -336,6 +336,15 @@ fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, modifier: Modifier = M
     if (zoom > 1f) Text("${"%.1f".format(zoom)}× · double-tap to reset", style = MaterialTheme.typography.labelSmall, color = Extra.ink3,
         modifier = Modifier.align(Alignment.TopStart).padding(10.dp))
     }
+}
+
+/**
+ * Text on a canvas, skipped when its corner is off the canvas: a zoomed or panned map moves labels outside it, and
+ * Compose can't lay out text with no room left (it crashed on zoom).
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.safeText(measurer: androidx.compose.ui.text.TextMeasurer, text: String, at: Offset, style: TextStyle) {
+    if (at.x < -200f || at.y < -200f || at.x > size.width - 12f || at.y > size.height - 12f) return
+    drawText(measurer, text, at, style)
 }
 
 /** A GPX file for the trip, which map apps can open. */
