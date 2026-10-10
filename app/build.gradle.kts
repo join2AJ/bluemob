@@ -44,6 +44,11 @@ android {
     }
 
     buildTypes {
+        // `-Pshrink` makes a smaller debug APK (to send for testing) by removing unused library code.
+        if (project.hasProperty("shrink")) debug {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro", "proguard-share.pro")
+        }
         release {
             // Shrinks and obfuscates the code, so the app is much harder to reverse-engineer.
             isMinifyEnabled = true
