@@ -263,6 +263,7 @@ class BlueMobApp : Application() {
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
             onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
             groups = groups, me = { identity.nodeId to identity.displayName.value }, blocked = { it in settings.blocked.value },
+            onRoomEnvelope = { mesh.receiveRoomEnvelope(it) },
         )
         // SOS contacts: alerted in BlueMob (online, nearby, or when they next connect) when we send an SOS.
         sosCircle = com.bluemob.app.sos.SosCircle(settings, mesh, identity.keys, { identity.displayName.value },
@@ -312,6 +313,10 @@ class BlueMobApp : Application() {
         sosCircle.onGot = { name, id -> rescue.note(id, "✅ $name got your SOS" + if (sos.mine.value?.pos != null) " and your position" else "") }
         // Our SOS contacts are in our rescue group too, wherever they are: group messages reach them over the internet.
         rescue.remoteMembers = { r -> if (r.mine) settings.sosContacts.value.mapNotNull { it.nodeId } else emptySet() }
+        rescue.viaChat = { to, env -> messages.sendRoomEnvelope(to, env) }
+        rescue.onVictimSafe = { r ->
+            sos.receive(com.bluemob.app.mesh.SosSignal(r.id, r.victimId, r.victimName, "", null, null, null, System.currentTimeMillis(), 1, cancelled = true))
+        }
         sos.onSafe = { sosCircle.safe(it) }
         appScope.launch { live.connected.collect { if (it) { sosCircle.registerNumber(); syncEmail(); sosCircle.recheck() } } }
         // SOS contacts who hadn't joined BlueMob yet: look again every few hours and ask them as soon as they have.

@@ -98,27 +98,24 @@ Review it every quarter and after any incident.
 
 | Requirement | Status |
 |---|---|
-| Notice and consent | Sign-up explains what's shared; optional health fields; privacy policy. *Gap:* a consent screen that links the policy, and lets users withdraw consent for each purpose |
+| Notice and consent | **Done (0.26):** sign-up asks for agreement to the privacy policy (linked), recorded with the time; existing users are asked once. Health details optional; location, background running and error reports can each be turned off |
 | Purpose limitation and minimisation | Number fingerprint only; health data only in an SOS; location sharing off by default |
 | Right to erasure | **Done:** delete account in the app and on the web |
-| Right to access and correction | Correction: Account screen. *Gap:* "Download my data" export |
-| Grievance officer (DPDP) / contact (GDPR) | `CONTACT_EMAIL` on `/privacy`. *Gap:* name a person and publish the response time |
-| Children (DPDP: under 18 needs verifiable parental consent) | Policy says 13+ and parental consent for under-18s. *Gap:* age gate at sign-up using the date of birth |
-| Breach notification (DPDP: Board and users; GDPR: 72 hours) | *Gap:* written procedure and templates; News from BlueMob can tell users |
+| Right to access and correction | **Done (0.26):** Account → Download my data (one JSON file); correction in Account |
+| Grievance officer (DPDP) / contact (GDPR) | **Done (0.26):** `GRIEVANCE_OFFICER` and `CONTACT_EMAIL` on `/privacy`, with response times (7 days to reply, 30 to resolve) |
+| Children (DPDP: under 18 needs verifiable parental consent) | **Done (0.26):** under 13 can't sign up; 13–17 need a parent or guardian to agree; without a date of birth, the user confirms they're 18+ |
+| Breach notification (DPDP: Board and users; GDPR: 72 hours) | **Done (0.26):** `docs/incident-response.md` with steps and templates; News from BlueMob tells users |
 | Data location | `render.yaml` puts the relay in Singapore. DPDP allows transfers except to countries the government restricts; moving to an Indian region or your own server in India is simpler |
 | Health data (GDPR special category) | Explicit, optional, and only shared inside an SOS: matches "vital interests" and consent |
 | Processors (Firebase, Render, Hugging Face) | *Gap:* data processing terms on file |
 
 ## 6. Suggested order
 
-1. **Before Play launch:**
-   - consent screen with the policy link;
-   - age gate (under-18 parental consent);
-   - "Download my data";
-   - named grievance officer;
-   - incident and breach procedure (1–2 pages).
+1. **Before Play launch:** done in 0.26 (consent with the policy link, age check, Download my data, grievance officer,
+   incident and breach procedure). Fill in `GRIEVANCE_OFFICER` and `CONTACT_EMAIL` on the server.
 2. **First month:** relay monitoring; relay backups; second relay with failover; CI with dependency scanning.
-3. **With the admin web app:** per-admin accounts with MFA; admin audit log; per-organisation news and roll call. That
+3. **Admin web app:** the first version is live at `/admin` (overview, reports with status and notes, news). Next:
+   per-admin accounts with MFA; admin audit log; per-organisation news and roll call. That
    makes BlueMob an ISO 22301 tool for customers.
 4. **When there's a team or a big customer:** ISO 27001 management system (policies, risk process, internal audit),
    then external certification.

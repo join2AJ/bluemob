@@ -420,6 +420,15 @@ class NearbyMeshTransport(
         return live?.sendText(nodeId, json.toString()) == true
     }
 
+    /** Our signed rescue-group message as text, to send inside a chat message. Null for someone else's we no longer hold. */
+    fun roomEnvelope(m: RoomPayload): String? = roomJson(m)?.toString()
+
+    /** A rescue-group message that arrived inside a chat message: checked and handled like one from nearby. */
+    fun receiveRoomEnvelope(envelope: String) {
+        val json = runCatching { JSONObject(envelope) }.getOrNull() ?: return
+        if (json.optString("t") == TYPE_ROOM) scope.launch { handleRoom("", json) }
+    }
+
     /** Sends a rescue-group message to one phone, e.g. one that just connected and may have missed it. */
     fun sendRoom(nodeId: String, m: RoomPayload): Boolean {
         val endpointId = connectedEndpointFor(nodeId) ?: return false

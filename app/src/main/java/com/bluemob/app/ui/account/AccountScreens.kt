@@ -342,6 +342,8 @@ fun AccountScreen(
     onDeleteAccount: suspend (Boolean) -> String? = { null },
     /** Where the privacy policy is published (the relay serves it). */
     privacyUrl: String = "",
+    /** Saves or shares everything BlueMob keeps about the user (right of access). */
+    onExportData: () -> Unit = {},
 ) {
     var deleting by rememberSaveable { mutableStateOf(false) }
     if (deleting) DeleteAccountDialog(onDeleteAccount) { deleting = false }
@@ -461,9 +463,16 @@ fun AccountScreen(
                         }
                     }
                 }
-                item { GroupLabel("Delete account") }
+                item { GroupLabel("Your data") }
                 item {
                     Group {
+                        Row(Modifier.fillMaxWidth().clickable(onClick = onExportData).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Download my data", style = MaterialTheme.typography.bodyLarge)
+                                Text("Everything BlueMob keeps about you on this phone, as one file to save or share", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                            }
+                            Text("›", color = Extra.ink3)
+                        }
                         Row(Modifier.fillMaxWidth().clickable { deleting = true }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Delete my account", style = MaterialTheme.typography.bodyLarge, color = Extra.rose)

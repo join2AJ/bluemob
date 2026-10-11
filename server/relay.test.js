@@ -256,3 +256,27 @@ test("privacy policy and account deletion pages are served", async () => {
   }
   srv.close();
 });
+
+test("admin: stats, report status, admin page; wrong token refused", async () => {
+  const { createServer, Store, Reports } = require("./relay");
+  const os = require("os"), fsx = require("fs"), pathx = require("path");
+  const dir = fsx.mkdtempSync(pathx.join(os.tmpdir(), "bm-"));
+  const srv = createServer(new Store(null), new Map(), undefined, undefined, new Reports(dir, ""), { adminToken: "adm", liveOnline: () => 3 });
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  await fetch(base + "/v1/report", { method: "POST", body: JSON.stringify({ text: "Map froze", category: "Compass & map", sub: "Trail & trips" }) });
+  assert.equal((await fetch(base + "/v1/admin/stats", { headers: { "x-admin-token": "nope" } })).status, 403);
+  const s = await (await fetch(base + "/v1/admin/stats", { headers: { "x-admin-token": "adm" } })).json();
+  assert.equal(s.onlineNow, 3);
+  assert.equal(s.openReports, 1);
+  const list = await (await fetch(base + "/v1/reports", { headers: { "x-admin-token": "adm" } })).json();
+  const id = list.reports[0].id;
+  assert.equal((await fetch(base + "/v1/reports/status", { method: "POST", body: JSON.stringify({ token: "adm", id, status: "resolved", note: "fixed in 0.26" }) })).status, 200);
+  const after = await (await fetch(base + "/v1/reports?token=adm")).json();
+  assert.equal(after.reports[0].status, "resolved");
+  assert.equal(after.reports[0].note, "fixed in 0.26");
+  const page = await fetch(base + "/admin");
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-security-policy"), /default-src 'self'/);
+  srv.close();
+});

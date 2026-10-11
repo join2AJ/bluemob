@@ -359,6 +359,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             category.substringAfter(' '), sub, photos)
     }
 
+    /**
+     * "Download my data" (DPDP / GDPR right of access): everything BlueMob keeps about the user on this phone, as one
+     * readable JSON file to save or share. Keys and the PIN are left out.
+     */
+    suspend fun exportMyData(): java.io.File = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val iso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
+        fun t(ms: Long) = iso.format(java.util.Date(ms))
+        val p = blueMob.profile.profile.value
+        val j = org.json.JSONObject()
+        j.put("exported", t(System.currentTimeMillis())).put("app", "BlueMob " + com.bluemob.app.BuildConfig.VERSION_NAME)
+        j.put("you", org.json.JSONObject().put("name", identity.displayName.value).put("bluemobId", identity.nodeId).put("phone", p.phone ?: "")
+            .put("email", p.email ?: "").put("dateOfBirth", p.dob ?: "").put("age", p.age ?: org.json.JSONObject.NULL).put("sex", p.sex ?: "")
+            .put("bloodGroup", p.bloodGroup ?: "").put("allergies", p.allergies ?: "").put("medicalConditions", p.conditions ?: ""))
+        j.put("sosContacts", org.json.JSONArray(settings.sosContacts.value.map { org.json.JSONObject().put("name", it.name).put("phone", it.phone).put("state", it.state.label) }))
+        j.put("peopleMet", org.json.JSONArray(blueMob.contacts.contacts.value.values.map { org.json.JSONObject().put("bluemobId", it.nodeId).put("name", it.name).put("lastSeen", if (it.lastSeen > 0) t(it.lastSeen) else "") }))
+        j.put("blocked", org.json.JSONArray(settings.blocked.value.toList()))
+        j.put("messages", org.json.JSONArray(blueMob.database.messages().all().filter { !it.hidden }.sortedBy { it.createdAt }.map { m ->
+            org.json.JSONObject().put("chat", m.peer).put("fromMe", m.fromMe).put("text", m.text).put("time", t(m.createdAt)).put("status", m.status.name)
+        }))
+        j.put("calls", org.json.JSONArray(blueMob.callLog.all().map { c ->
+            org.json.JSONObject().put("with", c.name).put("bluemobId", c.peer).put("video", c.video).put("outgoing", c.outgoing).put("outcome", c.outcome).put("time", t(c.startedAt)).put("seconds", c.durationS)
+        }))
+        j.put("trips", org.json.JSONArray(trips.value.map { tr -> org.json.JSONObject().put("name", tr.name).put("start", t(tr.startedAt)).put("end", tr.endedAt?.let { t(it) } ?: "").put("metres", tr.distanceM.toInt()) }))
+        j.put("guidesRead", org.json.JSONObject(com.bluemob.app.guide.GuidePacks.read.value.mapValues { t(it.value) }))
+        j.put("auditTrail", org.json.JSONArray(audit.value.first.map { a -> org.json.JSONObject().put("time", t(a.time)).put("kind", a.kind).put("text", a.text) }))
+        val dir = java.io.File(getApplication<android.app.Application>().cacheDir, "open").apply { mkdirs() }
+        dir.resolve("bluemob-my-data.json").apply { writeText(j.toString(2)) }
+    }
+
+    /** Records that the user agreed to the privacy policy (and, for under-18s, that a parent or guardian agreed). */
+    /** Signed up before the consent step existed: asked once to agree. */
+    fun needsConsent(): Boolean = identity.onboardingDone.value && blueMob.profile.consentAt == 0L
+    fun recordConsent(parental: Boolean) {
+        blueMob.profile.setConsent(System.currentTimeMillis(), parental)
+        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Agreed to the privacy policy" + if (parental) " (with a parent's or guardian's consent)" else "")
+    }
+
     // ---- block and report people ----
     val blocked = settings.blocked
     fun setBlocked(id: String, on: Boolean) {
@@ -623,6 +660,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         identity.setDisplayName(r.name); identity.setAvatar(r.avatar)
         blueMob.profile.setVerifiedPhone(r.phone)
         blueMob.profile.setMedical(r.dob, r.sex, r.bloodGroup, r.allergies, r.conditions)
+        recordConsent(r.parentalConsent)
         blueMob.profile.setEmail(r.email)
         syncEmail()
         identity.setOnboardingDone(true)

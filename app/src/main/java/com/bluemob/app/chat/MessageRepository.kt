@@ -58,6 +58,8 @@ class MessageRepository(
     private val me: () -> Pair<String, String> = { "" to "" },
     /** People the user blocked: their messages are dropped (they still get a receipt, so they stop re-sending). */
     private val blocked: (String) -> Boolean = { false },
+    /** A rescue-group message that came inside a hidden chat message (see [Rich.env]). */
+    private val onRoomEnvelope: (String) -> Unit = {},
 ) {
     /** Every message shown in a chat (copies that only carry group messages and reactions are left out). */
     val messages: StateFlow<List<MessageEntity>> = dao.observeAll().map { all -> all.filter { !it.hidden } }.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -142,6 +144,14 @@ class MessageRepository(
         id = newId(), peer = to, fromMe = true, text = wire, createdAt = now, status = MessageStatus.PENDING,
         directState = PathState.WAITING, internetState = PathState.UNAVAILABLE, hidden = true, parent = parent,
     )
+
+    /** Sends a rescue-group message to [to] as a hidden chat message, so it's kept and retried until it arrives. */
+    fun sendRoomEnvelope(to: String, envelope: String) {
+        scope.launch {
+            dao.insert(carrier(to, Rich(env = envelope).encode(), "", System.currentTimeMillis()))
+            deliverAll()
+        }
+    }
 
     /** Starts a group with [members] (node ID → name). Everyone hears about it with the first message. */
     fun createGroup(name: String, members: Map<String, String>): String? {
@@ -301,6 +311,7 @@ class MessageRepository(
 
     /** A group message, a reply or a reaction. */
     private suspend fun receiveRich(e: MeshEvent.MessageReceived, rich: Rich, now: Long) {
+        rich.env?.let { onRoomEnvelope(it); return }
         val (myId, _) = me()
         val gid = rich.group?.takeIf { GroupStore.isGroup(it) }
         // Keep the group's name and members up to date (whoever writes last knows best).

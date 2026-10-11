@@ -24,6 +24,9 @@
 //   GET  /v1/announcements?since=ms                       news from the BlueMob team
 //   POST /v1/announce {token, title, text, link?, urgent?} post news (ADMIN_TOKEN); {token, remove: id} deletes it
 //   POST /v1/account/delete {pk, at, sig}                  forget this BlueMob ID: key, number, email, backups, waiting messages
+//   GET  /admin                                            the team's page: overview, reports (with status), news
+//   GET  /v1/admin/stats   (x-admin-token)                 counts for the overview
+//   POST /v1/reports/status {token, id, status, note}      open / in progress / resolved
 //   GET  /v1/live (WebSocket)                              real-time links for calls (see live.js)
 //   GET  /health
 "use strict";
@@ -281,6 +284,16 @@ class Reports {
     const shown = all.filter((r) => (!category || (r.category || "Other") === category) && (!sub || (r.sub || "Other") === sub)).slice(0, 200);
     return { reports: shown, counts };
   }
+  /** The team's progress on a report: open, in progress or resolved, with a note. */
+  setStatus(id, status, note = "") {
+    if (!/^[0-9]+-[0-9a-f]{6}\.json$/.test(id) || !["open", "in progress", "resolved"].includes(status)) return false;
+    const f = path.join(this.dir, id);
+    if (!fs.existsSync(f)) return false;
+    const r = JSON.parse(fs.readFileSync(f, "utf8"));
+    r.status = status; r.note = String(note).slice(0, 1000); r.updated = Date.now();
+    fs.writeFileSync(f, JSON.stringify(r));
+    return true;
+  }
   photo(id, n) {
     if (!/^[0-9]+-[0-9a-f]{6}\.json$/.test(id) || !/^[0-2]$/.test(n)) return null;
     const f = path.join(this.dir, `${id.slice(0, -5)}-${n}.jpg`);
@@ -289,7 +302,14 @@ class Reports {
 }
 
 function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null), reports = new Reports(null),
-  { news = new Announcements(null), adminToken = reports.token, alertUrl = "", contactEmail = "the contact address on BlueMob's Play Store page" } = {}) {
+  { news = new Announcements(null), adminToken = reports.token, alertUrl = "", contactEmail = "the contact address on BlueMob's Play Store page",
+    officer = "", liveOnline = () => 0, startedAt = Date.now() } = {}) {
+  // The team: the admin token (or the older reports token), compared in constant time.
+  const isAdmin = (tok) => [adminToken, reports.token].some((want) => {
+    if (!want || typeof tok !== "string") return false;
+    const a = Buffer.from(tok), b = Buffer.from(want);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  });
   const hits = new Map(); // device or IP -> {hour, n}
   const lookups = new Map(); // device|day -> phone lookups
   const limited = (who) => {
@@ -324,9 +344,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
     }
     const rp = url.pathname.match(/^\/v1\/reports(?:\/([^/]+)\/([0-9]))?$/);
     if (reports.dir && rp && req.method === "GET") {
-      const given = Buffer.from(url.searchParams.get("token") || "");
-      const want = Buffer.from(reports.token);
-      if (!reports.token || given.length !== want.length || !crypto.timingSafeEqual(given, want)) return send(res, 403, { error: "no" });
+      if (!isAdmin(url.searchParams.get("token") || req.headers["x-admin-token"])) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
       if (rp[1]) {
         const img = reports.photo(rp[1], rp[2]);
         if (!img) return send(res, 404, { error: "not found" });
@@ -347,12 +365,30 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
       res.writeHead(200, { "content-type": "application/octet-stream", "content-length": buf.length, "cache-control": "no-store" });
       return res.end(buf);
     }
-    // Public pages the Play Store asks for: the privacy policy and how to delete an account.
-    if (req.method === "GET" && (url.pathname === "/privacy" || url.pathname === "/delete-account")) {
+    // Public pages the Play Store asks for (privacy policy, how to delete an account), and the team's admin page
+    // (it does nothing without the admin token, which it asks for and keeps only in that browser tab).
+    if (req.method === "GET" && ["/privacy", "/delete-account", "/admin"].includes(url.pathname)) {
       const f = path.join(__dirname, "pages", url.pathname.slice(1) + ".html");
       if (!fs.existsSync(f)) return send(res, 404, { error: "not found" });
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" });
-      return res.end(fs.readFileSync(f, "utf8").replaceAll("{{EMAIL}}", contactEmail));
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": url.pathname === "/admin" ? "no-store" : "public, max-age=3600",
+        "content-security-policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' blob: data:",
+        "x-frame-options": "DENY", "referrer-policy": "no-referrer" });
+      return res.end(fs.readFileSync(f, "utf8").replaceAll("{{EMAIL}}", contactEmail)
+        .replaceAll("{{OFFICER}}", officer ? officer + ", " : ""));
+    }
+    if (req.method === "GET" && url.pathname === "/v1/admin/stats") {
+      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      const all = reports.dir ? reports.all() : [];
+      const day = (t) => new Date(t).toISOString().slice(0, 10);
+      const perDay = {};
+      for (let i = 13; i >= 0; i--) perDay[day(Date.now() - i * 86400e3)] = { user: 0, auto: 0 };
+      for (const r of all) { const d = perDay[day(r.at)]; if (d) d[r.auto ? "auto" : "user"]++; }
+      return send(res, 200, {
+        devices: store.keys.size, onlineNow: liveOnline(), verifiedNumbers: store.phones.size, emails: store.emails.size,
+        pushReady: store.pushTokens.size, waitingMessages: store.packets.size, ratedPeople: store.ratings.size,
+        reports: all.length, openReports: all.filter((r) => (r.status || "open") !== "resolved").length, perDay,
+        news: news.items.length, upSince: startedAt, version: "0.26",
+      });
     }
     if (req.method === "GET" && url.pathname === "/v1/announcements") return send(res, 200, { items: news.since(Number(url.searchParams.get("since")) || 0) });
     if (req.method === "GET" && url.pathname === "/v1/guides") {
@@ -465,8 +501,12 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         store.apply({ op: "email", id, email });
         return send(res, 200, { ok: true });
       }
+      if (url.pathname === "/v1/reports/status") {
+        if (!isAdmin(body.token)) { limited("admin:" + ip); return send(res, 401, { error: "token" }); }
+        return send(res, reports.dir && reports.setStatus(String(body.id || ""), String(body.status || ""), body.note || "") ? 200 : 400, { ok: true });
+      }
       if (url.pathname === "/v1/announce") {
-        if (!adminToken || body.token !== adminToken) return send(res, 401, { error: "token" });
+        if (!isAdmin(body.token)) { limited("admin:" + ip); return send(res, 401, { error: "token" }); }
         if (body.remove) { news.remove(String(body.remove)); return send(res, 200, { ok: true }); }
         if (!String(body.title || "").trim() || !String(body.text || "").trim()) return send(res, 400, { error: "title and text" });
         return send(res, 200, { ok: true, item: news.add(body) });
@@ -517,11 +557,13 @@ if (require.main === module) {
   const news = new Announcements(path.join(dataDir, "announcements.json"));
   const server = createServer(store, loadGuides(), blobs, backups, reports,
     { news, adminToken: process.env.ADMIN_TOKEN || process.env.REPORTS_TOKEN || "", alertUrl: process.env.ALERT_WEBHOOK || "",
-      contactEmail: process.env.CONTACT_EMAIL || undefined });
+      contactEmail: process.env.CONTACT_EMAIL || undefined, officer: process.env.GRIEVANCE_OFFICER || "", liveOnline: () => liveCount() });
+  let liveCount = () => 0;
   const { createPusher, loadAccount } = require("./push");
   const pusher = createPusher(loadAccount());
   if (pusher.configured) console.log("Firebase wake-ups on");
   const online = require("./live").attachLive(server, { store, pusher });
+  liveCount = () => online.size;
   // News reaches phones signed in right now at once; the others fetch it when they next connect.
   news.onAdd = () => { for (const ws of online.values()) try { ws.text({ t: "news" }); } catch {} };
   server.listen(port, () => console.log(`BlueMob relay listening on :${port}`));

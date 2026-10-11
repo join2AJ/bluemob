@@ -36,6 +36,8 @@ class MedicalDraft(
     /** "yyyy-MM-dd" from what was typed ("12/03/1990"), or null if empty or not a real date. */
     val dobIso: String? get() = DateOfBirth.iso(dob.value)
     val dobOk: Boolean get() = dob.value.isBlank() || dobIso != null
+    /** Set by sign-up: under 18 and a parent or guardian agreed. */
+    var parental: Boolean = false
 }
 
 @Composable

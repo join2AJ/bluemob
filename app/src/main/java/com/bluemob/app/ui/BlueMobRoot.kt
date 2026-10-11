@@ -178,6 +178,7 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
                     bluemobId = com.bluemob.app.util.formatId(vm.nodeId),
                     onRestore = if (upgrading) null else ({ restoring = true }),
                     verifier = remember { actions.phoneVerifier() },
+                    privacyUrl = vm.bridgeUrl.collectAsStateWithLifecycle().value.trimEnd('/').let { if (it.isBlank()) "" else "$it/privacy" },
                     onDone = { r ->
                         vm.completeSignup(r)
                         if (!system.permissionsGranted) actions.requestMeshPermissions() else vm.startMesh()
@@ -590,10 +591,25 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     recoveryCode = vm::recoveryCode, onRecoverySaved = vm::setRecoverySaved,
                     onBackup = { push("backup") },
                     onDeleteAccount = { phoneOnly -> vm.deleteAccount(phoneOnly) },
+                    onExportData = { scope.launch { actions.shareFiles(listOf(vm.exportMyData())) } },
                     privacyUrl = vm.bridgeUrl.collectAsStateWithLifecycle().value.trimEnd('/').let { if (it.isBlank()) "" else "$it/privacy" },
                 )
                 route == "signal" -> SosSignalScreen(signalDefault, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = ::pop)
             }
+        }
+
+        // People who signed up before the consent step: asked once to agree to the privacy policy.
+        var askConsent by remember { mutableStateOf(vm.needsConsent()) }
+        if (askConsent) {
+            val uri = androidx.compose.ui.platform.LocalUriHandler.current
+            val policy = vm.bridgeUrl.collectAsStateWithLifecycle().value.trimEnd('/').let { if (it.isBlank()) "" else "$it/privacy" }
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Our privacy policy") },
+                text = { Text("BlueMob keeps your details encrypted on your phone. Your health details are shared only inside an SOS, and you can download or delete your data any time (You → Account). Please read and agree to keep using BlueMob.") },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.recordConsent(false); askConsent = false }) { Text("I agree") } },
+                dismissButton = { if (policy.isNotBlank()) androidx.compose.material3.TextButton(onClick = { runCatching { uri.openUri(policy) } }) { Text("Read it") } },
+            )
         }
 
         // Reachable when closed needs Android to let BlueMob run in the background: ask once, plainly.

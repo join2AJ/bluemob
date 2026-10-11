@@ -224,7 +224,28 @@ class MessageRepositoryTest {
     fun richRoundTrip() {
         val r = Rich("hi", group = "g-1", groupName = "Fam", members = mapOf("0123456789abcdef" to "Asha"), groupMsgId = "m-1", replyId = "m-0", replyName = "Bala", replyText = "ok")
         assertEquals(r, Rich.decode(r.encode()))
+        val e = Rich(env = """{"t":"room"}""")
+        assertEquals(e, Rich.decode(e.encode()))
+        assertTrue(e.isControl)
         assertEquals(null, Rich.decode("plain text"))
         assertEquals("", Rich.reactionsOf(Rich.withReaction(Rich.withReaction("", "x", "👍"), "x", ""))["x"].orEmpty())
+    }
+
+    @Test
+    fun rescueMessagesRideHiddenChatMessages() = runTest {
+        val radio = Radio()
+        val daoA = FakeDao(); val daoB = FakeDao()
+        val got = mutableListOf<String>()
+        val sky: suspend (String, (String) -> Unit) -> SkyAnswer = { _, _ -> SkyAnswer("hi") }
+        val a = MessageRepository(daoA, radio.a, backgroundScope, sky, me = { "A" to "Asha" })
+        val b = MessageRepository(daoB, radio.b, backgroundScope, sky, me = { "B" to "Bala" }, onRoomEnvelope = { got += it })
+        a.sendRoomEnvelope("B", """{"t":"room","b":"x"}""")
+        settle()
+        assertTrue("waits until there's a way to them", got.isEmpty())
+        radio.connect()
+        settle()
+        assertEquals(listOf("""{"t":"room","b":"x"}"""), got)
+        assertTrue("never shown as a chat message", b.messages.value.isEmpty() || b.messages.value.none { it.peer == "A" })
+        assertTrue(a.messages.value.none { it.peer == "B" })
     }
 }

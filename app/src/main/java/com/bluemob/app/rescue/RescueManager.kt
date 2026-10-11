@@ -121,6 +121,11 @@ class RescueManager(
      */
     var remoteMembers: (RescueRoom) -> Collection<String> = { emptySet() }
 
+    /** Sends a signed group message to someone far away inside a hidden chat message (kept by the relay until delivered). */
+    var viaChat: (to: String, envelope: String) -> Unit = { _, _ -> }
+    /** Last position sent by chat to each person: positions go that way at most every 2 minutes. */
+    private val lastPosByChat = mutableMapOf<String, Long>()
+
     /** Everyone in a group but us: the person in need, the helpers, and [remoteMembers]. */
     private fun members(r: RescueRoom): Set<String> =
         (listOf(r.victimId) + r.helpers.filter { it.status != HelperStatus.LEFT }.map { it.nodeId } + remoteMembers(r)).toSet() - identity.nodeId
@@ -175,7 +180,18 @@ class RescueManager(
         scope.launch { dao.insert(m.toRow(battery = if (room(room)?.mine == true) sos.batteryPct() else null)) }
         mesh.broadcastRoom(m)
         // Members who aren't nearby get it over the internet.
-        room(room)?.let { r -> members(r).filter { !mesh.isConnected(it) }.forEach { mesh.sendRoomOnline(it, m) } }
+        room(room)?.let { r ->
+            val env = mesh.roomEnvelope(m)
+            members(r).filter { !mesh.isConnected(it) }.forEach { to ->
+                mesh.sendRoomOnline(to, m)
+                // Also as a hidden chat message: the live link only reaches phones online at this very moment.
+                val now = System.currentTimeMillis()
+                if (env != null && (kind != RescueRoom.POS || now - (lastPosByChat[to] ?: 0L) > 120_000)) {
+                    if (kind == RescueRoom.POS) lastPosByChat[to] = now
+                    viaChat(to, env)
+                }
+            }
+        }
     }
 
     private suspend fun receive(m: RoomPayload) {
@@ -200,6 +216,8 @@ class RescueManager(
             else -> null
         }
         notice?.let { _notices.tryEmit(RescueNotice(m.room, it)) }
+        // The person in need ended it: their SOS alert goes too (even if the "I'm safe" signal itself was missed).
+        if (m.kind == RescueRoom.ENDED && m.fromNodeId == r.victimId && !r.mine) onVictimSafe(r)
         // Our own SOS: say plainly what the helper already knows about us. It gives hope, and says what to do next.
         if (r.mine && m.kind == RescueRoom.JOIN) {
             val mine = sos.mine.value
@@ -207,6 +225,9 @@ class RescueManager(
                 (if (mine?.pos != null) ", and your position (±${mine.pos.uncertaintyM.toInt()} m). Stay where you are if you can." else ". Your position isn't known yet: turn on location, or tell them where you are."))
         }
     }
+
+    /** Set by the app: clears the SOS alert of someone who is safe now. */
+    var onVictimSafe: (RescueRoom) -> Unit = {}
 
     /** Our own recent messages in a group, to someone far away. (We can only re-send what we signed ourselves.) */
     private suspend fun catchUpOnline(nodeId: String, roomId: String) {

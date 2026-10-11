@@ -25,6 +25,11 @@ data class Rich(
     val reactTo: String? = null,
     /** Leaving the group. */
     val leave: Boolean = false,
+    /**
+     * A signed rescue-group message riding along a hidden chat message: chats are kept by the relay until delivered
+     * and acknowledged, so "I'm coming" and "I'm safe" reach someone who was offline at that moment.
+     */
+    val env: String? = null,
 ) {
     fun encode(): String {
         val j = JSONObject()
@@ -37,10 +42,11 @@ data class Rich(
         replyId?.let { j.put("r", it).put("rn", replyName).put("rq", replyText) }
         react?.let { j.put("x", it).put("xi", reactTo) }
         if (leave) j.put("lv", 1)
+        env?.let { j.put("rm", it) }
         return MARK + j.toString()
     }
 
-    val isControl: Boolean get() = react != null || leave
+    val isControl: Boolean get() = react != null || leave || env != null
 
     companion object {
         /** Invisible separator, then JSON. Plain messages never start with it. */
@@ -67,6 +73,7 @@ data class Rich(
                 replyName = j.optString("rn").take(40), replyText = j.optString("rq").take(120),
                 react = if (j.has("x")) j.optString("x").take(8) else null, reactTo = j.optString("xi").takeIf { it.isNotBlank() },
                 leave = j.optInt("lv") == 1,
+                env = j.optString("rm").takeIf { it.isNotBlank() && it.length <= 8_000 },
             )
         }
 

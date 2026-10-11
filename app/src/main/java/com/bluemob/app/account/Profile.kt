@@ -126,6 +126,10 @@ class ProfileStore(private val prefs: SharedPreferences) {
         _profile.value = read()
     }
 
+    /** When the user agreed to the privacy policy, and whether a parent or guardian agreed for them (under 18). */
+    fun setConsent(at: Long, parental: Boolean) { prefs.edit().putLong(CONSENT_AT, at).putBoolean(CONSENT_PARENT, parental).apply() }
+    val consentAt: Long get() = prefs.getLong(CONSENT_AT, 0L)
+
     fun setVerifiedPhone(e164: String) { prefs.edit().putString(PHONE, e164).putBoolean(VERIFIED, true).apply(); _profile.value = read() }
 
     fun setDetails(age: Int?, bloodGroup: String?) {
@@ -153,6 +157,8 @@ class ProfileStore(private val prefs: SharedPreferences) {
         const val EMAIL = "email"
         const val EMAIL_SYNCED = "email_synced"
         const val DOB = "dob"
+        const val CONSENT_AT = "consent_at"
+        const val CONSENT_PARENT = "consent_parent"
         const val SEX = "sex"
         const val ALLERGIES = "allergies"
         const val CONDITIONS = "conditions"

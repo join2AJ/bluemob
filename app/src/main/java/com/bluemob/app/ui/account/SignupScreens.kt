@@ -1,6 +1,7 @@
 package com.bluemob.app.ui.account
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,6 +67,8 @@ import kotlinx.coroutines.delay
 data class SignupResult(
     val phone: String, val name: String, val avatar: String, val age: Int?, val bloodGroup: String?, val email: String? = null,
     val dob: String? = null, val sex: String? = null, val allergies: String? = null, val conditions: String? = null,
+    /** Under 18: a parent or guardian agreed (India's DPDP Act asks for it). */
+    val parentalConsent: Boolean = false,
 )
 
 /**
@@ -82,6 +85,8 @@ fun SignupFlow(
     onDone: (SignupResult) -> Unit,
     /** Real SMS (Firebase) when configured, otherwise the test code. */
     verifier: com.bluemob.app.account.PhoneVerifier = com.bluemob.app.account.TestVerifier,
+    /** The privacy policy, published by the relay. */
+    privacyUrl: String = "",
 ) {
     var step by rememberSaveable { mutableIntStateOf(0) }
     var cc by rememberSaveable { mutableStateOf("+91") }
@@ -108,10 +113,10 @@ fun SignupFlow(
                     }
                 }
                 1 -> OtpStep(phone, verifier) { step = 2 }
-                else -> DetailsStep(upgrading, initialName, initialAvatar, bluemobId) { name, avatar, m, email ->
+                else -> DetailsStep(upgrading, initialName, initialAvatar, bluemobId, privacyUrl) { name, avatar, m, email ->
                     onDone(SignupResult(phone, name, avatar, m.dobIso?.let { com.bluemob.app.account.Medical.ageFrom(it) },
                         m.blood.value?.takeIf { it != BloodGroups.UNKNOWN }, email, m.dobIso, m.sex.value,
-                        m.allergies.value.ifBlank { null }, m.conditions.value.ifBlank { null }))
+                        m.allergies.value.ifBlank { null }, m.conditions.value.ifBlank { null }, parentalConsent = m.parental))
                 }
             }
         }
@@ -224,7 +229,7 @@ private fun OtpStep(phone: String, verifier: com.bluemob.app.account.PhoneVerifi
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: String, bluemobId: String, onDone: (String, String, MedicalDraft, String?) -> Unit) {
+private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: String, bluemobId: String, privacyUrl: String = "", onDone: (String, String, MedicalDraft, String?) -> Unit) {
     var name by rememberSaveable { mutableStateOf(initialName) }
     var email by rememberSaveable { mutableStateOf("") }
     val emailProblem = com.bluemob.app.account.Emails.problem(email)
@@ -259,10 +264,38 @@ private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: 
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
         }
     }
+    // Age and consent: BlueMob is for 13+; under-18s need a parent or guardian to agree (India's DPDP Act).
+    val age = medical.dobIso?.let { com.bluemob.app.account.Medical.ageFrom(it) }
+    var adult by rememberSaveable { mutableStateOf(false) }
+    var parent by rememberSaveable { mutableStateOf(false) }
+    var agreed by rememberSaveable { mutableStateOf(false) }
+    val tooYoung = age != null && age < 13
+    val minor = age != null && age in 13..17
+    medical.parental = minor && parent
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Column(Modifier.padding(horizontal = 6.dp, vertical = 6.dp)) {
+            if (tooYoung) Text("BlueMob is for people aged 13 and over.", color = Extra.rose, modifier = Modifier.padding(10.dp))
+            if (age == null) ConsentRow(adult, { adult = it }, "I'm 18 or older (or add your date of birth above)")
+            if (minor) ConsentRow(parent, { parent = it }, "My parent or guardian has read the privacy policy and agrees to me using BlueMob")
+            ConsentRow(agreed, { agreed = it }, "I agree to the privacy policy: my health details are shared only inside an SOS, and I can delete my account any time")
+            if (privacyUrl.isNotBlank()) TextButton(onClick = { runCatching { uri.openUri(privacyUrl) } }) { Text("Read the privacy policy") }
+        }
+    }
+    val consentOk = agreed && !tooYoung && (if (age == null) adult else !minor || parent)
     Button(
         onClick = { onDone(name.trim(), avatar, medical, email.takeIf { it.isNotBlank() }) },
-        enabled = name.isNotBlank() && medical.dobOk && blood != null && emailProblem == null,
+        enabled = name.isNotBlank() && medical.dobOk && blood != null && emailProblem == null && consentOk,
         modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 24.dp),
     ) { Text(if (upgrading) "Save and continue" else "Create my account") }
     if (blood == null) Text("Pick your blood group, or \"${BloodGroups.UNKNOWN}\".", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+}
+
+
+@Composable
+internal fun ConsentRow(checked: Boolean, onChange: (Boolean) -> Unit, text: String) {
+    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.Checkbox(checked, onChange)
+        Text(text, style = MaterialTheme.typography.bodySmall)
+    }
 }

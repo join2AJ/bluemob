@@ -36,6 +36,20 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.26: reliable rescue groups, admin page, privacy rights
+
+- **Rescue groups over the internet now always arrive.** "I'm coming", "I'm safe", arrivals and messages also travel
+  as hidden chat messages, which the relay keeps until delivered. Before, they only reached phones online at that very
+  second, so a helper's phone could stay "on the way" after the SOS ended. When the person in need ends the rescue,
+  helpers' alerts close too.
+- **Admin page** at `/admin` on the relay: overview, reports (filter, photos, status, notes), and news to every phone.
+- **Privacy:**
+  - sign-up asks for agreement to the privacy policy, and existing users are asked once;
+  - age check: 13+, and under-18s need a parent or guardian to agree;
+  - "Download my data" in Account;
+  - grievance officer on `/privacy`;
+  - `docs/incident-response.md` for breaches.
+
 ## Android 0.25: ready for the Play Store checklist
 
 - **About you at sign-up:** date of birth (age is worked out), sex (with "Prefer not to say"), blood group,
