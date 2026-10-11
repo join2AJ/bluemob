@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AirplanemodeActive
 import androidx.compose.material.icons.outlined.Bluetooth
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Wifi
@@ -66,7 +67,8 @@ fun RadioState.firstProblem(): Pair<Radio, String>? = when {
 
 /** One place to see and switch every radio BlueMob uses. */
 @Composable
-fun ConnectionsScreen(state: RadioState, online: Boolean, onBack: () -> Unit, onSwitch: (Radio, Boolean) -> Unit) {
+fun ConnectionsScreen(state: RadioState, online: Boolean, onBack: () -> Unit, onSwitch: (Radio, Boolean) -> Unit,
+                      background: Boolean? = null, onBackground: (Boolean) -> Unit = {}) {
     SubScreen("Connections", onBack) {
         item {
             Column(Modifier.padding(top = 8.dp)) {
@@ -98,6 +100,31 @@ fun ConnectionsScreen(state: RadioState, online: Boolean, onBack: () -> Unit, on
                             r == Radio.INTERNET -> if (on) "On · this phone can bridge" else "No internet here"
                             else -> if (on) "On" else "Off"
                         })
+                }
+            }
+        }
+        if (background != null) {
+            item { GroupLabel("BlueMob") }
+            item {
+                Group {
+                    Column {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                            Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(if (background) Palette.Pine else Extra.ink3), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.Sync, null, tint = Color.White, modifier = Modifier.size(19.dp))
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Background", style = MaterialTheme.typography.titleMedium)
+                                Text(if (background) "On · reachable when BlueMob is closed" else "Off · only while BlueMob is open",
+                                    style = MaterialTheme.typography.labelMedium, color = if (background) MaterialTheme.colorScheme.primary else Extra.ember)
+                                Text(if (background) "Calls, messages and SOS reach you with BlueMob closed. Uses a little battery and internet."
+                                    else "BlueMob uses no internet or battery once closed, and won't ask to run in the background. Calls and messages wait until you open it. An SOS you send still keeps going.",
+                                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 2.dp))
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Switch(checked = background, onCheckedChange = onBackground)
+                        }
+                    }
                 }
             }
         }
@@ -134,7 +161,7 @@ private fun RadioRow(r: Radio, on: Boolean, status: String, divider: Boolean, on
 
 /** A compact row of the four radios, for the top of Nearby. Tap to open [ConnectionsScreen]. */
 @Composable
-fun RadioStrip(state: RadioState, online: Boolean, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+fun RadioStrip(state: RadioState, online: Boolean, onOpen: () -> Unit, modifier: Modifier = Modifier, background: Boolean? = null) {
     Row(modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).clickable(onClick = onOpen)
         .padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Radio.entries.forEach { r ->
@@ -147,6 +174,13 @@ fun RadioStrip(state: RadioState, online: Boolean, onOpen: () -> Unit, modifier:
                 Spacer(Modifier.width(4.dp))
                 Box(Modifier.size(6.dp).clip(CircleShape).background(if (on) Palette.Mint else Extra.line))
             }
+        }
+        if (background != null) Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Sync, null, tint = if (background) MaterialTheme.colorScheme.primary else Extra.ink3, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text("Bg", style = MaterialTheme.typography.labelMedium, color = if (background) MaterialTheme.colorScheme.onSurface else Extra.ink3)
+            Spacer(Modifier.width(4.dp))
+            Box(Modifier.size(6.dp).clip(CircleShape).background(if (background) Palette.Mint else Extra.line))
         }
     }
 }

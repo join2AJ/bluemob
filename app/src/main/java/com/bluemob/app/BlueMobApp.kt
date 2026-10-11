@@ -40,6 +40,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
@@ -93,6 +94,7 @@ class BlueMobApp : Application() {
     /** True while any BlueMob screen is visible. Notifications are only shown when it isn't. */
     @Volatile var inForeground = false
         private set
+    private val foreground = kotlinx.coroutines.flow.MutableStateFlow(false)
 
     /** People whose online status matters right now (the open chat or call), checked first. */
     @Volatile var watchPresence: () -> List<String> = { listOfNotNull(calls.call.value?.peer) }
@@ -131,8 +133,8 @@ class BlueMobApp : Application() {
         notifier = Notifier(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             private var started = 0
-            override fun onActivityStarted(a: Activity) { started++; inForeground = true }
-            override fun onActivityStopped(a: Activity) { started--; inForeground = started > 0 }
+            override fun onActivityStarted(a: Activity) { started++; inForeground = true; foreground.value = true }
+            override fun onActivityStopped(a: Activity) { started--; inForeground = started > 0; foreground.value = inForeground }
             override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
             override fun onActivityResumed(a: Activity) = Unit
             override fun onActivityPaused(a: Activity) = Unit
@@ -211,7 +213,12 @@ class BlueMobApp : Application() {
         // The ringing notification goes once the call is answered, declined or over.
         appScope.launch { calls.call.collect { c -> if (c?.phase != com.bluemob.app.call.CallPhase.INCOMING) notifier.cancel(com.bluemob.app.service.Notifier.INCOMING_CALL_ID) } }
         bridge.client.liveSend = { to, packet -> live.sendText(to, packet) }
-        live.start()
+        // The internet link runs while BlueMob is open, or always with "Reachable when closed". With it off, BlueMob
+        // signs out a little after it's closed (not during a call or an SOS), so it uses no internet in the background.
+        appScope.launch {
+            combine(foreground, settings.background, calls.call, sos.mine) { fg, bg, call, mine -> fg || bg || call != null || mine != null }
+                .collectLatest { keep -> if (keep) live.start() else { kotlinx.coroutines.delay(30_000); live.stop() } }
+        }
         // Who's online over the internet, for chats and calls: the people we talk to, every 15 seconds.
         appScope.launch {
             while (true) {
@@ -307,8 +314,6 @@ class BlueMobApp : Application() {
         // "I'm safe": take the alarm notification down too.
         appScope.launch { sos.incoming.collect { if (it.cancelled) notifier.sosEnded(it) } }
         appScope.launch { rescue.notices.collect { n -> if (!inForeground) notifier.rescue(n.room, n.text) } }
-        // The ringing call notification goes once the call is answered, declined or missed.
-        appScope.launch { calls.call.collect { c -> if (c == null || c.phase != com.bluemob.app.call.CallPhase.INCOMING) notifier.cancel(Notifier.INCOMING_CALL_ID) } }
         // Start-up itself is done. Android also starts BlueMob with no screen (background service, scheduled backups,
         // wake-ups); the screen marks its own step when it opens (MainActivity), so a background start that's later
         // closed normally is never mistaken for a crash. The retry marker stays until a screen really opens.

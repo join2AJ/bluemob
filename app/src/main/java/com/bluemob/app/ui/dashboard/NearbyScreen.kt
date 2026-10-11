@@ -98,6 +98,8 @@ fun NearbyScreen(
     onOpenBattery: () -> Unit,
     onConnections: () -> Unit = {},
     onFixRadio: (Radio) -> Unit = {},
+    /** "Reachable when closed", shown with the radios. */
+    background: Boolean? = null,
     onGames: () -> Unit = {},
     onFindLost: (String) -> Unit = {},
     onCheckEveryone: () -> Unit = {},
@@ -124,7 +126,7 @@ fun NearbyScreen(
     ) {
         item { LargeTitle("Nearby", over = "${greeting()}, ${state.name}") }
         state.radios?.let { radios ->
-            item { RadioStrip(radios, state.online, onConnections, Modifier.padding(bottom = 12.dp)) }
+            item { RadioStrip(radios, state.online, onConnections, Modifier.padding(bottom = 12.dp), background) }
             radios.firstProblem()?.let { problem ->
                 if (state.permissionsGranted) item { RadioBanner(problem, onFix = { onFixRadio(problem.first) }, onOpen = onConnections, modifier = Modifier.padding(bottom = 12.dp)) }
             }

@@ -324,6 +324,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                                 vm.otherVersions.collectAsStateWithLifecycle().value.values.map { it.name },
                                 batteries = vm.batteries.collectAsStateWithLifecycle().value, check = vm.checkIn.collectAsStateWithLifecycle().value),
                             padding, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
+                            background = vm.background.collectAsStateWithLifecycle().value,
                             onRequestPermissions = actions.requestMeshPermissions, onOpenLocationSettings = actions.openLocationSettings,
                             onShareLocation = { toggleLocation(true) }, onOpenChat = { push("chat:$it") },
                             onTalkToSky = { push("chat:" + SkyBot.NODE_ID) }, onOpenGuide = { tab = Tab.GUIDE }, onOpenBattery = { tab = Tab.YOU },
@@ -477,7 +478,12 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "sos-contacts" -> SosContactsScreen(sosContacts, ::pop, onAdd = { n, p, id -> vm.addSosContact(n, p, id) }, onRemove = vm::removeSosContact,
                     onInvite = { c -> actions.textSos(listOf(c.phone), vm.inviteText(c.name)) },
                     people = people.filter { it.nodeId != SkyBot.NODE_ID }, onAskAgain = vm::askSosContactAgain)
-                route == "connections" -> ConnectionsScreen(radios, online, ::pop, onSwitch = actions.switchRadio)
+                route == "connections" -> ConnectionsScreen(radios, online, ::pop, onSwitch = actions.switchRadio,
+                    background = vm.background.collectAsStateWithLifecycle().value, onBackground = { on ->
+                        vm.setBackground(on)
+                        // Turning it on asks Android once to let BlueMob run with Battery Saver on; turning it off never asks.
+                        if (on && !system.keepsRunning) actions.askKeepRunning()
+                    })
                 route == "audit" -> {
                     val audit by vm.audit.collectAsStateWithLifecycle()
                     val witnesses by vm.witnesses.collectAsStateWithLifecycle()

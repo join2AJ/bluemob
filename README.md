@@ -36,6 +36,12 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.24: a Background switch, like Wi-Fi and Bluetooth
+
+- **Background** sits with Bluetooth, Wi-Fi, GPS and Internet (Nearby → Connections, and the strip on Nearby).
+  On: calls, messages and SOS reach you with BlueMob closed. Off: BlueMob signs out of the internet 30 seconds
+  after it's closed (not during a call or an SOS) and never asks to run in the background.
+
 ## Android 0.23: reachable when closed
 
 - **Calls and messages reach you with BlueMob closed.** "Reachable when closed" is now on by default and no longer
