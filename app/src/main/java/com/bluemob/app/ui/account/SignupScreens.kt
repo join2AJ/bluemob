@@ -63,7 +63,10 @@ import com.bluemob.app.ui.theme.Space
 import kotlinx.coroutines.delay
 
 /** What sign-up collects. */
-data class SignupResult(val phone: String, val name: String, val avatar: String, val age: Int?, val bloodGroup: String?, val email: String? = null)
+data class SignupResult(
+    val phone: String, val name: String, val avatar: String, val age: Int?, val bloodGroup: String?, val email: String? = null,
+    val dob: String? = null, val sex: String? = null, val allergies: String? = null, val conditions: String? = null,
+)
 
 /**
  * Sign up: mobile number → one-time code → name, age and blood group. People who used BlueMob before sign-up
@@ -105,8 +108,10 @@ fun SignupFlow(
                     }
                 }
                 1 -> OtpStep(phone, verifier) { step = 2 }
-                else -> DetailsStep(upgrading, initialName, initialAvatar, bluemobId) { name, avatar, age, blood, email ->
-                    onDone(SignupResult(phone, name, avatar, age, blood, email))
+                else -> DetailsStep(upgrading, initialName, initialAvatar, bluemobId) { name, avatar, m, email ->
+                    onDone(SignupResult(phone, name, avatar, m.dobIso?.let { com.bluemob.app.account.Medical.ageFrom(it) },
+                        m.blood.value?.takeIf { it != BloodGroups.UNKNOWN }, email, m.dobIso, m.sex.value,
+                        m.allergies.value.ifBlank { null }, m.conditions.value.ifBlank { null }))
                 }
             }
         }
@@ -219,17 +224,15 @@ private fun OtpStep(phone: String, verifier: com.bluemob.app.account.PhoneVerifi
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: String, bluemobId: String, onDone: (String, String, Int?, String?, String?) -> Unit) {
+private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: String, bluemobId: String, onDone: (String, String, MedicalDraft, String?) -> Unit) {
     var name by rememberSaveable { mutableStateOf(initialName) }
     var email by rememberSaveable { mutableStateOf("") }
     val emailProblem = com.bluemob.app.account.Emails.problem(email)
     var avatar by rememberSaveable { mutableStateOf(initialAvatar) }
-    var age by rememberSaveable { mutableStateOf("") }
-    var blood by rememberSaveable { mutableStateOf<String?>(null) }
-    val ageNum = age.toIntOrNull()
-    val ageOk = age.isEmpty() || ageNum in 1..120
+    val medical = rememberMedicalDraft(null)
+    val blood = medical.blood.value
     Text("About you", style = MaterialTheme.typography.headlineSmall)
-    Text("People nearby see your name. Your age and blood group are shared only when you send an SOS, so helpers know.",
+    Text("People nearby see your name. Your health details are shared only when you send an SOS, so helpers and medics know. Skip anything you'd rather not say.",
         style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(64.dp).clip(CircleShape).background(Gradients.horizon()), contentAlignment = Alignment.Center) { Text(avatar, fontSize = 32.sp) }
@@ -241,15 +244,7 @@ private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: 
     }
     Spacer(Modifier.height(12.dp))
     AvatarPicker(selected = avatar, onSelect = { avatar = it })
-    OutlinedTextField(
-        value = age, onValueChange = { age = it.filter { c -> c.isDigit() }.take(3) }, label = { Text("Age") }, singleLine = true,
-        isError = !ageOk, supportingText = { if (!ageOk) Text("Between 1 and 120") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-    )
-    Text("Blood group", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        (BloodGroups.ALL + BloodGroups.UNKNOWN).forEach { g -> Chip(if (g == BloodGroups.UNKNOWN) g else "🩸 $g", blood == g) { blood = g } }
-    }
+    MedicalFields(medical)
     OutlinedTextField(
         value = email, onValueChange = { email = it.filter { c -> !c.isWhitespace() }.take(120) }, label = { Text("Email (optional)") }, singleLine = true,
         isError = emailProblem != null && email.contains('@'),
@@ -265,8 +260,8 @@ private fun DetailsStep(upgrading: Boolean, initialName: String, initialAvatar: 
         }
     }
     Button(
-        onClick = { onDone(name.trim(), avatar, ageNum, blood?.takeIf { it != BloodGroups.UNKNOWN }, email.takeIf { it.isNotBlank() }) },
-        enabled = name.isNotBlank() && ageOk && blood != null && emailProblem == null,
+        onClick = { onDone(name.trim(), avatar, medical, email.takeIf { it.isNotBlank() }) },
+        enabled = name.isNotBlank() && medical.dobOk && blood != null && emailProblem == null,
         modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 24.dp),
     ) { Text(if (upgrading) "Save and continue" else "Create my account") }
     if (blood == null) Text("Pick your blood group, or \"${BloodGroups.UNKNOWN}\".", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())

@@ -157,6 +157,8 @@ fun SosHubScreen(
                                 cursorBrush = SolidColor(Extra.rose), modifier = Modifier.fillMaxWidth())
                         }
                         Text("You can send without a note. Every second counts.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                        Text("BlueMob adds help from people nearby, but can't promise anyone receives it. If you can, also call 112.",
+                            style = MaterialTheme.typography.bodySmall, color = Extra.rose, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
             }
@@ -481,6 +483,9 @@ fun SosAlert(
                     sos.bloodGroup?.let { MedicalTag("🩸 Blood group", it) }
                     sos.age?.let { MedicalTag("Age", it.toString()) }
                 }
+            }
+            sos.medical?.let { m ->
+                Text("⚕️ $m", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 10.dp))
             }
             if (sos.note.isNotBlank()) {
                 Text("“${sos.note}”", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium), textAlign = TextAlign.Center,

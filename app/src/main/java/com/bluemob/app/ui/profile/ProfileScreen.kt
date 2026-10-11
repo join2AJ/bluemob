@@ -129,6 +129,9 @@ fun ProfileScreen(
     onDndUntil: (Long) -> Unit = {},
     dndSosCalls: Boolean = true,
     onDndSosCalls: (Boolean) -> Unit = {},
+    /** News from the BlueMob team: how many are unread, and opening the list. */
+    newsUnread: Int = 0,
+    onNews: () -> Unit = {},
 ) {
     var dndPicker by remember { mutableStateOf(false) }
     if (dndPicker) DndDialog(dndSosCalls, onDndSosCalls, { onDndUntil(it); dndPicker = false }) { dndPicker = false }
@@ -211,6 +214,15 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.Hub, MaterialTheme.colorScheme.primary, "Connections & power",
                     (if (running) "Mesh on" else "Mesh off") + " · " + if (background && keepsRunning) "reachable when closed" else "only while open",
                     onClick = onAutoStart) { chevron() }
+            }
+        }
+
+        item { GroupLabel("From BlueMob") }
+        item {
+            Group {
+                SettingRow(Icons.Outlined.NotificationsActive, Extra.sky, "News from BlueMob",
+                    if (newsUnread > 0) "$newsUnread new · alerts, updates and safety tips" else "Alerts, updates and safety tips from the team",
+                    onClick = onNews) { chevron() }
             }
         }
 

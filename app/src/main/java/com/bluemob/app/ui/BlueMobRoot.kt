@@ -371,6 +371,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             remoteSignal = vm.allowRemoteSignal.collectAsStateWithLifecycle().value, onRemoteSignal = vm::setAllowRemoteSignal,
                             dndUntil = vm.dndUntil.collectAsStateWithLifecycle().value, onDndUntil = vm::setDndUntil,
                             dndSosCalls = vm.dndAllowSosContacts.collectAsStateWithLifecycle().value, onDndSosCalls = vm::setDndAllowSosContacts,
+                            newsUnread = vm.news.items.collectAsStateWithLifecycle().value.count { it.at > vm.news.seenAt.collectAsStateWithLifecycle().value },
+                            onNews = { push("news") },
                             activitySummary = vm.activity.collectAsStateWithLifecycle().value.let { ev ->
                                 val week = System.currentTimeMillis() - 7 * 86_400_000L
                                 val recent = ev.filter { it.at >= week }
@@ -452,6 +454,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     onText = actions.textSos, onPreviewAlert = vm::previewSosAlert,
                     rescue = rescues.firstOrNull { it.mine && it.id == mySos?.id }, onOpenRescue = { mySos?.let { push("rescue:" + it.id) } },
                 )
+                route == "news" -> com.bluemob.app.ui.profile.NewsScreen(vm.news.items.collectAsStateWithLifecycle().value,
+                    vm.news.seenAt.collectAsStateWithLifecycle().value, ::pop, vm.news::markSeen)
                 route == "skyai" -> com.bluemob.app.ui.chat.SkyAiScreen(vm, ::pop)
                 route == "newchat" -> NewChatScreen(vm.nodeId, people, ::pop,
                     onStart = { id, n -> vm.startChatById(id, n); pop(); push("chat:$id") },
@@ -498,7 +502,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                         remember(scores) { vm.myRatingsOf(id) }, rescues.firstOrNull { it.victimId == id }?.id, ::pop,
                         onMessage = { pop(); push("chat:$id") }, onRate = { kind, ctx, remark -> vm.rate(id, kind, ctx, remark) },
                         eligible = remember(id, scores) { vm.canRate(id) }, lastRatedAt = remember(id, scores) { vm.lastRatedAt(id) },
-                        onRateCategories = { stars, remark -> vm.rateCategories(id, stars, remark) })
+                        onRateCategories = { stars, remark -> vm.rateCategories(id, stars, remark) },
+                        blocked = id in vm.blocked.collectAsStateWithLifecycle().value, onBlock = { vm.setBlocked(id, it) },
+                        onReport = { reason, text, msgs -> vm.reportPerson(id, reason, text, msgs) })
                 }
                 route == "badges" -> com.bluemob.app.ui.profile.BadgesScreen(vm.badges.collectAsStateWithLifecycle().value, ::pop)
                 route == "activity" -> {
@@ -568,6 +574,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     onBack = ::pop, onBridge = { push("bridge") }, onAudit = { push("audit") },
                     onReport = { text, details -> vm.reportProblem(text, details, log) },
                     onOpenReport = { push("report") },
+                    autoReports = vm.autoErrorReports.collectAsStateWithLifecycle().value, onAutoReports = vm::setAutoErrorReports,
                 )
                 route == "report" -> com.bluemob.app.ui.profile.ReportScreen(::pop,
                     onAddPhoto = { done -> actions.pickFile("photo") { uri -> vm.reportPhoto(uri, done) } },
@@ -575,13 +582,15 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 route == "account" -> com.bluemob.app.ui.account.AccountScreen(
                     shortId = com.bluemob.app.util.formatId(vm.nodeId),
                     profile = vm.profile.collectAsStateWithLifecycle().value, hasPin = vm.pinSet.collectAsStateWithLifecycle().value,
-                    onDetails = vm::setDetails, onEmail = vm::setEmail, onTurnOffPin = vm::clearPin,
+                    onDetails = vm::setMedical, onEmail = vm::setEmail, onTurnOffPin = vm::clearPin,
                     biometric = vm.biometric.collectAsStateWithLifecycle().value, canUseBiometric = remember { actions.canUseBiometric() },
                     lockAfterMs = vm.lockAfterMs.collectAsStateWithLifecycle().value, recoverySaved = vm.recoverySaved.collectAsStateWithLifecycle().value,
                     onBack = ::pop, onBiometric = { on -> if (on) actions.biometricUnlock { vm.setBiometric(true) } else vm.setBiometric(false) },
                     onLockAfter = vm::setLockAfter, onLockNow = vm::lockNow, checkPin = vm::checkPin, onNewPin = vm::setPin,
                     recoveryCode = vm::recoveryCode, onRecoverySaved = vm::setRecoverySaved,
                     onBackup = { push("backup") },
+                    onDeleteAccount = { phoneOnly -> vm.deleteAccount(phoneOnly) },
+                    privacyUrl = vm.bridgeUrl.collectAsStateWithLifecycle().value.trimEnd('/').let { if (it.isBlank()) "" else "$it/privacy" },
                 )
                 route == "signal" -> SosSignalScreen(signalDefault, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = ::pop)
             }

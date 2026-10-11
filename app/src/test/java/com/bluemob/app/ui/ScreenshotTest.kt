@@ -278,8 +278,11 @@ class ScreenshotTest {
         com.bluemob.app.ui.account.AccountSetup(true, false, true, { "7KQ2-M9XA-T4PB-0RCE-W3HD-NF6Y-JS8G" }, {}, {}, {})
     }
     @Test fun accountSettings() = shot(tall = true) {
-        com.bluemob.app.ui.account.AccountScreen("5742 99A8 E65F 20FE", com.bluemob.app.account.Profile("+919876543210", true, 34, "B+"), false, false, true, 60_000, false,
-            {}, { _, _ -> }, {}, {}, {}, { com.bluemob.app.account.PinResult.Ok }, {}, {}, { "" }, {})
+        com.bluemob.app.ui.account.AccountScreen("5742 99A8 E65F 20FE", com.bluemob.app.account.Profile("+919876543210", true, 34, "B+", dob = "1991-03-12", sex = "Male", allergies = "Penicillin", conditions = "Asthma (inhaler)"), false, false, true, 60_000, false,
+            {}, { _, _, _, _, _ -> }, {}, {}, {}, { com.bluemob.app.account.PinResult.Ok }, {}, {}, { "" }, {})
+    }
+    @Test fun reportProblem() = shot(tall = true) {
+        com.bluemob.app.ui.profile.ReportScreen({}, {}, { _, _, _, _, _ -> null })
     }
     @Test fun signup() = shot(tall = true) {
         com.bluemob.app.ui.account.SignupFlow(false, "", "🦅", "5742 99A8 E65F 20FE", {}, onDone = {})

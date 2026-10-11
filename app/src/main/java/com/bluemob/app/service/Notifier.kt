@@ -39,6 +39,9 @@ class Notifier(private val context: Context) {
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
         nm.createNotificationChannel(NotificationChannel(CH_MSG, "Messages", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel(CH_NEWS, "News from BlueMob", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            description = "Alerts, updates and tips from the BlueMob team"
+        })
         nm.createNotificationChannel(NotificationChannel(CH_QUIET, "During do not disturb", NotificationManager.IMPORTANCE_LOW).apply {
             description = "Messages, missed calls and invites while BlueMob's do not disturb is on: no sound or vibration"
             setSound(null, null); enableVibration(false)
@@ -109,6 +112,14 @@ class Notifier(private val context: Context) {
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
         .setCategory(NotificationCompat.CATEGORY_MESSAGE).setAutoCancel(true)
         .setContentIntent(open("chat:$fromId", fromId.hashCode()))
+        .build())
+
+    /** News from the BlueMob team. Urgent alerts (a flood warning) sound even during do not disturb. */
+    fun news(id: String, title: String, text: String, urgent: Boolean) = post(id.hashCode() + 31, NotificationCompat.Builder(context, if (urgent) CH_RESCUE else ch(CH_NEWS))
+        .setSmallIcon(R.drawable.ic_stat_bluemob)
+        .setContentTitle(title).setContentText(text)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setAutoCancel(true).setContentIntent(open("news", id.hashCode() + 31))
         .build())
 
     fun rating(text: String) = post(4242, NotificationCompat.Builder(context, ch(CH_MSG))
@@ -185,6 +196,7 @@ class Notifier(private val context: Context) {
         private const val CH_SOS = "sos"
         private const val CH_MSG = "messages"
         private const val CH_QUIET = "quiet"
+        private const val CH_NEWS = "news"
         private const val CH_RESCUE = "rescue"
     }
 }

@@ -56,6 +56,8 @@ class MessageRepository(
     /** Group chats this phone is in. */
     val groups: GroupStore? = null,
     private val me: () -> Pair<String, String> = { "" to "" },
+    /** People the user blocked: their messages are dropped (they still get a receipt, so they stop re-sending). */
+    private val blocked: (String) -> Boolean = { false },
 ) {
     /** Every message shown in a chat (copies that only carry group messages and reactions are left out). */
     val messages: StateFlow<List<MessageEntity>> = dao.observeAll().map { all -> all.filter { !it.hidden } }.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -277,6 +279,7 @@ class MessageRepository(
         // Always answer with a receipt: if our first one was lost, the sender is still re-sending.
         mesh.sendReceipt(e.fromNodeId, e.messageId, read = false)
         if (!isNew) return // A copy we already have: discard it.
+        if (blocked(e.fromNodeId)) return
         Rich.decode(e.text)?.let { rich -> receiveRich(e, rich, now); return }
         if (openConversation != e.fromNodeId) onIncoming(e.fromNodeId, com.bluemob.app.files.Attachment.fromJson(e.att)?.let { "${it.kind.emoji} ${it.kind.label}" } ?: e.text)
         record(AuditKind.MESSAGE, e.fromNodeId, "Message ${e.messageId} received from {name} over ${mesh.linkName(e.fromNodeId)}: \"${e.text.take(80)}\"")

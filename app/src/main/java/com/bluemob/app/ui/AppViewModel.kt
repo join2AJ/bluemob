@@ -266,6 +266,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val aiStatus = blueMob.offlineAi.status
     fun importAi(uri: android.net.Uri, name: String) { viewModelScope.launch { blueMob.offlineAi.import(uri, name) } }
     fun deleteAi() { viewModelScope.launch { blueMob.offlineAi.delete() } }
+    val news get() = blueMob.news
+    val autoErrorReports = settings.autoErrorReports
+    fun setAutoErrorReports(on: Boolean) = settings.setAutoErrorReports(on)
     val dndUntil = settings.dndUntil
     fun setDndUntil(until: Long) { settings.setDndUntil(until); if (until > System.currentTimeMillis()) toast("Do not disturb on " + com.bluemob.app.ui.profile.dndText(until)) }
     val dndAllowSosContacts = settings.dndAllowSosContacts
@@ -354,6 +357,56 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         com.bluemob.app.util.ProblemReport.send(settings.bridgeUrl.value, text, com.bluemob.app.BuildConfig.VERSION_NAME, if (details) device else "", extra,
             category.substringAfter(' '), sub, photos)
+    }
+
+    // ---- block and report people ----
+    val blocked = settings.blocked
+    fun setBlocked(id: String, on: Boolean) {
+        settings.setBlocked(id, on)
+        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, (if (on) "Blocked " else "Unblocked ") + (blueMob.contacts.contacts.value[id]?.name ?: "someone") + " (BM " + com.bluemob.app.util.formatId(id) + ")")
+        toast(if (on) "Blocked. Their messages and calls won't reach you. Their SOS still will." else "Unblocked")
+    }
+
+    /** Reports someone to the BlueMob team: why, what happened, and (if the user agrees) the last messages they sent us. */
+    suspend fun reportPerson(id: String, reason: String, text: String, includeMessages: Boolean): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val name = blueMob.contacts.contacts.value[id]?.name ?: "Someone"
+        val details = buildString {
+            append("Reported: ").append(name).append(" · BlueMob ID ").append(id).append('\n')
+            append("Reported by: ").append(identity.nodeId).append('\n')
+            if (includeMessages) {
+                append("\nTheir last messages to the reporter (shared with the reporter's consent):\n")
+                repo.conversations.value[id].orEmpty().filter { !it.fromMe }.takeLast(10).forEach { m ->
+                    append(java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date(m.createdAt))).append("  ").append(m.text.take(500)).append('\n')
+                }
+            }
+        }
+        com.bluemob.app.util.ProblemReport.send(settings.bridgeUrl.value, text.ifBlank { reason }, com.bluemob.app.BuildConfig.VERSION_NAME, "", details, "Report a person", reason)
+    }
+
+    /**
+     * Deletes the account: the relay forgets this BlueMob ID (key, number, email, backups, waiting messages), then
+     * everything on this phone is wiped and BlueMob closes. With [phoneOnly], skips the relay (e.g. no internet).
+     */
+    suspend fun deleteAccount(phoneOnly: Boolean = false): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (!phoneOnly) {
+            val base = settings.bridgeUrl.value.trimEnd('/')
+            val err = runCatching {
+                val at = System.currentTimeMillis()
+                val keys = identity.keys
+                val sig = com.bluemob.app.crypto.Crypto.encode(keys.sign("bluemob-delete|$at".toByteArray()))
+                val c = java.net.URL("$base/v1/account/delete").openConnection() as java.net.HttpURLConnection
+                try {
+                    c.requestMethod = "POST"; c.doOutput = true; c.connectTimeout = 20_000; c.readTimeout = 30_000
+                    c.setRequestProperty("content-type", "application/json")
+                    c.outputStream.use { it.write(org.json.JSONObject().put("pk", keys.publicB64).put("at", at).put("sig", sig).toString().toByteArray()) }
+                    if (c.responseCode == 200) null else "The BlueMob server said no (${c.responseCode})."
+                } finally { c.disconnect() }
+            }.getOrElse { "No internet, so the BlueMob server couldn't be told." }
+            if (err != null) return@withContext err
+        }
+        val app = getApplication<android.app.Application>()
+        app.getSystemService(android.app.ActivityManager::class.java)?.clearApplicationUserData()
+        null
     }
 
     fun deleteChat(peer: String) = viewModelScope.launch {
@@ -569,7 +622,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun completeSignup(r: com.bluemob.app.ui.account.SignupResult) {
         identity.setDisplayName(r.name); identity.setAvatar(r.avatar)
         blueMob.profile.setVerifiedPhone(r.phone)
-        blueMob.profile.setDetails(r.age, r.bloodGroup)
+        blueMob.profile.setMedical(r.dob, r.sex, r.bloodGroup, r.allergies, r.conditions)
         blueMob.profile.setEmail(r.email)
         syncEmail()
         identity.setOnboardingDone(true)
@@ -577,8 +630,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     /** "🩸 B+ · age 34" from someone's SOS, if they shared it. */
     fun medicalFor(nodeId: String): String? = sosManager.received.value[nodeId]?.let { s ->
-        listOfNotNull(s.bloodGroup?.let { "🩸 Blood group $it" }, s.age?.let { "age $it" }).joinToString(" · ").ifBlank { null }
+        listOfNotNull(s.bloodGroup?.let { "🩸 Blood group $it" }, s.age?.let { "age $it" }, s.medical).joinToString(" · ").ifBlank { null }
     }
+    fun setMedical(dob: String?, sex: String?, blood: String?, allergies: String?, conditions: String?) = blueMob.profile.setMedical(dob, sex, blood, allergies, conditions)
     fun setDetails(age: Int?, blood: String?) = blueMob.profile.setDetails(age, blood)
     /** Optional recovery email: saved on the phone, and on the relay as soon as we're online. */
     fun setEmail(email: String?) { blueMob.profile.setEmail(email); syncEmail() }

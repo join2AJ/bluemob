@@ -118,6 +118,7 @@ class SosCircle(
             cancelled = d["k"] == "safe",
             pos = if (lat != null && lon != null) com.bluemob.app.trail.PositionEstimate(lat, lon, true, lat, lon, at, acc.toFloat(), null, null, null, acc, at) else null,
             bloodGroup = d["blood"]?.takeIf { it in com.bluemob.app.account.BloodGroups.ALL }, age = d["age"]?.toIntOrNull()?.takeIf { it in 1..120 },
+            medical = d["med"]?.take(200)?.ifBlank { null },
         ))
         return true
     }
@@ -145,10 +146,10 @@ class SosCircle(
     fun alert(s: SosSignal) {
         val body = JSONObject().put("a", "sos").put("id", s.id).put("note", s.note.take(200)).put("at", s.at)
             .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("acc", s.pos?.uncertaintyM ?: -1.0)
-            .put("bat", s.battery ?: -1).put("blood", s.bloodGroup ?: "").put("age", s.age ?: -1)
+            .put("bat", s.battery ?: -1).put("blood", s.bloodGroup ?: "").put("age", s.age ?: -1).put("med", s.medical ?: "")
         val where = if (s.lat != null && s.lon != null) "\nWhere: https://maps.google.com/?q=%.5f,%.5f".format(s.lat, s.lon) + (s.pos?.let { " (±${it.uncertaintyM.toInt()} m)" } ?: "") else "\nPosition not known."
         val text = "🆘 SOS from ${myName()}" + (if (s.note.isNotBlank()) ": ${s.note}" else "") + where +
-            (s.battery?.let { "\nBattery $it%" } ?: "") + (s.bloodGroup?.let { "\nBlood group $it" } ?: "")
+            (s.battery?.let { "\nBattery $it%" } ?: "") + (s.bloodGroup?.let { "\nBlood group $it" } ?: "") + (s.medical?.let { "\n$it" } ?: "")
         contacts.value.mapNotNull { it.nodeId }.forEach { to ->
             mesh.sendApp(to, KIND, JSONObject(body.toString()))
             sendChat(to, text)
@@ -159,7 +160,7 @@ class SosCircle(
     fun update(s: SosSignal) {
         val body = JSONObject().put("a", "sos").put("id", s.id).put("note", s.note.take(200)).put("at", s.at)
             .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("acc", s.pos?.uncertaintyM ?: -1.0)
-            .put("bat", s.battery ?: -1).put("blood", s.bloodGroup ?: "").put("age", s.age ?: -1).put("upd", 1)
+            .put("bat", s.battery ?: -1).put("blood", s.bloodGroup ?: "").put("age", s.age ?: -1).put("med", s.medical ?: "").put("upd", 1)
         contacts.value.mapNotNull { it.nodeId }.forEach { to -> mesh.sendApp(to, KIND, JSONObject(body.toString())) }
     }
 
@@ -196,6 +197,7 @@ class SosCircle(
                     pos = if (lat != null && lon != null) com.bluemob.app.trail.PositionEstimate(lat, lon, true, lat, lon, b.optLong("at"), b.optDouble("acc", 50.0).toFloat().coerceAtLeast(5f), null, null, null,
                         b.optDouble("acc", 50.0).coerceAtLeast(5.0), b.optLong("at")) else null,
                     bloodGroup = b.optString("blood").takeIf { it in com.bluemob.app.account.BloodGroups.ALL }, age = b.optInt("age", -1).takeIf { it in 1..120 },
+                    medical = b.optString("med").take(200).ifBlank { null },
                 ))
             }
         }

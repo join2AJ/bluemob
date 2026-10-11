@@ -29,6 +29,9 @@ object Usage {
 
     fun init(prefs: SharedPreferences) {
         this.prefs = prefs
+        // Days saved before settings kept a list of their names: look up the last year by name.
+        val now = System.currentTimeMillis()
+        (prefs as? com.bluemob.app.crypto.SecurePrefs)?.adopt((0 until 400).map { KEY + com.bluemob.app.guide.Streak.dayKey(now - it * 86_400_000L) })
         _days.value = prefs.all.keys.filter { it.startsWith(KEY) }.associate { k ->
             val o = runCatching { JSONObject(prefs.getString(k, "{}")!!) }.getOrDefault(JSONObject())
             k.removePrefix(KEY) to AppArea.entries.associateWith { o.optLong(it.name) }.filterValues { it > 0 }

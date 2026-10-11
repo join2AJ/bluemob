@@ -182,7 +182,7 @@ test("an SOS for an SOS contact is always pushed with the alert itself, never he
   await B.next();
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(sent.length, 2, "never throttled");
-  assert.deepEqual(sent[0].data, { k: "sos", from: a.id, name: "Asha", id: "sos-1", at: sent[0].data.at, note: "Fell", lat: "12.5", lon: "77.25", acc: "20", bat: "31", blood: "B+", age: "34" });
+  assert.deepEqual(sent[0].data, { k: "sos", from: a.id, name: "Asha", id: "sos-1", at: sent[0].data.at, note: "Fell", lat: "12.5", lon: "77.25", acc: "20", bat: "31", blood: "B+", age: "34", med: "" });
   assert.ok(sent[0].ttl >= 3600);
   // "I'm safe" too; ordinary app packets and forged ones aren't pushed.
   A.ws.send(JSON.stringify({ t: "send", to: b.id, data: JSON.stringify(app(a, { to: b.id, k: "sosc", a: "safe", id: "sos-1", name: "Asha" })) }));

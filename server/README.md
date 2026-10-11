@@ -71,7 +71,27 @@ relay sleeps after 15 minutes with no one connected; phones keep it awake while 
 | Environment variable | What it does |
 |---|---|
 | `FCM_SERVICE_ACCOUNT` | Firebase service account JSON. Turns on wake-ups: calls ring and messages arrive on phones whose BlueMob is closed. See `docs/firebase.md`. |
+| `ADMIN_TOKEN` | Lets you post **News from BlueMob** to every phone (see below). Falls back to `REPORTS_TOKEN`. |
+| `ALERT_WEBHOOK` | An `https://` URL (Slack or Discord incoming webhook, or any service that forwards to email) told about every new problem report and automatic error report. |
+| `CONTACT_EMAIL` | Shown on `/privacy` and `/delete-account` as the address for privacy and deletion requests. |
 | `PERSISTENT_DISK=1` | Set when `DATA_DIR` is on a disk that survives restarts (Render: a paid plan with a disk mounted at `/data`). Phones then show BlueMob Cloud backups as kept, not temporary. |
 
 Files sent in chats to people who aren't nearby are held under `DATA_DIR/blobs` (encrypted on the phone, deleted once
 downloaded, 7 days at most). Cloud backups are under `DATA_DIR/backups` (encrypted with the user's password, newest 3).
+
+
+## News to every phone (0.25)
+
+```bash
+curl -X POST https://YOUR-RELAY/v1/announce -H 'content-type: application/json' \
+  -d '{"token":"ADMIN_TOKEN","title":"Heavy rain warning","text":"Landslides likely on the Kedarnath route this week.","urgent":true}'
+```
+
+Phones signed in get it within seconds (a notification, and You → News from BlueMob); others when they next connect.
+`"urgent": true` sounds even during do not disturb; `"link": "https://…"` adds a link. Remove one with
+`{"token":"…","remove":"<id>"}`.
+
+## Pages for the Play Store
+
+`/privacy` (privacy policy) and `/delete-account` (how to delete an account) are served by the relay. Use
+`https://YOUR-RELAY/privacy` and `https://YOUR-RELAY/delete-account` in Play Console.

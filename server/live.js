@@ -142,7 +142,7 @@ function attachLive(server, { now = () => Date.now(), store = null, pusher = nul
       const d = { k: b.a, from, name: str(b.name, 40), id: str(b.id, 40), at: str(b.at, 20) };
       if (b.a === "sos") Object.assign(d, {
         note: str(b.note, 200), lat: typeof b.lat === "number" ? String(b.lat) : "", lon: typeof b.lon === "number" ? String(b.lon) : "",
-        acc: str(b.acc, 12), bat: str(b.bat, 4), blood: str(b.blood, 4), age: str(b.age, 4),
+        acc: str(b.acc, 12), bat: str(b.bat, 4), blood: str(b.blood, 4), age: str(b.age, 4), med: str(b.med, 200),
       });
       return wake(to, d, 0, 6 * 3600); // an SOS still matters hours later
     } catch { return false; }

@@ -208,3 +208,51 @@ test("recovery email: signed, checked, removable", async () => {
   assert.equal(store.emails.has(me.id), false);
   srv.close();
 });
+
+test("news from the team, account deletion, automatic reports", async () => {
+  const { createServer, Store, Announcements, Reports } = require("./relay");
+  const os = require("os"), fsx = require("fs"), pathx = require("path");
+  const dir = fsx.mkdtempSync(pathx.join(os.tmpdir(), "bm-"));
+  const store = new Store(null);
+  const news = new Announcements(null);
+  const srv = createServer(store, new Map(), undefined, undefined, new Reports(dir, "rt"), { news, adminToken: "admin" });
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const post = (p, b) => fetch(base + p, { method: "POST", body: JSON.stringify(b) });
+  assert.equal((await post("/v1/announce", { token: "nope", title: "x", text: "y" })).status, 401);
+  const r = await (await post("/v1/announce", { token: "admin", title: "Monsoon alert", text: "Heavy rain in Kerala this week." })).json();
+  assert.equal(r.item.title, "Monsoon alert");
+  const list = await (await fetch(base + "/v1/announcements?since=0")).json();
+  assert.equal(list.items.length, 1);
+  assert.equal((await (await fetch(base + "/v1/announcements?since=" + (r.item.at + 1))).json()).items.length, 0);
+  // Delete my account: signed by the phone; the relay forgets its key, number and email.
+  const a = device();
+  store.learnKey(a.id, a.pk); store.apply({ op: "email", id: a.id, email: "a@b.co" }); store.apply({ op: "phone", id: a.id, h: "f".repeat(64) });
+  const at = Date.now();
+  const sig = crypto.sign("sha256", Buffer.from("bluemob-delete|" + at), a.privateKey).toString("base64");
+  assert.equal((await post("/v1/account/delete", { pk: a.pk, at, sig: "AAAA" })).status, 401);
+  assert.equal((await post("/v1/account/delete", { pk: a.pk, at, sig })).status, 200);
+  assert.equal(store.keys.has(a.id), false);
+  assert.equal(store.emails.has(a.id), false);
+  assert.equal(store.phones.size, 0);
+  // An automatic error report is kept and marked.
+  assert.equal((await post("/v1/report", { text: "Crash: NullPointerException", category: "The app", sub: "Crashed", auto: true })).status, 200);
+  const reps = await (await fetch(base + "/v1/reports?token=rt")).json();
+  assert.equal(reps.reports[0].auto, true);
+  srv.close();
+});
+
+test("privacy policy and account deletion pages are served", async () => {
+  const { createServer, Store } = require("./relay");
+  const srv = createServer(new Store(null), new Map(), undefined, undefined, undefined, { contactEmail: "help@example.org" });
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  for (const p of ["/privacy", "/delete-account"]) {
+    const r = await fetch(base + p);
+    assert.equal(r.status, 200);
+    const html = await r.text();
+    assert.ok(html.includes("help@example.org"));
+    assert.ok(!html.includes("{{EMAIL}}"));
+  }
+  srv.close();
+});

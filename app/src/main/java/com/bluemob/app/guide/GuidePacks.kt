@@ -67,14 +67,20 @@ object GuidePacks {
         reload()
     }
 
+    /** Packs the relay has offered, for finding ones saved before settings kept a list of their names. */
+    private val KNOWN_PACKS = listOf("firecraft", "heat", "knots", "monsoon", "mountains", "shelters", "wildlife")
+
     private fun reload() {
         val p = prefs ?: return
+        (p as? com.bluemob.app.crypto.SecurePrefs)?.adopt(KNOWN_PACKS.flatMap { listOf("pack:$it", "packAt:$it") })
         _readDays.value = p.getStringSet("read_days", emptySet())!!.toSet()
         _quizzes.value = p.getStringSet("quiz_passed", emptySet())!!.toSet()
         val packs = p.all.keys.filter { it.startsWith("pack:") }.mapNotNull { k -> p.getString(k, null)?.let { runCatching { parse(JSONObject(it)) }.getOrNull() } }
         installedArticles = packs.flatMap { it.second }
         _installed.value = packs.map { it.first }.sortedBy { it.title }
         installedAt = packs.associate { (info, _) -> info.id to p.getLong("packAt:${info.id}", 0L) }
+        // Guides read before the list of names existed: look each one up by name.
+        (p as? com.bluemob.app.crypto.SecurePrefs)?.adopt((GuideContent.articles + installedArticles).map { "read:${it.id}" })
         _read.value = p.all.keys.filter { it.startsWith("read:") }.associate { it.removePrefix("read:") to p.getLong(it, 0L) }
     }
 

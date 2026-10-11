@@ -36,6 +36,22 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.25: ready for the Play Store checklist
+
+- **About you at sign-up:** date of birth (age is worked out), sex (with "Prefer not to say"), blood group,
+  allergies ("None known" / "Prefer not to say" / type them) and medical conditions. They travel only inside an SOS
+  and on the optional lock-screen card.
+- **News from BlueMob:** the team posts alerts and updates from the relay (`/v1/announce`); every phone gets a
+  notification and a list in You. Urgent ones sound even during do not disturb.
+- **Automatic error reports:** crashes and background errors go to the team when there's internet (only the error and
+  phone model; can be turned off in Diagnostics). The relay can alert the team through `ALERT_WEBHOOK`.
+- **Guide progress no longer resets after updates** (also downloaded guide packs and app-usage time): the encrypted
+  settings store now keeps a list of its entries; older progress is recovered.
+- **Play Store requirements:** delete account (in the app and at `/delete-account`), privacy policy at `/privacy`,
+  block and report people, "also call 112" on the SOS screen, release signing. See `docs/play-store.md`.
+- **Report a problem** redesigned: topic tiles, numbered steps, proper photo tiles.
+- `docs/compliance.md` maps BlueMob to ISO 27001, ISO 22301, ISO 31000, NIST CSF, DPDP and GDPR.
+
 ## Android 0.24: a Background switch, like Wi-Fi and Bluetooth
 
 - **Background** sits with Bluetooth, Wi-Fi, GPS and Internet (Nearby → Connections, and the strip on Nearby).

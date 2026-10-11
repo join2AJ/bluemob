@@ -8,10 +8,10 @@ import java.net.URL
 object ProblemReport {
     /** Null when sent, otherwise why not. */
     fun send(baseUrl: String?, text: String, app: String, device: String, details: String,
-             category: String = "", sub: String = "", photos: List<ByteArray> = emptyList()): String? = runCatching {
+             category: String = "", sub: String = "", photos: List<ByteArray> = emptyList(), auto: Boolean = false): String? = runCatching {
         val base = baseUrl?.trimEnd('/')?.takeIf { it.isNotBlank() } ?: return "Reporting isn't available in this version."
         val body = JSONObject().put("text", text.take(4000)).put("app", app).put("device", device.take(300)).put("details", details.take(20000))
-            .put("category", category).put("sub", sub)
+            .put("category", category).put("sub", sub).put("auto", auto)
             .put("photos", org.json.JSONArray(photos.take(3).map { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) })).toString()
         val c = URL("$base/v1/report").openConnection() as HttpURLConnection
         try {

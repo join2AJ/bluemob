@@ -54,6 +54,8 @@ class LiveLink(
     }
     /** The relay stored a message for us (or a phone we carry): fetch it now instead of at the next sync. */
     var onPoke: () -> Unit = {}
+    /** The BlueMob team posted news. */
+    var onNews: () -> Unit = {}
 
     /** Who was online at the last [askPresence]: signed in themselves, or reachable through a phone near them. */
     data class Presence(val online: Set<String> = emptySet(), val via: Map<String, String> = emptyMap(), val at: Long = 0) {
@@ -112,6 +114,7 @@ class LiveLink(
                         pushToken?.let { webSocket.send(JSONObject().put("t", "push").put("token", it).toString()) }
                     }
                     "poke" -> onPoke()
+                    "news" -> onNews()
                     "presence" -> {
                         val on = m.optJSONArray("online")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { ID.matches(it) }.toSet() }.orEmpty()
                         val via = m.optJSONObject("via")?.let { v -> v.keys().asSequence().filter { ID.matches(it) }.associateWith { v.optString(it) } }.orEmpty()

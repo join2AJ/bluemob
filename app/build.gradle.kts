@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -28,8 +30,8 @@ android {
         // Optional: `-PonlyAbi=arm64-v8a` builds for one phone type only (a smaller APK to share for testing).
         (project.findProperty("onlyAbi") as String?)?.let { ndk { abiFilters += it } }
         targetSdk = 35
-        versionCode = 34
-        versionName = "0.24.0"
+        versionCode = 35
+        versionName = "0.25.0"
     }
 
     signingConfigs {
@@ -40,6 +42,16 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+        // The Play Store upload key: never in the repo. Put its details in keystore.properties (next to settings.gradle.kts,
+        // git-ignored) or in BLUEMOB_KEYSTORE / BLUEMOB_KEYSTORE_PASSWORD / BLUEMOB_KEY_ALIAS / BLUEMOB_KEY_PASSWORD.
+        val props = Properties().apply { rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) } }
+        val store = props.getProperty("storeFile") ?: System.getenv("BLUEMOB_KEYSTORE")
+        if (store != null) create("release") {
+            storeFile = rootProject.file(store)
+            storePassword = props.getProperty("storePassword") ?: System.getenv("BLUEMOB_KEYSTORE_PASSWORD")
+            keyAlias = props.getProperty("keyAlias") ?: System.getenv("BLUEMOB_KEY_ALIAS")
+            keyPassword = props.getProperty("keyPassword") ?: System.getenv("BLUEMOB_KEY_PASSWORD")
         }
     }
 
@@ -54,6 +66,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 

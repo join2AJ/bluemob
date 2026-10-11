@@ -5,7 +5,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** What the user told us at sign-up. Kept encrypted on the phone; only the blood group and age travel, inside an SOS. */
+/**
+ * What the user told us at sign-up. Kept encrypted on the phone; the medical details travel only inside an SOS (and on
+ * the lock-screen emergency card, if the user turns it on), so helpers and medics know.
+ */
 data class Profile(
     val phone: String? = null,
     val verified: Boolean = false,
@@ -13,7 +16,40 @@ data class Profile(
     val bloodGroup: String? = null,
     /** Optional, for account recovery and receipts later. */
     val email: String? = null,
-)
+    /** Date of birth, "yyyy-MM-dd". When given, [age] comes from it. */
+    val dob: String? = null,
+    /** One of [Sexes.ALL], or null if not given. */
+    val sex: String? = null,
+    /** Free text, [Medical.NONE] for "none known", or null if not given. */
+    val allergies: String? = null,
+    /** Conditions and regular medicines a medic should know about (asthma, diabetes, insulin…). */
+    val conditions: String? = null,
+) {
+    /** "Female · Allergies: penicillin · Asthma": the details beyond blood group and age, for an SOS. */
+    fun medicalNote(): String? = Medical.note(sex, allergies, conditions)
+}
+
+object Sexes {
+    val ALL = listOf("Female", "Male", "Non-binary", "Other", "Prefer not to say")
+}
+
+object Medical {
+    const val NONE = "None known"
+    const val PRIVATE = "Prefer not to say"
+
+    fun note(sex: String?, allergies: String?, conditions: String?): String? = listOfNotNull(
+        sex?.takeIf { it in Sexes.ALL && it != Sexes.ALL.last() },
+        when (allergies?.trim()) { null, "", PRIVATE -> null; NONE -> "No known allergies"; else -> "Allergies: ${allergies.trim()}" },
+        conditions?.trim()?.takeIf { it.isNotEmpty() && it != PRIVATE }?.let { "Medical: $it" },
+    ).joinToString(" · ").take(200).ifBlank { null }
+
+    /** Age in whole years on [today] for a date of birth "yyyy-MM-dd", or null if it isn't a sensible date. */
+    fun ageFrom(dob: String?, today: java.time.LocalDate = java.time.LocalDate.now()): Int? {
+        val d = runCatching { java.time.LocalDate.parse(dob ?: return null) }.getOrNull() ?: return null
+        if (d.isAfter(today)) return null
+        return java.time.Period.between(d, today).years.takeIf { it in 0..120 }
+    }
+}
 
 object Emails {
     private val SHAPE = Regex("^[^\\s@]{1,64}@[^\\s@]{1,190}\\.[^\\s@]{2,}$")
@@ -71,9 +107,13 @@ class ProfileStore(private val prefs: SharedPreferences) {
     private fun read() = Profile(
         phone = prefs.getString(PHONE, null),
         verified = prefs.getBoolean(VERIFIED, false),
-        age = prefs.getInt(AGE, -1).takeIf { it in 1..120 },
+        age = Medical.ageFrom(prefs.getString(DOB, null)) ?: prefs.getInt(AGE, -1).takeIf { it in 1..120 },
         bloodGroup = prefs.getString(BLOOD, null),
         email = prefs.getString(EMAIL, null),
+        dob = prefs.getString(DOB, null),
+        sex = prefs.getString(SEX, null),
+        allergies = prefs.getString(ALLERGIES, null),
+        conditions = prefs.getString(CONDITIONS, null),
     )
 
     /** The email the relay has: what to send it next time we're online, if different. */
@@ -94,6 +134,17 @@ class ProfileStore(private val prefs: SharedPreferences) {
         _profile.value = read()
     }
 
+    /** Everything from the "About you" step: date of birth, sex, blood group, allergies and conditions (all optional but blood group). */
+    fun setMedical(dob: String?, sex: String?, bloodGroup: String?, allergies: String?, conditions: String?) {
+        prefs.edit().putString(DOB, dob?.takeIf { Medical.ageFrom(it) != null })
+            .putInt(AGE, Medical.ageFrom(dob) ?: -1)
+            .putString(SEX, sex?.takeIf { it in Sexes.ALL })
+            .putString(BLOOD, bloodGroup?.takeIf { it in BloodGroups.ALL })
+            .putString(ALLERGIES, allergies?.trim()?.take(120)?.ifEmpty { null })
+            .putString(CONDITIONS, conditions?.trim()?.take(160)?.ifEmpty { null }).apply()
+        _profile.value = read()
+    }
+
     private companion object {
         const val PHONE = "phone"
         const val VERIFIED = "phone_verified"
@@ -101,5 +152,9 @@ class ProfileStore(private val prefs: SharedPreferences) {
         const val BLOOD = "blood_group"
         const val EMAIL = "email"
         const val EMAIL_SYNCED = "email_synced"
+        const val DOB = "dob"
+        const val SEX = "sex"
+        const val ALLERGIES = "allergies"
+        const val CONDITIONS = "conditions"
     }
 }

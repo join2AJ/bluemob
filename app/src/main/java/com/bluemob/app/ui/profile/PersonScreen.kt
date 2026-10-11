@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,7 +72,21 @@ fun PersonScreen(
     eligible: Boolean = true,
     lastRatedAt: Long? = null,
     onRateCategories: (Map<com.bluemob.app.trust.RatingCategory, Int>, String) -> String? = { _, _ -> null },
+    blocked: Boolean = false,
+    onBlock: (Boolean) -> Unit = {},
+    /** Reports them to the BlueMob team: (reason, what happened, include their last messages). Null when sent. */
+    onReport: suspend (String, String, Boolean) -> String? = { _, _, _ -> null },
 ) {
+    var reporting by remember { mutableStateOf(false) }
+    var confirmBlock by remember { mutableStateOf(false) }
+    if (reporting) ReportPersonDialog(name, onReport) { reporting = false }
+    if (confirmBlock) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { confirmBlock = false },
+        title = { Text("Block ${name.substringBefore(" ")}?") },
+        text = { Text("Their messages and calls won't reach you, and they won't be told. If they send an SOS, you'll still see it: safety comes first. You can unblock them here any time.") },
+        confirmButton = { TextButton(onClick = { confirmBlock = false; onBlock(true) }) { Text("Block", color = Extra.rose) } },
+        dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text("Cancel") } },
+    )
     var picks by remember { mutableStateOf(mapOf<com.bluemob.app.trust.RatingCategory, Int>()) }
     var rateNote by remember { mutableStateOf<String?>(null) }
     var composing by rememberSaveable { mutableStateOf<String?>(null) }
@@ -187,8 +202,14 @@ fun PersonScreen(
             }
         }
         if (!isMe) item {
-            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center) {
-                OutlinedButton(onClick = onMessage) { Text("Message ${name.substringBefore(" ")}") }
+            Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                if (blocked) Text("🚫 Blocked: their messages and calls don't reach you", style = MaterialTheme.typography.bodySmall, color = Extra.rose,
+                    modifier = Modifier.padding(bottom = 8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (!blocked) OutlinedButton(onClick = onMessage) { Text("Message") }
+                    OutlinedButton(onClick = { if (blocked) onBlock(false) else confirmBlock = true }) { Text(if (blocked) "Unblock" else "Block") }
+                    OutlinedButton(onClick = { reporting = true }) { Text("Report", color = Extra.rose) }
+                }
             }
         }
         val remarks = score.remarks.distinctBy { it.rater to it.remark }
@@ -245,4 +266,47 @@ private fun remarkHint(k: RatingKind) = when (k) {
     RatingKind.GENUINE_SOS -> "e.g. Had a sprained ankle, we carried her down"
     RatingKind.FAKE_SOS -> "e.g. Nobody was there, they laughed about it"
     RatingKind.BAD_LANGUAGE -> "What happened (optional)"
+}
+
+
+/** Why someone is being reported, what happened, and whether to include the last messages they sent. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ReportPersonDialog(name: String, onReport: suspend (String, String, Boolean) -> String?, onClose: () -> Unit) {
+    val reasons = listOf("Spam", "Harassment or threats", "Inappropriate content", "Fake SOS", "Pretending to be someone", "Something else")
+    var reason by remember { mutableStateOf<String?>(null) }
+    var text by remember { mutableStateOf("") }
+    var withMessages by remember { mutableStateOf(true) }
+    var sending by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<String?>(null) }
+    var done by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text(if (done) "Report sent" else "Report ${name.substringBefore(" ")}") },
+        text = {
+            if (done) Text("Thank you. The BlueMob team will look at it. You can also block them, so their messages and calls stop.")
+            else Column {
+                Text("What's wrong?", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    reasons.forEach { r -> com.bluemob.app.ui.components.Chip(r, reason == r) { reason = r } }
+                }
+                androidx.compose.material3.OutlinedTextField(text, { text = it.take(1000) }, label = { Text("What happened? (optional)") }, minLines = 2,
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
+                Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(withMessages, { withMessages = it })
+                    Text("Include the last 10 messages they sent me", style = MaterialTheme.typography.bodySmall)
+                }
+                result?.let { Text(it, color = Extra.rose, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = {
+            if (done) TextButton(onClick = onClose) { Text("Done") }
+            else TextButton(enabled = reason != null && !sending, onClick = {
+                sending = true
+                scope.launch { result = onReport(reason!!, text, withMessages); sending = false; if (result == null) done = true }
+            }) { Text(if (sending) "Sending…" else "Send report", color = Extra.rose) }
+        },
+        dismissButton = { if (!done) TextButton(onClick = onClose) { Text("Cancel") } },
+    )
 }

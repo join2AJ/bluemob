@@ -721,7 +721,7 @@ class NearbyMeshTransport(
         .put("lat", s.lat ?: JSONObject.NULL).put("lon", s.lon ?: JSONObject.NULL).put("bat", s.battery ?: -1)
         .put("at", s.at).put("cancel", s.cancelled)
         .also { j -> s.pos?.let { j.put("pos", posJson(it)) } }
-        .also { j -> s.bloodGroup?.let { j.put("blood", it) }; s.age?.let { j.put("age", it) } }
+        .also { j -> s.bloodGroup?.let { j.put("blood", it) }; s.age?.let { j.put("age", it) }; s.medical?.let { j.put("med", it.take(200)) } }
 
     /** Shares our position with everyone connected; pass null to stop sharing. */
     fun updateMyLocation(location: GeoPoint?) {
@@ -1001,6 +1001,7 @@ class NearbyMeshTransport(
             cancelled = b.optBoolean("cancel"), pos = parsePos(b.optJSONObject("pos")),
             bloodGroup = b.optString("blood").takeIf { it in com.bluemob.app.account.BloodGroups.ALL },
             age = b.optInt("age", -1).takeIf { it in 1..120 },
+            medical = b.optString("med").take(200).ifBlank { null },
         )
         if (sos.id.isEmpty()) return
         log("SOS from ${sos.name} (${if (sos.hops == 1) "direct" else "passed on ${sos.hops} times"}), signature checked")

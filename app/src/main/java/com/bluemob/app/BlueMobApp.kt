@@ -72,6 +72,8 @@ class BlueMobApp : Application() {
     lateinit var lost: LostMode private set
     lateinit var radios: Radios private set
     lateinit var rescue: RescueManager private set
+    /** News from the BlueMob team. */
+    lateinit var news: com.bluemob.app.bridge.News private set
     /** Sky's optional offline AI (downloaded only if the user asks). */
     lateinit var offlineAi: com.bluemob.app.bot.OfflineAi private set
     lateinit var keyBook: KeyBook private set
@@ -187,7 +189,7 @@ class BlueMobApp : Application() {
         audit.add(AuditKind.APP, "BlueMob started · ID BM ${formatId(identity.nodeId)}")
         identity.previousNodeId?.let { audit.add(AuditKind.APP, "BlueMob ID changed from BM ${formatId(it)} to a key-based ID that can't be copied") }
         trail = TrailRecorder(this, location, heading, db.trail(), db.trips(), settings, audit, appScope) { identity.shareLocation.value }
-        sos = SosManager(this, mesh, identity, trail, signals, audit, appScope) { profile.profile.value.let { it.age to it.bloodGroup } }
+        sos = SosManager(this, mesh, identity, trail, signals, audit, appScope, { profile.profile.value.let { it.age to it.bloodGroup } }, { profile.profile.value.medicalNote() })
         lost = LostMode(mesh, identity, trail, audit, appScope, location, signals, sosActive = { sos.mine.value != null }, say = ::say,
             allowed = { settings.allowRemoteSignal.value })
         matches = com.bluemob.app.games.Matches(mesh, appScope) { m ->
@@ -198,7 +200,7 @@ class BlueMobApp : Application() {
         }, relaySet = { settings.bridgeUrl.value.isNotBlank() },
             cipherFor = { peer, cid -> keyBook.key(peer)?.let { com.bluemob.app.mesh.CallCipher(com.bluemob.app.crypto.Crypto.sharedKey(identity.keys.keyPair.private, it, identity.nodeId, peer), cid, identity.nodeId) } },
             keepAlive = { active, video -> com.bluemob.app.service.CallService.update(this, active, video) },
-            blockCall = { peer -> dndBlocksCall(peer) },
+            blockCall = { peer -> peer in settings.blocked.value || dndBlocksCall(peer) },
             log = { entry ->
             db.calls().insert(entry)
             if (entry.outcome == "MISSED" && !inForeground) notifier.note("Missed call from ${entry.name}", "${if (entry.video) "Video" else "Voice"} call. Tap to call back.", "calls", id = 7_008)
@@ -208,6 +210,15 @@ class BlueMobApp : Application() {
         live = com.bluemob.app.bridge.LiveLink({ settings.bridgeUrl.value }, identity.keys, appScope, { connectivity.online.value })
         mesh.live = live
         live.onPoke = { bridge.syncNow() }
+        news = com.bluemob.app.bridge.News(SecurePrefs.open(this, "news"), { settings.bridgeUrl.value }) { n -> notifier.news(n.id, n.title, n.text, n.urgent) }
+        live.onNews = { appScope.launch { news.refresh() } }
+        // News from the team: whenever the internet link (re)connects, and every 3 hours.
+        appScope.launch { live.connected.collect { if (it) news.refresh() } }
+        // Errors BlueMob ran into go to the team when there's internet (if the user allows it).
+        appScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            live.connected.collect { up -> if (up && settings.autoErrorReports.value) runCatching { com.bluemob.app.util.ErrorOutbox.flush(this@BlueMobApp, settings.bridgeUrl.value) } }
+        }
+        appScope.launch { while (true) { kotlinx.coroutines.delay(3 * 3_600_000L); runCatching { news.refresh() } } }
         // Firebase wake-ups (when configured): register this phone's token with the relay.
         if (com.bluemob.app.push.Push.init(this)) com.bluemob.app.push.Push.token { live.setPushToken(it) }
         // The ringing notification goes once the call is answered, declined or over.
@@ -251,7 +262,7 @@ class BlueMobApp : Application() {
         messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text, partial -> skyReply(text, partial) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
             onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
-            groups = groups, me = { identity.nodeId to identity.displayName.value },
+            groups = groups, me = { identity.nodeId to identity.displayName.value }, blocked = { it in settings.blocked.value },
         )
         // SOS contacts: alerted in BlueMob (online, nearby, or when they next connect) when we send an SOS.
         sosCircle = com.bluemob.app.sos.SosCircle(settings, mesh, identity.keys, { identity.displayName.value },
@@ -427,6 +438,7 @@ object EmergencyCard {
         val title = "🆘 In an emergency: $name"
         val lines = listOfNotNull(
             listOfNotNull(p.bloodGroup?.let { "🩸 Blood group $it" }, p.age?.let { "age $it" }).joinToString(" · ").ifBlank { null },
+            p.medicalNote(),
             contacts.filter { it.phone.isNotBlank() }.take(3).joinToString("\n") { "📞 ${it.name}: ${it.phone}" }.ifBlank { null },
         )
         return title to lines.joinToString("\n").ifBlank { "Open BlueMob → You → Account to add your blood group and SOS contacts." }

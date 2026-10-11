@@ -104,6 +104,8 @@ data class SosSignal(
     /** From the sender's profile, so helpers can tell medics (0.9+; older versions leave them out). */
     val bloodGroup: String? = null,
     val age: Int? = null,
+    /** Sex, allergies and medical conditions, if the sender gave them (0.25+). */
+    val medical: String? = null,
 )
 
 /** "I'm lost": the sender's latest position estimate, passed on like an SOS. [ended] when they found their way. */

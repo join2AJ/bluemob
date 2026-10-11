@@ -136,6 +136,19 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean("asked_keep_running", false)
         set(v) { prefs.edit().putBoolean("asked_keep_running", v).apply() }
 
+    private val _blocked = MutableStateFlow(prefs.getStringSet("blocked", emptySet())!!.toSet())
+    /** People this user blocked: their messages and calls don't reach them. Their SOS still does (safety first). */
+    val blocked: StateFlow<Set<String>> = _blocked.asStateFlow()
+    fun setBlocked(id: String, on: Boolean) {
+        _blocked.value = if (on) _blocked.value + id else _blocked.value - id
+        prefs.edit().putStringSet("blocked", _blocked.value).apply()
+    }
+
+    private val _autoReports = MutableStateFlow(prefs.getBoolean("auto_error_reports", true))
+    /** Send errors BlueMob runs into to the team automatically (no messages, contacts, keys or positions). */
+    val autoErrorReports: StateFlow<Boolean> = _autoReports.asStateFlow()
+    fun setAutoErrorReports(on: Boolean) { _autoReports.value = on; prefs.edit().putBoolean("auto_error_reports", on).apply() }
+
     private val _techDetails = MutableStateFlow(prefs.getBoolean("tech_details", false))
     /** Show link checks and routing details in chats (for testers). Off for everyone else. */
     val techDetails: StateFlow<Boolean> = _techDetails.asStateFlow()

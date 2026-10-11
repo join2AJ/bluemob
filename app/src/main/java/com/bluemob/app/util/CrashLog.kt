@@ -32,6 +32,7 @@ object CrashLog {
             append(error.stackTraceToString().take(12_000))
         }
         file(context).writeText(text)
+        ErrorOutbox.add(context, "Crashed", error, text)
     }
 
     fun read(context: Context): String? = file(context).takeIf { it.exists() }?.readText()
@@ -87,7 +88,61 @@ object CrashLog {
     // ---- errors in background work that were contained instead of closing the app ----
     private fun errorFile(context: Context) = File(context.noBackupFilesDir, "last_error.txt")
     fun saveNonFatal(context: Context, error: Throwable) = runCatching {
-        errorFile(context).writeText(deviceLine(context) + "\n" + SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()) + "\n\n" + error.stackTraceToString().take(8_000))
+        val text = deviceLine(context) + "\n" + SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()) + "\n\n" + error.stackTraceToString().take(8_000)
+        errorFile(context).writeText(text)
+        ErrorOutbox.add(context, "Background error", error, text)
     }
     fun lastNonFatal(context: Context): String? = errorFile(context).takeIf { it.exists() }?.readText()
+}
+
+
+/**
+ * Errors waiting to go to the BlueMob team automatically (if the user allows it: Diagnostics → Send error reports).
+ * Only the error, where in BlueMob's code it happened, and the phone model: never messages, contacts, keys or
+ * positions. The same error is sent at most once a day; at most 20 wait at a time.
+ */
+object ErrorOutbox {
+    private fun file(context: Context) = File(context.noBackupFilesDir, "error_outbox.json")
+    private fun sentFile(context: Context) = File(context.noBackupFilesDir, "error_sent.json")
+    private val lock = Any()
+
+    /** Same error, same place: the exception type and BlueMob's own top frames. */
+    fun signature(error: Throwable): String {
+        val frames = error.stackTrace.filter { it.className.startsWith("com.bluemob") }.take(3).joinToString("|") { "${it.className}.${it.methodName}:${it.lineNumber}" }
+        return (error.javaClass.name + "|" + frames).hashCode().toUInt().toString(16)
+    }
+
+    fun add(context: Context, kind: String, error: Throwable, details: String) = runCatching {
+        synchronized(lock) {
+            val sig = signature(error)
+            val a = read(file(context))
+            if ((0 until a.length()).any { a.getJSONObject(it).optString("sig") == sig }) return@synchronized
+            if (a.length() >= 20) return@synchronized
+            a.put(org.json.JSONObject().put("sig", sig).put("kind", kind).put("at", System.currentTimeMillis())
+                .put("title", "${error.javaClass.simpleName}: ${error.message ?: ""}".take(300)).put("details", details.take(12_000)))
+            file(context).writeText(a.toString())
+        }
+    }
+
+    private fun read(f: File) = runCatching { org.json.JSONArray(f.readText()) }.getOrDefault(org.json.JSONArray())
+
+    /** Sends what's waiting. Call with internet; returns how many went. */
+    fun flush(context: Context, relay: String?): Int = synchronized(lock) {
+        val a = read(file(context))
+        if (a.length() == 0) return 0
+        val sent = runCatching { org.json.JSONObject(sentFile(context).readText()) }.getOrDefault(org.json.JSONObject())
+        val day = System.currentTimeMillis() - 86_400_000L
+        val keep = org.json.JSONArray()
+        var n = 0
+        for (i in 0 until a.length()) {
+            val e = a.getJSONObject(i)
+            if (sent.optLong(e.getString("sig")) > day) continue
+            val ok = ProblemReport.send(relay, "${e.getString("kind")}: ${e.getString("title")}", CrashLog.deviceLine(context).substringBefore(" · "),
+                CrashLog.deviceLine(context), e.getString("details"), category = "The app", sub = e.getString("kind"), auto = true) == null
+            if (ok) { sent.put(e.getString("sig"), System.currentTimeMillis()); n++ } else keep.put(e)
+        }
+        file(context).writeText(keep.toString())
+        sentFile(context).writeText(sent.toString())
+        n
+    }
 }

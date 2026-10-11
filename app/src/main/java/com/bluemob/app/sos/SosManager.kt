@@ -35,6 +35,8 @@ class SosManager(
     private val scope: CoroutineScope,
     /** Age and blood group to send with our SOS. */
     private val medical: () -> Pair<Int?, String?> = { null to null },
+    /** Sex, allergies and conditions to send with our SOS. */
+    private val medicalNote: () -> String? = { null },
 ) {
     private val battery = context.getSystemService(BatteryManager::class.java)
 
@@ -91,7 +93,7 @@ class SosManager(
         val sos = SosSignal(
             id = "sos-" + UUID.randomUUID().toString().take(12), fromNodeId = identity.nodeId, name = identity.displayName.value,
             note = note.trim(), lat = here?.lat, lon = here?.lon, battery = batteryPct(), at = System.currentTimeMillis(), hops = 0, pos = here,
-            age = medical().first, bloodGroup = medical().second,
+            age = medical().first, bloodGroup = medical().second, medical = medicalNote(),
         )
         _mine.value = sos
         val reached = mesh.broadcastSos(sos)

@@ -107,6 +107,8 @@ fun DiagnosticsScreen(
     onReport: suspend (String, Boolean) -> String? = { _, _ -> null },
     /** Opens the full report screen (categories and photos). */
     onOpenReport: (() -> Unit)? = null,
+    autoReports: Boolean = true,
+    onAutoReports: (Boolean) -> Unit = {},
 ) {
     val clipboard = LocalClipboardManager.current
     var reporting by rememberSaveable { mutableStateOf(false) }
@@ -154,6 +156,9 @@ fun DiagnosticsScreen(
             Group {
                 SettingRow(Icons.Outlined.Tune, MaterialTheme.colorScheme.primary, "Technical details in chats",
                     "Link speed check and how each message travelled") { Switch(techDetails, onTechDetails) }
+                SettingRow(Icons.Outlined.Terminal, Extra.rose, "Send error reports automatically",
+                    "When BlueMob runs into an error, the team gets the error and phone model to fix it. Never your messages, contacts or position",
+                    divider = true) { Switch(autoReports, onAutoReports) }
             }
         }
         item { GroupLabel("Security") }

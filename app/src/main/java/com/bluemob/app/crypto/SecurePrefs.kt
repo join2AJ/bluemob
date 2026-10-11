@@ -49,7 +49,30 @@ class SecurePrefs private constructor(private val backing: SharedPreferences, pr
         }
     }
 
-    override fun getAll(): MutableMap<String, *> = synchronized(lock) { HashMap(cache.filterValues { it != null }) }
+    /**
+     * Names are stored hashed, so the file alone can't say which settings exist. An encrypted index of names (kept up to
+     * date on every write) lets [getAll] list them after a restart; before it existed, lists like "guides read" were lost
+     * at every update.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun index(): MutableSet<String> = ((read(INDEX) as? Set<String>) ?: emptySet()).toMutableSet()
+
+    override fun getAll(): MutableMap<String, *> = synchronized(lock) {
+        val out = HashMap<String, Any?>()
+        index().forEach { k -> read(k)?.let { out[k] = it } }
+        cache.forEach { (k, v) -> if (v != null && k != INDEX) out[k] = v }
+        out
+    }
+
+    /** Adds any of these names that hold a value to the index (to recover settings saved before the index existed). */
+    fun adopt(names: Collection<String>) = synchronized(lock) {
+        val idx = index()
+        val found = names.filter { it !in idx && read(it) != null }
+        if (found.isEmpty()) return@synchronized
+        idx.addAll(found)
+        cache[INDEX] = idx.toSet()
+        backing.edit().putString(slot(INDEX), Crypto.encode(box.seal(encodeValue(idx.toSet()).toByteArray()))).apply()
+    }
     override fun getString(key: String, defValue: String?): String? = read(key) as? String ?: defValue
     @Suppress("UNCHECKED_CAST")
     override fun getStringSet(key: String, defValues: MutableSet<String>?): MutableSet<String>? = (read(key) as? Set<String>)?.toMutableSet() ?: defValues
@@ -77,16 +100,20 @@ class SecurePrefs private constructor(private val backing: SharedPreferences, pr
 
         private fun write(): SharedPreferences.Editor = synchronized(lock) {
             val e = backing.edit()
+            val idx = if (clear) mutableSetOf() else index()
             if (clear) { e.clear(); cache.clear() }
             changes.forEach { (k, v) ->
                 cache[k] = v
-                if (v == null) e.remove(slot(k)) else e.putString(slot(k), Crypto.encode(box.seal(encodeValue(v).toByteArray())))
+                if (v == null) { e.remove(slot(k)); idx.remove(k) } else { e.putString(slot(k), Crypto.encode(box.seal(encodeValue(v).toByteArray()))); idx.add(k) }
             }
+            cache[INDEX] = idx.toSet()
+            e.putString(slot(INDEX), Crypto.encode(box.seal(encodeValue(idx.toSet()).toByteArray())))
             e
         }
     }
 
     companion object {
+        private const val INDEX = "\u0000names"
         @Volatile private var box: KeystoreBox? = null
         private fun box(context: Context) = box ?: synchronized(this) {
             box ?: KeystoreBox("bluemob_prefs", context.getSharedPreferences("keystore_fallback", Context.MODE_PRIVATE)).also { box = it }
