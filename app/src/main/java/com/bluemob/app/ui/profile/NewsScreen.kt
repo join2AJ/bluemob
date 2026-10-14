@@ -46,10 +46,10 @@ fun NewsScreen(items: List<NewsItem>, seenAt: Long, onBack: () -> Unit, onSeen: 
                         .padding(16.dp),
                 ) {
                     Row {
-                        Text((if (n.urgent) "⚠️ " else "") + n.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text((if (n.urgent) "⚠️ " else if (n.personal) "✉️ " else "") + n.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         if (n.at > seenAt) Text("NEW", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
-                    Text(fmt.format(Date(n.at)), style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(top = 2.dp))
+                    Text((if (n.personal) "To you from the BlueMob team · " else "") + fmt.format(Date(n.at)), style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(top = 2.dp))
                     Text(n.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                     if (n.link.isNotBlank()) Text("Open link ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
                 }

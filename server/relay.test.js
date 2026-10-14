@@ -280,3 +280,26 @@ test("admin: stats, report status, admin page; wrong token refused", async () =>
   assert.match(page.headers.get("content-security-policy"), /default-src 'self'/);
   srv.close();
 });
+
+test("news to particular BlueMob IDs reaches only them", async () => {
+  const { createServer, Store, Announcements } = require("./relay");
+  const store = new Store(null), news = new Announcements(null);
+  const srv = createServer(store, new Map(), undefined, undefined, undefined, { news, adminToken: "adm" });
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const a = device(), b = device();
+  store.learnKey(a.id, a.pk); store.learnKey(b.id, b.pk);
+  const shown = "BM " + a.id.toUpperCase().match(/.{4}/g).join(" ");
+  await fetch(base + "/v1/announce", { method: "POST", body: JSON.stringify({ token: "adm", title: "For Asha", text: "Your report is fixed", to: shown }) });
+  await fetch(base + "/v1/announce", { method: "POST", body: JSON.stringify({ token: "adm", title: "Everyone", text: "Hello" }) });
+  const ask = async (dev, signed = true) => {
+    const at = Date.now();
+    const sig = crypto.sign("sha256", Buffer.from("bluemob-news|" + at), dev.privateKey).toString("base64");
+    const q = signed ? `&id=${dev.id}&at=${at}&sig=${encodeURIComponent(sig)}` : `&id=${dev.id}`;
+    return (await (await fetch(base + "/v1/announcements?since=0" + q)).json()).items.map((n) => n.title).sort();
+  };
+  assert.deepEqual(await ask(a), ["Everyone", "For Asha"]);
+  assert.deepEqual(await ask(b), ["Everyone"]);
+  assert.deepEqual(await ask(a, false), ["Everyone"], "asking for someone else's ID without their key shows nothing private");
+  srv.close();
+});

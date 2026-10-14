@@ -155,7 +155,8 @@ fun ChatScreen(
                                     presence == Presence.ONLINE -> "Online nearby · " + linkWords(person?.quality)
                                     presence == Presence.IN_RANGE -> "In range · connecting…"
                                     person?.reach != null -> person.reach + " · calls work"
-                                    (person?.lastSeen ?: 0L) == 0L -> "Not met yet · reached through phones nearby"
+                                    (person?.lastSeen ?: 0L) == 0L && (person?.lastOnline ?: 0L) == 0L -> "Not met yet · reached through phones nearby"
+                                    (person?.lastOnline ?: 0L) > (person?.lastSeen ?: 0L) -> "Online ${TimeText.ago(person?.lastOnline ?: 0)} on the internet · messages wait for them"
                                     else -> "Seen ${TimeText.ago(person?.lastSeen ?: 0)} · not in range, messages travel through the mesh"
                                 },
                                 style = MaterialTheme.typography.bodySmall, maxLines = 1,

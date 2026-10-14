@@ -73,6 +73,22 @@ class TripAnalysisTest {
         assertEquals(com.bluemob.app.trail.TravelMode.CAR, modes[60])
     }
 
+    @Test fun gpsJumpsAreIgnoredAndTheUserCanSayHowTheyTravelled() {
+        // A 30 km/h ride with one point that jumps 50 km away and back: not 1000+ km/h.
+        var north = 0.0
+        val ride = (0..40).map { i -> north += 30 / 3.6 * 10; pt(i, if (i == 20) north + 50_000 else north, i * 10_000L) }
+        val a = com.bluemob.app.trail.TripAnalysis.of(ride)
+        assertTrue("top speed ${a.maxKmh}", a.maxKmh < 60)
+        assertTrue(a.legs.any { it.gap })
+        // Their word beats the guess: every moving stretch becomes a car.
+        val car = com.bluemob.app.trail.TripAnalysis.of(ride, com.bluemob.app.trail.TravelMode.CAR)
+        assertEquals(com.bluemob.app.trail.TravelMode.CAR, car.likelyMode)
+        assertTrue(car.corrected)
+        assertEquals(setOf(com.bluemob.app.trail.TravelMode.CAR), car.legs.filter { !it.gap }.map { it.mode }.toSet())
+        // Time in speed bands: all of it in 20–40 km/h.
+        assertEquals(setOf(com.bluemob.app.trail.SpeedBand.FROM_20), a.timeBySpeed.keys)
+    }
+
     @Test fun playbackInterpolates() {
         val pts = listOf(pt(0, 0.0, 0), pt(1, 100.0, 100_000))
         val (lat, _) = com.bluemob.app.trail.TripAnalysis.positionAt(pts, 50_000)!!

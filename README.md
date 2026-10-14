@@ -36,6 +36,21 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.27: speed colours, your own travel mode, messages to people
+
+- **Trips:** colour the trail and chart by **speed**:
+  - stopped;
+  - under 20 km/h, 20–40, 40–60, 60–80 and over 80;
+  - with the time spent in each.
+
+  Or colour by travel mode as before.
+- **Correct the travel mode:** tap On foot, Cycle, Motorbike or Car or bus, and every moving stretch counts as that.
+- **GPS jumps:** speeds faster than any vehicle are ignored, so no more 1232 km/h tops.
+- **"Last seen" includes the internet:** a chat says "Online 2 h ago on the internet" after calls and messages, not
+  only when you last met nearby.
+- **Messages to particular people:** the admin page can send news to chosen BlueMob IDs. Only a phone that proves it
+  owns that ID (by signing the request) receives it. Reports with technical details include the sender's ID to reply to.
+
 ## Android 0.26: reliable rescue groups, admin page, privacy rights
 
 - **Rescue groups over the internet now always arrive.** "I'm coming", "I'm safe", arrivals and messages also travel

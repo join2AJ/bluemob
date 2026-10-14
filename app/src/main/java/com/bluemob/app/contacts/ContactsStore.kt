@@ -14,6 +14,8 @@ data class Contact(
     val avatar: String?,
     val lastSeen: Long,
     val location: GeoPoint? = null,
+    /** Last time they were online over the internet (presence, a message or a call), as opposed to met nearby. */
+    val lastOnline: Long = 0,
 )
 
 data class GeoPoint(val lat: Double, val lon: Double, val accuracyM: Float, val time: Long)
@@ -41,6 +43,13 @@ class ContactsStore(context: Context) {
     }
 
     /** Adds someone by their BlueMob ID, before ever meeting them. Keeps what we already know about them. */
+    /** They were online over the internet just now (saved at most once a minute per person). */
+    fun markOnline(nodeId: String, now: Long = System.currentTimeMillis()) {
+        val c = _contacts.value[nodeId] ?: return
+        if (now - c.lastOnline < 60_000) return
+        upsert(nodeId) { it?.copy(lastOnline = now) ?: c }
+    }
+
     fun addById(nodeId: String, name: String) = upsert(nodeId) { it ?: Contact(nodeId, name, null, 0) }
 
     fun forgetAll() {
@@ -63,6 +72,7 @@ class ContactsStore(context: Context) {
                     avatar = o.optString("avatar").ifEmpty { null },
                     lastSeen = o.getLong("seen"),
                     location = loc,
+                    lastOnline = o.optLong("online"),
                 )
                 c.nodeId to c
             }
@@ -77,6 +87,7 @@ class ContactsStore(context: Context) {
                 put("name", c.name)
                 put("avatar", c.avatar ?: "")
                 put("seen", c.lastSeen)
+                put("online", c.lastOnline)
                 c.location?.let {
                     put("loc", JSONObject().put("lat", it.lat).put("lon", it.lon).put("acc", it.accuracyM.toDouble()).put("t", it.time))
                 }

@@ -553,7 +553,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                     else com.bluemob.app.ui.compass.TripScreen(trip, if (id == current) live else stored.orEmpty(), spots, id == current, ::pop,
                         onRename = { vm.renameTrip(id, it) }, onDelete = { vm.deleteTrip(id) },
                         onShareGpx = { scope.launch { vm.tripGpxFile(id)?.let { actions.shareFile(it, "application/gpx+xml") } } },
-                        onExport = { scope.launch { vm.exportTrip(id).takeIf { it.isNotEmpty() }?.let { actions.shareFiles(it) } } })
+                        onExport = { scope.launch { vm.exportTrip(id).takeIf { it.isNotEmpty() }?.let { actions.shareFiles(it) } } },
+                        mode = vm.tripModes.collectAsStateWithLifecycle().value[id]?.let { m -> runCatching { com.bluemob.app.trail.TravelMode.valueOf(m) }.getOrNull() },
+                        onMode = { vm.setTripMode(id, it) })
                 }
                 route == "backup" -> com.bluemob.app.ui.system.BackupScreen(vm.backups, vm.backups.status.collectAsStateWithLifecycle().value,
                     vm.backups.every.collectAsStateWithLifecycle().value, vm.backups.folder.collectAsStateWithLifecycle().value, actions.backup, ::pop)

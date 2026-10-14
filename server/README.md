@@ -89,7 +89,7 @@ curl -X POST https://YOUR-RELAY/v1/announce -H 'content-type: application/json' 
 ```
 
 Phones signed in get it within seconds (a notification, and You → News from BlueMob); others when they next connect.
-`"urgent": true` sounds even during do not disturb; `"link": "https://…"` adds a link. Remove one with
+`"to": ["BM 5742 99A8 E65F 20FE", …]` sends it only to those BlueMob IDs; `"urgent": true` sounds even during do not disturb; `"link": "https://…"` adds a link. Remove one with
 `{"token":"…","remove":"<id>"}`.
 
 ## Pages for the Play Store

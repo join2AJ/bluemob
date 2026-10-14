@@ -107,9 +107,13 @@ fun TripsScreen(trips: List<Trip>, current: String?, onBack: () -> Unit, onOpen:
  * One trip: its trail drawn to scale (pinch to zoom, drag to move), played back over time with the speed at each
  * moment, how they were probably travelling, and export of a picture plus the full data with timestamps.
  */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun TripScreen(trip: Trip, points: List<TrailPoint>, spots: List<Spot>, recording: Boolean, onBack: () -> Unit,
-    onRename: (String) -> Unit, onDelete: () -> Unit, onShareGpx: () -> Unit, onExport: () -> Unit = onShareGpx) {
+    onRename: (String) -> Unit, onDelete: () -> Unit, onShareGpx: () -> Unit, onExport: () -> Unit = onShareGpx,
+    /** How the user says they travelled (null: judged from speed), and changing it. */
+    mode: com.bluemob.app.trail.TravelMode? = null, onMode: (com.bluemob.app.trail.TravelMode?) -> Unit = {}) {
+    var bySpeed by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
     var deleting by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable(trip.id) { mutableStateOf(trip.name) }
@@ -125,7 +129,7 @@ fun TripScreen(trip: Trip, points: List<TrailPoint>, spots: List<Spot>, recordin
         confirmButton = { TextButton(onClick = { onDelete(); deleting = false; onBack() }) { Text("Delete", color = Extra.rose) } },
         dismissButton = { TextButton(onClick = { deleting = false }) { Text("Keep") } },
     )
-    val analysis = remember(points.size, points.lastOrNull()?.time) { com.bluemob.app.trail.TripAnalysis.of(points) }
+    val analysis = remember(points.size, points.lastOrNull()?.time, mode) { com.bluemob.app.trail.TripAnalysis.of(points, mode) }
     // Playback: a moment in the trip, moved by the slider or the play button.
     val start = points.firstOrNull()?.time ?: trip.startedAt
     val end = points.lastOrNull()?.time ?: start
@@ -148,14 +152,22 @@ fun TripScreen(trip: Trip, points: List<TrailPoint>, spots: List<Spot>, recordin
             Text(dayFormat.format(Date(trip.startedAt)) + (if (recording) " · recording now" else ""), style = MaterialTheme.typography.bodyMedium,
                 color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
         }
-        item { TrailMap(points, spots, Modifier.padding(top = 12.dp), marker = here, legs = analysis.legs) }
+        item { TrailMap(points, spots, Modifier.padding(top = 12.dp), marker = here, legs = analysis.legs, bySpeed = bySpeed) }
+        item {
+            Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Colour by", style = MaterialTheme.typography.labelLarge, color = Extra.ink2)
+                com.bluemob.app.ui.components.Chip("Travel mode", !bySpeed) { bySpeed = false }
+                com.bluemob.app.ui.components.Chip("Speed", bySpeed) { bySpeed = true }
+            }
+        }
         // Playback.
         if (points.size > 1) item {
             Group(Modifier.padding(top = 12.dp)) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(timeFormat.format(Date(at)), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        legNow?.let { l -> Text("${l.mode.emoji} ${"%.1f".format(l.kmh)} km/h", style = MaterialTheme.typography.titleMedium, color = modeColor(l.mode)) }
+                        legNow?.let { l -> Text("${l.mode.emoji} ${"%.1f".format(l.kmh)} km/h", style = MaterialTheme.typography.titleMedium,
+                            color = if (bySpeed) speedColor(l.band) else modeColor(l.mode)) }
                     }
                     androidx.compose.material3.Slider(value = (at - start).toFloat(), onValueChange = { playing = false; at = start + it.toLong() },
                         valueRange = 0f..(end - start).coerceAtLeast(1).toFloat())
@@ -192,19 +204,36 @@ fun TripScreen(trip: Trip, points: List<TrailPoint>, spots: List<Spot>, recordin
             item {
                 Group {
                     Column(Modifier.padding(16.dp)) {
-                        analysis.likelyMode?.let { m -> Text("Probably ${m.emoji} ${m.label.lowercase()}", style = MaterialTheme.typography.titleMedium) }
-                        Text("Judged from speed: on foot up to 7 km/h, cycle up to 25, motorbike up to 60, car or bus above. The vehicle only changes where they stopped or walked for 3 minutes or more, since nobody switches from a car to a cycle while moving.",
+                        analysis.likelyMode?.let { m ->
+                            Text((if (analysis.corrected) "You said: " else "Probably ") + "${m.emoji} ${m.label.lowercase()}", style = MaterialTheme.typography.titleMedium)
+                        }
+                        Text(if (analysis.corrected) "Every moving stretch counts as this. Stops are still shown."
+                            else "Judged from speed: on foot up to 7 km/h, cycle up to 25, motorbike up to 60, car or bus above. The vehicle only changes where they stopped or walked for 3 minutes or more, since nobody switches from a car to a cycle while moving.",
                             style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 2.dp))
-                        SpeedChart(analysis, start, end, at, Modifier.padding(top = 10.dp).fillMaxWidth().height(110.dp))
-                        val total = analysis.timeByMode.values.sum().coerceAtLeast(1.0)
-                        com.bluemob.app.trail.TravelMode.entries.forEach { m ->
-                            val sec = analysis.timeByMode[m] ?: return@forEach
-                            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(modeColor(m)))
-                                Text("  ${m.emoji} ${m.label}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                                Text("${com.bluemob.app.activity.Usage.words(sec.toLong())} · ${(sec * 100 / total).toInt()}%", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                        // Correct the guess: how did you really travel?
+                        Text(if (analysis.corrected) "Change it:" else "Not right? Say how you travelled:", style = MaterialTheme.typography.labelLarge,
+                            color = Extra.ink2, modifier = Modifier.padding(top = 10.dp, bottom = 6.dp))
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            com.bluemob.app.trail.TravelMode.entries.filter { it != com.bluemob.app.trail.TravelMode.STILL }.forEach { m ->
+                                com.bluemob.app.ui.components.Chip("${m.emoji} ${m.label}", mode == m) { onMode(if (mode == m) null else m) }
+                            }
+                            if (mode != null) com.bluemob.app.ui.components.Chip("↺ Judge from speed", false) { onMode(null) }
+                        }
+                        SpeedChart(analysis, start, end, at, bySpeed, Modifier.padding(top = 12.dp).fillMaxWidth().height(110.dp))
+                        if (!bySpeed) {
+                            val total = analysis.timeByMode.values.sum().coerceAtLeast(1.0)
+                            com.bluemob.app.trail.TravelMode.entries.forEach { m ->
+                                val sec = analysis.timeByMode[m] ?: return@forEach
+                                LegendRow(modeColor(m), "${m.emoji} ${m.label}", sec, total)
+                            }
+                        } else {
+                            val total = analysis.timeBySpeed.values.sum().coerceAtLeast(1.0)
+                            com.bluemob.app.trail.SpeedBand.entries.forEach { b ->
+                                LegendRow(speedColor(b), b.label, analysis.timeBySpeed[b] ?: 0.0, total)
                             }
                         }
+                        if (analysis.legs.any { it.gap }) Text("Grey gaps: GPS jumps (impossible speeds), left out of the numbers.",
+                            style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 6.dp))
                     }
                 }
             }
@@ -237,9 +266,29 @@ fun modeColor(m: com.bluemob.app.trail.TravelMode): Color = when (m) {
     com.bluemob.app.trail.TravelMode.CAR -> Color(0xFFD94F55)
 }
 
-/** Speed over the trip, coloured by mode, with a line at the playback moment. */
+/** Each speed band's colour: grey when stopped, then green → blue → yellow → orange → red as it gets faster. */
+fun speedColor(b: com.bluemob.app.trail.SpeedBand): Color = when (b) {
+    com.bluemob.app.trail.SpeedBand.STOPPED -> Color(0xFF9AA5A0)
+    com.bluemob.app.trail.SpeedBand.UNDER_20 -> Color(0xFF2E9E6B)
+    com.bluemob.app.trail.SpeedBand.FROM_20 -> Color(0xFF2F8FD8)
+    com.bluemob.app.trail.SpeedBand.FROM_40 -> Color(0xFFE3B21E)
+    com.bluemob.app.trail.SpeedBand.FROM_60 -> Color(0xFFE07A2E)
+    com.bluemob.app.trail.SpeedBand.OVER_80 -> Color(0xFFD13B4B)
+}
+
 @Composable
-private fun SpeedChart(a: com.bluemob.app.trail.TripAnalysis, start: Long, end: Long, at: Long, modifier: Modifier) {
+private fun LegendRow(color: Color, label: String, sec: Double, total: Double) {
+    Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(color))
+        Text("  $label", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text(if (sec <= 0) "–" else "${com.bluemob.app.activity.Usage.words(sec.toLong())} · ${(sec * 100 / total).toInt()}%",
+            style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+    }
+}
+
+/** Speed over the trip, coloured by mode or by speed band, with a line at the playback moment. */
+@Composable
+private fun SpeedChart(a: com.bluemob.app.trail.TripAnalysis, start: Long, end: Long, at: Long, bySpeed: Boolean, modifier: Modifier) {
     val ink3 = Extra.ink3
     val measurer = rememberTextMeasurer()
     Canvas(modifier) {
@@ -248,8 +297,9 @@ private fun SpeedChart(a: com.bluemob.app.trail.TripAnalysis, start: Long, end: 
         a.legs.forEach { l ->
             val x0 = (l.from.time - start) / span * size.width
             val x1 = (l.to.time - start) / span * size.width
+            if (l.gap) { drawRect(Color(0x339AA5A0), Offset(x0, 0f), Size((x1 - x0).coerceAtLeast(1f), size.height)); return@forEach }
             val h = (l.kmh / top * size.height).toFloat()
-            drawRect(modeColor(l.mode), Offset(x0, size.height - h), Size((x1 - x0).coerceAtLeast(1f), h))
+            drawRect(if (bySpeed) speedColor(l.band) else modeColor(l.mode), Offset(x0, size.height - h), Size((x1 - x0).coerceAtLeast(1f), h))
         }
         drawLine(ink3, Offset(0f, size.height), Offset(size.width, size.height), 2f)
         val x = (at - start) / span * size.width
@@ -274,8 +324,8 @@ private fun Stat(label: String, value: String) {
 fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, modifier: Modifier = Modifier,
     /** Playback position to mark. */
     marker: Pair<Double, Double>? = null,
-    /** Colour the trail by travel mode. */
-    legs: List<com.bluemob.app.trail.Leg> = emptyList()) {
+    /** Colour the trail by travel mode (or by speed band with [bySpeed]). */
+    legs: List<com.bluemob.app.trail.Leg> = emptyList(), bySpeed: Boolean = false) {
     val measurer = rememberTextMeasurer()
     val ink = MaterialTheme.colorScheme.onSurface
     val grid = Extra.line
@@ -318,9 +368,9 @@ fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, modifier: Modifier = M
             Offset(pad, size.height - pad / 2 - 40), TextStyle(color = ink, fontSize = 11.sp))
         safeText(measurer, "N ↑", Offset(size.width - pad, pad / 3), TextStyle(color = ink, fontSize = 12.sp))
         // The trail: coloured by travel mode when known; estimated stretches dashed.
-        val modeAt = legs.associate { it.to.time to it.mode }
+        val legAt = legs.associateBy { it.to.time }
         points.zipWithNext().forEach { (a, b) ->
-            val c = modeAt[b.time]?.let { modeColor(it) } ?: pine
+            val c = legAt[b.time]?.let { l -> if (l.gap) Color(0xFF9AA5A0) else if (bySpeed) speedColor(l.band) else modeColor(l.mode) } ?: pine
             drawLine(c, screen(xy(a.lat, a.lon)), screen(xy(b.lat, b.lon)), 7f, cap = StrokeCap.Round,
                 pathEffect = if (b.estimated) PathEffect.dashPathEffect(floatArrayOf(14f, 12f)) else null)
         }

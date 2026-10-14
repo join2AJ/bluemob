@@ -54,6 +54,8 @@ data class Person(
     val ratingCount: Int = 0,
     /** Not nearby but reachable live, e.g. "Online on the internet" or "Reachable through Asha": calls work. */
     val reach: String? = null,
+    /** Last time they were online over the internet. */
+    val lastOnline: Long = 0,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -147,6 +149,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 lost = lostPos,
                 stars = scores[c.nodeId]?.stars ?: com.bluemob.app.trust.Trust.START,
                 ratingCount = scores[c.nodeId]?.ratings ?: 0,
+                lastOnline = if (c.nodeId in online.online || c.nodeId in online.via) now else c.lastOnline,
                 reach = if (presence != Presence.OFFLINE) null else mesh.routes.nextHop(c.nodeId, neighbors)?.let { (hop, hops) ->
                     "Reachable through ${contacts[hop]?.name ?: "a friend"}" + if (hops > 2) " ($hops hops)" else ""
                 } ?: when {
@@ -348,7 +351,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun reportProblem(text: String, details: Boolean, log: List<com.bluemob.app.mesh.LogLine>,
         category: String = "", sub: String = "", photos: List<ByteArray> = emptyList()): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val app = getApplication<android.app.Application>()
-        val device = com.bluemob.app.util.CrashLog.deviceLine(app)
+        // With technical details on, the team also gets this BlueMob ID, so they can reply to this person from the admin page.
+        val device = com.bluemob.app.util.CrashLog.deviceLine(app) + " · reply to BM " + com.bluemob.app.util.formatId(identity.nodeId)
         val extra = if (!details) "" else buildString {
             com.bluemob.app.util.CrashLog.lastNonFatal(app)?.let { append("Last background error:\n").append(it.take(6000)).append("\n\n") }
             com.bluemob.app.util.CrashLog.read(app)?.let { append("Last crash:\n").append(it.take(6000)).append("\n\n") }
@@ -501,6 +505,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             listOf(png, csv, gpx)
         }
     }
+    val tripModes = settings.tripModes
+    fun setTripMode(tripId: String, mode: com.bluemob.app.trail.TravelMode?) = settings.setTripMode(tripId, mode?.name)
     fun clearTrail() = trail.clear()
     fun onStepPermission() = trail.onStepPermission()
     fun setLost(on: Boolean) = if (on) lostMode.start() else lostMode.stop()

@@ -136,6 +136,16 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean("asked_keep_running", false)
         set(v) { prefs.edit().putBoolean("asked_keep_running", v).apply() }
 
+    private val _tripModes = MutableStateFlow(runCatching {
+        org.json.JSONObject(prefs.getString("trip_modes", "{}")!!).let { o -> o.keys().asSequence().associateWith { o.getString(it) } }
+    }.getOrDefault(emptyMap()))
+    /** How the user says they travelled on a trip (trip ID → TravelMode name), correcting the guess from speed. */
+    val tripModes: StateFlow<Map<String, String>> = _tripModes.asStateFlow()
+    fun setTripMode(tripId: String, mode: String?) {
+        _tripModes.value = if (mode == null) _tripModes.value - tripId else _tripModes.value + (tripId to mode)
+        prefs.edit().putString("trip_modes", org.json.JSONObject(_tripModes.value).toString()).apply()
+    }
+
     private val _blocked = MutableStateFlow(prefs.getStringSet("blocked", emptySet())!!.toSet())
     /** People this user blocked: their messages and calls don't reach them. Their SOS still does (safety first). */
     val blocked: StateFlow<Set<String>> = _blocked.asStateFlow()

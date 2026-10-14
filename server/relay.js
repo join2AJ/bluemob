@@ -22,7 +22,8 @@
 //   POST /v1/email  {pk, at, email, sig}                   optional recovery email for this BlueMob ID ("" removes it);
 //                                                          kept for account recovery and receipts, never shown to anyone
 //   GET  /v1/announcements?since=ms                       news from the BlueMob team
-//   POST /v1/announce {token, title, text, link?, urgent?} post news (ADMIN_TOKEN); {token, remove: id} deletes it
+//   GET  /v1/announcements?since&id&at&sig                 + messages for this BlueMob ID (signed "bluemob-news|at")
+//   POST /v1/announce {token, title, text, link?, urgent?, to?} news for everyone, or to: [BlueMob IDs]; {token, remove: id}
 //   POST /v1/account/delete {pk, at, sig}                  forget this BlueMob ID: key, number, email, backups, waiting messages
 //   GET  /admin                                            the team's page: overview, reports (with status), news
 //   GET  /v1/admin/stats   (x-admin-token)                 counts for the overview
@@ -237,16 +238,23 @@ class Announcements {
     if (file && fs.existsSync(file)) try { this.items = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
     this.onAdd = null;
   }
-  add({ title, text, link = "", urgent = false }, at = Date.now()) {
+  /** [to]: BlueMob IDs (as shown in the app, spaces and "BM" allowed) for a message to just those people; empty for everyone. */
+  add({ title, text, link = "", urgent = false, to = [] }, at = Date.now()) {
+    const ids = (Array.isArray(to) ? to : String(to).split(/[,;\n]/)).map((x) => String(x).toLowerCase().replace(/^\s*bm/, "").replace(/[^0-9a-f]/g, ""))
+      .filter((x) => /^[0-9a-f]{16}$/.test(x)).slice(0, 500);
     const a = { id: at + "-" + crypto.randomBytes(3).toString("hex"), at, title: String(title).slice(0, 80), text: String(text).slice(0, 1000),
-      link: /^https:\/\//.test(link) ? String(link).slice(0, 300) : "", urgent: !!urgent };
+      link: /^https:\/\//.test(link) ? String(link).slice(0, 300) : "", urgent: !!urgent, to: [...new Set(ids)] };
     this.items = [a, ...this.items].slice(0, 50);
     if (this.file) fs.writeFileSync(this.file, JSON.stringify(this.items));
     if (this.onAdd) this.onAdd(a);
     return a;
   }
   remove(id) { this.items = this.items.filter((a) => a.id !== id); if (this.file) fs.writeFileSync(this.file, JSON.stringify(this.items)); }
-  since(at) { return this.items.filter((a) => a.at > at); }
+  /** Public news after [at], plus messages to [id] when the phone proved it is [id]. Targets are never shown to phones. */
+  since(at, id = null) {
+    return this.items.filter((a) => a.at > at && (!a.to || a.to.length === 0 || (id && a.to.includes(id))))
+      .map(({ to, ...rest }) => ({ ...rest, personal: !!(to && to.length) }));
+  }
 }
 
 /** Tells the team about something new (a report, an automatic error report), if ALERT_WEBHOOK is set: Slack, Discord, or any URL. */
@@ -390,7 +398,13 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         news: news.items.length, upSince: startedAt, version: "0.26",
       });
     }
-    if (req.method === "GET" && url.pathname === "/v1/announcements") return send(res, 200, { items: news.since(Number(url.searchParams.get("since")) || 0) });
+    if (req.method === "GET" && url.pathname === "/v1/announcements") {
+      // A phone asking for its own messages signs "bluemob-news|at" with its key; without that, only news for everyone.
+      const id = url.searchParams.get("id") || "", at = Number(url.searchParams.get("at")), pk = store.keys.get(id);
+      const me = pk && Math.abs(Date.now() - at) < 10 * 60e3 && signer(pk, "bluemob-news|" + at, url.searchParams.get("sig") || "") === id ? id : null;
+      if (url.searchParams.get("all") === "1" && isAdmin(req.headers["x-admin-token"])) return send(res, 200, { items: news.items });
+      return send(res, 200, { items: news.since(Number(url.searchParams.get("since")) || 0, me) });
+    }
     if (req.method === "GET" && url.pathname === "/v1/guides") {
       return send(res, 200, { packs: [...guides.values()].map((p) => ({ id: p.id, version: p.version || 1, emoji: p.emoji || "📘", title: p.title, about: p.about || "",
         articles: p.articles.length, bytes: Buffer.byteLength(JSON.stringify(p)) })) });
@@ -565,6 +579,9 @@ if (require.main === module) {
   const online = require("./live").attachLive(server, { store, pusher });
   liveCount = () => online.size;
   // News reaches phones signed in right now at once; the others fetch it when they next connect.
-  news.onAdd = () => { for (const ws of online.values()) try { ws.text({ t: "news" }); } catch {} };
+  news.onAdd = (a) => {
+    const targets = a.to && a.to.length ? a.to.map((id) => online.get(id)).filter(Boolean) : [...online.values()];
+    for (const ws of targets) try { ws.text({ t: "news" }); } catch {}
+  };
   server.listen(port, () => console.log(`BlueMob relay listening on :${port}`));
 }

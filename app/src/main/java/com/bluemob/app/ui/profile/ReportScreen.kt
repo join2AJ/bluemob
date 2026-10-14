@@ -170,7 +170,7 @@ fun ReportScreen(
                 .clickable { details = !details }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Include technical details", style = MaterialTheme.typography.titleSmall)
-                    Text("Phone model, BlueMob version, recent errors and connection log. Never your messages, contacts or keys.",
+                    Text("Phone model, BlueMob version, recent errors, connection log, and your BlueMob ID so the team can reply to you. Never your messages, contacts or keys.",
                         style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
                 }
                 Spacer(Modifier.width(8.dp))

@@ -17,9 +17,28 @@ enum class TravelMode(val label: String, val emoji: String, val maxKmh: Double) 
     }
 }
 
-/** One stretch between two trail points: when, how fast, and how they were probably travelling. */
+/** Speed bands for colouring the trail and chart, so the speed can be read at a glance. */
+enum class SpeedBand(val label: String, val maxKmh: Double) {
+    STOPPED("Stopped", 1.0),
+    UNDER_20("Under 20 km/h", 20.0),
+    FROM_20("20–40 km/h", 40.0),
+    FROM_40("40–60 km/h", 60.0),
+    FROM_60("60–80 km/h", 80.0),
+    OVER_80("Over 80 km/h", Double.MAX_VALUE);
+
+    companion object {
+        fun of(kmh: Double): SpeedBand = entries.first { kmh <= it.maxKmh }
+    }
+}
+
+/**
+ * One stretch between two trail points: when, how fast, and how they were probably travelling. [gap] marks a stretch
+ * whose speed can't be trusted (a GPS jump: faster than any vehicle), left out of the speeds and modes.
+ */
 data class Leg(val from: TrailPoint, val to: TrailPoint, val metres: Double, val seconds: Double, val kmh: Double,
-               val mode: TravelMode = TravelMode.of(kmh))
+               val mode: TravelMode = TravelMode.of(kmh), val gap: Boolean = false) {
+    val band get() = SpeedBand.of(kmh)
+}
 
 data class TripAnalysis(
     val legs: List<Leg>,
@@ -29,39 +48,55 @@ data class TripAnalysis(
     val avgMovingKmh: Double,
     /** Seconds spent in each mode (stops included). */
     val timeByMode: Map<TravelMode, Double>,
-    /** The mode most of the moving time was in. */
+    /** The mode most of the moving time was in (or what the user said it was). */
     val likelyMode: TravelMode?,
     val climbM: Double,
+    /** Seconds in each speed band (stops included). */
+    val timeBySpeed: Map<SpeedBand, Double> = emptyMap(),
+    /** True when the user said how they travelled. */
+    val corrected: Boolean = false,
 ) {
     companion object {
         /**
          * Speeds from the GPS where it gave one, otherwise from distance over time. A 3-point median smooths GPS jumps,
          * so one bad fix doesn't turn a walk into a car ride.
          */
-        fun of(points: List<TrailPoint>): TripAnalysis {
+        /** Faster than this is a GPS jump, not travel (no road vehicle; planes aren't tracked). */
+        const val IMPOSSIBLE_KMH = 250.0
+
+        /** [override]: how the user says they travelled; every moving stretch takes that mode. */
+        fun of(points: List<TrailPoint>, override: TravelMode? = null): TripAnalysis {
             val raw = points.zipWithNext().mapNotNull { (a, b) ->
                 val s = (b.time - a.time) / 1000.0
                 if (s <= 0) return@mapNotNull null
                 val m = Geo.distanceM(GeoPoint(a.lat, a.lon, 0f, 0), GeoPoint(b.lat, b.lon, 0f, 0))
                 val gps = b.speedMps?.takeIf { it >= 0 }?.toDouble()
-                Leg(a, b, m, s, (gps ?: (m / s)) * 3.6)
+                val kmh = (gps ?: (m / s)) * 3.6
+                if (kmh > IMPOSSIBLE_KMH) Leg(a, b, m, s, 0.0, TravelMode.STILL, gap = true) else Leg(a, b, m, s, kmh)
             }
-            val legs = modes(raw.mapIndexed { i, l ->
-                val near = raw.subList((i - 1).coerceAtLeast(0), (i + 2).coerceAtMost(raw.size)).map { it.kmh }.sorted()
+            val good = raw.filter { !it.gap }
+            val smoothed = modes(good.mapIndexed { i, l ->
+                val near = good.subList((i - 1).coerceAtLeast(0), (i + 2).coerceAtMost(good.size)).map { it.kmh }.sorted()
                 l.copy(kmh = near[near.size / 2])
-            })
-            val moving = legs.filter { it.mode != TravelMode.STILL }
+            }).let { list -> if (override == null) list else list.map { if (it.kmh > TravelMode.STILL.maxKmh) it.copy(mode = override) else it } }
+            // Back in time order, with the GPS jumps where they were (shown, but not counted).
+            val byStart = smoothed.associateBy { it.from.time }
+            val legs = raw.map { if (it.gap) it else byStart[it.from.time] ?: it }
+            val counted = legs.filter { !it.gap }
+            val moving = counted.filter { it.mode != TravelMode.STILL }
             val movingS = moving.sumOf { it.seconds }
-            val byMode = legs.groupBy { it.mode }.mapValues { (_, l) -> l.sumOf { it.seconds } }
+            val byMode = counted.groupBy { it.mode }.mapValues { (_, l) -> l.sumOf { it.seconds } }
             var climb = 0.0
             points.mapNotNull { it.altitudeM }.zipWithNext { a, b -> if (b - a > 2) climb += b - a }
             return TripAnalysis(
-                legs = legs, distanceM = legs.sumOf { it.metres }, movingSeconds = movingS,
-                maxKmh = legs.maxOfOrNull { it.kmh } ?: 0.0,
+                legs = legs, distanceM = counted.sumOf { it.metres }, movingSeconds = movingS,
+                maxKmh = counted.maxOfOrNull { it.kmh } ?: 0.0,
                 avgMovingKmh = if (movingS > 0) moving.sumOf { it.metres } / movingS * 3.6 else 0.0,
                 timeByMode = byMode,
-                likelyMode = byMode.filterKeys { it != TravelMode.STILL }.maxByOrNull { it.value }?.key,
+                likelyMode = override ?: byMode.filterKeys { it != TravelMode.STILL }.maxByOrNull { it.value }?.key,
                 climbM = climb,
+                timeBySpeed = counted.groupBy { it.band }.mapValues { (_, l) -> l.sumOf { it.seconds } },
+                corrected = override != null,
             )
         }
 

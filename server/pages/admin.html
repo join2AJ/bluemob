@@ -55,11 +55,12 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
   </section>
   <section id="news" class="hidden">
     <div class="card">
-      <h2 style="margin-top:0">Send news to every phone</h2>
+      <h2 style="margin-top:0">Send news or a message</h2>
       <p class="muted">Phones signed in get it within seconds; others when they next connect. Urgent news sounds even during do not disturb.</p>
       <input id="nTitle" type="text" placeholder="Title (e.g. Heavy rain warning)" maxlength="80">
       <p></p><textarea id="nText" placeholder="Message" maxlength="1000"></textarea>
       <p></p><input id="nLink" type="url" placeholder="Link (optional, https://…)">
+      <p></p><textarea id="nTo" style="min-height:56px" placeholder="To: leave empty for everyone, or BlueMob IDs, one per line or comma-separated (e.g. BM 5742 99A8 E65F 20FE)"></textarea>
       <p class="row"><label><input id="nUrgent" type="checkbox"> Urgent</label></p>
       <button class="btn" id="nSend">Send to everyone</button> <span id="nMsg" class="muted"></span>
     </div>
@@ -152,8 +153,8 @@ async function toggle(el) {
 }
 
 async function loadNews() {
-  const r = await (await fetch("/v1/announcements?since=0")).json();
-  $("newsList").innerHTML = r.items.length ? r.items.map((n) => `<div class="card rep"><div>${n.urgent ? '<span class="tag t-auto">URGENT</span>' : ""}<b>${esc(n.title)}</b></div>
+  const r = await api("/v1/announcements?since=0&all=1");
+  $("newsList").innerHTML = r.items.length ? r.items.map((n) => `<div class="card rep"><div>${n.urgent ? '<span class="tag t-auto">URGENT</span>' : ""}<b>${esc(n.title)}</b>${n.to && n.to.length ? ` <span class="meta">to ${n.to.length} ${n.to.length === 1 ? "person" : "people"}: ${n.to.map((x) => "BM " + x.toUpperCase().match(/.{4}/g).join(" ")).join(", ")}</span>` : ""}</div>
     <div>${esc(n.text)}</div>${n.link ? `<div class="meta">${esc(n.link)}</div>` : ""}<div class="meta">${when(n.at)}</div>
     <p><button class="danger btn" data-id="${esc(n.id)}">Remove</button></p></div>`).join("") : `<p class="muted">Nothing sent yet.</p>`;
   $("newsList").querySelectorAll("button[data-id]").forEach((b) => b.onclick = async () => {
@@ -164,9 +165,10 @@ async function loadNews() {
 $("nSend").onclick = async () => {
   const title = $("nTitle").value.trim(), text = $("nText").value.trim();
   if (!title || !text) { $("nMsg").textContent = "Add a title and a message."; return; }
-  if (!confirm(`Send "${title}" to every BlueMob phone?`)) return;
-  const r = await api("/v1/announce", { method: "POST", body: JSON.stringify({ token, title, text, link: $("nLink").value.trim(), urgent: $("nUrgent").checked }) });
-  $("nMsg").textContent = r.ok ? "Sent." : "Couldn't send it."; if (r.ok) { $("nTitle").value = $("nText").value = $("nLink").value = ""; $("nUrgent").checked = false; loadNews(); loadOverview(); }
+  const to = $("nTo").value.trim();
+  if (!confirm(to ? `Send "${title}" to the BlueMob IDs listed?` : `Send "${title}" to every BlueMob phone?`)) return;
+  const r = await api("/v1/announce", { method: "POST", body: JSON.stringify({ token, title, text, link: $("nLink").value.trim(), urgent: $("nUrgent").checked, to }) });
+  $("nMsg").textContent = r.ok ? "Sent." : "Couldn't send it."; if (r.ok) { $("nTitle").value = $("nText").value = $("nLink").value = $("nTo").value = ""; $("nUrgent").checked = false; loadNews(); loadOverview(); }
 };
 if (token) start();
 </script></body></html>

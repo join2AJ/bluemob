@@ -203,6 +203,7 @@ class BlueMobApp : Application() {
             blockCall = { peer -> peer in settings.blocked.value || dndBlocksCall(peer) },
             log = { entry ->
             db.calls().insert(entry)
+            if (entry.outcome == "ANSWERED" || !entry.outgoing) contacts.markOnline(entry.peer, entry.startedAt + entry.durationS * 1000)
             if (entry.outcome == "MISSED" && !inForeground) notifier.note("Missed call from ${entry.name}", "${if (entry.video) "Video" else "Voice"} call. Tap to call back.", "calls", id = 7_008)
         })
         bridge = InternetBridge(settings, identity, keyBook, mesh, connectivity, audit, appScope)
@@ -210,10 +211,16 @@ class BlueMobApp : Application() {
         live = com.bluemob.app.bridge.LiveLink({ settings.bridgeUrl.value }, identity.keys, appScope, { connectivity.online.value })
         mesh.live = live
         live.onPoke = { bridge.syncNow() }
-        news = com.bluemob.app.bridge.News(SecurePrefs.open(this, "news"), { settings.bridgeUrl.value }) { n -> notifier.news(n.id, n.title, n.text, n.urgent) }
+        news = com.bluemob.app.bridge.News(SecurePrefs.open(this, "news"), { settings.bridgeUrl.value }, { n -> notifier.news(n.id, n.title, n.text, n.urgent) }) {
+            val at = System.currentTimeMillis()
+            val sig = com.bluemob.app.crypto.Crypto.encode(identity.keys.sign("bluemob-news|$at".toByteArray()))
+            "&id=${identity.nodeId}&at=$at&sig=" + java.net.URLEncoder.encode(sig, "UTF-8")
+        }
         live.onNews = { appScope.launch { news.refresh() } }
         // News from the team: whenever the internet link (re)connects, and every 3 hours.
         appScope.launch { live.connected.collect { if (it) news.refresh() } }
+        // Remember when people were last online over the internet, so "last seen" means something for them too.
+        appScope.launch { live.presence.collect { p -> (p.online + p.via.keys).forEach { contacts.markOnline(it) } } }
         // Errors BlueMob ran into go to the team when there's internet (if the user allows it).
         appScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             live.connected.collect { up -> if (up && settings.autoErrorReports.value) runCatching { com.bluemob.app.util.ErrorOutbox.flush(this@BlueMobApp, settings.bridgeUrl.value) } }
@@ -261,7 +268,7 @@ class BlueMobApp : Application() {
         offlineAi = com.bluemob.app.bot.OfflineAi(this, appScope)
         messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text, partial -> skyReply(text, partial) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
-            onIncoming = { peer, text -> if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
+            onIncoming = { peer, text -> contacts.markOnline(peer); if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
             groups = groups, me = { identity.nodeId to identity.displayName.value }, blocked = { it in settings.blocked.value },
             onRoomEnvelope = { mesh.receiveRoomEnvelope(it) },
         )
