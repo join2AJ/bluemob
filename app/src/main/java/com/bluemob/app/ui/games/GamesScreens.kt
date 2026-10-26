@@ -160,7 +160,7 @@ fun RulesDialog(engine: Engine, onDone: () -> Unit) {
                         Text("How to play", style = MaterialTheme.typography.labelMedium, color = Extra.ink3)
                     }
                 }
-                Row(Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(accent.copy(alpha = 0.14f)).padding(12.dp),
+                Row(Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(accent.copy(alpha = 0.14f)).padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("🏆", fontSize = 18.sp)
                     Text(engine.goal, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 10.dp))
@@ -199,7 +199,7 @@ private fun Reactions(latest: com.bluemob.app.games.Matches.Reaction?, them: Str
             enter = androidx.compose.animation.scaleIn() + androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
             latest?.let { r ->
                 Text((if (r.fromMe) "You: " else "$them: ") + r.text, style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (r.fromMe) Extra.pineTint else Extra.emberTint).padding(horizontal = 16.dp, vertical = 8.dp))
+                    modifier = Modifier.clip(RoundedCornerShape(22.dp)).background(if (r.fromMe) Extra.pineTint else Extra.emberTint).padding(horizontal = 16.dp, vertical = 8.dp))
             }
         }
         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -281,7 +281,7 @@ private fun StoneBoard(board: List<Int>, line: List<Int>?, enabled: Boolean, onT
                     contentAlignment = Alignment.Center) {
                     if (board[i] != 0) Box(Modifier.fillMaxSize(0.8f).clip(CircleShape)
                         .background(if (board[i] == 1) Color(0xFF1D2A24) else Color(0xFFF7F4EC))
-                        .border(if (line?.contains(i) == true) 3.dp else 0.dp, Color(0xFFE5484D), CircleShape))
+                        .border(if (line?.contains(i) == true) 3.dp else 0.dp, com.bluemob.app.ui.theme.Palette.Danger, CircleShape))
                 }
             }
         }
@@ -296,7 +296,7 @@ private fun TttBoard(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap
                 val i = r * 3 + c
                 val inLine = line?.contains(i) == true
                 val bg by animateColorAsState(if (inLine) Extra.pineTint else MaterialTheme.colorScheme.surface, label = "cell")
-                Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(18.dp)).background(bg).border(1.dp, Extra.line, RoundedCornerShape(18.dp))
+                Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(22.dp)).background(bg).border(1.dp, Extra.line, RoundedCornerShape(22.dp))
                     .clickable(enabled = enabled && board[i] == 0) { onTap(i) },
                     contentAlignment = Alignment.Center) {
                     if (board[i] != 0) {
@@ -321,7 +321,7 @@ private fun TttBoard(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap
 
 @Composable
 private fun C4Board(board: List<Int>, line: List<Int>?, enabled: Boolean, onTap: (Int) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xFF1F5FA0)).padding(8.dp),
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(22.dp)).background(Color(0xFF1F5FA0)).padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)) {
         for (r in 0 until ConnectFour.ROWS) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for (c in 0 until ConnectFour.COLS) {
@@ -419,7 +419,7 @@ private fun QuizBoard(m: Match, onAnswer: (Int) -> Unit) {
                 answered && i == mine -> Extra.emberTint
                 else -> MaterialTheme.colorScheme.surface
             }
-            Box(Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(14.dp)).background(color).border(1.dp, Extra.line, RoundedCornerShape(14.dp))
+            Box(Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(16.dp)).background(color).border(1.dp, Extra.line, RoundedCornerShape(16.dp))
                 .clickable(enabled = !answered) { shown = q; onAnswer(q * 4 + i) }.padding(14.dp)) {
                 Text(o + if (answered && i == question.right) "  ✓" else "", style = MaterialTheme.typography.bodyLarge)
             }
@@ -428,7 +428,7 @@ private fun QuizBoard(m: Match, onAnswer: (Int) -> Unit) {
             Text(if (mine == question.right) "Right! 🎉" else "Not quite. The right answer is marked ✓.", style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(top = 4.dp))
             // Why: what was wrong with their choice, and why the right one is right.
-            Column(Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(14.dp)).background(Extra.sand).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(16.dp)).background(Extra.sand).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (mine != question.right) question.wrong.getOrNull(mine)?.takeIf { it.isNotBlank() }?.let {
                     Text("✕ Why not “${question.options[mine]}”", style = MaterialTheme.typography.labelLarge, color = Extra.rose)
                     Text(it, style = MaterialTheme.typography.bodyMedium)

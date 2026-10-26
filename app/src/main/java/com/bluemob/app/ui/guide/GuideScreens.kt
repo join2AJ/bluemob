@@ -233,7 +233,7 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
 @Composable
 private fun GuideRow(a: Article, saved: Boolean, read: Boolean, new: Boolean, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(a.category.color), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).clip(RoundedCornerShape(16.dp)).background(a.category.color), contentAlignment = Alignment.Center) {
             Icon(a.category.icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
         }
         Spacer(Modifier.width(14.dp))

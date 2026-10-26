@@ -94,7 +94,7 @@ fun AttachmentContent(m: MessageEntity, att: Attachment, name: String, files: Ch
             AttKind.IMAGE -> {
                 val thumb = rememberLoaded(m.attPath, m.attState) { if (ready) files.thumbnail(m) else null }
                 Box(Modifier.fillMaxWidth().aspectRatio(thumb?.let { it.width.toFloat() / it.height }?.coerceIn(0.6f, 1.8f) ?: 1.33f)
-                    .clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = 0.12f)).clickable(enabled = ready) { files.onOpen(m) },
+                    .clip(RoundedCornerShape(16.dp)).background(Color.Black.copy(alpha = 0.12f)).clickable(enabled = ready) { files.onOpen(m) },
                     contentAlignment = Alignment.Center) {
                     thumb?.let { Image(it.asImageBitmap(), att.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
                         ?: Text("📷", fontSize = 36.sp)

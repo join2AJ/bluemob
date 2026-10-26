@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -195,7 +196,7 @@ fun SosPill(onClick: () -> Unit) {
         "SOS",
         color = Color.White,
         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp),
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(Extra.rose).clickable(onClick = onClick, role = Role.Button)
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(Palette.DangerDeep).clickable(onClick = onClick, role = Role.Button)
             .semantics { contentDescription = "SOS: ask for help" }
             .padding(horizontal = 14.dp, vertical = 7.dp),
     )
@@ -218,7 +219,7 @@ fun FeatureCard(icon: ImageVector, tile: Color, title: String, body: String, onC
     Surface(onClick = onClick, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, Extra.line), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(48.dp).clip(RoundedCornerShape(15.dp)).background(tile), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(tile), contentAlignment = Alignment.Center) {
                 Icon(icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(14.dp))
@@ -297,3 +298,23 @@ val TabBarClearance = PaddingValues(bottom = 24.dp)
 
 @Composable
 fun Gap(h: Dp) = Spacer(Modifier.height(h))
+
+/** A row of options where one is picked (date ranges, filters): the same look everywhere. */
+@Composable
+fun Segmented(options: List<String>, picked: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
+    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.sand).padding(4.dp)) {
+        options.forEachIndexed { i, label ->
+            val on = i == picked
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(if (on) MaterialTheme.colorScheme.surface else Color.Transparent)
+                .clickable(role = Role.Tab) { onSelect(i) }.semantics { selected = on }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+                Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** A headline card on a brand gradient, with white text inside. */
+@Composable
+fun HeroCard(brush: androidx.compose.ui.graphics.Brush, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(brush).padding(18.dp), content = content)
+}

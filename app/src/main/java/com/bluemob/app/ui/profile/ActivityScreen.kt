@@ -62,11 +62,11 @@ import java.util.Locale
 
 /** Colours for the charts: distinct in both themes, never red/green alone for meaning. */
 private object ChartColors {
-    val sent = Color(0xFF1C7FD6)
-    val received = Color(0xFF12A97A)
-    val missed = Color(0xFFE5484D)
-    val dialled = Color(0xFFF59E0B)
-    val areas = listOf(Color(0xFF1C7FD6), Color(0xFF12A97A), Color(0xFFF59E0B), Color(0xFF7B4DDB), Color(0xFFE5484D),
+    val sent = com.bluemob.app.ui.theme.Palette.BrandBlue
+    val received = com.bluemob.app.ui.theme.Palette.Success
+    val missed = com.bluemob.app.ui.theme.Palette.Danger
+    val dialled = com.bluemob.app.ui.theme.Palette.Warning
+    val areas = listOf(com.bluemob.app.ui.theme.Palette.BrandBlue, com.bluemob.app.ui.theme.Palette.Success, com.bluemob.app.ui.theme.Palette.Warning, com.bluemob.app.ui.theme.Palette.Violet, com.bluemob.app.ui.theme.Palette.Danger,
         Color(0xFF0EA5B7), Color(0xFFEC4899), Color(0xFF84CC16), Color(0xFF8B5E3C), Color(0xFF64748B))
 }
 
@@ -88,7 +88,7 @@ fun ActivityScreen(
     val ins = remember(events, range) { com.bluemob.app.activity.Insights.of(events, range, now) }
     SubScreen("Your activity", onBack) {
         item { RangePicker(range) { range = it } }
-        item { HeroCard(s, before, range) }
+        item { Headline(s, before, range) }
         item {
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Kpi("💬", "Messages", s.messages(), before?.messages(), s.bins.map { it.msgs() }, ChartColors.sent, Modifier.weight(1f))
@@ -158,24 +158,15 @@ private fun delta(now: Int, before: Int?): Pair<String, Boolean>? = when {
 }
 
 @Composable
-private fun RangePicker(range: ActivityRange, onRange: (ActivityRange) -> Unit) {
-    Row(Modifier.padding(vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Extra.sand).padding(4.dp)) {
-        ActivityRange.entries.forEach { r ->
-            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (r == range) MaterialTheme.colorScheme.surface else Color.Transparent)
-                .clickable { onRange(r) }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                Text(r.label, style = MaterialTheme.typography.labelLarge, fontWeight = if (r == range) FontWeight.Bold else FontWeight.Normal)
-            }
-        }
-    }
-}
+private fun RangePicker(range: ActivityRange, onRange: (ActivityRange) -> Unit) =
+    com.bluemob.app.ui.components.Segmented(ActivityRange.entries.map { it.label }, range.ordinal, Modifier.padding(vertical = 8.dp)) { onRange(ActivityRange.entries[it]) }
 
 /** The headline: everything you did in the period, and how it compares. */
 @Composable
-private fun HeroCard(s: ActivitySummary, before: ActivitySummary?, range: ActivityRange) {
+private fun Headline(s: ActivitySummary, before: ActivitySummary?, range: ActivityRange) {
     val total = s.messages() + s.calls()
     val d = delta(total, before?.let { it.messages() + it.calls() })
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-        .background(Brush.linearGradient(listOf(Color(0xFF1C7FD6), Color(0xFF0E9468)))).padding(18.dp)) {
+    com.bluemob.app.ui.components.HeroCard(com.bluemob.app.ui.theme.Gradients.brand()) {
         Text(when (range) { ActivityRange.WEEK -> "Last 7 days"; ActivityRange.MONTH -> "Last 30 days"; ActivityRange.QUARTER -> "Last 90 days"; ActivityRange.ALL -> "Since BlueMob started" },
             style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.85f))
         Row(verticalAlignment = Alignment.Bottom) {
@@ -195,7 +186,7 @@ private fun HeroCard(s: ActivitySummary, before: ActivitySummary?, range: Activi
 @Composable
 private fun Kpi(emoji: String, label: String, value: Int, before: Int?, trend: List<Int>?, color: Color, modifier: Modifier) {
     val d = delta(value, before)
-    Column(modifier.clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface).padding(12.dp)
+    Column(modifier.clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(12.dp)
         .semantics(mergeDescendants = true) { contentDescription = "$label: $value" + (d?.first?.let { ", $it" } ?: "") }) {
         Text("$emoji $label", style = MaterialTheme.typography.labelMedium, color = Extra.ink2, maxLines = 1)
         Text("$value", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -219,7 +210,7 @@ private fun BarChart(s: ActivitySummary, series: List<Pair<ActivityType, Color>>
     val grid = Extra.line
     val day = remember { SimpleDateFormat("EEE", Locale.getDefault()) }
     val date = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
         // Totals as the legend.
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             series.forEach { (t, c) ->
@@ -320,7 +311,7 @@ private fun DeliveryDonut(i: com.bluemob.app.activity.Insights) {
     ).map { (k, l, c) -> Triple(l, i.delivery[k] ?: 0, c) }.filter { it.second > 0 } + listOfNotNull(
         if (i.waiting > 0) Triple("Not delivered yet", i.waiting, Extra.ink3) else null)
     val total = parts.sumOf { it.second }.coerceAtLeast(1)
-    Row(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp),
+    Row(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Donut(parts.map { it.second.toFloat() to it.third }, Modifier.size(132.dp)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -353,7 +344,7 @@ private fun Heatmap(events: List<ActivityEvent>, range: ActivityRange, now: Long
     val base = ChartColors.sent
     val empty = Extra.sand
     val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
         if (max <= 1 && grid.sumOf { it.sum() } == 0) {
             Text("Use BlueMob for a few days and patterns show up here.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
             return@Column
@@ -383,7 +374,7 @@ private fun UsageDonut(usage: Map<String, Map<AppArea, Long>>, range: ActivityRa
     val inRange = if (range.days == null) usage.values.toList() else keys.mapNotNull { usage[it] }
     val byArea = inRange.flatMap { it.entries }.groupBy({ it.key }, { it.value }).mapValues { it.value.sum() }.entries.sortedByDescending { it.value }
     val total = byArea.sumOf { it.value }
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
         if (total == 0L) {
             Text("Nothing counted yet. Time is counted only while BlueMob is on screen, from this version on.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
             return@Column
@@ -414,12 +405,12 @@ private fun InsightCards(i: com.bluemob.app.activity.Insights, names: Map<String
         add(Triple("💬", "Per day", "${"%.1f".format(i.messagesPerDay)} messages"))
         i.avgCallSeconds?.let { add(Triple("⏱", "Average call", talk(it))) }
     }
-    val tints = listOf(Color(0xFF1C7FD6), Color(0xFF7B4DDB), Color(0xFF0E9468), Color(0xFFF59E0B), Color(0xFFE5484D))
+    val tints = listOf(com.bluemob.app.ui.theme.Palette.BrandBlue, com.bluemob.app.ui.theme.Palette.Violet, com.bluemob.app.ui.theme.Palette.BrandGreen, com.bluemob.app.ui.theme.Palette.Warning, com.bluemob.app.ui.theme.Palette.Danger)
     if (cards.size <= 1) Text("Use BlueMob for a few days and patterns show up here.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
     else Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         cards.forEachIndexed { n, (e, title, value) ->
             val c = tints[n % tints.size]
-            Column(Modifier.width(150.dp).clip(RoundedCornerShape(18.dp)).background(c.copy(alpha = 0.14f)).padding(14.dp)) {
+            Column(Modifier.width(150.dp).clip(RoundedCornerShape(22.dp)).background(c.copy(alpha = 0.14f)).padding(14.dp)) {
                 Text(e, fontSize = 24.sp)
                 Text(title, style = MaterialTheme.typography.labelMedium, color = c, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
                 Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 3)

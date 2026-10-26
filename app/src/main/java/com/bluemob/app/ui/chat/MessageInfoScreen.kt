@@ -59,7 +59,7 @@ fun MessageInfoScreen(m: MessageEntity, myName: String, myId: String, toName: St
         item {
             Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.CenterEnd) {
                 Text(m.text, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.primary).padding(horizontal = 14.dp, vertical = 9.dp))
+                    modifier = Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.primary).padding(horizontal = 14.dp, vertical = 9.dp))
             }
         }
         item {

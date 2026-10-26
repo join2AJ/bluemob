@@ -534,7 +534,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
 
         notice?.takeIf { top != Route.Rescue(it.room) && !locked }?.let { n ->
             Surface(
-                onClick = { notice = null; push(Route.Rescue(n.room)) }, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp,
+                onClick = { notice = null; push(Route.Rescue(n.room)) }, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp,
                 modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp).fillMaxWidth(),
             ) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -569,7 +569,7 @@ internal fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit
         }
         // Docked to the bottom edge, in the brand gradient, with the selected tab in a white pill.
         Row(
-            Modifier.fillMaxWidth().shadow(12.dp).background(tabBarBrush())
+            Modifier.fillMaxWidth().shadow(12.dp).background(com.bluemob.app.ui.theme.Gradients.brand())
                 .navigationBarsPadding().height(66.dp).padding(horizontal = 6.dp, vertical = 7.dp),
         ) {
             Tab.entries.forEach { t ->
@@ -577,7 +577,7 @@ internal fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit
                 val bg by animateColorAsState(if (selected) Color.White else Color.Transparent, label = "tabbg")
                 val fg = if (selected) MaterialTheme.colorScheme.primary else Color.White
                 Column(
-                    Modifier.weight(1f).fillMaxSize().padding(horizontal = 3.dp).clip(RoundedCornerShape(18.dp)).background(bg)
+                    Modifier.weight(1f).fillMaxSize().padding(horizontal = 3.dp).clip(RoundedCornerShape(22.dp)).background(bg)
                         .clickable(role = androidx.compose.ui.semantics.Role.Tab) { onTab(t) },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
                 ) {
@@ -594,12 +594,6 @@ internal fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit
         }
     }
 }
-
-/** A brighter take on the brand gradient, still dark enough for white labels. */
-@Composable
-private fun tabBarBrush(): androidx.compose.ui.graphics.Brush =
-    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xFF1D5F94), Color(0xFF15745A)))
-    else androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xFF1C7FD6), Color(0xFF0E9468)))
 
 /** "BlueMob" in the brand colours: Blue in sky, Mob in pine. */
 @Composable

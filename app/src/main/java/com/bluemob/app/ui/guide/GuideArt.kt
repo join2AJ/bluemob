@@ -45,7 +45,7 @@ fun GuideArt(category: GuideCategory, modifier: Modifier = Modifier, animate: Bo
         v
     }
     val base = category.color
-    Box(modifier.clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(base.copy(alpha = 0.95f), base.copy(alpha = 0.65f))))) {
+    Box(modifier.clip(RoundedCornerShape(22.dp)).background(Brush.linearGradient(listOf(base.copy(alpha = 0.95f), base.copy(alpha = 0.65f))))) {
         Canvas(Modifier.matchParentSize()) {
             // Each guide has its own scene; the topic's picture is only for guides that don't have one yet.
             if (articleId != null && GuideScenes.draw(this, articleId, t)) return@Canvas

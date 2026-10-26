@@ -365,12 +365,12 @@ private fun Composer(draft: String, onDraft: (String) -> Unit, onSend: () -> Uni
     Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         val recording = files?.recordingMs
         if (recording != null) {
-            Row(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(Extra.emberTint).padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).clip(RoundedCornerShape(22.dp)).background(Extra.emberTint).padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                 com.bluemob.app.ui.components.PulsingDot(Extra.rose, 10.dp)
                 Text("  " + com.bluemob.app.files.Attachment.durationText(recording) + "  ·  release to send, slide away to cancel",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
             }
-        } else Row(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(Extra.sand).padding(start = if (files != null) 4.dp else 18.dp, end = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        } else Row(Modifier.weight(1f).clip(RoundedCornerShape(22.dp)).background(Extra.sand).padding(start = if (files != null) 4.dp else 18.dp, end = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             if (files != null) Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.AttachFile, "Attach a photo or document", tint = Extra.ink2) }
                 androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

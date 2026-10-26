@@ -267,7 +267,7 @@ fun LockScreen(
             )
             Spacer(Modifier.height(24.dp))
             Box(
-                Modifier.padding(horizontal = 24.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color(0xFFD94F55))
+                Modifier.padding(horizontal = 24.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Color(0xFFD94F55))
                     .combinedClickable(onClick = { sosNote = "Hold the button for a second to send SOS." }, onLongClick = {
                         val n = onSos()
                         sosNote = if (sosActive) "SOS is already on. Unlock to end it." else "SOS sent to $n phone${if (n == 1) "" else "s"} nearby. It keeps going out to everyone you meet."

@@ -40,7 +40,7 @@ fun NewsScreen(items: List<NewsItem>, seenAt: Long, onBack: () -> Unit, onSeen: 
         items.forEach { n ->
             item(key = n.id) {
                 Column(
-                    Modifier.fillMaxWidth().padding(top = 12.dp).clip(RoundedCornerShape(18.dp))
+                    Modifier.fillMaxWidth().padding(top = 12.dp).clip(RoundedCornerShape(22.dp))
                         .background(if (n.urgent) Extra.emberTint else MaterialTheme.colorScheme.surface)
                         .then(if (n.link.isNotBlank()) Modifier.clickable { runCatching { uri.openUri(n.link) } } else Modifier)
                         .padding(16.dp),

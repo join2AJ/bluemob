@@ -81,7 +81,7 @@ fun SkyAiContent(
     var confirmDelete by remember { mutableStateOf(false) }
     SubScreen("Sky's offline AI", onBack) {
         item {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Extra.skyTint).padding(16.dp)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Extra.skyTint).padding(16.dp)) {
                 Text("🧠  Ask Sky anything, with no internet", style = MaterialTheme.typography.titleMedium, color = Extra.sky)
                 Text(
                     "Download an AI brain once. After that, Sky can answer any question, help you write, plan, explain and work things out, " +

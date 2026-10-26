@@ -206,7 +206,7 @@ fun CallScreen(
                                 RoundButton(if (call.video) androidx.compose.material.icons.Icons.Rounded.Videocam else androidx.compose.material.icons.Icons.Rounded.Call, "Answer", Color(0xFF2E9E6A), onAccept, big = true)
                             }
                             Text("💬  Reply with a message", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp,
-                                modifier = Modifier.padding(top = 18.dp).clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.12f)).clickable { replies = true }.padding(horizontal = 16.dp, vertical = 8.dp))
+                                modifier = Modifier.padding(top = 18.dp).clip(RoundedCornerShape(22.dp)).background(Color.White.copy(alpha = 0.12f)).clickable { replies = true }.padding(horizontal = 16.dp, vertical = 8.dp))
                         }
                         CallPhase.OUTGOING -> RoundButton(androidx.compose.material.icons.Icons.Rounded.CallEnd, "Cancel", Rose, onDecline, big = true)
                         CallPhase.ACTIVE -> {
@@ -246,7 +246,7 @@ private fun LinkChip(call: Call) {
     val link = call.link.ifBlank { "nearby" }
     val nearby = link == "Wi-Fi" || link == "Bluetooth" || link == "Wi-Fi or Bluetooth" || link == "nearby"
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.clip(RoundedCornerShape(22.dp)).background(Color.White.copy(alpha = 0.12f)).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(when { link.startsWith("Internet") -> "🌐"; link.startsWith("Through") -> "🔗"; link == "Wi-Fi" -> "📶"; else -> "ᛒ" }, fontSize = 12.sp, color = Color.White)
             Text("  " + if (nearby) "Phone to phone · $link · no internet" else link, color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
         }

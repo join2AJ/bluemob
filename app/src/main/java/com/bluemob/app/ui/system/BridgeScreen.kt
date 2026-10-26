@@ -73,7 +73,7 @@ fun BridgeScreen(status: BridgeStatus, url: String, onBack: () -> Unit, onSave: 
             }
         }
         item {
-            androidx.compose.material3.Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+            androidx.compose.material3.Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                 color = if (liveConnected) com.bluemob.app.ui.theme.Extra.pineTint else com.bluemob.app.ui.theme.Extra.sand2, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                 Column(Modifier.padding(14.dp)) {
                     Text(if (liveConnected) "📞 Internet calls: ready" else "📞 Internet calls: not connected", style = androidx.compose.material3.MaterialTheme.typography.titleSmall)

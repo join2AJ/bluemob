@@ -549,7 +549,7 @@ fun HelperFlash(until: Long, onStop: () -> Unit) {
         while (System.currentTimeMillis() < until) { lit = !lit; kotlinx.coroutines.delay(400) }
         onStop()
     }
-    Box(Modifier.fillMaxSize().background(if (lit) Color.White else Color(0xFFE5484D)).clickable(onClick = onStop), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(if (lit) Color.White else com.bluemob.app.ui.theme.Palette.Danger).clickable(onClick = onStop), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("🔦", style = MaterialTheme.typography.displayLarge)
             Text("Help is near", style = MaterialTheme.typography.headlineMedium, color = if (lit) Color.Black else Color.White)

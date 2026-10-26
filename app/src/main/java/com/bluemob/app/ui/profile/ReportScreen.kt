@@ -101,9 +101,9 @@ fun ReportScreen(
                         row.forEach { (c, _) ->
                             val on = category == c
                             Column(
-                                Modifier.weight(1f).height(84.dp).clip(RoundedCornerShape(18.dp))
+                                Modifier.weight(1f).height(84.dp).clip(RoundedCornerShape(22.dp))
                                     .background(if (on) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surface)
-                                    .border(if (on) 2.dp else 1.dp, if (on) MaterialTheme.colorScheme.primary else Extra.line, RoundedCornerShape(18.dp))
+                                    .border(if (on) 2.dp else 1.dp, if (on) MaterialTheme.colorScheme.primary else Extra.line, RoundedCornerShape(22.dp))
                                     .clickable { if (category != c) { category = c; sub = null } }.padding(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                             ) {
@@ -180,7 +180,7 @@ fun ReportScreen(
         note?.let { item { Text(it, color = Extra.rose, modifier = Modifier.padding(top = 10.dp)) } }
         item {
             val ready = category != null && sub != null && text.isNotBlank()
-            Button(enabled = ready && !sending, modifier = Modifier.fillMaxWidth().padding(top = 14.dp).height(54.dp), shape = RoundedCornerShape(27.dp), onClick = {
+            Button(enabled = ready && !sending, modifier = Modifier.fillMaxWidth().padding(top = 14.dp).height(54.dp), shape = RoundedCornerShape(28.dp), onClick = {
                 sending = true; note = null
                 scope.launch {
                     val r = onSend(category!!, sub!!, text, details, photos.map { it.jpeg })

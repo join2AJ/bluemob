@@ -42,6 +42,18 @@ object Palette {
     val RoseDark = Color(0xFFF0858A)
     val BubbleThemDark = Color(0xFF1B2421)
 
+    // Brand accents, the same in both themes and deep enough for white text. Use these (or the gradients built from
+    // them in Gradients) instead of new hex values, so every screen keeps one look.
+    val BrandBlue = Color(0xFF1C7FD6)
+    val BrandGreen = Color(0xFF0E9468)
+    val Success = Color(0xFF12A97A)
+    val Danger = Color(0xFFE5484D)
+    val DangerDeep = Color(0xFFD63A3F)
+    val Warning = Color(0xFFF59E0B)
+    val Violet = Color(0xFF7B4DDB)
+    val Sunset = Color(0xFFFF7A3D)
+    val Gold = Color(0xFFF2B70C)
+
     // Shared
     val Mint = Color(0xFF5FD3A3)
     val Night1 = Color(0xFF0A1B16)

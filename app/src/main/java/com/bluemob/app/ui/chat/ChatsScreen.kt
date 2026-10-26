@@ -275,7 +275,7 @@ enum class ChatsTab(val label: String) { CHATS("Chats"), GROUPS("Groups"), CALLS
 
 @Composable
 private fun ChatsCallsTabs(current: ChatsTab, missed: Int, onTab: (ChatsTab) -> Unit) {
-    Row(Modifier.padding(horizontal = Space.lg).padding(bottom = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Extra.sand).padding(4.dp)) {
+    Row(Modifier.padding(horizontal = Space.lg).padding(bottom = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.sand).padding(4.dp)) {
         ChatsTab.entries.forEach { t ->
             val label = if (t == ChatsTab.CALLS && missed > 0 && current != ChatsTab.CALLS) "Calls · $missed" else t.label
             Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (current == t) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent)
@@ -426,7 +426,7 @@ private fun QuickAction(emoji: String, label: String, bg: androidx.compose.ui.gr
 /** Red, at the top: a rescue is happening now. */
 @Composable
 private fun LiveRescueBanner(count: Int, onClick: () -> Unit) {
-    Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 4.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(androidx.compose.ui.graphics.Color(0xFFD63A3F))
+    Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 4.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(com.bluemob.app.ui.theme.Palette.DangerDeep)
         .clickable(onClick = onClick).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("🆘", fontSize = 22.sp)
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
@@ -467,7 +467,7 @@ private fun GroupsList(
             items(live, key = { "r-" + it.id }) { r ->
                 Row(Modifier.padding(horizontal = Space.lg, vertical = 4.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.rose.copy(alpha = 0.12f))
                     .clickable { onOpenRescue(r.id) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color(0xFFD63A3F)), contentAlignment = Alignment.Center) { Text("🆘", fontSize = 20.sp) }
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(com.bluemob.app.ui.theme.Palette.DangerDeep), contentAlignment = Alignment.Center) { Text("🆘", fontSize = 20.sp) }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text(if (r.mine) "Your SOS" else "Helping ${r.victimName}", style = MaterialTheme.typography.titleMedium)
                         Text("${r.coming.size} coming · " + (r.chat.lastOrNull()?.let { (if (it.fromNodeId.isNotBlank()) it.fromName + ": " else "") + it.text } ?: "no messages yet"),

@@ -336,7 +336,7 @@ fun TrailMap(points: List<TrailPoint>, spots: List<Spot>, modifier: Modifier = M
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     val state = androidx.compose.foundation.gestures.rememberTransformableState { z, p, _ -> zoom = (zoom * z).coerceIn(1f, 12f); pan += p }
-    Box(modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp)).background(surface)) {
+    Box(modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(22.dp)).background(surface)) {
     Canvas(Modifier.fillMaxSize().transformable(state).pointerInput(Unit) { detectTapGestures(onDoubleTap = { zoom = 1f; pan = Offset.Zero }) }) {
         if (points.isEmpty()) {
             safeText(measurer, "No points yet", Offset(size.width / 2 - 120, size.height / 2), TextStyle(color = ink, fontSize = 14.sp))

@@ -61,7 +61,7 @@ import kotlin.random.Random
 enum class Tier(val label: String, val color: Color, val xp: Int) {
     BRONZE("Bronze", Color(0xFFCD7F32), 50),
     SILVER("Silver", Color(0xFF9AA7B4), 150),
-    GOLD("Gold", Color(0xFFF2B70C), 400),
+    GOLD("Gold", com.bluemob.app.ui.theme.Palette.Gold, 400),
     DIAMOND("Diamond", Color(0xFF3FB8F0), 1000),
 }
 
@@ -178,7 +178,7 @@ object Badges {
 /** The pill on the You tab: level, rank and medals. */
 @Composable
 fun LevelPill(p: GameProgress, modifier: Modifier = Modifier) {
-    Row(modifier.clip(RoundedCornerShape(50)).background(Brush.horizontalGradient(listOf(Color(0xFFFFB13B), Color(0xFFFF7A3D))))
+    Row(modifier.clip(RoundedCornerShape(50)).background(Brush.horizontalGradient(listOf(com.bluemob.app.ui.theme.Palette.Warning, com.bluemob.app.ui.theme.Palette.Sunset)))
         .padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("${p.rank.emoji} Level ${p.level} · ${p.rank.title}", style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.Bold)
         Text("  🏅 ${p.medals}", style = MaterialTheme.typography.labelLarge, color = Color.White)
@@ -223,8 +223,7 @@ private fun LevelCard(p: GameProgress) {
     val into = p.xp - p.levelStart
     val fill = remember { Animatable(into.toFloat() / span) }
     LaunchedEffect(p.xp) { fill.animateTo(into.toFloat() / span, tween(900)) }
-    Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(RoundedCornerShape(24.dp))
-        .background(Brush.linearGradient(listOf(Color(0xFF1C7FD6), Color(0xFF7B4DDB), Color(0xFFFF7A3D)))).padding(18.dp)) {
+    com.bluemob.app.ui.components.HeroCard(com.bluemob.app.ui.theme.Gradients.celebrate, Modifier.padding(top = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(72.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.18f)).border(3.dp, Color.White, CircleShape),
                 contentAlignment = Alignment.Center) {
@@ -381,5 +380,5 @@ fun MedalCelebration(t: Track, tierIndex: Int, onDone: () -> Unit) {
 }
 
 private data class Confetto(val x: Float, val y0: Float, val speed: Float, val color: Color, val spin: Float)
-private val CONFETTI = listOf(Color(0xFFFF5A5F), Color(0xFFFFB13B), Color(0xFF3FC897), Color(0xFF1C7FD6), Color(0xFF7B4DDB), Color(0xFFF2B70C))
+private val CONFETTI = listOf(Color(0xFFFF5A5F), Color(0xFFFFB13B), Color(0xFF3FC897), com.bluemob.app.ui.theme.Palette.BrandBlue, com.bluemob.app.ui.theme.Palette.Violet, com.bluemob.app.ui.theme.Palette.Gold)
 

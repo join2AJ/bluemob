@@ -13,6 +13,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 
 /** Colours Material's scheme has no slot for. */
@@ -77,8 +78,26 @@ object Gradients {
     @Composable
     @ReadOnlyComposable
     fun horizon(): Brush = Brush.linearGradient(
-        if (isSystemInDarkTheme()) listOf(Color(0xFF1F5A86), Color(0xFF1F6047)) else listOf(Palette.Sky, Palette.Pine)
+        if (isDark()) listOf(Color(0xFF1F5A86), Color(0xFF1F6047)) else listOf(Palette.Sky, Palette.Pine)
     )
+
+    /** The brand: blue to green. Headline cards and the tab bar. */
+    @Composable
+    @ReadOnlyComposable
+    fun brand(): Brush = Brush.linearGradient(
+        if (isDark()) listOf(Color(0xFF1D5F94), Color(0xFF15745A)) else listOf(Palette.BrandBlue, Palette.BrandGreen)
+    )
+
+    /** Danger and SOS: red to orange. */
+    val danger: Brush = Brush.linearGradient(listOf(Palette.Danger, Palette.Warning))
+
+    /** Rewards: levels and medals. */
+    val celebrate: Brush = Brush.linearGradient(listOf(Palette.BrandBlue, Palette.Violet, Palette.Sunset))
+
+    /** Follows the app's theme (which can differ from the phone's), not just the system setting. */
+    @Composable
+    @ReadOnlyComposable
+    fun isDark(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     /** Soft morning wash behind the intro. */
     @Composable
