@@ -113,6 +113,9 @@ dependencies {
     implementation(libs.androidx.biometric)
     // Internet calls: a WebSocket to the BlueMob relay.
     implementation(libs.okhttp)
+    // Installs the baseline profile (app/src/main/baseline-prof.txt plus the libraries' own) on first run, so start-up
+    // and first screens are compiled ahead of time even when the APK isn't installed from Play.
+    implementation(libs.androidx.profileinstaller)
     // Sky's optional offline AI: runs a downloaded language model on the phone (the model itself is not in the APK).
     implementation(libs.mediapipe.genai)
     // Scheduled encrypted backups.

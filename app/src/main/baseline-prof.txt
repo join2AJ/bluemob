@@ -1,0 +1,31 @@
+# BlueMob baseline profile: code that runs at start-up and on the first screens, compiled ahead of time
+# (ProfileInstaller installs it on first run; Play also uses it). Compose, Room and the other libraries ship their own.
+# Regenerate it on a device with a Macrobenchmark BaselineProfileRule for exact rules (see docs/performance.md).
+
+# Start-up: the application, the activity, crash log and encrypted storage.
+HSPLcom/bluemob/app/BlueMobApp;->**(**)**
+HSPLcom/bluemob/app/MainActivity;->**(**)**
+HSPLcom/bluemob/app/util/CrashLog;->**(**)**
+HSPLcom/bluemob/app/crypto/**;->**(**)**
+HSPLcom/bluemob/app/identity/**;->**(**)**
+HSPLcom/bluemob/app/settings/AppSettings;->**(**)**
+HSPLcom/bluemob/app/data/**;->**(**)**
+HSPLcom/bluemob/app/contacts/**;->**(**)**
+
+# The first screen people see: the root, theme, shared components, Nearby with its radar, and Chats.
+HSPLcom/bluemob/app/ui/BlueMobRoot*;->**(**)**
+HSPLcom/bluemob/app/ui/AppViewModel*;->**(**)**
+HSPLcom/bluemob/app/ui/theme/**;->**(**)**
+HSPLcom/bluemob/app/ui/components/**;->**(**)**
+HSPLcom/bluemob/app/ui/dashboard/**;->**(**)**
+HSPLcom/bluemob/app/ui/chat/ChatsScreen*;->**(**)**
+
+# What runs right away in the background: messages, the mesh and the internet link.
+HSPLcom/bluemob/app/chat/**;->**(**)**
+HSPLcom/bluemob/app/mesh/**;->**(**)**
+HSPLcom/bluemob/app/bridge/**;->**(**)**
+HSPLcom/bluemob/app/service/**;->**(**)**
+
+# The SOS screen should open instantly.
+HSPLcom/bluemob/app/ui/sos/**;->**(**)**
+HSPLcom/bluemob/app/sos/**;->**(**)**

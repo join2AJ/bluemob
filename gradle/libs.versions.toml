@@ -1,4 +1,5 @@
 [versions]
+profileinstaller = "1.4.1"
 mediapipeGenai = "0.10.35"
 agp = "8.7.3"
 kotlin = "2.0.21"
@@ -23,6 +24,7 @@ work = "2.9.1"
 firebaseBom = "33.7.0"
 
 [libraries]
+androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 mediapipe-genai = { group = "com.google.mediapipe", name = "tasks-genai", version.ref = "mediapipeGenai" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
