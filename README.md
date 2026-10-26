@@ -36,6 +36,32 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.32: your feedback on Nearby, chats, guide, safety and games
+
+- **Battery card (Nearby):** shows whether Battery Saver is on and BlueMob may keep running. Tapping it opens
+  Connections & power with "Phone Battery Saver" highlighted.
+- **Chat background:** a quiet outdoor pattern with a faint code that changes every hour and hides this phone's
+  BlueMob ID. Admin page → Screenshot lookup turns a code plus the time back into the BlueMob ID.
+- **Calls and Files:**
+  - one compact search line with dropdowns (period; sort and format), then type chips with counts;
+  - New group and Rescues appear only in Groups, no longer twice.
+- **Survival guide:**
+  - search comes first;
+  - I'm lost and Ask Sky side by side;
+  - progress in one line;
+  - compact topics;
+  - the download link moved to the bottom.
+- **Helpers can signal my phone:** sound, flash, screen light and microphone each have their own switch. With
+  microphone on, a helper's voice call during your SOS answers by itself after 3 seconds.
+- **Emergency card:**
+  - a high-priority silent notification, since some phones only put those on the lock screen;
+  - a live check with a Fix button;
+  - "Add to Android's emergency info", which every lock screen's Emergency button opens.
+- **Games:**
+  - step-by-step How to play (goal, then one rule per page, with Back and Next);
+  - boards centred at a comfortable size;
+  - a coloured "Your move" pill.
+
 ## Android 0.31: check-in timer, fall detection, Hindi guides, one look
 
 - **Check-in timer** (You → Safety): "I'll be back by 6 pm". You get a reminder 15 minutes before and a question at the

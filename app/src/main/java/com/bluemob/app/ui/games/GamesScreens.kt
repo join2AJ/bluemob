@@ -1,5 +1,8 @@
 package com.bluemob.app.ui.games
 
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.animateColorAsState
@@ -143,50 +146,60 @@ fun GamesScreen(
     }
 }
 
-/** The rules card, shown before someone's first game of each kind, and from "How to play". */
+/**
+ * How to play, one step at a time: the goal first, then each rule on its own page with a big number, Back / Next and
+ * progress dots, ending in "Let's play". Shown before someone's first game of each kind, and from "How to play".
+ */
 @Composable
 fun RulesDialog(engine: Engine, onDone: () -> Unit) {
     val accent = gameAccent(engine.code)
-    AlertDialog(
-        onDismissRequest = onDone,
-        title = null,
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                // The game and, in one line, how you win.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    GameIcon(engine.code, 52.dp)
-                    Column(Modifier.padding(start = 14.dp)) {
-                        Text(engine.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Text("How to play", style = MaterialTheme.typography.labelMedium, color = Extra.ink3)
-                    }
-                }
-                Row(Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(accent.copy(alpha = 0.14f)).padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text("🏆", fontSize = 18.sp)
-                    Text(engine.goal, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 10.dp))
-                }
-                // Steps as a timeline: number, line down to the next.
-                Column(Modifier.padding(top = 14.dp)) {
-                    engine.rules.forEachIndexed { i, (t, body) ->
-                        Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(Modifier.size(24.dp).clip(CircleShape).background(accent), contentAlignment = Alignment.Center) {
-                                    Text("${i + 1}", color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                }
-                                if (i < engine.rules.lastIndex) Box(Modifier.width(2.dp).weight(1f).background(accent.copy(alpha = 0.3f)))
-                            }
-                            Column(Modifier.padding(start = 12.dp, bottom = 14.dp)) {
-                                Text(t, style = MaterialTheme.typography.titleSmall)
-                                Text(body, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
-                            }
-                        }
-                    }
-                }
-                Text("With a friend, tap the reactions under the board to say something.", style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
+    val pages = listOf("🏆" to (engine.title to engine.goal)) + engine.rules.mapIndexed { i, (t, b) -> "${i + 1}" to (t to b) }
+    var page by remember(engine.code) { mutableStateOf(0) }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDone) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surface)) {
+            // Header in the game's colour.
+            Column(Modifier.fillMaxWidth().background(accent.copy(alpha = 0.16f)).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                GameIcon(engine.code, 64.dp)
+                Text(if (page == 0) "How to play" else "Step $page of ${pages.size - 1}", style = MaterialTheme.typography.labelLarge, color = accent,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
             }
-        },
-        confirmButton = { Button(onClick = onDone, modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = accent)) { Text("Let's play", color = Color.White) } },
-    )
+            androidx.compose.animation.AnimatedContent(page, transitionSpec = {
+                (androidx.compose.animation.slideInHorizontally { w -> if (targetState > initialState) w else -w } + androidx.compose.animation.fadeIn()) togetherWith
+                    (androidx.compose.animation.slideOutHorizontally { w -> if (targetState > initialState) -w else w } + androidx.compose.animation.fadeOut())
+            }, label = "rule") { p ->
+                val (mark, tb) = pages[p]
+                Column(Modifier.fillMaxWidth().heightIn(min = 190.dp).padding(horizontal = 22.dp, vertical = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(52.dp).clip(CircleShape).background(accent), contentAlignment = Alignment.Center) {
+                        Text(mark, color = Color.White, fontSize = if (p == 0) 24.sp else 22.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                    Text(if (p == 0) "How you win" else tb.first, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
+                    Text(tb.second, style = MaterialTheme.typography.bodyLarge, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+            // Progress dots.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                pages.indices.forEach { i ->
+                    Box(Modifier.padding(3.dp).size(if (i == page) 10.dp else 7.dp).clip(CircleShape).background(if (i == page) accent else Extra.line))
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (page > 0) OutlinedButton(onClick = { page-- }, Modifier.weight(1f)) { Text("Back") }
+                else TextButton(onClick = onDone, Modifier.weight(1f)) { Text("Skip") }
+                val last = page == pages.lastIndex
+                Button(onClick = { if (last) onDone() else page++ }, Modifier.weight(1f),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = accent)) { Text(if (last) "Let's play" else "Next", color = Color.White) }
+            }
+        }
+    }
+}
+
+/** A board centred and no wider than a comfortable reach, whatever the screen. */
+@Composable
+private fun BoardFrame(content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(Modifier.widthIn(max = 420.dp).fillMaxWidth()) { content() }
+    }
 }
 
 /** Emojis and quick phrases to send during a game, and the latest one from either side. */
@@ -258,7 +271,7 @@ private fun status(m: Match, them: String): String = when {
 private fun Board(m: Match, onPlay: (Int) -> Unit) {
     val enabled = m.myTurn
     val win = m.winner?.second
-    when (m.game) {
+    BoardFrame { when (m.game) {
         Match.C4 -> C4Board(m.board, win, enabled, onPlay)
         InfiniteTicTacToe.code -> TttBoard(m.board.map { InfiniteTicTacToe.owner(it) }, win, enabled, onPlay,
             fading = if (m.over) null else InfiniteTicTacToe.fading(m.board, m.turn))
@@ -266,7 +279,7 @@ private fun Board(m: Match, onPlay: (Int) -> Unit) {
         com.bluemob.app.games.FiveInARow.code -> StoneBoard(m.board, win, enabled, onPlay)
         SurvivalQuiz.code -> QuizBoard(m, onPlay)
         else -> TttBoard(m.board, win, enabled, onPlay)
-    }
+    } }
 }
 
 /** A 9×9 board of stones, for Five in a row. */
@@ -469,7 +482,11 @@ private fun Score(you: Int, cpu: Int, status: String, them: String, themEmoji: S
             Text("vs", style = MaterialTheme.typography.labelLarge, color = Extra.ink3, modifier = Modifier.padding(horizontal = 6.dp))
             PlayerPill(themEmoji, them, cpu, myTurn == false, accent, Modifier.weight(1f))
         }
-        Text(status, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
+        // Whose turn, impossible to miss: a coloured pill on your move.
+        Text(status, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold,
+            color = if (myTurn == true) Color.White else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 12.dp).clip(RoundedCornerShape(50)).background(if (myTurn == true) accent else Extra.sand)
+                .padding(horizontal = 18.dp, vertical = 8.dp))
     }
 }
 

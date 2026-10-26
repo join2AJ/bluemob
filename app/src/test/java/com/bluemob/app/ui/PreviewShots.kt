@@ -54,6 +54,7 @@ import com.bluemob.app.ui.profile.BadgesScreen
 import com.bluemob.app.ui.rescue.RescuesScreen
 import com.bluemob.app.ui.theme.BlueMobTheme
 import com.bluemob.app.ui.theme.Extra
+import com.bluemob.app.settings.SignalMode
 import org.junit.Rule
 import org.junit.Test
 
@@ -195,5 +196,22 @@ class PreviewShots {
                 }
             }
         }
+    }
+
+    @Test fun chatWallpaper() = shot {
+        com.bluemob.app.ui.chat.ChatScreen("a1c2", people[0], convos["a1c2"]!! + listOf(m("6", "a1c2", false, "Reached the stream, waiting for you 🌊", 120_000)),
+            false, kotlinx.coroutines.flow.MutableSharedFlow(), "Arjun", "3f9a1c2b7d4e8a01", {}, {}, { true }, {}, {}, {}, verified = true)
+    }
+    @Test fun callsCompact() = shot(tall = true) {
+        val calls = (0 until 9).map { i -> com.bluemob.app.data.CallLogEntry("c$i", listOf("a1c2", "b7e4", "c3d9")[i % 3], listOf("Asha", "Ravi", "Meera")[i % 3],
+            i % 4 == 0, i % 2 == 0, listOf("ANSWERED", "MISSED", "ANSWERED")[i % 3], now - i * 5 * 3_600_000L, if (i % 3 == 1) 0 else 120L + i * 30) }
+        ChatsScreen(people, convos, emptySet(), pad, rescues, calls = calls, groups = groups, startTab = ChatsTab.CALLS) {}
+    }
+    @Test fun guideClean() = shot(tall = true) { com.bluemob.app.ui.guide.GuideScreen(setOf("burns"), pad, {}, {}) }
+    @Test fun gameRules() = shot { com.bluemob.app.ui.games.RulesDialog(com.bluemob.app.games.Engine.of(com.bluemob.app.games.Match.C4)!!) {} }
+    @Test fun gameBoard() = shot(tall = true) { com.bluemob.app.ui.games.ComputerGameScreen(com.bluemob.app.games.Match.C4) {} }
+    @Test fun safetySettings() = shot(tall = true) {
+        com.bluemob.app.ui.profile.ProfileScreen("Arjun", "🦅", "3f9a1c2b7d4e8a01", true, false, true, SignalMode.ALL, emptyList(), pad,
+            {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, emergencyCard = true, remoteSignal = true, helperKinds = setOf("sound", "flash", "mic"), powerSos = true, fallDetect = true, onFallDetect = {})
     }
 }

@@ -5,7 +5,6 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -43,16 +42,16 @@ fun EmergencyCardHelp(cardText: () -> String, modifier: Modifier = Modifier) {
         Text(if (ok) "✓ Android allows the card. If it still doesn't show when locked: Settings → Notifications → Notifications on lock screen → Show all."
             else "⚠ Android is hiding BlueMob's notifications, so the card can't show. Tap Fix.",
             style = MaterialTheme.typography.bodySmall, color = if (ok) Extra.ink2 else Extra.rose)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { openCardSettings(context) }) { Text(if (ok) "Lock-screen settings" else "Fix") }
-            OutlinedButton(onClick = { note = addToAndroidEmergencyInfo(context, cardText()) }) { Text("Add to Android's emergency info") }
-        }
+        OutlinedButton(onClick = { openCardSettings(context) }, Modifier.fillMaxWidth()) { Text(if (ok) "Lock-screen settings" else "Fix") }
+        OutlinedButton(onClick = { note = addToAndroidEmergencyInfo(context, cardText()) }, Modifier.fillMaxWidth()) { Text("Add to Android's emergency info") }
         note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
     }
 }
 
 /** Notifications on for BlueMob, and the card's channel not turned off or silenced below the lock screen. */
-fun cardAllowed(context: Context): Boolean {
+fun cardAllowed(context: Context): Boolean = runCatching { allowed(context) }.getOrDefault(true)
+
+private fun allowed(context: Context): Boolean {
     if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
     val ch = NotificationManagerCompat.from(context).getNotificationChannel(Notifier.CH_CARD) ?: return true
     return ch.importance >= android.app.NotificationManager.IMPORTANCE_DEFAULT &&
