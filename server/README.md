@@ -107,3 +107,13 @@ Open `https://YOUR-RELAY/admin` and enter `ADMIN_TOKEN`:
 - **News:** send news to every phone, and remove items.
 
 The token stays in that browser tab only. Use a long random token, for example `openssl rand -hex 24`.
+
+## Storage (0.28)
+
+On Node 22 or newer the relay keeps its data in SQLite (`DATA_DIR/relay.db`, built into Node, no extra packages);
+older Node keeps the append-only `relay.jsonl`. On the first start with SQLite, an existing `relay.jsonl` is imported
+and kept as `relay.jsonl.imported`. Back up `relay.db` (with the relay stopped, or with `sqlite3 relay.db .backup`).
+
+Measured on one small server: 100,000 devices and 200,000 waiting messages load in about 3 s, use about 800 MB of
+memory, and a phone's pull takes well under 1 ms. That's enough for tens of thousands of daily users on one machine;
+beyond that, the next step is Postgres and several relays behind a load balancer.

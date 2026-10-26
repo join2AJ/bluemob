@@ -303,3 +303,37 @@ test("news to particular BlueMob IDs reaches only them", async () => {
   assert.deepEqual(await ask(a, false), ["Everyone"], "asking for someone else's ID without their key shows nothing private");
   srv.close();
 });
+
+test("SQLite storage keeps everything across restarts and imports the old file", () => {
+  const { Store } = require("./relay");
+  const os = require("os"), fsx = require("fs"), pathx = require("path");
+  const dir = fsx.mkdtempSync(pathx.join(os.tmpdir(), "bm-db-"));
+  // An old relay.jsonl from before SQLite.
+  const old = new Store(pathx.join(dir, "relay.jsonl")), a = device(), c = device();
+  assert.equal(old.put(seal(a, "rmsg", { id: "m1", to: c.id, at: 1, x: Date.now() + 1e6, c: "x" })), "ok");
+  old.apply({ op: "email", id: a.id, email: "a@b.co" });
+  // First start on SQLite imports it.
+  const s1 = new Store(pathx.join(dir, "relay.db"));
+  assert.ok(s1.db);
+  assert.equal(s1.pull([c.id], {}).packets.length, 1);
+  assert.equal(s1.emails.get(a.id), "a@b.co");
+  assert.ok(fsx.existsSync(pathx.join(dir, "relay.jsonl.imported")));
+  s1.apply({ op: "phone", id: c.id, h: "a".repeat(64) });
+  s1.put(seal(a, "rmsg", { id: "m2", to: c.id, at: 2, x: Date.now() + 1e6, c: "y" }));
+  s1.db.close();
+  // Restart: everything is still there, and sequence numbers carry on.
+  const s2 = new Store(pathx.join(dir, "relay.db"));
+  assert.equal(s2.pull([c.id], {}).packets.length, 2);
+  assert.equal(s2.phones.get("a".repeat(64)), c.id);
+  assert.equal(s2.keys.get(a.id), a.pk);
+  const before = s2.seq;
+  s2.put(seal(a, "rmsg", { id: "m3", to: c.id, at: 3, x: Date.now() + 1e6, c: "z" }));
+  assert.equal(s2.seq, before + 1);
+  // Deleting an account removes it from the database too.
+  s2.apply({ op: "forget", id: c.id });
+  s2.db.close();
+  const s3 = new Store(pathx.join(dir, "relay.db"));
+  assert.equal(s3.pull([c.id], {}).packets.length, 0);
+  assert.equal(s3.phones.size, 0);
+  s3.db.close();
+});

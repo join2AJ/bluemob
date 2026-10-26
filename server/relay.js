@@ -58,17 +58,93 @@ function openEnvelope(p) {
   } catch { return null; }
 }
 
+/** SQLite, built into Node 22+ (null on older Node, where the relay keeps its append-only file instead). */
+function sqlite() { try { return require("node:sqlite"); } catch { return null; } }
+
+/**
+ * Everything the relay keeps about devices and waiting messages. Kept in memory for speed and saved as it changes:
+ * in SQLite (`relay.db`, Node 22+) or, on older Node, an append-only file (`relay.jsonl`). An old `relay.jsonl` is
+ * imported into SQLite once.
+ */
 class Store {
   constructor(file) {
     this.file = file;
+    this.db = null;
     this.seq = 0;
     this.packets = new Map(); // key -> {seq, key, to, packet, expiresAt}
+    this.byTo = new Map();    // recipient ID -> Set of packet keys, so a pull only looks at that phone's packets
     this.keys = new Map();    // id -> public key (base64)
     this.ratings = new Map(); // subject -> Map(ratingKey -> packet)
     this.pushTokens = new Map(); // id -> Firebase device token, for waking a phone that isn't connected
     this.phones = new Map(); // fingerprint of a verified number -> BlueMob ID (the number itself is never sent)
     this.emails = new Map(); // BlueMob ID -> optional recovery email
-    if (file) this.load();
+    if (file && file.endsWith(".db")) this.openDb(file);
+    else if (file) this.load();
+  }
+  openDb(file) {
+    const { DatabaseSync } = sqlite();
+    const db = this.db = new DatabaseSync(file);
+    db.exec(`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
+      CREATE TABLE IF NOT EXISTS packets (key TEXT PRIMARY KEY, seq INTEGER NOT NULL, to_id TEXT NOT NULL, packet TEXT NOT NULL, expires INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS packets_to ON packets (to_id, seq);
+      CREATE TABLE IF NOT EXISTS keys (id TEXT PRIMARY KEY, pk TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS ratings (subject TEXT NOT NULL, key TEXT NOT NULL, packet TEXT NOT NULL, PRIMARY KEY (subject, key));
+      CREATE TABLE IF NOT EXISTS push (id TEXT PRIMARY KEY, token TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS phones (h TEXT PRIMARY KEY, id TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS emails (id TEXT PRIMARY KEY, email TEXT NOT NULL);`);
+    const q = (sql) => db.prepare(sql);
+    this.sql = {
+      put: q("INSERT OR REPLACE INTO packets (key, seq, to_id, packet, expires) VALUES (?, ?, ?, ?, ?)"),
+      del: q("DELETE FROM packets WHERE key = ?"),
+      key: q("INSERT OR REPLACE INTO keys (id, pk) VALUES (?, ?)"),
+      phoneDel: q("DELETE FROM phones WHERE id = ?"),
+      phone: q("INSERT OR REPLACE INTO phones (h, id) VALUES (?, ?)"),
+      email: q("INSERT OR REPLACE INTO emails (id, email) VALUES (?, ?)"),
+      emailDel: q("DELETE FROM emails WHERE id = ?"),
+      push: q("INSERT OR REPLACE INTO push (id, token) VALUES (?, ?)"),
+      pushDel: q("DELETE FROM push WHERE id = ?"),
+      rate: q("INSERT OR REPLACE INTO ratings (subject, key, packet) VALUES (?, ?, ?)"),
+      forget: ["DELETE FROM keys WHERE id = ?", "DELETE FROM emails WHERE id = ?", "DELETE FROM push WHERE id = ?",
+        "DELETE FROM ratings WHERE subject = ?", "DELETE FROM phones WHERE id = ?", "DELETE FROM packets WHERE to_id = ?"].map(q),
+    };
+    for (const r of q("SELECT * FROM packets").all()) {
+      this.index({ op: "put", seq: r.seq, key: r.key, to: r.to_id, packet: JSON.parse(r.packet), expiresAt: r.expires });
+      this.seq = Math.max(this.seq, r.seq);
+    }
+    for (const r of q("SELECT * FROM keys").all()) this.keys.set(r.id, r.pk);
+    for (const r of q("SELECT * FROM ratings").all()) { if (!this.ratings.has(r.subject)) this.ratings.set(r.subject, new Map()); this.ratings.get(r.subject).set(r.key, JSON.parse(r.packet)); }
+    for (const r of q("SELECT * FROM push").all()) this.pushTokens.set(r.id, r.token);
+    for (const r of q("SELECT * FROM phones").all()) this.phones.set(r.h, r.id);
+    for (const r of q("SELECT * FROM emails").all()) this.emails.set(r.id, r.email);
+    // First start on SQLite: bring in everything from the old append-only file, then keep it as a backup.
+    const old = file.replace(/\.db$/, ".jsonl");
+    if (fs.existsSync(old) && this.keys.size === 0 && this.packets.size === 0) {
+      this.transaction(() => {
+        for (const line of fs.readFileSync(old, "utf8").split("\n")) {
+          if (!line) continue;
+          try { this.apply(JSON.parse(line)); } catch { /* skip a torn line */ }
+        }
+      });
+      fs.renameSync(old, old + ".imported");
+    }
+  }
+  /** Runs [fn] as one SQLite transaction (many writes, one disk sync). */
+  transaction(fn) {
+    if (!this.db) return fn();
+    this.db.exec("BEGIN");
+    try { fn(); this.db.exec("COMMIT"); } catch (e) { this.db.exec("ROLLBACK"); throw e; }
+  }
+  /** Saves one change to SQLite. */
+  write(r) {
+    const s = this.sql;
+    if (r.op === "put") s.put.run(r.key, r.seq, r.to, JSON.stringify(r.packet), r.expiresAt);
+    else if (r.op === "del") s.del.run(r.key);
+    else if (r.op === "key") s.key.run(r.id, r.pk);
+    else if (r.op === "phone") { s.phoneDel.run(r.id); if (r.h) s.phone.run(r.h, r.id); }
+    else if (r.op === "email") { if (r.email) s.email.run(r.id, r.email); else s.emailDel.run(r.id); }
+    else if (r.op === "push") { if (r.token) s.push.run(r.id, r.token); else s.pushDel.run(r.id); }
+    else if (r.op === "rate") s.rate.run(r.subject, r.key, JSON.stringify(r.packet));
+    else if (r.op === "forget") s.forget.forEach((st) => st.run(r.id));
   }
   load() {
     if (!fs.existsSync(this.file)) return;
@@ -77,10 +153,10 @@ class Store {
       try { const r = JSON.parse(line); this.apply(r, false); } catch { /* skip a torn line */ }
     }
   }
-  log(r) { if (this.file) fs.appendFileSync(this.file, JSON.stringify(r) + "\n"); }
+  log(r) { if (this.db) this.write(r); else if (this.file) fs.appendFileSync(this.file, JSON.stringify(r) + "\n"); }
   apply(r, persist = true) {
-    if (r.op === "put") { this.seq = Math.max(this.seq, r.seq); this.packets.set(r.key, r); }
-    else if (r.op === "del") this.packets.delete(r.key);
+    if (r.op === "put") { this.seq = Math.max(this.seq, r.seq); this.index(r); }
+    else if (r.op === "del") this.unindex(r.key);
     else if (r.op === "key") this.keys.set(r.id, r.pk);
     else if (r.op === "phone") { for (const [h, i] of this.phones) if (i === r.id) this.phones.delete(h); if (r.h) this.phones.set(r.h, r.id); }
     else if (r.op === "email") { if (r.email) this.emails.set(r.id, r.email); else this.emails.delete(r.id); }
@@ -89,10 +165,23 @@ class Store {
       // "Delete my account": everything the relay holds about this BlueMob ID.
       this.keys.delete(r.id); this.emails.delete(r.id); this.pushTokens.delete(r.id); this.ratings.delete(r.id);
       for (const [h, i] of this.phones) if (i === r.id) this.phones.delete(h);
-      for (const [k, x] of this.packets) if (x.to === r.id) this.packets.delete(k);
+      for (const k of [...(this.byTo.get(r.id) || [])]) this.unindex(k);
     }
     else if (r.op === "rate") { if (!this.ratings.has(r.subject)) this.ratings.set(r.subject, new Map()); this.ratings.get(r.subject).set(r.key, r.packet); }
     if (persist) this.log(r);
+  }
+  index(r) {
+    if (this.packets.has(r.key)) this.unindex(r.key);
+    this.packets.set(r.key, r);
+    if (!this.byTo.has(r.to)) this.byTo.set(r.to, new Set());
+    this.byTo.get(r.to).add(r.key);
+  }
+  unindex(key) {
+    const r = this.packets.get(key);
+    if (!r) return;
+    this.packets.delete(key);
+    const set = this.byTo.get(r.to);
+    if (set) { set.delete(key); if (set.size === 0) this.byTo.delete(r.to); }
   }
   learnKey(id, pk) { if (this.keys.get(id) !== pk) this.apply({ op: "key", id, pk }); }
   setPushToken(id, token) { if ((this.pushTokens.get(id) || null) !== (token || null)) this.apply({ op: "push", id, token: token || null }); }
@@ -126,7 +215,10 @@ class Store {
     const after = (id) => Number((since && since[id]) || 0);
     const want = new Set(ids);
     const out = [];
-    for (const r of this.packets.values()) if (want.has(r.to) && r.seq > after(r.to) && r.expiresAt > now) out.push(r);
+    for (const id of want) for (const k of this.byTo.get(id) || []) {
+      const r = this.packets.get(k);
+      if (r && r.seq > after(r.to) && r.expiresAt > now) out.push(r);
+    }
     out.sort((a, b) => a.seq - b.seq);
     const page = out.slice(0, 500);
     const next = {};
@@ -134,7 +226,9 @@ class Store {
     for (const r of page) next[r.to] = Math.max(next[r.to], r.seq);
     return { packets: page.map((r) => r.packet), next };
   }
-  prune(now = Date.now()) { for (const [k, r] of this.packets) if (r.expiresAt <= now) this.apply({ op: "del", key: k }); }
+  prune(now = Date.now()) {
+    this.transaction(() => { for (const [k, r] of this.packets) if (r.expiresAt <= now) this.apply({ op: "del", key: k }); });
+  }
 }
 
 /** Proof that a request comes from the device holding pk: a signature over "bluemob-pull|at|ids", at most 5 minutes old. */
@@ -562,7 +656,8 @@ if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
   const dataDir = process.env.DATA_DIR || path.join(__dirname, "data");
   fs.mkdirSync(dataDir, { recursive: true });
-  const store = new Store(path.join(dataDir, "relay.jsonl"));
+  const store = new Store(path.join(dataDir, sqlite() ? "relay.db" : "relay.jsonl"));
+  console.log(store.db ? "Storage: SQLite (relay.db)" : "Storage: append-only file (relay.jsonl); use Node 22+ for SQLite");
   setInterval(() => store.prune(), 3600e3).unref();
   const blobs = new Blobs(path.join(dataDir, "blobs"));
   setInterval(() => blobs.prune(), 3600e3).unref();
