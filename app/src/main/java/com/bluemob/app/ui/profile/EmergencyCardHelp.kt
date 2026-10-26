@@ -1,14 +1,23 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,13 +47,30 @@ fun EmergencyCardHelp(cardText: () -> String, modifier: Modifier = Modifier) {
     // Check again when coming back from Android's settings.
     LaunchedEffect(Unit) { owner.repeatOnLifecycle(Lifecycle.State.RESUMED) { ok = cardAllowed(context) } }
     var note by remember { mutableStateOf<String?>(null) }
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(if (ok) "✓ Android allows the card. If it still doesn't show when locked: Settings → Notifications → Notifications on lock screen → Show all."
-            else "⚠ Android is hiding BlueMob's notifications, so the card can't show. Tap Fix.",
-            style = MaterialTheme.typography.bodySmall, color = if (ok) Extra.ink2 else Extra.rose)
-        OutlinedButton(onClick = { openCardSettings(context) }, Modifier.fillMaxWidth()) { Text(if (ok) "Lock-screen settings" else "Fix") }
-        OutlinedButton(onClick = { note = addToAndroidEmergencyInfo(context, cardText()) }, Modifier.fillMaxWidth()) { Text("Add to Android's emergency info") }
-        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.sand)) {
+        // Is Android going to show it? One line, one button.
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(if (ok) MaterialTheme.colorScheme.primary else Extra.rose))
+            Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                Text(if (ok) "Allowed on the lock screen" else "Hidden by Android", style = MaterialTheme.typography.labelLarge,
+                    color = if (ok) MaterialTheme.colorScheme.primary else Extra.rose)
+                Text(if (ok) "Not showing? Set lock screen to show all notifications" else "Notifications for BlueMob are off",
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+            }
+            TextButton(onClick = { openCardSettings(context) }) { Text(if (ok) "Settings" else "Fix") }
+        }
+        HorizontalDivider(color = Extra.line)
+        // A second way that every lock screen has: Android's own emergency information.
+        Row(Modifier.fillMaxWidth().clickable { note = addToAndroidEmergencyInfo(context, cardText()) }.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text("🩺", modifier = Modifier.padding(end = 10.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Also add to Android's emergency info", style = MaterialTheme.typography.labelLarge)
+                Text("Opens from the Emergency button on any lock screen", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+            }
+            Text("›", color = Extra.ink3)
+        }
+        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp)) }
     }
 }
 
