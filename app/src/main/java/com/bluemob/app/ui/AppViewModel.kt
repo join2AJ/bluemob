@@ -280,6 +280,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setDndAllowSosContacts(on: Boolean) = settings.setDndAllowSosContacts(on)
     val emergencyCard = settings.emergencyCard
     val powerSos = settings.powerSos
+    // ---- Check-in timer and fall detection ----
+    val checkInDue = settings.checkInDue
+    val checkInNote = settings.checkInNote
+    fun startCheckIn(at: Long, note: String) { blueMob.checkIn.set(at, note); if (!background.value) setBackground(true) }
+    fun extendCheckIn(ms: Long) = blueMob.checkIn.extend(ms)
+    fun checkedIn() = blueMob.checkIn.done()
+    val fallDetect = settings.fallDetect
+    val fallAvailable: Boolean get() = blueMob.fall.available
+    /** Fall detection listens from the background service, so turning it on turns Background on too. */
+    fun setFallDetect(on: Boolean) {
+        settings.setFallDetect(on)
+        if (on && !background.value) setBackground(true)
+        if (on) toast("Fall detection is on. After a hard fall with no movement, you'll have 30 seconds to cancel before an SOS goes out.")
+    }
     /** Power button SOS listens from the background service, so turning it on turns Background on too. */
     fun setPowerSos(on: Boolean) {
         settings.setPowerSos(on)

@@ -95,9 +95,17 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice|remoteMessaging" />
 
-        <!-- "Cancel" on the power button SOS countdown -->
+        <!-- The check-in timer's alarms and its notification buttons -->
         <receiver
-            android:name=".sos.PowerButtonSos$Cancel"
+            android:name=".safety.CheckInTimer$Alarm"
+            android:exported="false" />
+        <receiver
+            android:name=".safety.CheckInTimer$Action"
+            android:exported="false" />
+
+        <!-- "Cancel" on an SOS countdown (power button, fall, missed check-in) -->
+        <receiver
+            android:name=".safety.SosCountdown$Cancel"
             android:exported="false" />
 
         <!-- Starts BlueMob again after the phone restarts or BlueMob is updated (when "Reachable when closed" is on) -->

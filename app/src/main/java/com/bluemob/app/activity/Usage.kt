@@ -82,7 +82,7 @@ object Usage {
         route == "chat:sky" -> AppArea.SKY
         route.startsWith("chat:") || route.startsWith("info:") || route.startsWith("media:") || route.startsWith("photo:") || route.startsWith("group") || route == "newchat" || route == "newgroup" -> AppArea.CHATS
         route.startsWith("article:") || route.startsWith("quiz:") || route == "guide-packs" -> AppArea.GUIDE
-        route == "sos" || route == "signal" || route.startsWith("rescue") || route == "sos-contacts" -> AppArea.SOS
+        route == "sos" || route == "check-in" || route == "signal" || route.startsWith("rescue") || route == "sos-contacts" -> AppArea.SOS
         route == "games" || route.startsWith("game:") || route.startsWith("match:") -> AppArea.GAMES
         route == "trips" -> AppArea.COMPASS
         route.startsWith("person:") || route.startsWith("verify:") || route == "activity" || route == "badges" -> AppArea.YOU

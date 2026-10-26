@@ -1,5 +1,6 @@
 package com.bluemob.app.service
 
+import com.bluemob.app.i18n.Lang
 import com.bluemob.app.ui.nav.Route
 import android.Manifest
 import android.app.Notification
@@ -148,22 +149,39 @@ class Notifier(private val context: Context) {
         .setContentIntent(open(route, id))
         .build())
 
-    /** Counting down to an SOS from 5 power-button presses, with a big "Cancel". */
-    fun powerSosCountdown(secondsLeft: Int) {
-        val cancel = PendingIntent.getBroadcast(context, 77, android.content.Intent(context, com.bluemob.app.sos.PowerButtonSos.Cancel::class.java),
+    /** Counting down to an SOS the phone started by itself, with a big "Cancel". [why] says what happened. */
+    fun sosCountdown(secondsLeft: Int, why: String) {
+        val cancel = PendingIntent.getBroadcast(context, 77, android.content.Intent(context, com.bluemob.app.safety.SosCountdown.Cancel::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         post(POWER_SOS_ID, NotificationCompat.Builder(context, CH_SOS)
             .setSmallIcon(R.drawable.ic_stat_bluemob)
-            .setContentTitle("🆘 Sending SOS in $secondsLeft s")
-            .setContentText("You pressed the power button 5 times. Tap Cancel if it was a mistake.")
+            .setContentTitle(Lang.tr("🆘 Sending SOS in {} s").replace("{}", "$secondsLeft"))
+            .setContentText(Lang.tr(why) + " " + Lang.tr("Tap Cancel if you're OK."))
             .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true).setOnlyAlertOnce(true).setColor(0xFFD94F55.toInt())
-            .addAction(0, "Cancel", cancel)
+            .addAction(0, Lang.tr("Cancel"), cancel)
             .build())
     }
 
-    fun cancelPowerSos() = runCatching { manager.cancel(POWER_SOS_ID) }
+    /** The check-in timer asking "Are you back?", with I'm back and +30 min. */
+    fun checkIn(id: Int, title: String, text: String, urgent: Boolean) {
+        fun action(kind: String, code: Int) = PendingIntent.getBroadcast(context, code,
+            android.content.Intent(context, com.bluemob.app.safety.CheckInTimer.Action::class.java).putExtra(com.bluemob.app.safety.CheckInTimer.EXTRA_KIND, kind),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        post(id, NotificationCompat.Builder(context, if (urgent) CH_SOS else CH_RESCUE)
+            .setSmallIcon(R.drawable.ic_stat_bluemob)
+            .setContentTitle(Lang.tr(title)).setContentText(Lang.tr(text))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(Lang.tr(text)))
+            .setPriority(if (urgent) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setColor(0xFFF59E0B.toInt()).setOngoing(urgent)
+            .addAction(0, Lang.tr("I'm back"), action(com.bluemob.app.safety.CheckInTimer.ACTION_BACK, 81))
+            .addAction(0, Lang.tr("+30 min"), action(com.bluemob.app.safety.CheckInTimer.ACTION_EXTEND, 82))
+            .setContentIntent(open(Route.CheckIn.key, 83))
+            .build())
+    }
+
+    fun cancelSosCountdown() = runCatching { manager.cancel(POWER_SOS_ID) }
 
     private fun post(id: Int, n: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&

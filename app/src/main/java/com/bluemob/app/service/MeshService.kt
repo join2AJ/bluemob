@@ -41,6 +41,7 @@ class MeshService : Service() {
         }.isSuccess
         if (!started) { stopSelf(); return }
         scope.launch { app.settings.powerSos.collect { app.powerSos.listen(it) } }
+        scope.launch { app.settings.fallDetect.collect { app.fall.listen(it) } }
         scope.launch {
             kotlinx.coroutines.flow.combine(app.mesh.peers, app.mesh.running) { peers, on -> peers to on }.collect { (peers, on) ->
                 val connected = peers.values.count { it.state == PeerState.CONNECTED }
@@ -74,6 +75,7 @@ class MeshService : Service() {
     override fun onDestroy() {
         scope.cancel()
         (application as BlueMobApp).powerSos.listen(false)
+        (application as BlueMobApp).fall.listen(false)
         super.onDestroy()
     }
 

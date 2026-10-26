@@ -65,6 +65,12 @@ class BlueMobApp : Application() {
     lateinit var sos: SosManager private set
     /** Five presses of the power button send an SOS (when the user turns it on). */
     val powerSos by lazy { com.bluemob.app.sos.PowerButtonSos(this) }
+    /** An SOS about to send itself (power button, fall, missed check-in), with time to cancel. */
+    val countdown by lazy { com.bluemob.app.safety.SosCountdown(this) }
+    /** Sends an SOS after a hard fall with no movement (when the user turns it on). */
+    val fall by lazy { com.bluemob.app.safety.FallDetector(this) }
+    /** "I'll be back by…": an SOS if the user doesn't check in. */
+    val checkIn by lazy { com.bluemob.app.safety.CheckInTimer(this) }
     lateinit var groups: com.bluemob.app.chat.GroupStore private set
     lateinit var sosCircle: com.bluemob.app.sos.SosCircle private set
     lateinit var peerStatus: com.bluemob.app.nearby.PeerStatus private set
@@ -332,6 +338,7 @@ class BlueMobApp : Application() {
         // SOS contacts who hadn't joined BlueMob yet: look again every few hours and ask them as soon as they have.
         appScope.launch { while (true) { kotlinx.coroutines.delay(3 * 3_600_000L); if (live.connected.value) sosCircle.recheck() } }
         appScope.launch { sos.alert.collect { a -> if (a != null && !inForeground && a.id != SosManager.PREVIEW_ID) notifier.sos(a) } }
+        checkIn.restore()
         // The emergency card on the lock screen, kept up to date with the profile and SOS contacts.
         appScope.launch {
             kotlinx.coroutines.flow.combine(settings.emergencyCard, profile.profile, settings.sosContacts, identity.displayName) { on, p, contacts, name -> if (on) EmergencyCard.text(name, p, contacts) else null }

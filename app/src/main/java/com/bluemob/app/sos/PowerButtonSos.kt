@@ -4,14 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
 import androidx.core.content.ContextCompat
 import com.bluemob.app.BlueMobApp
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * Five quick presses: a press of the power button turns the screen off or on, so 5 changes within [WINDOW_MS] count.
@@ -43,12 +37,13 @@ class PressCounter(private val presses: Int = PRESSES, private val windowMs: Lon
  */
 class PowerButtonSos(private val app: BlueMobApp) {
     private val counter = PressCounter()
-    private var countdown: Job? = null
     private var registered = false
 
     private val screen = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (countdown?.isActive != true && counter.press(System.currentTimeMillis())) start()
+            if (!app.countdown.running && counter.press(System.currentTimeMillis()))
+                app.countdown.start(COUNTDOWN_S, "You pressed the power button 5 times.", "Sent with the power button",
+                    "SOS sent by pressing the power button 5 times")
         }
     }
 
@@ -60,41 +55,6 @@ class PowerButtonSos(private val app: BlueMobApp) {
             ContextCompat.registerReceiver(app, screen, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         } else runCatching { app.unregisterReceiver(screen) }
         registered = on
-    }
-
-    private fun start() {
-        if (app.sos.mine.value != null) return // already in an SOS
-        countdown = app.appScope.launch {
-            for (left in COUNTDOWN_S downTo 1) {
-                buzz(400)
-                app.notifier.powerSosCountdown(left)
-                delay(1_000)
-            }
-            app.notifier.cancelPowerSos()
-            app.sos.send("Sent with the power button")
-            app.audit.add(com.bluemob.app.audit.AuditKind.APP, "SOS sent by pressing the power button 5 times")
-            buzz(1_200)
-            app.notifier.note("🆘 SOS sent", "People nearby and your SOS contacts are being alerted. Open BlueMob to see who is coming, or to say you're safe.",
-                com.bluemob.app.ui.nav.Route.Sos.key)
-        }
-    }
-
-    /** "Cancel" on the countdown. */
-    fun cancel() {
-        countdown?.cancel(); countdown = null
-        app.notifier.cancelPowerSos()
-    }
-
-    private fun buzz(ms: Long) = runCatching {
-        val v = app.getSystemService(Vibrator::class.java) ?: return@runCatching
-        if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE)) else @Suppress("DEPRECATION") v.vibrate(ms)
-    }
-
-    /** The "Cancel" button on the countdown notification. */
-    class Cancel : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            (context.applicationContext as? BlueMobApp)?.powerSos?.cancel()
-        }
     }
 
     companion object {

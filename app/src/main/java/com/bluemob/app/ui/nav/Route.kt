@@ -31,6 +31,7 @@ sealed interface Route {
     data object Sos : SosArea { override val key = "sos" }
     data object Signal : SosArea { override val key = "signal" }
     data object SosContacts : SosArea { override val key = "sos-contacts" }
+    data object CheckIn : SosArea { override val key = "check-in" }
     data object Rescues : SosArea { override val key = "rescues" }
     data class Rescue(val id: String) : SosArea { override val key get() = "rescue:$id" }
 
@@ -78,7 +79,7 @@ sealed interface Route {
             "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "sos-coming" to ::SosComing,
         )
         private val plain: Map<String, Route> by lazy {
-            listOf(NewChat, NewGroup, SkyAi, GuidePacks, Sos, Signal, SosContacts, Rescues, Games, Trips, News, Account, Connections,
+            listOf(NewChat, NewGroup, SkyAi, GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, Connections,
                 AutoStart, Audit, Badges, Activity, Bridge, Backup, Storage, Diagnostics, Report, Calls, Call).associateBy { it.key }
         }
 

@@ -383,6 +383,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             language = vm.language.collectAsStateWithLifecycle().value, onLanguage = vm::setLanguage,
                             emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value, onEmergencyCard = vm::setEmergencyCard,
                             powerSos = vm.powerSos.collectAsStateWithLifecycle().value, onPowerSos = vm::setPowerSos,
+                            checkInDue = vm.checkInDue.collectAsStateWithLifecycle().value, onCheckIn = { push(Route.CheckIn) },
+                            fallDetect = vm.fallDetect.collectAsStateWithLifecycle().value, onFallDetect = if (vm.fallAvailable) vm::setFallDetect else null,
                             remoteSignal = vm.allowRemoteSignal.collectAsStateWithLifecycle().value, onRemoteSignal = vm::setAllowRemoteSignal,
                             dndUntil = vm.dndUntil.collectAsStateWithLifecycle().value, onDndUntil = vm::setDndUntil,
                             dndSosCalls = vm.dndAllowSosContacts.collectAsStateWithLifecycle().value, onDndSosCalls = vm::setDndAllowSosContacts,

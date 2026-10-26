@@ -45,6 +45,9 @@ fun SosRoutes(route: Route.SosArea, s: Shell) {
                 onInvite = { c -> s.actions.textSos(listOf(c.phone), vm.inviteText(c.name)) },
                 people = people.filter { it.nodeId != SkyBot.NODE_ID }, onAskAgain = vm::askSosContactAgain)
         }
+        Route.CheckIn -> CheckInScreen(vm.checkInDue.collectAsStateWithLifecycle().value, vm.checkInNote.collectAsStateWithLifecycle().value,
+            sosContacts.size, vm.background.collectAsStateWithLifecycle().value, s::pop,
+            onStart = vm::startCheckIn, onExtend = vm::extendCheckIn, onDone = vm::checkedIn)
         Route.Rescues -> RescuesScreen(rescues, s::pop, onOpen = { s.push(Route.Rescue(it)) }, mySosId = mySos?.id)
         is Route.Rescue -> {
             val trustScores by vm.trustScores.collectAsStateWithLifecycle()

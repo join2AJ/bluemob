@@ -125,6 +125,10 @@ fun ProfileScreen(
     onEmergencyCard: (Boolean) -> Unit = {},
     powerSos: Boolean = false,
     onPowerSos: (Boolean) -> Unit = {},
+    checkInDue: Long = 0L,
+    onCheckIn: () -> Unit = {},
+    fallDetect: Boolean = false,
+    onFallDetect: ((Boolean) -> Unit)? = null,
     remoteSignal: Boolean = true,
     onRemoteSignal: (Boolean) -> Unit = {},
     /** Do not disturb: until when (0 = off), and whether SOS contacts' calls still ring. */
@@ -242,6 +246,12 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS",
                     "Signal ${signalDefault.emoji} ${signalDefault.label} · " + if (sosContactCount == 0) "no SOS contacts yet" else "$sosContactCount SOS contact${if (sosContactCount == 1) "" else "s"}",
                     onClick = onSos) { chevron() }
+                SettingRow(Icons.Outlined.WarningAmber, Extra.ember, "Check-in timer",
+                    if (checkInDue > 0L) "On: back by " + com.bluemob.app.safety.CheckInTimer.time(checkInDue) else "Going alone? An SOS if you don't check in by a time you set",
+                    divider = true, onClick = onCheckIn) { chevron() }
+                if (onFallDetect != null) SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Fall detection",
+                    if (fallDetect) "On: after a hard fall and no movement, 30 seconds to cancel, then SOS" else "Off: send an SOS by itself after a hard fall",
+                    divider = true) { androidx.compose.material3.Switch(fallDetect, onFallDetect) }
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Power button SOS",
                     if (powerSos) "On: press the power button 5 times quickly, even locked. 5 seconds to cancel" else "Off: press the power button 5 times to send an SOS",
                     divider = true) { androidx.compose.material3.Switch(powerSos, onPowerSos) }

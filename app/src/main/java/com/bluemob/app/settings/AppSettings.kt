@@ -161,6 +161,21 @@ class AppSettings(context: Context) {
     val seenMedals: StateFlow<Set<String>?> = _seenMedals.asStateFlow()
     fun setSeenMedals(keys: Set<String>) { _seenMedals.value = keys; prefs.edit().putStringSet("seen_medals", keys).apply() }
 
+    private val _fallDetect = MutableStateFlow(prefs.getBoolean("fall_detect", false))
+    /** Notice a hard fall with no movement after it, and send an SOS unless cancelled (needs Background on). */
+    val fallDetect: StateFlow<Boolean> = _fallDetect.asStateFlow()
+    fun setFallDetect(on: Boolean) { _fallDetect.value = on; prefs.edit().putBoolean("fall_detect", on).apply() }
+
+    private val _checkInDue = MutableStateFlow(prefs.getLong("check_in_due", 0L))
+    private val _checkInNote = MutableStateFlow(prefs.getString("check_in_note", "") ?: "")
+    /** The check-in timer: when the user said they'd be back (0 when off), and where they were going. */
+    val checkInDue: StateFlow<Long> = _checkInDue.asStateFlow()
+    val checkInNote: StateFlow<String> = _checkInNote.asStateFlow()
+    fun setCheckIn(due: Long, note: String) {
+        _checkInDue.value = due; _checkInNote.value = note
+        prefs.edit().putLong("check_in_due", due).putString("check_in_note", note).apply()
+    }
+
     private val _powerSos = MutableStateFlow(prefs.getBoolean("power_sos", false))
     /** Press the power button 5 times quickly to send an SOS (needs Background on). */
     val powerSos: StateFlow<Boolean> = _powerSos.asStateFlow()
