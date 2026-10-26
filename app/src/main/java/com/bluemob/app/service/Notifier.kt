@@ -57,8 +57,10 @@ class Notifier(private val context: Context) {
         })
         // Default importance, but silent: Android 13+ hides "silent" (low) notifications from the lock screen, which
         // is the one place this card has to show. The first version used a low channel; it's replaced.
-        runCatching { nm.deleteNotificationChannel("emergency_card") }
-        nm.createNotificationChannel(NotificationChannel(CH_CARD, "Emergency info on the lock screen", NotificationManager.IMPORTANCE_DEFAULT).apply {
+        // High (but silent) for the same reason: some phones (Motorola, Android 15+) only put high-priority
+        // notifications on the lock screen by default.
+        listOf("emergency_card", "emergency_card_v2").forEach { old -> runCatching { nm.deleteNotificationChannel(old) } }
+        nm.createNotificationChannel(NotificationChannel(CH_CARD, "Emergency info on the lock screen", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Your blood group and emergency contacts, readable without unlocking, if you turn it on"
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             setSound(null, null)
@@ -213,7 +215,7 @@ class Notifier(private val context: Context) {
         .setContentTitle(t(title)).setContentText(t(text))
         .setStyle(NotificationCompat.BigTextStyle().bigText(t(text)))
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setOngoing(true).setSilent(true).setShowWhen(false)
-        .setPriority(NotificationCompat.PRIORITY_DEFAULT).setCategory(NotificationCompat.CATEGORY_STATUS).setOnlyAlertOnce(true)
+        .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_STATUS).setOnlyAlertOnce(true)
         .setColor(0xFFD94F55.toInt())
         .setContentIntent(open(Route.Account.key, 12))
         .build())
@@ -232,7 +234,7 @@ class Notifier(private val context: Context) {
     companion object {
         const val ONGOING_ID = 1001
         const val EMERGENCY_CARD_ID = 1009
-        private const val CH_CARD = "emergency_card_v2"
+        const val CH_CARD = "emergency_card_v3"
         const val EXTRA_ROUTE = "route"
         private const val POWER_SOS_ID = 7707
         /** Stands for this phone's own ID in a notification's route; the app swaps in the real one. */

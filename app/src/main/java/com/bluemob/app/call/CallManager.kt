@@ -95,6 +95,8 @@ class CallManager(
     private val blockCall: (peer: String) -> Boolean = { false },
     /** Keeps the microphone (and camera) working while the screen is off or another app is open. */
     private val keepAlive: (active: Boolean, video: Boolean) -> Unit = { _, _ -> },
+    /** True when a voice call from this person should be answered by itself (a helper, during our SOS, if allowed). */
+    private val autoAnswer: (peer: String) -> Boolean = { false },
 ) {
     private val app = context.applicationContext
     private val _call = MutableStateFlow<Call?>(null)
@@ -330,6 +332,14 @@ class CallManager(
                 timeoutJob = scope.launch { delay(RING_TIMEOUT_MS); if (_call.value?.id == id && _call.value?.phase == CallPhase.INCOMING) finish("Missed call") }
                 audit.add(AuditKind.MESH, "${if (c.video) "Video" else "Voice"} call from ${c.name}")
                 onIncoming(c)
+                // During our SOS a helper can hear us even if we can't reach the phone: it rings 3 seconds, then answers.
+                if (!c.video && autoAnswer(c.peer)) scope.launch {
+                    delay(3_000)
+                    if (_call.value?.id == id && _call.value?.phase == CallPhase.INCOMING) {
+                        audit.add(AuditKind.MESH, "Call from ${c.name} answered by itself during the SOS, so they can hear you")
+                        accept()
+                    }
+                }
             }
             // An older BlueMob doesn't answer "e2e": then the call isn't encrypted (it can only be nearby or over the relay).
             "accept" -> if (current?.id == id && current.phase == CallPhase.OUTGOING && current.peer == e.fromNodeId) begin(current.copy(e2e = current.e2e && b.optBoolean("e2e")))

@@ -39,6 +39,8 @@ class LostMode(
     private val say: (String) -> Unit = {},
     /** Whether helpers may make this phone sound, flash or light up during an SOS (on by default). */
     private val allowed: () -> Boolean = { true },
+    /** Which signals helpers may use: "sound", "flash", "screen". */
+    private val allowedKinds: () -> Set<String> = { setOf(SOUND, FLASH, SCREEN) },
 ) {
     private val _screenFlash = MutableStateFlow(0L)
     /** Until when the screen should flash (a helper asked), or 0. The app shows a full-screen flashing light. */
@@ -146,16 +148,18 @@ class LostMode(
         when (e.kind) {
             RING -> {
                 val inNeed = _on.value || sosActive()
-                val canRing = inNeed && allowed()
+                val what = e.body.optString("what").ifBlank { ALL }
+                // Only what the user allows (You → Safety → Helpers can signal my phone).
+                val kinds = allowedKinds()
+                val sound = (what == ALL || what == SOUND) && SOUND in kinds
+                val flash = (what == ALL || what == FLASH) && FLASH in kinds
+                val screen = (what == ALL || what == SCREEN) && SCREEN in kinds
+                val canRing = inNeed && allowed() && (sound || flash || screen)
                 mesh.sendApp(e.fromNodeId, RING_REPLY, org.json.JSONObject().put("ok", canRing).put("why", if (!inNeed) "not-in-need" else if (!canRing) "off" else ""))
                 if (!canRing) return
-                val what = e.body.optString("what").ifBlank { ALL }
                 val now = System.currentTimeMillis()
                 if (now - lastRing < RING_GAP_MS) return
                 lastRing = now
-                val sound = what == ALL || what == SOUND
-                val flash = what == ALL || what == FLASH
-                val screen = what == ALL || what == SCREEN
                 audit.add(AuditKind.POSITION, "${e.name} signalled this phone to find me (" + listOfNotNull("sound".takeIf { sound }, "light".takeIf { flash }, "screen".takeIf { screen }).joinToString() + ")")
                 say("${e.name} is close and looking for you. Shout, wave and stay where you are.")
                 if (screen) _screenFlash.value = System.currentTimeMillis() + RING_MS

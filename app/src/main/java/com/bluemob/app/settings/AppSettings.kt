@@ -161,6 +161,14 @@ class AppSettings(context: Context) {
     val seenMedals: StateFlow<Set<String>?> = _seenMedals.asStateFlow()
     fun setSeenMedals(keys: Set<String>) { _seenMedals.value = keys; prefs.edit().putStringSet("seen_medals", keys).apply() }
 
+    private val _helperKinds = MutableStateFlow(prefs.getStringSet("helper_kinds", setOf("sound", "flash", "screen"))!!.toSet())
+    /** What helpers may do to this phone during an SOS: "sound", "flash", "screen", "mic" (answer their calls by itself). */
+    val helperKinds: StateFlow<Set<String>> = _helperKinds.asStateFlow()
+    fun setHelperKind(kind: String, on: Boolean) {
+        _helperKinds.value = if (on) _helperKinds.value + kind else _helperKinds.value - kind
+        prefs.edit().putStringSet("helper_kinds", _helperKinds.value).apply()
+    }
+
     private val _fallDetect = MutableStateFlow(prefs.getBoolean("fall_detect", false))
     /** Notice a hard fall with no movement after it, and send an SOS unless cancelled (needs Background on). */
     val fallDetect: StateFlow<Boolean> = _fallDetect.asStateFlow()

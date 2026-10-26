@@ -74,6 +74,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(
     name: String,
@@ -123,8 +124,12 @@ fun ProfileScreen(
     onLanguage: (String) -> Unit = {},
     emergencyCard: Boolean = false,
     onEmergencyCard: (Boolean) -> Unit = {},
+    /** The card's words, to copy into Android's own emergency information. */
+    emergencyCardText: () -> String = { "" },
     powerSos: Boolean = false,
     onPowerSos: (Boolean) -> Unit = {},
+    helperKinds: Set<String> = setOf("sound", "flash", "screen"),
+    onHelperKind: (String, Boolean) -> Unit = { _, _ -> },
     checkInDue: Long = 0L,
     onCheckIn: () -> Unit = {},
     fallDetect: Boolean = false,
@@ -258,9 +263,21 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Emergency card on lock screen",
                     if (emergencyCard) "On: blood group and SOS contacts show without unlocking" else "Off: let whoever finds you see who to call",
                     divider = true) { androidx.compose.material3.Switch(emergencyCard, onEmergencyCard) }
+                if (emergencyCard) EmergencyCardHelp(emergencyCardText, Modifier.padding(start = 66.dp, end = 14.dp, bottom = 12.dp))
                 SettingRow(Icons.Outlined.WarningAmber, Extra.ember, "Helpers can signal my phone",
                     if (remoteSignal) "During your SOS, people coming to help can make it sound, flash or light up, to find you" else "Off: helpers can't make your phone sound or flash",
                     divider = true) { androidx.compose.material3.Switch(remoteSignal, onRemoteSignal) }
+                // Each signal on its own: sound, flashlight, screen light, and the microphone (answering a helper's call).
+                if (remoteSignal) androidx.compose.foundation.layout.FlowRow(Modifier.padding(start = 66.dp, end = 14.dp, bottom = 12.dp),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+                    listOf("sound" to "🔊 Sound", "flash" to "🔦 Flash", "screen" to "💡 Screen light", "mic" to "🎤 Microphone").forEach { (k, label) ->
+                        val on = k in helperKinds
+                        androidx.compose.material3.FilterChip(on, { onHelperKind(k, !on) }, label = { Text(label) })
+                    }
+                }
+                if (remoteSignal && "mic" in helperKinds) Text("🎤 During your SOS, a call from someone in your rescue group rings for 3 seconds, then answers by itself so they can hear you.",
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(start = 66.dp, end = 14.dp, bottom = 12.dp))
             }
         }
 

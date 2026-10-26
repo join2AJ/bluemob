@@ -200,7 +200,7 @@ class BlueMobApp : Application() {
         trail = TrailRecorder(this, location, heading, db.trail(), db.trips(), settings, audit, appScope) { identity.shareLocation.value }
         sos = SosManager(this, mesh, identity, trail, signals, audit, appScope, { profile.profile.value.let { it.age to it.bloodGroup } }, { profile.profile.value.medicalNote() })
         lost = LostMode(mesh, identity, trail, audit, appScope, location, signals, sosActive = { sos.mine.value != null }, say = ::say,
-            allowed = { settings.allowRemoteSignal.value })
+            allowed = { settings.allowRemoteSignal.value }, allowedKinds = { settings.helperKinds.value })
         matches = com.bluemob.app.games.Matches(mesh, appScope) { m ->
             if (!inForeground) notifier.note("${m.opponentName} wants to play", "${com.bluemob.app.games.Match.title(m.game)} over the mesh. Tap to answer.", "games")
         }
@@ -210,6 +210,11 @@ class BlueMobApp : Application() {
             cipherFor = { peer, cid -> keyBook.key(peer)?.let { com.bluemob.app.mesh.CallCipher(com.bluemob.app.crypto.Crypto.sharedKey(identity.keys.keyPair.private, it, identity.nodeId, peer), cid, identity.nodeId) } },
             keepAlive = { active, video -> com.bluemob.app.service.CallService.update(this, active, video) },
             blockCall = { peer -> peer in settings.blocked.value || dndBlocksCall(peer) },
+            autoAnswer = { peer ->
+                val mine = sos.mine.value
+                settings.allowRemoteSignal.value && "mic" in settings.helperKinds.value && mine != null &&
+                    rescue.rooms.value.any { r -> r.mine && r.id == mine.id && r.helpers.any { it.nodeId == peer } }
+            },
             log = { entry ->
             db.calls().insert(entry)
             if (entry.outcome == "ANSWERED" || !entry.outgoing) contacts.markOnline(entry.peer, entry.startedAt + entry.durationS * 1000)

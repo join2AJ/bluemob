@@ -279,6 +279,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val dndAllowSosContacts = settings.dndAllowSosContacts
     fun setDndAllowSosContacts(on: Boolean) = settings.setDndAllowSosContacts(on)
     val emergencyCard = settings.emergencyCard
+    fun emergencyCardText(): String = com.bluemob.app.EmergencyCard.text(name.value, blueMob.profile.profile.value, settings.sosContacts.value).let { (t, b) -> t + "\n" + b }
     val powerSos = settings.powerSos
     // ---- Check-in timer and fall detection ----
     val checkInDue = settings.checkInDue
@@ -345,6 +346,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun medalSeen(t: com.bluemob.app.ui.profile.Track, tier: Int) = settings.setSeenMedals((settings.seenMedals.value ?: emptySet()) + "${t.id}:$tier")
 
     val allowRemoteSignal = settings.allowRemoteSignal
+    val helperKinds = settings.helperKinds
+    fun setHelperKind(kind: String, on: Boolean) = settings.setHelperKind(kind, on)
     fun setAllowRemoteSignal(on: Boolean) = settings.setAllowRemoteSignal(on)
     val screenFlash = lostMode.screenFlash
     fun stopSignalling() = lostMode.stopRinging()
