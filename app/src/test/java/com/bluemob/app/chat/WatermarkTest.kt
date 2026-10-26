@@ -26,4 +26,11 @@ class WatermarkTest {
 
     /** The relay's admin lookup (server/relay.js) computes the same code. */
     @Test fun sameCodeAsTheServer() = assertEquals("FVQT V7GN FX14 PVZ2", Watermark.code(id, at))
+
+    @Test fun dotsSpellTheSameBytes() {
+        val bits = Watermark.bits(id, at)
+        val bytes = Watermark.bytes(id, at)
+        assertEquals(80, bits.size)
+        (0 until 10).forEach { b -> assertEquals(bytes[b].toInt() and 0xff, (0 until 8).fold(0) { acc, i -> (acc shl 1) or (if (bits[b * 8 + i]) 1 else 0) }) }
+    }
 }

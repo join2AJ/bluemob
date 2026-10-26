@@ -4,9 +4,10 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * The faint code in every chat's background. It changes every hour and hides the BlueMob ID of the phone it's shown
- * on, so if a screenshot of a chat is reported, the team can tell whose phone took it: the code plus roughly when it
- * was taken (the chat shows message times) gives back the ID (on the admin page).
+ * The pattern hidden in every chat's dotted background. It changes every hour and hides the BlueMob ID of the phone
+ * it's shown on, so if a screenshot of a chat is reported, the team can tell whose phone took it: the dots (big = 1,
+ * small = 0, in blocks of 10 × 8 that start at a small ring) plus roughly when it was taken (the chat shows message
+ * times) give back the ID on the admin page.
  *
  * The code is the ID XOR-ed with an hourly key stream, plus a 2-byte check, in Crockford base32 (16 characters). It's
  * a deterrent against passing screenshots around, not a secret: anyone with the app's code could read it.
@@ -19,14 +20,23 @@ object Watermark {
     private fun mac(text: String) = Mac.getInstance("HmacSHA256").run { init(SecretKeySpec(KEY, "HmacSHA256")); doFinal(text.toByteArray()) }
 
     /** The code for [nodeId] (16 hex characters) at [at] ms, grouped as XXXX XXXX XXXX XXXX. */
-    fun code(nodeId: String, at: Long): String {
+    fun code(nodeId: String, at: Long): String = base32(bytes(nodeId, at)).chunked(4).joinToString(" ")
+
+    /** The 10 bytes behind the code: the masked ID and a 2-byte check. */
+    fun bytes(nodeId: String, at: Long): ByteArray {
         val hour = at / HOUR
         val id = nodeId.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         val stream = mac("stream|$hour")
         val masked = ByteArray(8) { (id[it].toInt() xor stream[it].toInt()).toByte() }
-        val check = mac("check|$nodeId|$hour").copyOf(2)
-        return base32(masked + check).chunked(4).joinToString(" ")
+        return masked + mac("check|$nodeId|$hour").copyOf(2)
     }
+
+    /** The same 80 bits, most significant first: what the dotted chat background shows (big dot = 1). */
+    fun bits(nodeId: String, at: Long): BooleanArray =
+        bytes(nodeId, at).let { b -> BooleanArray(80) { i -> (b[i / 8].toInt() shr (7 - i % 8)) and 1 == 1 } }
+
+    const val COLS = 10
+    const val ROWS = 8
 
     /** The BlueMob ID hidden in [code] if it was made in [hour], or null if the check doesn't match. */
     fun decode(code: String, hour: Long): String? {

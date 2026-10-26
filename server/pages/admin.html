@@ -69,11 +69,13 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
   <section id="lookup" class="hidden">
     <div class="card">
       <h2 style="margin-top:0">Whose phone took this chat screenshot?</h2>
-      <p class="muted">Every chat background carries a faint 16-character code (4 groups of 4) that changes every hour. Type it in, with roughly
-        when the screenshot was taken (the chat's message times help). It's checked against the 2 days before and 2 hours after.</p>
-      <input id="wCode" type="text" placeholder="Code, e.g. FVQT V7GN FX14 PVZ2" maxlength="24">
-      <p></p><input id="wAt" type="datetime-local">
-      <p></p><button class="btn" id="wGo">Look up</button> <span id="wMsg" class="muted"></span>
+      <p class="muted">Every chat background is dotted. Find a small ring: the 10 × 8 dots to its lower right are one block. Tap the dots
+        below that are <b>big</b> in the screenshot (row by row), then say roughly when it was taken (the chat's message times help).
+        It's checked against the 2 days before and 2 hours after.</p>
+      <div id="wGrid" style="display:grid;grid-template-columns:repeat(10,28px);gap:6px;margin:12px 0"></div>
+      <input id="wAt" type="datetime-local">
+      <p></p><button class="btn" id="wGo">Look up</button> <button class="btn" id="wClear" style="background:transparent;color:var(--ink2)">Clear dots</button>
+      <span id="wMsg" class="muted"></span>
       <div id="wOut"></div>
     </div>
   </section>
@@ -101,15 +103,21 @@ document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
   ["overview", "reports", "news", "lookup"].forEach((t) => $(t).classList.toggle("hidden", t !== b.dataset.tab));
 });
 
+const wBits = Array(80).fill(0);
+function drawGrid() {
+  $("wGrid").innerHTML = wBits.map((b, i) => `<button data-i="${i}" title="row ${Math.floor(i / 10) + 1}, dot ${i % 10 + 1}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--ink2);padding:0;background:${b ? "var(--pine)" : "transparent"};cursor:pointer"></button>`).join("");
+  $("wGrid").querySelectorAll("button").forEach((el) => el.onclick = () => { wBits[+el.dataset.i] ^= 1; drawGrid(); });
+}
+drawGrid();
+$("wClear").onclick = () => { wBits.fill(0); drawGrid(); $("wOut").innerHTML = ""; };
 $("wGo").onclick = async () => {
-  const code = $("wCode").value.trim(), at = $("wAt").value ? new Date($("wAt").value).getTime() : Date.now();
-  if (code.replace(/\s/g, "").length < 16) { $("wMsg").textContent = "The code has 16 letters and numbers."; return; }
+  const at = $("wAt").value ? new Date($("wAt").value).getTime() : Date.now();
   $("wMsg").textContent = "Looking…";
   try {
-    const r = await api(`/v1/admin/watermark?code=${encodeURIComponent(code)}&at=${at}`);
+    const r = await api(`/v1/admin/watermark?bits=${wBits.join("")}&at=${at}`);
     $("wMsg").textContent = "";
     const fmt = (id) => "BM " + id.toUpperCase().match(/.{4}/g).join(" ");
-    $("wOut").innerHTML = r.matches.length === 0 ? `<p>No match. Check the code (0/O and 1/I look alike) and the time.</p>`
+    $("wOut").innerHTML = r.matches.length === 0 ? `<p>No match. Check each row of dots and the time.</p>`
       : r.matches.map((m) => `<p><b>${esc(fmt(m.id))}</b> <span class="muted">· the hour starting ${esc(when(m.hour))}</span></p>`).join("") +
         `<p class="muted">Use this ID in News (To:) to contact them, or with their reports.</p>`;
   } catch (e) { $("wMsg").textContent = e.message === "token" ? "Sign in again." : "Couldn't reach the server."; }

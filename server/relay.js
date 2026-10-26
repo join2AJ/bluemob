@@ -366,6 +366,12 @@ function wmDecode(code, hour) {
   const check = wmMac(`check|${id}|${hour}`).subarray(0, 2);
   return check[0] === out[8] && check[1] === out[9] ? id : null;
 }
+/** 80 dots (big = 1) back to the 16-character code. */
+function wmFromBits(bits) {
+  let out = "";
+  for (let i = 0; i < 80; i += 5) out += WM_ALPHABET[parseInt(bits.slice(i, i + 5), 2)];
+  return out;
+}
 /** Every BlueMob ID the code could belong to, trying the hours from 2 days before [at] to 2 hours after. */
 function watermarkLookup(code, at) {
   const h0 = Math.floor(at / 3600e3), found = [];
@@ -502,7 +508,10 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
     if (req.method === "GET" && url.pathname === "/v1/admin/watermark") {
       if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
       const at = Number(url.searchParams.get("at")) || Date.parse(url.searchParams.get("at") || "") || Date.now();
-      return send(res, 200, { matches: watermarkLookup(String(url.searchParams.get("code") || ""), at) });
+      // From the chat's dots (80 characters of 0 and 1, big dot = 1), or a typed code.
+      const bits = String(url.searchParams.get("bits") || "");
+      const code = /^[01]{80}$/.test(bits) ? wmFromBits(bits) : String(url.searchParams.get("code") || "");
+      return send(res, 200, { matches: watermarkLookup(code, at) });
     }
     if (req.method === "GET" && url.pathname === "/v1/admin/stats") {
       if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
@@ -676,7 +685,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
   });
 }
 
-module.exports = { wmDecode, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
+module.exports = { wmDecode, wmFromBits, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);

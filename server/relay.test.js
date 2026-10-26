@@ -345,4 +345,8 @@ test("chat watermark: the admin lookup finds the BlueMob ID from a screenshot's 
   assert.equal(wmDecode("FVQT V7GN FX14 PVZ2", hour), "3f9a1c2b7d4e8a01");
   assert.equal(wmDecode("FVQT V7GN FX14 PVZ3", hour), null);
   assert.deepEqual(watermarkLookup("fvqtv7gnfx14pvz2", at + 5 * 3600e3).map((m) => m.id), ["3f9a1c2b7d4e8a01"]);
+  // The same, read from the dots: 16 characters of 5 bits.
+  const A = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const bits = "FVQTV7GNFX14PVZ2".split("").map((c) => A.indexOf(c).toString(2).padStart(5, "0")).join("");
+  assert.equal(require("./relay").wmFromBits(bits), "FVQTV7GNFX14PVZ2");
 });
