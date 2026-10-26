@@ -68,11 +68,11 @@ class ScreenshotTest {
     @get:Rule
     val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6, maxPercentDifference = 0.1)
 
-    private val now = System.currentTimeMillis()
-    private val me = GeoPoint(30.0869, 78.2676, 5f, now)
-    private val pad = PaddingValues(top = 52.dp)
+    internal val now = System.currentTimeMillis()
+    internal val me = GeoPoint(30.0869, 78.2676, 5f, now)
+    internal val pad = PaddingValues(top = 52.dp)
 
-    private val people = listOf(
+    internal val people = listOf(
         Person("a1c2", "Asha", "🦋", Presence.ONLINE, now, LinkQuality.HIGH, 42.0, 60.0, GeoPoint(30.0871, 78.2680, 5f, now), true, false),
         Person("b7e4", "Ravi", "🐬", Presence.ONLINE, now, LinkQuality.LOW, 380.0, 200.0, GeoPoint(30.0837, 78.2663, 5f, now), false, true),
         Person("c3d9", "Meera", "🌵", Presence.IN_RANGE, now, null, null, null, null, false, false),
@@ -89,7 +89,7 @@ class ScreenshotTest {
             MessageRepository.event(now - ago + 4000, "Read receipt came back over Wi-Fi"),
     )
 
-    private val chat = listOf(
+    internal val chat = listOf(
         msg("1", false, "Saw you pop up on my radar 👋", 600_000, MessageStatus.READ),
         msg("2", false, "Meet at the stream?", 590_000, MessageStatus.READ),
         msg("3", true, "On my way!", 500_000, MessageStatus.READ),
@@ -116,7 +116,7 @@ class ScreenshotTest {
         }
     }
 
-    private val nearby = NearbyState("Arjun", true, people, true, false, true, true, false)
+    internal val nearby = NearbyState("Arjun", true, people, true, false, true, true, false)
 
     @Test fun nearbyBigText() = shot(tall = true, bigText = true) { NearbyScreen(nearby, pad, {}, {}, {}, {}, {}, {}, {}, {}) }
     @Test fun sosHubBigText() = shot(tall = true, bigText = true) { hub(SosHubState(null, 2, SignalMode.SCREEN, contacts)) }
@@ -152,12 +152,12 @@ class ScreenshotTest {
     private val sosMsg: (String) -> String = { note ->
         "SOS from Arjun (BlueMob #3F9A). I need help." + (if (note.isNotBlank()) " $note." else "") + " " + noGps.describe(now) + " Battery 48%. Sent with BlueMob."
     }
-    private val contacts = listOf(SosContact("1", "Papa", "+91 98100 12345"), SosContact("2", "Didi", "+91 98200 67890"))
-    private val noGps = run {
+    internal val contacts = listOf(SosContact("1", "Papa", "+91 98100 12345"), SosContact("2", "Didi", "+91 98200 67890"))
+    internal val noGps = run {
         val (lat, lon) = Geo.offset(me.lat, me.lon, 215.0, 330.0)
         PositionEstimate(lat, lon, false, me.lat, me.lon, now - 18 * 60_000, 8f, 340.0, 215.0, 230f, 61.0, now)
     }
-    @Composable private fun hub(state: SosHubState) = SosHubScreen(state, sosMsg, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, still = true)
+    @Composable internal fun hub(state: SosHubState) = SosHubScreen(state, sosMsg, {}, {}, {}, {}, {}, {}, {}, { _, _ -> }, {}, still = true)
 
     @Test fun sosHub() = shot(tall = true) { hub(SosHubState(null, 2, SignalMode.SCREEN, contacts)) }
     @Test fun sosHubDark() = shot(dark = true) { hub(SosHubState(null, 2, SignalMode.SCREEN, contacts)) }
@@ -211,7 +211,7 @@ class ScreenshotTest {
             listOf(com.bluemob.app.audit.Witness("a1c2", "Asha", 5, true, now - 600_000), com.bluemob.app.audit.Witness("b7e4", "Ravi", 4, true, now - 3_600_000)),
             "MFkw…", SecurityStatus(true, emptyList()))
     }
-    private fun rescueRoom(mine: Boolean): RescueRoom {
+    internal fun rescueRoom(mine: Boolean): RescueRoom {
         var t = now - 9 * 60_000L
         val victim = if (mine) "me" else "b7e4"
         val vName = if (mine) "Arjun" else "Ravi"

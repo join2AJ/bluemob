@@ -247,7 +247,7 @@ test("privacy policy and account deletion pages are served", async () => {
   const srv = createServer(new Store(null), new Map(), undefined, undefined, undefined, { contactEmail: "help@example.org" });
   await new Promise((r) => srv.listen(0, r));
   const base = `http://127.0.0.1:${srv.address().port}`;
-  for (const p of ["/privacy", "/delete-account"]) {
+  for (const p of ["/privacy", "/privacy/hi", "/delete-account"]) {
     const r = await fetch(base + p);
     assert.equal(r.status, 200);
     const html = await r.text();

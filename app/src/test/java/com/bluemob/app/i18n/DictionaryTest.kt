@@ -35,4 +35,11 @@ class DictionaryTest {
             assertTrue(parts[1].isNotBlank())
         }
     }
+
+    @Test fun capitalLabelsAndNumberGaps() {
+        assertEquals(hi.translate("First aid"), hi.translate("FIRST AID"))
+        assertEquals("  2 मिनट · 6 चरण", hi.translate("  2 min · 6 steps"))
+        // "{} min {}s" must not swallow "6 steps".
+        assertEquals("3 मिनट 20 सेकंड", hi.translate("3 min 20s"))
+    }
 }

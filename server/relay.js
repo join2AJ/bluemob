@@ -469,8 +469,8 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
     }
     // Public pages the Play Store asks for (privacy policy, how to delete an account), and the team's admin page
     // (it does nothing without the admin token, which it asks for and keeps only in that browser tab).
-    if (req.method === "GET" && ["/privacy", "/delete-account", "/admin"].includes(url.pathname)) {
-      const f = path.join(__dirname, "pages", url.pathname.slice(1) + ".html");
+    if (req.method === "GET" && ["/privacy", "/privacy/hi", "/delete-account", "/admin"].includes(url.pathname)) {
+      const f = path.join(__dirname, "pages", url.pathname.slice(1).replace("/", "-") + ".html");
       if (!fs.existsSync(f)) return send(res, 404, { error: "not found" });
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": url.pathname === "/admin" ? "no-store" : "public, max-age=3600",
         "content-security-policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' blob: data:",

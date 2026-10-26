@@ -21,6 +21,9 @@ object Lang {
 
     fun init(context: Context, choice: String) { app = context.applicationContext; set(choice) }
 
+    /** Uses [dictionary] for [code] directly (screenshots and tests, where there are no app assets). */
+    fun install(code: String, dictionary: Dictionary) { loaded[code] = dictionary }
+
     /** [choice] is "en", "hi", or "" to follow the phone's language. */
     fun set(choice: String) {
         val code = choice.ifBlank { java.util.Locale.getDefault().language }
@@ -41,6 +44,9 @@ object Lang {
 
 /** English → translation, exact first, then patterns with `{}` gaps. */
 class Dictionary(private val exact: Map<String, String>, private val patterns: List<Pair<Regex, String>>) {
+    /** For labels shown in capitals ("FIRST AID"): the same phrase in any case. */
+    private val anyCase: Map<String, String> = exact.entries.associate { it.key.lowercase() to it.value }
+
     private val cache = object : LinkedHashMap<String, String>(256, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 2_000
     }
@@ -49,6 +55,7 @@ class Dictionary(private val exact: Map<String, String>, private val patterns: L
 
     private fun find(text: String): String {
         exact[text]?.let { return it }
+        if (text.any { it.isLetter() } && text == text.uppercase()) anyCase[text.lowercase()]?.let { return it }
         // Keep spaces around the text (screens sometimes pad with them).
         val trimmed = text.trim()
         if (trimmed != text) exact[trimmed]?.let { return text.replace(trimmed, it) }
@@ -84,7 +91,14 @@ class Dictionary(private val exact: Map<String, String>, private val patterns: L
                 val to = line.substring(tab + 1).replace("\\n", "\n")
                 if (to.isBlank()) return@forEach
                 if ("{}" in en) {
-                    val re = en.split("{}").joinToString("(.+?)") { Regex.escape(it) }
+                    // A gap touching a letter ("{}s", "x{}") is a number; others can be names or phrases.
+                    val parts = en.split("{}")
+                    val re = buildString {
+                        parts.forEachIndexed { i, part ->
+                            if (i > 0) append(if (parts[i - 1].lastOrNull()?.isLetter() == true || part.firstOrNull()?.isLetter() == true) "(\\d+)" else "(.+?)")
+                            append(Regex.escape(part))
+                        }
+                    }
                     patterns += Regex(re, RegexOption.DOT_MATCHES_ALL) to to
                 } else exact[en] = to
             }

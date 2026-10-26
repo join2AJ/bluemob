@@ -1836,3 +1836,22 @@ ENDED	ख़त्म
 NO NEWS	कोई ख़बर नहीं
 Verify with a QR code	QR कोड से सत्यापित करें
 Day	दिन
+SOS that reaches people, even with no signal	ऐसा SOS जो बिना नेटवर्क भी लोगों तक पहुँचे
+See who's around: no towers, no internet	देखें आस-पास कौन है: न टावर, न इंटरनेट
+Follow the compass to whoever needs help	कंपास के सहारे मदद माँगने वाले तक पहुँचें
+Messages and calls, phone to phone, end-to-end encrypted	संदेश और कॉल, फ़ोन से फ़ोन, एंड-टू-एंड एन्क्रिप्टेड
+A survival guide that works offline, and reads aloud	बिना इंटरनेट सर्वाइवल गाइड, जो पढ़कर भी सुनाए
+Going alone? An SOS if you don't check in	अकेले जा रहे हैं? चेक-इन न करने पर SOS
+Levels and badges for being prepared	तैयार रहने के लिए लेवल और बैज
+  {} min · {} steps	  {} मिनट · {} चरण
+Goes to everyone nearby right away ({} connected now), and every phone that hears it passes it on. Then you can text your SOS contacts.	आस-पास सबको तुरंत जाता है (अभी {} जुड़े हैं), और जो भी फ़ोन इसे सुनता है वह आगे भेजता है। फिर आप अपने SOS संपर्कों को SMS कर सकते हैं।
+in {} h {} min	{} घंटे {} मिनट में
+in {} min	{} मिनट में
+nearby	आस-पास
+met	मिले
+away	दूर
+internet	इंटरनेट
+Good morning, {}	सुप्रभात, {}
+Good afternoon, {}	नमस्ते, {}
+Good evening, {}	शुभ संध्या, {}
+Hello, night owl, {}	नमस्ते रात के पंछी, {}

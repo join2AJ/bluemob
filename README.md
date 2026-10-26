@@ -36,6 +36,29 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.31: check-in timer, fall detection, Hindi guides, one look
+
+- **Check-in timer** (You → Safety): "I'll be back by 6 pm". You get a reminder 15 minutes before and a question at the
+  time. 10 minutes later comes a 30-second countdown, then an SOS with your note and last position. Works with
+  BlueMob closed.
+- **Fall detection** (You → Safety, off by default): after a hard fall with no movement, a 30-second vibrating
+  countdown with Cancel, then an SOS.
+- **Hindi everywhere:**
+  - the survival guides, Sky's replies and notifications are in Hindi;
+  - read-aloud uses a Hindi voice;
+  - Sky understands Hindi and Hinglish questions ("pani nahi hai");
+  - people's own messages and names are never translated.
+- **One look:**
+  - brand colours and gradients in one place;
+  - one set of corner sizes;
+  - shared header-card and switcher components;
+  - `docs/design.md` has the rules.
+- **Play Store kit:**
+  - `docs/store-listing.md`: listing text in English and Hindi, plus the data safety answers;
+  - `docs/test-plan.md`: one-week internal test;
+  - screenshots in `docs/store/en` and `docs/store/hi`;
+  - the privacy policy in Hindi at `/privacy/hi`.
+
 ## Android 0.30: new Chats, Rescues and Activity designs; emergency card fixed
 
 - **Emergency card on the lock screen now shows.** Android 13 and newer hide "silent" notifications from the lock
