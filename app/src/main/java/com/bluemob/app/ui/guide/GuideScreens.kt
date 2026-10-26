@@ -379,8 +379,12 @@ fun ArticleScreen(article: Article, saved: Boolean, onBack: () -> Unit, onToggle
     }
 }
 
-private fun spoken(a: Article) = a.title + ". " + a.intro + ". " + a.steps.mapIndexed { i, s -> "Step ${i + 1}. $s" }.joinToString(" ") +
-    if (a.avoid.isNotEmpty()) " Avoid: " + a.avoid.joinToString(". ") else ""
+private fun spoken(a: Article): String {
+    val tr = com.bluemob.app.i18n.Lang::tr
+    val step = tr("Step {}. {}")
+    return tr(a.title) + ". " + tr(a.intro) + " " + a.steps.mapIndexed { i, s -> step.replaceFirst("{}", "${i + 1}").replaceFirst("{}", tr(s)) }.joinToString(" ") +
+        if (a.avoid.isNotEmpty()) " " + tr("Avoid") + ": " + a.avoid.joinToString(" ") { tr(it) } else ""
+}
 
 /** One step at a time in big text, for when your hands are busy: Next and Back, and it can read each step out. */
 @Composable
@@ -388,7 +392,7 @@ private fun StepByStep(a: Article, speaker: Speaker, scale: Float, onClose: () -
     androidx.activity.compose.BackHandler(onBack = onClose)
     var i by rememberSaveable { mutableStateOf(0) }
     var auto by rememberSaveable { mutableStateOf(false) }
-    androidx.compose.runtime.LaunchedEffect(i, auto) { if (auto) speaker.speak("Step ${i + 1}. ${a.steps[i]}") }
+    androidx.compose.runtime.LaunchedEffect(i, auto) { if (auto) speaker.speak(com.bluemob.app.i18n.Lang.tr("Step {}. {}").replaceFirst("{}", "${i + 1}").replaceFirst("{}", com.bluemob.app.i18n.Lang.tr(a.steps[i]))) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(20.dp)) {
         Row(Modifier.padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(a.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -445,9 +449,12 @@ class Speaker(private val tts: android.speech.tts.TextToSpeech?) {
     fun shutdown() { runCatching { tts?.stop(); tts?.shutdown() } }
     var available by mutableStateOf(false)
     var speaking by mutableStateOf(false)
+    /** Speaks [text] in the app's language (Hindi voice when the app is in Hindi and the phone has one). */
     fun speak(text: String) {
         val t = tts ?: return
         speaking = true
+        val hindi = com.bluemob.app.i18n.Lang.current.value == "hi"
+        runCatching { t.language = if (hindi) java.util.Locale("hi", "IN") else java.util.Locale.getDefault() }
         t.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "guide")
     }
     fun stop() { tts?.stop(); speaking = false }

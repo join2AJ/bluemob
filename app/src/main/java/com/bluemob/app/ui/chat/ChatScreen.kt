@@ -307,12 +307,14 @@ private fun Bubble(
                     Row(Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(8.dp)).background(onColor.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 5.dp)) {
                         Column {
                             Text(who.ifBlank { "Reply" }, style = MaterialTheme.typography.labelMedium, color = onColor.copy(alpha = 0.85f))
-                            Text(quote, style = MaterialTheme.typography.bodySmall, color = onColor.copy(alpha = 0.75f), maxLines = 2)
+                            com.bluemob.app.i18n.RawText(quote, style = MaterialTheme.typography.bodySmall, color = onColor.copy(alpha = 0.75f), maxLines = 2)
                         }
                     }
                 }
                 if (att != null) AttachmentContent(m, att, name, files, onColor)
-                else Text(m.text, style = MaterialTheme.typography.bodyLarge, color = onColor)
+                // People's own words stay as they wrote them; only Sky's replies follow the app language.
+                else if (m.peer == com.bluemob.app.bot.SkyBot.NODE_ID && !mine) Text(m.text, style = MaterialTheme.typography.bodyLarge, color = onColor)
+                else com.bluemob.app.i18n.RawText(m.text, style = MaterialTheme.typography.bodyLarge, color = onColor)
             }
         }
         androidx.compose.material3.DropdownMenu(menu, { menu = false }) {

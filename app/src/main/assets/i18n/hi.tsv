@@ -121,7 +121,6 @@ Block	ब्लॉक करें
 Blocked 	ब्लॉक किया 
 Blocked. Their messages and calls won't reach you. Their SOS still will.	ब्लॉक कर दिया। इनके संदेश और कॉल आप तक नहीं पहुँचेंगे। इनका SOS फिर भी पहुँचेगा।
 Blood group	ब्लड ग्रुप
-Blue	नीला
 BlueMob ID	BlueMob ID
 BlueMob ID restored from a recovery code: BM {}	रिकवरी कोड से BlueMob ID वापस लाई गई: BM {}
 BlueMob adds help from people nearby, but can't promise anyone receives it. If you can, also call 112.	BlueMob आस-पास के लोगों से मदद जोड़ता है, पर यह वादा नहीं कर सकता कि किसी तक पहुँचेगा। हो सके तो 112 पर भी कॉल करें।
@@ -751,7 +750,6 @@ Radios	रेडियो
 Ranger	रेंजर
 Rate	रेटिंग दें
 Rate only what you saw. You can rate each person once every 30 days.	केवल वही रेट करें जो आपने देखा। हर व्यक्ति को 30 दिन में एक बार रेट कर सकते हैं।
-Ravi	रवि
 Re-sent to every phone that comes into range, and passed on by each one, until you tap "I'm safe"	रेंज में आने वाले हर फ़ोन को दोबारा भेजा जाता है, और हर फ़ोन आगे भेजता है, जब तक आप "मैं सुरक्षित हूँ" टैप न करें
 Reachable through Asha	आशा के ज़रिए पहुँच में
 Reachable when closed	बंद होने पर भी पहुँच में
@@ -1426,3 +1424,415 @@ your move	आपकी चाल
 🧭  {} is lost	🧭  {} खो गए हैं
 🩸 Blood group	🩸 ब्लड ग्रुप
 🩸 Blood group {}	🩸 ब्लड ग्रुप {}
+CPR for an adult	वयस्क को CPR
+Use when someone is unresponsive and not breathing normally.	जब कोई प्रतिक्रिया न दे और ठीक से साँस न ले रहा हो, तब इस्तेमाल करें।
+Check the area is safe. Tap their shoulders and shout. Look for normal breathing for no more than 10 seconds.	पक्का करें कि जगह सुरक्षित है। उनके कंधे थपथपाएँ और ज़ोर से पुकारें। 10 सेकंड से ज़्यादा नहीं, देखें कि वे सामान्य साँस ले रहे हैं या नहीं।
+Send someone to call emergency services and find a defibrillator (AED), or use BlueMob to reach someone with signal.	किसी को आपातकालीन सेवाओं को कॉल करने और डिफ़िब्रिलेटर (AED) ढूँढने भेजें, या नेटवर्क वाले किसी तक पहुँचने के लिए BlueMob इस्तेमाल करें।
+Kneel beside them. Put the heel of one hand in the centre of the chest, other hand on top, arms straight.	उनके पास घुटनों के बल बैठें। एक हथेली का निचला हिस्सा छाती के बीच में रखें, दूसरा हाथ उसके ऊपर, बाँहें सीधी।
+Push hard and fast: 5 to 6 cm deep, 100 to 120 pushes a minute. Let the chest rise fully between pushes.	ज़ोर से और तेज़ दबाएँ: 5 से 6 सेमी गहरा, एक मिनट में 100 से 120 बार। हर दबाव के बीच छाती को पूरा ऊपर आने दें।
+If you are trained, give 2 rescue breaths after every 30 pushes. If not, keep pushing without stopping.	अगर आपको प्रशिक्षण है, तो हर 30 दबाव के बाद 2 बचाव साँसें दें। नहीं तो बिना रुके दबाते रहें।
+Keep going until help takes over, an AED tells you to stop, or they start breathing normally.	तब तक करते रहें जब तक मदद न आ जाए, AED रुकने को न कहे, या वे सामान्य साँस न लेने लगें।
+Don't stop to check for a pulse unless they start breathing.	नब्ज़ जाँचने के लिए न रुकें, जब तक वे साँस लेना शुरू न करें।
+Don't give up early. Swap with someone every 2 minutes if you can.	जल्दी हार न मानें। हो सके तो हर 2 मिनट में किसी और से बदल लें।
+Severe bleeding	ज़्यादा खून बहना
+Fast action matters most. Pressure stops most bleeding.	जल्दी कार्रवाई सबसे ज़रूरी है। दबाव से ज़्यादातर खून बहना रुक जाता है।
+Protect yourself with gloves or a plastic bag if you can.	हो सके तो दस्ताने या प्लास्टिक की थैली से ख़ुद को बचाएँ।
+Press firmly on the wound with a clean cloth or your hand. Keep pressing.	घाव पर साफ़ कपड़े या अपने हाथ से ज़ोर से दबाएँ। दबाते रहें।
+If blood soaks through, add more cloth on top. Keep the first layer in place.	अगर खून कपड़े से रिसे, तो ऊपर और कपड़ा रखें। पहली परत वहीं रहने दें।
+Wrap a bandage tightly over the pad to hold pressure.	दबाव बनाए रखने के लिए पैड के ऊपर कसकर पट्टी लपेटें।
+For life-threatening bleeding from an arm or leg that won't stop, tie a tourniquet 5 to 7 cm above the wound, not on a joint. Tighten until bleeding stops and note the time.	हाथ या पैर से जानलेवा खून बहना जो न रुके, तो घाव से 5 से 7 सेमी ऊपर टूर्निकेट बाँधें, जोड़ पर नहीं। खून रुकने तक कसें और समय लिख लें।
+Keep them warm and lying down. Get medical help.	उन्हें गर्म और लेटा हुआ रखें। चिकित्सा मदद लें।
+Don't remove soaked dressings.	भीगी पट्टियाँ न हटाएँ।
+Don't loosen a tourniquet once it is on.	टूर्निकेट एक बार बाँधने के बाद ढीला न करें।
+Burns	जलना
+Cool the burn quickly and for long enough.	जले हुए हिस्से को जल्दी और काफ़ी देर तक ठंडा करें।
+Move away from the heat source.	गर्मी के स्रोत से दूर हटें।
+Cool the burn under cool running water for 20 minutes.	जले हिस्से को 20 मिनट तक बहते ठंडे पानी में रखें।
+Remove rings, watches or clothing near the burn, unless stuck to the skin.	जलने के पास की अंगूठी, घड़ी या कपड़े हटा दें, अगर त्वचा से चिपके न हों।
+Cover loosely with cling film or a clean, non-fluffy cloth.	क्लिंग फ़िल्म या साफ़, बिना रोएँ वाले कपड़े से ढीला ढकें।
+Get medical help for burns larger than their hand, or on the face, hands, feet or groin, and for chemical or electrical burns.	उनकी हथेली से बड़े जलने, या चेहरे, हाथ, पैर या जांघों के बीच जलने, और रसायन या बिजली से जलने पर चिकित्सा मदद लें।
+No ice, butter, oil or toothpaste.	बर्फ़, मक्खन, तेल या टूथपेस्ट नहीं।
+Don't burst blisters.	छाले न फोड़ें।
+Choking adult	वयस्क का गला अटकना
+If they can cough, encourage them to keep coughing.	अगर वे खाँस सकते हैं, तो खाँसते रहने को कहें।
+If they can't cough, speak or breathe, stand behind them and lean them forward.	अगर वे खाँस, बोल या साँस नहीं ले पा रहे, तो उनके पीछे खड़े होकर उन्हें आगे झुकाएँ।
+Give up to 5 firm back blows between the shoulder blades with the heel of your hand.	हथेली के निचले हिस्से से कंधों के बीच 5 बार तक ज़ोर से थपकी दें।
+If that fails, give up to 5 abdominal thrusts: fist above the belly button, pull sharply in and up.	अगर काम न बने, तो 5 बार तक पेट पर धक्का दें: नाभि के ऊपर मुट्ठी, तेज़ी से अंदर और ऊपर खींचें।
+Repeat 5 back blows and 5 thrusts until the object comes out.	चीज़ बाहर आने तक 5 थपकी और 5 धक्के दोहराएँ।
+If they become unresponsive, start CPR and get help.	अगर वे बेहोश हो जाएँ, तो CPR शुरू करें और मदद लें।
+Hypothermia (too cold)	हाइपोथर्मिया (बहुत ठंड)
+Signs: strong shivering, confusion, slurred speech, clumsiness, drowsiness.	लक्षण: तेज़ कँपकँपी, उलझन, लड़खड़ाती बोली, बेढंगापन, नींद आना।
+Get them out of wind and wet, into shelter.	उन्हें हवा और गीलेपन से निकालकर आश्रय में लाएँ।
+Replace wet clothes with dry ones. Insulate them from the ground.	गीले कपड़े बदलकर सूखे पहनाएँ। उन्हें ज़मीन से अलग रखें।
+Warm the body core first (chest, neck, groin) with blankets, a sleeping bag or skin-to-skin contact.	पहले शरीर के बीच के हिस्से (छाती, गर्दन, जांघों के बीच) को कंबल, स्लीपिंग बैग या त्वचा से त्वचा लगाकर गर्म करें।
+If they are alert and can swallow, give warm, sweet drinks.	अगर वे होश में हैं और निगल सकते हैं, तो गर्म, मीठा पेय दें।
+Handle them gently and get medical help.	उन्हें आराम से संभालें और चिकित्सा मदद लें।
+No alcohol.	शराब नहीं।
+Don't rub their arms and legs.	उनके हाथ-पैर न रगड़ें।
+Don't put them in a hot bath.	उन्हें गर्म पानी के टब में न डालें।
+Heat stroke	लू लगना (हीट स्ट्रोक)
+An emergency. Signs: hot skin, confusion, fast pulse, sometimes no sweating.	यह आपात स्थिति है। लक्षण: गर्म त्वचा, उलझन, तेज़ नब्ज़, कभी-कभी पसीना न आना।
+Move them to shade and get help.	उन्हें छाया में ले जाएँ और मदद बुलाएँ।
+Cool them fast: wet their skin and fan them.	उन्हें जल्दी ठंडा करें: त्वचा गीली करें और हवा करें।
+Put cold packs or wet cloths on the neck, armpits and groin.	गर्दन, बगल और जांघों के बीच ठंडी पट्टियाँ या गीले कपड़े रखें।
+If they are awake, give small sips of water.	अगर वे जागे हुए हैं, तो पानी के छोटे घूँट दें।
+Keep cooling until help arrives or they feel normal.	मदद आने या उनके ठीक महसूस करने तक ठंडा करते रहें।
+Snake bite	साँप का काटना
+Most bites are not fatal. Calm and stillness help.	ज़्यादातर काटने जानलेवा नहीं होते। शांत और स्थिर रहना मदद करता है।
+Move away from the snake. Keep the person calm and still.	साँप से दूर हटें। व्यक्ति को शांत और स्थिर रखें।
+Keep the bitten limb still and remove rings, watches and tight clothing.	काटे गए अंग को स्थिर रखें और अंगूठी, घड़ी और तंग कपड़े हटा दें।
+Note the time and what the snake looked like. Don't try to catch it.	समय और साँप कैसा दिखता था, यह याद रखें। उसे पकड़ने की कोशिश न करें।
+Get to medical help as soon as possible. Carry them if you can.	जितनी जल्दी हो सके चिकित्सा मदद तक पहुँचें। हो सके तो उन्हें उठाकर ले जाएँ।
+Don't cut the wound or try to suck out venom.	घाव न काटें और ज़हर चूसने की कोशिश न करें।
+Don't use ice or a tight tourniquet.	बर्फ़ या कसा हुआ टूर्निकेट इस्तेमाल न करें।
+Broken bones and sprains	हड्डी टूटना और मोच
+Support the injury in the position you found it.	चोट को उसी स्थिति में सहारा दें जिसमें वह मिली।
+Keep the injured part still. Don't try to straighten it.	चोट वाले हिस्से को स्थिर रखें। उसे सीधा करने की कोशिश न करें।
+Splint it with padding, using sticks or a rolled mat, covering the joint above and below.	गद्दी लगाकर लकड़ियों या लपेटी चटाई से खपच्ची (स्प्लिंट) बाँधें, ऊपर और नीचे के जोड़ को ढकते हुए।
+Check the skin beyond the injury stays warm and pink.	जाँचें कि चोट के आगे की त्वचा गर्म और गुलाबी बनी रहे।
+For sprains: rest, a cold pack wrapped in cloth for 20 minutes, light compression, and raise it.	मोच के लिए: आराम, कपड़े में लपेटी ठंडी पट्टी 20 मिनट, हल्का दबाव, और उसे ऊपर उठाकर रखें।
+Get medical help for suspected breaks.	हड्डी टूटने का शक हो तो चिकित्सा मदद लें।
+Finding water	पानी ढूँढना
+You can last about 3 days without water. Find it early.	आप पानी के बिना लगभग 3 दिन रह सकते हैं। जल्दी ढूँढें।
+Walk downhill: valleys and low ground often hold streams.	ढलान से नीचे चलें: घाटियों और निचली ज़मीन में अक्सर नाले होते हैं।
+Look for green plants, insects and animal tracks. Birds often fly to water at dawn and dusk.	हरे पौधे, कीड़े और जानवरों के निशान देखें। पक्षी अक्सर सुबह और शाम पानी की ओर उड़ते हैं।
+Collect rain with any sheet or container.	किसी भी चादर या बर्तन से बारिश का पानी इकट्ठा करें।
+At dawn, wipe dew off grass with a cloth and wring it out.	सुबह, घास से ओस को कपड़े से पोंछें और निचोड़ लें।
+Treat all water before drinking.	पीने से पहले हर पानी को साफ़ करें।
+Don't drink seawater or urine.	समुद्र का पानी या पेशाब न पिएँ।
+Avoid still, smelly water if anything better exists.	अगर बेहतर कुछ हो तो रुका हुआ, बदबूदार पानी न लें।
+Making water safe	पानी को पीने लायक बनाना
+Boiling is the most reliable method.	उबालना सबसे भरोसेमंद तरीका है।
+If water is cloudy, let it settle, then pour it through a cloth.	अगर पानी गंदला है, तो उसे बैठने दें, फिर कपड़े से छान लें।
+Bring it to a rolling boil for 1 minute (3 minutes above 2,000 m).	1 मिनट तक तेज़ उबाल आने दें (2,000 मी से ऊपर 3 मिनट)।
+Or use purification tablets, following the packet instructions.	या पैकेट के निर्देशों के अनुसार पानी साफ़ करने की गोलियाँ इस्तेमाल करें।
+No fuel? Fill clear plastic bottles and leave them in full sun for 6 hours (2 days if cloudy).	ईंधन नहीं? साफ़ प्लास्टिक की बोतलें भरकर 6 घंटे तेज़ धूप में रखें (बादल हों तो 2 दिन)।
+Store treated water in clean, covered containers.	साफ़ किया पानी साफ़, ढके बर्तनों में रखें।
+Lighting a fire safely	सुरक्षित तरीके से आग जलाना
+A fire needs three things: heat, fuel and air.	आग को तीन चीज़ें चाहिए: गर्मी, ईंधन और हवा।
+Pick a spot out of the wind, away from trees and tents. Clear 3 m of ground down to soil.	हवा से बची, पेड़ों और तंबुओं से दूर जगह चुनें। 3 मी ज़मीन मिट्टी तक साफ़ करें।
+Gather everything first: tinder (dry grass, bark), kindling (pencil-thick sticks) and fuel (wrist-thick wood).	पहले सब इकट्ठा करें: टिंडर (सूखी घास, छाल), पतली लकड़ियाँ (पेंसिल जितनी) और ईंधन (कलाई जितनी लकड़ी)।
+Make a loose tinder nest. Lean kindling over it like a tent, leaving gaps for air.	टिंडर का ढीला घोंसला बनाएँ। पतली लकड़ियाँ उस पर तंबू की तरह टिकाएँ, हवा के लिए जगह छोड़कर।
+Light the tinder from the windward side and blow gently at the base.	हवा आने की तरफ़ से टिंडर जलाएँ और नीचे धीरे से फूँकें।
+Add bigger wood slowly as the flames grow.	लपटें बढ़ने पर धीरे-धीरे बड़ी लकड़ी डालें।
+To put it out: drown it, stir it, and drown again until it's cold to the touch.	बुझाने के लिए: पानी डालें, हिलाएँ, और छूने पर ठंडा होने तक फिर पानी डालें।
+Never leave a fire alone.	आग को कभी अकेला न छोड़ें।
+Don't use petrol to start a fire.	आग जलाने के लिए पेट्रोल इस्तेमाल न करें।
+Emergency shelter	आपातकालीन आश्रय
+In bad weather, cold can harm you in hours. Shelter comes before food.	ख़राब मौसम में ठंड कुछ घंटों में नुकसान कर सकती है। आश्रय खाने से पहले आता है।
+Choose dry, flat ground out of the wind. Avoid dry riverbeds and dead trees overhead.	हवा से बची, सूखी, समतल ज़मीन चुनें। सूखी नदी की तली और ऊपर सूखे पेड़ों से बचें।
+Insulate yourself from the ground first: you lose most heat there. Use branches, leaves or a mat.	पहले ख़ुद को ज़मीन से अलग करें: सबसे ज़्यादा गर्मी वहीं जाती है। टहनियाँ, पत्ते या चटाई इस्तेमाल करें।
+Keep it small, so your body heat warms it.	इसे छोटा रखें, ताकि आपके शरीर की गर्मी इसे गर्म रखे।
+Lean-to: prop a long branch against a tree and layer sticks, then leaves, on the windward side.	टेक वाला आश्रय: एक लंबी टहनी पेड़ से टिकाएँ और हवा की तरफ़ लकड़ियाँ, फिर पत्ते बिछाएँ।
+Stay dry. Wet clothes lose most of their warmth.	सूखे रहें। गीले कपड़े अपनी ज़्यादातर गर्मी खो देते हैं।
+Find north without a compass	बिना कंपास के उत्तर दिशा ढूँढें
+Simple ways to find your direction.	दिशा पता करने के आसान तरीके।
+Shadow stick: put a stick upright and mark the tip of its shadow. Wait 15 minutes and mark again. A line from the first mark to the second points roughly east.	छाया वाली लकड़ी: एक लकड़ी सीधी गाड़ें और उसकी छाया की नोक पर निशान लगाएँ। 15 मिनट रुककर फिर निशान लगाएँ। पहले निशान से दूसरे तक की रेखा लगभग पूर्व की ओर होती है।
+The sun rises in the east and sets in the west. At midday it is due south in the northern hemisphere, due north in the southern.	सूरज पूर्व में उगता है और पश्चिम में डूबता है। दोपहर में यह उत्तरी गोलार्ध में ठीक दक्षिण में, दक्षिणी में ठीक उत्तर में होता है।
+At night (north): find the Big Dipper. Its two end stars point to Polaris, the North Star.	रात में (उत्तर): सप्तर्षि ढूँढें। उसके आख़िरी दो तारे ध्रुव तारे की ओर इशारा करते हैं।
+At night (south): extend the long axis of the Southern Cross about 4.5 times to find roughly south.	रात में (दक्षिण): सदर्न क्रॉस की लंबी धुरी को लगभग 4.5 गुना बढ़ाएँ, वह लगभग दक्षिण है।
+If you are lost	अगर आप रास्ता भटक गए हैं
+Remember STOP: Stop, Think, Observe, Plan.	STOP याद रखें: रुकें, सोचें, देखें, योजना बनाएँ।
+Stop moving. Sit down, drink water and calm down.	चलना बंद करें। बैठ जाएँ, पानी पिएँ और शांत हों।
+Think about how you got here and the last place you were sure of.	सोचें कि आप यहाँ कैसे पहुँचे और आख़िरी जगह कौन सी थी जिसके बारे में आप पक्के थे।
+Observe: landmarks, the sun, streams, your trail on the BlueMob compass.	देखें: पहचान के निशान, सूरज, नाले, BlueMob कंपास पर आपका ट्रेल।
+Plan: if people know your route, stay put and make yourself visible. Searchers find people who stay still.	योजना: अगर लोग आपका रास्ता जानते हैं, तो वहीं रहें और ख़ुद को दिखने लायक बनाएँ। खोजने वाले रुके हुए लोगों को ढूँढ लेते हैं।
+Use BlueMob to reach anyone nearby, and save your battery with Survival power.	आस-पास किसी तक पहुँचने के लिए BlueMob इस्तेमाल करें, और सर्वाइवल पावर से बैटरी बचाएँ।
+Signalling for rescue	बचाव के लिए संकेत देना
+Three of anything means 'help'.	किसी भी चीज़ के तीन का मतलब है 'मदद'।
+Three fires, three whistle blasts or three flashes in a triangle or row signal distress.	तीन आग, सीटी की तीन आवाज़ें या त्रिकोण या लाइन में तीन चमक संकट का संकेत हैं।
+SOS in Morse code: three short, three long, three short ( ··· ––– ··· ). BlueMob's SOS light flashes it for you.	मोर्स कोड में SOS: तीन छोटे, तीन लंबे, तीन छोटे ( ··· ––– ··· )। BlueMob की SOS रोशनी यह आपके लिए चमकाती है।
+Make ground signals big (3 m or more) and in contrast with the ground: V means 'need help', X means 'need medical help'.	ज़मीन पर संकेत बड़े (3 मी या ज़्यादा) और ज़मीन से अलग रंग के बनाएँ: V का मतलब 'मदद चाहिए', X का मतलब 'चिकित्सा मदद चाहिए'।
+Flash a mirror or phone screen at aircraft or distant people.	विमान या दूर के लोगों की ओर शीशा या फ़ोन की स्क्रीन चमकाएँ।
+Wear or spread bright clothing in open ground.	खुली जगह में चमकीले कपड़े पहनें या फैलाएँ।
+Someone sent an SOS: how to help	किसी ने SOS भेजा: मदद कैसे करें
+You may be the fastest help they have. Stay safe yourself first.	आप उनकी सबसे जल्दी मदद हो सकते हैं। पहले ख़ुद सुरक्षित रहें।
+Reply at once so they know someone is coming. BlueMob's "I'm coming" button does this.	तुरंत जवाब दें ताकि उन्हें पता चले कोई आ रहा है। BlueMob का "मैं आ रहा हूँ" बटन यही करता है।
+BlueMob passes their SOS on to anyone with internet automatically. Keep the mesh on so it can.	BlueMob उनका SOS अपने-आप इंटरनेट वाले किसी तक भी पहुँचाता है। इसके लिए मेश चालू रखें।
+Check it's safe for you to go: weather, light, terrain. Don't become a second person who needs rescue.	जाँचें कि आपके जाने के लिए सुरक्षित है: मौसम, रोशनी, ज़मीन। ख़ुद दूसरे बचाव के ज़रूरतमंद न बनें।
+Tell someone near you where you're going, and go in pairs if you can.	अपने पास किसी को बताएँ कि आप कहाँ जा रहे हैं, और हो सके तो दो लोग साथ जाएँ।
+Take water, a warm layer, a light, and a first-aid kit if you have one.	पानी, एक गर्म कपड़ा, रोशनी, और हो तो प्राथमिक चिकित्सा किट ले जाएँ।
+Follow the compass to them. BlueMob shows their direction and distance.	कंपास के सहारे उन तक जाएँ। BlueMob उनकी दिशा और दूरी दिखाता है।
+When you reach them: check for danger, then whether they respond and are breathing. Use the first-aid guides.	उनके पास पहुँचकर: ख़तरा जाँचें, फिर देखें कि वे प्रतिक्रिया दे रहे हैं और साँस ले रहे हैं। प्राथमिक चिकित्सा गाइड इस्तेमाल करें।
+Keep them warm and still. Don't move someone who may have a neck or back injury unless they are in danger.	उन्हें गर्म और स्थिर रखें। जिसे गर्दन या पीठ में चोट हो सकती है, उसे न हिलाएँ, जब तक वह ख़तरे में न हो।
+Stay with them and send updates to the group until help arrives.	उनके साथ रहें और मदद आने तक ग्रुप को अपडेट भेजते रहें।
+Don't rush in alone at night or in a storm.	रात में या तूफ़ान में अकेले भागकर न जाएँ।
+Don't give them food or drink if they may need surgery or are barely conscious.	अगर उन्हें ऑपरेशन की ज़रूरत पड़ सकती है या वे मुश्किल से होश में हैं, तो खाना-पानी न दें।
+Lightning safety	बिजली गिरने से बचाव
+If you hear thunder, you are close enough to be struck.	अगर गड़गड़ाहट सुनाई दे, तो आप बिजली गिरने की दूरी पर हैं।
+30-30 rule: if thunder follows the flash within 30 seconds, take shelter. Wait 30 minutes after the last thunder.	30-30 नियम: अगर चमक के 30 सेकंड के अंदर गड़गड़ाहट हो, तो आश्रय लें। आख़िरी गड़गड़ाहट के बाद 30 मिनट रुकें।
+Go to a building or a hard-topped vehicle if you can.	हो सके तो किसी इमारत या पक्की छत वाली गाड़ी में जाएँ।
+Outdoors: leave summits, ridges, open fields and water. Keep away from lone trees and metal fences.	बाहर: चोटी, पहाड़ी की धार, खुले मैदान और पानी से हटें। अकेले पेड़ों और धातु की बाड़ से दूर रहें।
+If caught in the open, crouch low on the balls of your feet, feet together, head tucked.	खुले में फँसें तो पंजों पर नीचे झुककर बैठें, पैर साथ, सिर अंदर की ओर।
+In a group, spread out at least 15 m apart.	ग्रुप में हों तो कम से कम 15 मी की दूरी पर फैल जाएँ।
+Earthquake	भूकंप
+Drop, Cover, Hold on.	झुकें, ढकें, पकड़े रहें।
+Drop to your hands and knees.	हाथों और घुटनों के बल झुक जाएँ।
+Cover your head and neck under a sturdy table, or next to an inside wall.	मज़बूत मेज़ के नीचे, या अंदर की दीवार के पास अपना सिर और गर्दन ढकें।
+Hold on until the shaking stops.	हिलना रुकने तक पकड़े रहें।
+If outside, move to open ground away from buildings, trees and power lines.	बाहर हों तो इमारतों, पेड़ों और बिजली की तारों से दूर खुली जगह पर जाएँ।
+After: expect aftershocks, check for gas smells, and avoid lifts and damaged buildings.	बाद में: झटके फिर आ सकते हैं, गैस की गंध जाँचें, और लिफ़्ट व टूटी इमारतों से बचें।
+Floods	बाढ़
+Moving water is far more powerful than it looks.	बहता पानी जितना दिखता है उससे कहीं ज़्यादा ताक़तवर होता है।
+Move to higher ground straight away.	तुरंत ऊँची जगह पर जाएँ।
+Never walk, swim or drive through flood water. 15 cm of moving water can knock you down, 30 cm can sweep a car away.	बाढ़ के पानी में कभी न चलें, तैरें या गाड़ी चलाएँ। 15 सेमी बहता पानी आपको गिरा सकता है, 30 सेमी कार बहा सकता है।
+Stay away from rivers, streams and drains.	नदियों, नालों और नालियों से दूर रहें।
+If trapped in a building, go to the highest floor, not a closed attic.	अगर किसी इमारत में फँसे हैं, तो सबसे ऊँची मंज़िल पर जाएँ, बंद अटारी में नहीं।
+Use BlueMob to tell others where you are.	दूसरों को अपनी जगह बताने के लिए BlueMob इस्तेमाल करें।
+Phone battery critically low	फ़ोन की बैटरी बहुत कम
+At 1 to 5%, every minute of battery counts. Spend it on what keeps you safe.	1 से 5% पर हर मिनट क़ीमती है। उसे उस पर ख़र्च करें जो आपको सुरक्षित रखे।
+If you may need help, send your SOS now while you still can. Add a short note: where you are and what's wrong.	अगर मदद की ज़रूरत पड़ सकती है, तो अभी SOS भेजें जब तक भेज सकते हैं। छोटा नोट जोड़ें: आप कहाँ हैं और क्या गड़बड़ है।
+Send one short message to your group: where you are, where you're heading, and when you'll switch the phone on next.	अपने ग्रुप को एक छोटा संदेश भेजें: आप कहाँ हैं, कहाँ जा रहे हैं, और फ़ोन अगली बार कब चालू करेंगे।
+Turn on Battery Saver, set the screen to its lowest brightness, and close every other app.	बैटरी सेवर चालू करें, स्क्रीन की रोशनी सबसे कम करें, और बाकी सभी ऐप बंद करें।
+Turn on airplane mode so the phone stops searching for signal. If you need BlueMob, turn Bluetooth back on.	एयरप्लेन मोड चालू करें ताकि फ़ोन नेटवर्क ढूँढना बंद करे। BlueMob चाहिए तो Bluetooth फिर चालू करें।
+Switch the phone off completely. Turn it on only at agreed times, for example every 2 hours on the hour, to check messages.	फ़ोन पूरी तरह बंद करें। केवल तय समय पर चालू करें, जैसे हर 2 घंटे पर, संदेश देखने के लिए।
+Keep the phone warm in an inner pocket or sleeping bag. Cold drains batteries fast, and a cold "dead" phone often wakes up once warm.	फ़ोन को अंदर की जेब या स्लीपिंग बैग में गर्म रखें। ठंड बैटरी जल्दी ख़त्म करती है, और ठंडा "बंद" फ़ोन गर्म होने पर अक्सर चालू हो जाता है।
+Use other ways to be found: 3 whistle blasts, a mirror, bright clothing, or a smoky fire in the open.	ढूँढे जाने के दूसरे तरीके इस्तेमाल करें: सीटी की 3 आवाज़ें, शीशा, चमकीले कपड़े, या खुले में धुएँ वाली आग।
+Don't leave the screen on for the compass or the map. Check, then switch off.	कंपास या नक्शे के लिए स्क्रीन चालू न छोड़ें। देखें, फिर बंद करें।
+Don't wait until 0% to send your SOS.	SOS भेजने के लिए 0% तक इंतज़ार न करें।
+Getting power back without a socket	बिना सॉकेट के बिजली पाना
+Ways to recharge a phone far from a wall socket.	दीवार के सॉकेट से दूर फ़ोन चार्ज करने के तरीके।
+Power bank: the most reliable option. Charge it fully before every trip.	पावर बैंक: सबसे भरोसेमंद। हर यात्रा से पहले पूरा चार्ज करें।
+Vehicle: a USB car charger works while the engine runs. Many cars, buses and bikes have USB sockets.	गाड़ी: USB कार चार्जर इंजन चलने पर काम करता है। कई कारों, बसों और बाइकों में USB सॉकेट होते हैं।
+Solar charger: point the panel straight at the sun. Charge a power bank with it, then the phone. Cloud makes it very slow.	सोलर चार्जर: पैनल सीधे सूरज की ओर रखें। पहले पावर बैंक चार्ज करें, फिर फ़ोन। बादल होने पर बहुत धीमा होता है।
+Hand-crank or dynamo chargers (in some radios and torches) give small top-ups. Crank steadily rather than fast.	हाथ से घुमाने वाले या डायनमो चार्जर (कुछ रेडियो और टॉर्च में) थोड़ा चार्ज देते हैं। तेज़ नहीं, लगातार घुमाएँ।
+Ask people nearby for a power bank or the right cable. Charge the phone your group relies on for SOS first.	आस-पास के लोगों से पावर बैंक या सही केबल माँगें। पहले वह फ़ोन चार्ज करें जिस पर आपका ग्रुप SOS के लिए निर्भर है।
+Warm a cold battery slowly against your body before charging. Batteries charge poorly when very cold.	ठंडी बैटरी को चार्ज करने से पहले शरीर से लगाकर धीरे-धीरे गर्म करें। बहुत ठंडी बैटरी ठीक से चार्ज नहीं होती।
+Don't heat the phone on a fire, a stove or in strong direct sun.	फ़ोन को आग, स्टोव या तेज़ सीधी धूप में गर्म न करें।
+Don't open, bend or puncture the battery.	बैटरी को खोलें, मोड़ें या छेद न करें।
+The rule of threes	तीन का नियम
+What to deal with first. Roughly, you can survive:	पहले किससे निपटें। मोटे तौर पर, आप बच सकते हैं:
+3 minutes without air.	हवा के बिना 3 मिनट।
+3 hours without shelter in harsh weather.	कठोर मौसम में आश्रय के बिना 3 घंटे।
+3 days without water.	पानी के बिना 3 दिन।
+3 weeks without food.	खाने के बिना 3 हफ़्ते।
+So: breathing and bleeding first, then shelter and warmth, then water, then food.	इसलिए: पहले साँस और खून बहना, फिर आश्रय और गर्मी, फिर पानी, फिर खाना।
+Don't eat plants or mushrooms you can't identify with certainty.	जिन पौधों या मशरूम को आप पक्के से नहीं पहचानते, उन्हें न खाएँ।
+Find someone with BlueMob	BlueMob से किसी को ढूँढें
+Someone sent an SOS or is lost, and you're going to them. BlueMob points the way, phone to phone, with no signal.	किसी ने SOS भेजा है या कोई खो गया है, और आप उनके पास जा रहे हैं। BlueMob फ़ोन से फ़ोन, बिना नेटवर्क, रास्ता दिखाता है।
+Open their SOS alert and tap I'm coming. A rescue group opens, and they see that you're on your way.	उनका SOS अलर्ट खोलें और "मैं आ रहा हूँ" टैप करें। बचाव ग्रुप खुलता है, और उन्हें दिखता है कि आप रास्ते में हैं।
+Tap Find them (or Compass → pick their name). The arrow points at their last position; the distance and how old that position is are underneath.	"उन्हें ढूँढें" टैप करें (या कंपास → उनका नाम चुनें)। तीर उनकी आख़िरी जगह की ओर इशारा करता है; दूरी और जगह कितनी पुरानी है, नीचे दिखता है।
+Walk with the phone held flat. Every phone in between passes their position on, so it keeps updating even when they're far.	फ़ोन को सीधा पकड़कर चलें। बीच का हर फ़ोन उनकी जगह आगे भेजता है, इसलिए दूर होने पर भी अपडेट होती रहती है।
+Within Bluetooth range (10–100 m) BlueMob says you're connected directly: you're close. Shout and look around.	Bluetooth रेंज (10–100 मी) में BlueMob बताता है कि आप सीधे जुड़े हैं: आप पास हैं। आवाज़ लगाएँ और चारों ओर देखें।
+Tap Ring their phone: it whistles and flashes for 20 seconds so you can follow the sound.	"उनका फ़ोन बजाएँ" टैप करें: यह 20 सेकंड सीटी बजाता और चमकता है ताकि आप आवाज़ के पीछे जा सकें।
+If their position is old or rough (±100 m or more), search in widening circles around it, and tell the group where you've looked.	अगर उनकी जगह पुरानी या अंदाज़न है (±100 मी या ज़्यादा), तो उसके चारों ओर बढ़ते घेरों में खोजें, और ग्रुप को बताएँ आपने कहाँ देखा।
+Don't switch BlueMob's mesh off on the way: you'd stop hearing their updates.	रास्ते में BlueMob का मेश बंद न करें: उनके अपडेट आना बंद हो जाएँगे।
+Don't go alone into danger (floods, avalanches, cliffs). Use the group chat to bring more people.	ख़तरे में अकेले न जाएँ (बाढ़, हिमस्खलन, चट्टानें)। ज़्यादा लोगों को बुलाने के लिए ग्रुप चैट इस्तेमाल करें।
+First aid	प्राथमिक चिकित्सा
+Water	पानी
+Fire	आग
+Shelter	आश्रय
+Navigation	दिशा
+Signals	संकेत
+Weather	मौसम
+Disasters	आपदाएँ
+Basics	मूल बातें
+Hey there! 👋 I'm Sky, your BlueMob buddy.	नमस्ते! 👋 मैं Sky हूँ, आपका BlueMob साथी।
+I live inside this app on your phone. I don't use the internet, so I work with zero signal and nothing you ask me leaves your phone.\n\n	मैं इस ऐप में आपके फ़ोन पर रहता हूँ। मैं इंटरनेट इस्तेमाल नहीं करता, इसलिए बिना नेटवर्क काम करता हूँ और आपका पूछा कुछ भी आपके फ़ोन से बाहर नहीं जाता।\n\n
+Ask me how to use BlueMob, what's happening around you, or any survival question. Or tap a suggestion below.	मुझसे पूछें BlueMob कैसे इस्तेमाल करें, आपके आस-पास क्या हो रहा है, या कोई भी सर्वाइवल सवाल। या नीचे कोई सुझाव टैप करें।
+Who is nearby?	आस-पास कौन है?
+How do I send an SOS?	SOS कैसे भेजूँ?
+What do the ticks mean?	टिक का क्या मतलब है?
+How do I make water safe?	पानी पीने लायक कैसे बनाऊँ?
+What do I do for a burn?	जलने पर क्या करूँ?
+Where do you live?	तुम कहाँ रहते हो?
+Tell me a joke	एक चुटकुला सुनाओ
+I live inside the BlueMob app on your phone. I'm not on the internet and I don't call any server, so I work with zero signal, and nothing you ask me leaves your phone.\n\n	मैं आपके फ़ोन पर BlueMob ऐप के अंदर रहता हूँ। मैं इंटरनेट पर नहीं हूँ और किसी सर्वर को कॉल नहीं करता, इसलिए बिना नेटवर्क काम करता हूँ, और आपका पूछा कुछ भी आपके फ़ोन से बाहर नहीं जाता।\n\n
+I know the survival guide and how every part of BlueMob works, and I can read what's happening on your phone right now: who's nearby, your battery and waiting messages.	मुझे सर्वाइवल गाइड और BlueMob का हर हिस्सा पता है, और मैं देख सकता हूँ कि अभी आपके फ़ोन पर क्या हो रहा है: आस-पास कौन है, आपकी बैटरी और रुके हुए संदेश।
+Tap the red SOS button at the top of any tab, then tap the big SOS circle twice (twice so it can't go off by accident).\n\n	किसी भी टैब के ऊपर लाल SOS बटन टैप करें, फिर बड़े SOS घेरे को दो बार टैप करें (दो बार ताकि ग़लती से न चले)।\n\n
+You can add a note like "Injured" or "Lost", but you don't have to. It reaches everyone nearby straight away, and each phone passes it on to the phones it can reach.	आप "घायल" या "खो गया" जैसा नोट जोड़ सकते हैं, पर ज़रूरी नहीं। यह तुरंत आस-पास सबको पहुँचता है, और हर फ़ोन इसे अपनी पहुँच वाले फ़ोन तक आगे भेजता है।
+Open SOS	SOS खोलें
+The SOS signal blinks ··· ––– ··· using your screen, your flashlight, a loud whistle-pitch sound, or all three. Pick one each time, or set your default in SOS → Default signal.	SOS सिग्नल आपकी स्क्रीन, टॉर्च, सीटी जैसी तेज़ आवाज़, या तीनों से ··· ––– ··· चमकाता है। हर बार एक चुनें, या SOS → डिफ़ॉल्ट सिग्नल में तय करें।
+Open SOS signal	SOS सिग्नल खोलें
+When someone nearby sends an SOS, BlueMob opens a full-screen alert with who it is, how far away they are and their message. Tap "I'm coming" so they know, "Show me the way" to follow the compass, or "How to help".	जब आस-पास कोई SOS भेजता है, BlueMob पूरी स्क्रीन पर अलर्ट खोलता है: कौन है, कितनी दूर है और उनका संदेश। उन्हें बताने के लिए "मैं आ रहा हूँ", कंपास के लिए "मुझे रास्ता दिखाएँ", या "मदद कैसे करें" टैप करें।
+How to help guide	मदद कैसे करें गाइड
+Open a chat with someone nearby and tap 📞 for a voice call or 🎥 for video. Calls go straight from phone to phone over Bluetooth or Wi-Fi, with no internet or SIM.\n\n	आस-पास किसी से चैट खोलें और वॉइस कॉल के लिए 📞 या वीडियो के लिए 🎥 टैप करें। कॉल Bluetooth या Wi-Fi से सीधे फ़ोन से फ़ोन जाती हैं, बिना इंटरनेट या SIM।\n\n
+They need to be connected directly ("Online nearby"). Video is a few frames a second over Bluetooth and smoother over Wi-Fi. Messages still reach people further away through other phones.	उन्हें सीधे जुड़ा होना चाहिए ("आस-पास ऑनलाइन")। Bluetooth पर वीडियो कुछ फ़्रेम प्रति सेकंड होता है, Wi-Fi पर बेहतर। दूर के लोगों तक संदेश फिर भी दूसरे फ़ोन से पहुँचते हैं।
+Open Chats	चैट खोलें
+Open the Compass and pick them. You'll see how old their position is and whether it's GPS or estimated. If they're in lost mode or sent an SOS, tap "Ring their phone": it whistles and flashes for 20 seconds so you can hear and see them.\n\n	कंपास खोलें और उन्हें चुनें। आपको दिखेगा उनकी जगह कितनी पुरानी है और GPS से है या अनुमान से। अगर वे खोया मोड में हैं या SOS भेजा है, तो "उनका फ़ोन बजाएँ" टैप करें: यह 20 सेकंड सीटी बजाता और चमकता है ताकि आप उन्हें सुन और देख सकें।\n\n
+When you're connected to them directly over Bluetooth, they're usually within 10–100 m: stop, call out and listen.	जब आप उनसे सीधे Bluetooth पर जुड़े हों, तो वे आमतौर पर 10–100 मी के अंदर होते हैं: रुकें, आवाज़ लगाएँ और सुनें।
+Open Compass	कंपास खोलें
+You can message anyone you've met, even if they're out of range. The message waits safely on your phone and goes the moment they're in range, over Bluetooth or Wi-Fi.\n\n	आप जिनसे मिले हैं उन्हें संदेश भेज सकते हैं, भले ही वे रेंज से बाहर हों। संदेश आपके फ़ोन पर सुरक्षित रुकता है और जैसे ही वे रेंज में आएँ, Bluetooth या Wi-Fi से चला जाता है।\n\n
+It's shown to them exactly once: if a copy is sent twice, their phone recognises the message ID and discards the extra one.	यह उन्हें ठीक एक बार दिखता है: अगर कॉपी दो बार भेजी जाए, तो उनका फ़ोन संदेश ID पहचानकर अतिरिक्त कॉपी हटा देता है।
+The Compass tab works offline. Pick a target (a saved spot, or a friend who shares their location) and the arrow shows the way with the distance. "Save this spot" remembers where you are.	कंपास टैब बिना इंटरनेट काम करता है। लक्ष्य चुनें (सेव की गई जगह, या जगह शेयर करने वाला दोस्त) और तीर दूरी के साथ रास्ता दिखाता है। "यह जगह सेव करें" याद रखता है कि आप कहाँ हैं।
+Go to You → Battery. Turn on the phone's Battery Saver, then let BlueMob keep running in the background, so messages and SOS still reach you.	आप → बैटरी पर जाएँ। फ़ोन का बैटरी सेवर चालू करें, फिर BlueMob को बैकग्राउंड में चलने दें, ताकि संदेश और SOS फिर भी आप तक पहुँचें।
+Open You	आप खोलें
+Turn on You → Share my location. People you're connected to then see how far away you are, and you see them. It uses GPS, which needs no internet.	आप → मेरी जगह शेयर करें चालू करें। आपसे जुड़े लोग देखेंगे आप कितनी दूर हैं, और आप उन्हें। यह GPS इस्तेमाल करता है, जिसे इंटरनेट नहीं चाहिए।
+The Nearby tab's radar shows everyone around you: green = online, orange = in range, grey = seen before.	आस-पास टैब का रडार आपके आस-पास सबको दिखाता है: हरा = ऑनलाइन, नारंगी = रेंज में, धूसर = पहले देखा।
+Open Nearby	आस-पास खोलें
+The Guide tab has short survival guides stored on your phone: first aid, water, fire, shelter, navigation, signals, weather and disasters. Or just ask me, like "what do I do for a burn?"	गाइड टैब में आपके फ़ोन पर सेव छोटी सर्वाइवल गाइड हैं: प्राथमिक चिकित्सा, पानी, आग, आश्रय, दिशा, संकेत, मौसम और आपदाएँ। या बस मुझसे पूछें, जैसे "जलने पर क्या करूँ?"
+Open Guide	गाइड खोलें
+Everyone has a BlueMob ID, like BM 3F9A 1C2B 7D4E 8A01. Share yours, and anyone can message you with it: no phone number needed.\n\n	हर किसी की एक BlueMob ID होती है, जैसे BM 3F9A 1C2B 7D4E 8A01। अपनी शेयर करें, और कोई भी इससे आपको संदेश भेज सकता है: फ़ोन नंबर की ज़रूरत नहीं।\n\n
+Everyone has a rating out of 5 stars. You start at 4. When you help someone and they thank you, you gain stars, up to 5.\n\n	हर किसी की 5 में से रेटिंग होती है। आप 4 से शुरू करते हैं। जब आप किसी की मदद करते हैं और वे धन्यवाद देते हैं, तो आपके सितारे 5 तक बढ़ते हैं।\n\n
+See your rating	अपनी रेटिंग देखें
+Splitting trip money is coming in a later BlueMob update. You can try it now in the web preview.	यात्रा का ख़र्च बाँटना BlueMob के आने वाले अपडेट में आएगा। अभी आप इसे वेब प्रीव्यू में आज़मा सकते हैं।
+Open Games to play with someone nearby over the mesh (or over the internet), or against the computer: Tic-tac-toe, Infinite tic-tac-toe, Connect 4 and more.	आस-पास किसी के साथ मेश पर (या इंटरनेट पर), या कंप्यूटर से खेलने के लिए गेम खोलें: टिक-टैक-टो, अनंत टिक-टैक-टो, कनेक्ट 4 और भी।
+Here's the magic ✨: phones running BlueMob find each other over Bluetooth and Wi-Fi and link up directly. No SIM, no towers, no internet.\n\n	यह है जादू ✨: BlueMob वाले फ़ोन Bluetooth और Wi-Fi से एक-दूसरे को ढूँढकर सीधे जुड़ जाते हैं। न SIM, न टावर, न इंटरनेट।\n\n
+Messages go straight to people in range, or travel phone to phone to people further away, end-to-end encrypted and shown exactly once.	संदेश सीधे रेंज वाले लोगों तक जाते हैं, या फ़ोन से फ़ोन होते हुए दूर के लोगों तक, एंड-टू-एंड एन्क्रिप्टेड और ठीक एक बार दिखते हैं।
+Hi! 😊 Great to hear from you. Ask me anything about BlueMob or staying safe outdoors.	हाय! 😊 आपसे बात करके अच्छा लगा। BlueMob या बाहर सुरक्षित रहने के बारे में कुछ भी पूछें।
+Hello hello! 🌿 How's your day out there?	नमस्ते नमस्ते! 🌿 बाहर आपका दिन कैसा है?
+I'm doing great, feeling free as the wind 🌬️. How about you?	मैं बढ़िया हूँ, हवा जैसा आज़ाद 🌬️। आप कैसे हैं?
+Love that! 🌻	बहुत बढ़िया! 🌻
+Why did the phone go to the mountains? To get away from all the towers 🏔️😄	फ़ोन पहाड़ों पर क्यों गया? सारे टावरों से दूर जाने के लिए 🏔️😄
+I told my Wi-Fi a joke… it didn't get the connection 😅	मैंने अपने Wi-Fi को चुटकुला सुनाया… उसे कनेक्शन ही नहीं मिला 😅
+What do you call a group of phones with no signal? A BlueMob! 📱📱📱	बिना नेटवर्क वाले फ़ोन के झुंड को क्या कहते हैं? BlueMob! 📱📱📱
+I'm Sky 🌤️, a little helper built into BlueMob. I'm not a real person, but I know the app and the survival guide well.	मैं Sky हूँ 🌤️, BlueMob में बना एक छोटा मददगार। मैं असली इंसान नहीं हूँ, पर मुझे ऐप और सर्वाइवल गाइड अच्छे से पता हैं।
+Anytime! 💚	कभी भी! 💚
+You're welcome! Happy exploring 🌍	आपका स्वागत है! घूमने का मज़ा लें 🌍
+Bye for now! 👋 I'll be right here whenever you need me.	अभी के लिए अलविदा! 👋 जब भी ज़रूरत हो, मैं यहीं हूँ।
+You're not alone, I'm here 🤗. And once someone nearby opens BlueMob, they'll pop up on your radar.	आप अकेले नहीं हैं, मैं यहाँ हूँ 🤗। और जैसे ही आस-पास कोई BlueMob खोलेगा, वे आपके रडार पर दिखेंगे।
+I'm best at survival questions and BlueMob help. Try "How do I make water safe?", "What do I do for a burn?" or "How do I send an SOS?" 🌿	मैं सर्वाइवल सवालों और BlueMob की मदद में सबसे अच्छा हूँ। पूछकर देखें "पानी पीने लायक कैसे बनाऊँ?", "जलने पर क्या करूँ?" या "SOS कैसे भेजूँ?" 🌿
+Got it! 👍 Ask me about first aid, water, fire, shelter, finding your way, or how to use BlueMob.	समझ गया! 👍 मुझसे प्राथमिक चिकित्सा, पानी, आग, आश्रय, रास्ता ढूँढने, या BlueMob इस्तेमाल करने के बारे में पूछें।
+You taught me this: {}	आपने मुझे यह सिखाया: {}
+Teach me a better answer	मुझे बेहतर जवाब सिखाएँ
+Some ideas for free time out here 🌿\n• Play Tic-tac-toe or Connect 4 with someone nearby over the mesh, or against the computer if no one's around\n	यहाँ बाहर खाली समय के लिए कुछ सुझाव 🌿\n• आस-पास किसी के साथ मेश पर टिक-टैक-टो या कनेक्ट 4 खेलें, या कोई न हो तो कंप्यूटर से\n
+• Learn a guide or two from the survival guide\n• Check who's around on the radar and say hi	• सर्वाइवल गाइड से एक-दो गाइड सीखें\n• रडार पर देखें आस-पास कौन है और हाय कहें
+Browse the guide	गाइड देखें
+I don't have a guide for that on your phone. If it's serious, send an SOS: it reaches everyone nearby right away, and they can help or pass it on.\n\n	आपके फ़ोन पर इसकी कोई गाइड नहीं है। अगर गंभीर है, तो SOS भेजें: यह तुरंत आस-पास सबको पहुँचता है, और वे मदद कर सकते हैं या आगे भेज सकते हैं।\n\n
+Asking an expert, and messaging family far away, arrive with the internet bridge in the next update.	विशेषज्ञ से पूछना और दूर परिवार को संदेश भेजना अगले अपडेट में इंटरनेट ब्रिज के साथ आएगा।
+🆘 SOS	🆘 SOS
+I'm not sure I understood. Did you mean one of these?	मुझे पक्का समझ नहीं आया। क्या आपका मतलब इनमें से कोई था?
+This guide looks closest	यह गाइड सबसे क़रीब लगती है
+Open full guide	पूरी गाइड खोलें
+How to recharge	रिचार्ज कैसे करें
+Survival power	सर्वाइवल पावर
+At {}%, act now.\n\n	{}% पर, अभी कदम उठाएँ।\n\n
+Your battery is {}% right now.\n\n	अभी आपकी बैटरी {}% है।\n\n
+Right now on your phone:\n	अभी आपके फ़ोन पर:\n
+off. Switch it on in Nearby to find people\n	बंद। लोगों को ढूँढने के लिए आस-पास में चालू करें\n
+on, no one connected yet\n	चालू, अभी कोई जुड़ा नहीं\n
+yes, this phone can be a bridge\n	हाँ, यह फ़ोन ब्रिज बन सकता है\n
+none. BlueMob works phone to phone\n	नहीं। BlueMob फ़ोन से फ़ोन काम करता है\n
+• Battery: {}%\n	• बैटरी: {}%\n
+all delivered	सब पहुँच गए
+{} waiting to reach someone	{} किसी तक पहुँचने का इंतज़ार कर रहे हैं
+yours is active	आपका चालू है
+none from you	आपका कोई नहीं
+The mesh is off, so I can't see anyone. Switch it on in the Nearby tab.	मेश बंद है, इसलिए मैं किसी को नहीं देख सकता। आस-पास टैब में इसे चालू करें।
+No one is connected yet. People appear as they open BlueMob near you.	अभी कोई जुड़ा नहीं। आपके पास BlueMob खोलने पर लोग दिखते हैं।
+Show radar	रडार दिखाएँ
+This phone has internet right now. Soon it will be able to act as a bridge, carrying nearby people's messages to the wider world.	इस फ़ोन में अभी इंटरनेट है। जल्द यह ब्रिज बन सकेगा, आस-पास के लोगों के संदेश बाहर दुनिया तक पहुँचाते हुए।
+This phone has no internet right now, and that's fine: BlueMob talks phone to phone.	इस फ़ोन में अभी इंटरनेट नहीं है, और कोई बात नहीं: BlueMob फ़ोन से फ़ोन बात करता है।
+Your BlueMob ID is {}. It was given to this phone automatically and no other phone has it. People see it with your name, {}.	आपकी BlueMob ID {} है। यह इस फ़ोन को अपने-आप मिली और किसी दूसरे फ़ोन के पास नहीं है। लोग इसे आपके नाम {} के साथ देखते हैं।
+Battery {}%. 	बैटरी {}%। 
+To make it last, turn on the phone's Battery Saver and let BlueMob keep running: You → Battery.	इसे ज़्यादा चलाने के लिए फ़ोन का बैटरी सेवर चालू करें और BlueMob को चलने दें: आप → बैटरी।
+If it gets low	अगर यह कम हो जाए
+All your messages have been delivered.	आपके सारे संदेश पहुँच गए हैं।
+ You have {} unread.	 आपके {} अपठित हैं।
+Your SOS is active. It's re-sent to every phone that comes into range until you tap "I'm safe".	आपका SOS चालू है। जब तक आप "मैं सुरक्षित हूँ" टैप न करें, यह रेंज में आने वाले हर फ़ोन को दोबारा भेजा जाता है।
+You haven't sent an SOS. If you need help, tap the red SOS button at the top of any tab.	आपने SOS नहीं भेजा है। मदद चाहिए तो किसी भी टैब के ऊपर लाल SOS बटन टैप करें।
+Thinking	सोच रहा हूँ
+I'm really glad you told me. You don't have to go through this alone, and talking to someone right now can help.\n\n	अच्छा हुआ आपने मुझे बताया। आपको यह अकेले नहीं सहना है, और अभी किसी से बात करना मदद कर सकता है।\n\n
+• Call Tele-MANAS on 14416 (free, any time, in your language)\n	• Tele-MANAS को 14416 पर कॉल करें (मुफ़्त, कभी भी, आपकी भाषा में)\n
+• In danger right now: call 112, or press SOS so people nearby come\n	• अभी ख़तरे में हैं: 112 पर कॉल करें, या SOS दबाएँ ताकि आस-पास के लोग आएँ\n
+• Message or call someone you trust and tell them how you feel\n\n	• किसी भरोसेमंद को संदेश या कॉल करें और बताएँ आप कैसा महसूस कर रहे हैं\n\n
+and call 14416 or 112 together.	और साथ मिलकर 14416 या 112 पर कॉल करें।
+Message someone	किसी को संदेश भेजें
+If someone is in danger right now, call 112 or press SOS.	अगर अभी कोई ख़तरे में है, तो 112 पर कॉल करें या SOS दबाएँ।
+Mesh running	मेश चल रहा है
+Shown while BlueMob listens for people nearby in the background	जब BlueMob बैकग्राउंड में आस-पास के लोगों को सुन रहा हो, तब दिखता है
+SOS from people nearby	आस-पास के लोगों का SOS
+Someone near you needs help	आपके पास किसी को मदद चाहिए
+Alerts, updates and tips from the BlueMob team	BlueMob टीम की चेतावनियाँ, अपडेट और सुझाव
+During do not disturb	परेशान न करें के दौरान
+Messages, missed calls and invites while BlueMob's do not disturb is on: no sound or vibration	BlueMob का परेशान न करें चालू होने पर संदेश, छूटी कॉल और न्योते: न आवाज़, न कंपन
+Incoming calls	आने वाली कॉल
+Rings when someone calls you, even with BlueMob closed	कोई कॉल करे तो बजता है, BlueMob बंद होने पर भी
+Emergency info on the lock screen	लॉक स्क्रीन पर इमरजेंसी जानकारी
+Your blood group and emergency contacts, readable without unlocking, if you turn it on	आपका ब्लड ग्रुप और इमरजेंसी संपर्क, बिना अनलॉक किए पढ़ने लायक, अगर आप चालू करें
+Rescue groups	बचाव ग्रुप
+Who's coming to help, and messages in rescue groups	कौन मदद के लिए आ रहा है, और बचाव ग्रुप के संदेश
+BlueMob is on: calls and messages can reach you	BlueMob चालू है: कॉल और संदेश आप तक पहुँच सकते हैं
+BlueMob is listening for people nearby	BlueMob आस-पास के लोगों को सुन रहा है
+Calls, messages and SOS reach you with BlueMob closed	BlueMob बंद होने पर भी कॉल, संदेश और SOS आप तक पहुँचते हैं
+Over the internet. Turn on the mesh to reach people nearby too	इंटरनेट पर। आस-पास के लोगों तक भी पहुँचने के लिए मेश चालू करें
+🆘 {} needs help	🆘 {} को मदद चाहिए
+Tap to see where they are	वे कहाँ हैं देखने के लिए टैप करें
+Open map	नक्शा खोलें
+Ended	ख़त्म
+🆘 Sending SOS in {} s	🆘 {} सेकंड में SOS भेज रहे हैं
+Tap Cancel if you're OK.	अगर आप ठीक हैं तो रद्द करें टैप करें।
+Are you back?	क्या आप वापस आ गए?
+I'm back	मैं वापस आ गया
++30 min	+30 मिनट
+{} is calling	{} कॉल कर रहे हैं
+I'll be back by 6 pm	मैं शाम 6 बजे तक लौटूँगा
+Checked in: back safely	चेक-इन किया: सुरक्षित लौटे
+Tap I'm back when you are, or add time.	लौटने पर "मैं वापस आ गया" टैप करें, या समय बढ़ाएँ।
+⏰ Are you back?	⏰ क्या आप वापस आ गए?
+BlueMob noticed a hard fall and no movement since.	BlueMob ने ज़ोर से गिरना और उसके बाद कोई हलचल नहीं देखी।
+Possible fall: a hard fall and no movement after it	शायद गिर गए: ज़ोर से गिरे और उसके बाद कोई हलचल नहीं
+Press the power button 5 times	पावर बटन 5 बार दबाएँ
+You pressed the power button 5 times.	आपने पावर बटन 5 बार दबाया।
+Sent with the power button	पावर बटन से भेजा गया
+🆘 SOS sent	🆘 SOS भेजा गया
+People nearby and your SOS contacts are being alerted. Open BlueMob to see who is coming, or to say you're safe.	आस-पास के लोगों और आपके SOS संपर्कों को अलर्ट भेजा जा रहा है। कौन आ रहा है देखने, या "मैं सुरक्षित हूँ" कहने के लिए BlueMob खोलें।
+Background task failed	बैकग्राउंड काम विफल रहा
+I'll be back by…	मैं लौटूँगा…
+Missed call from {}	{} की छूटी कॉल
+{} wants you as their SOS contact	{} आपको अपना SOS संपर्क बनाना चाहते हैं
+Open BlueMob to accept: you'd get an alert if they ever send an SOS.	स्वीकार करने के लिए BlueMob खोलें: अगर वे कभी SOS भेजें तो आपको अलर्ट मिलेगा।
+{} is checking on everyone	{} सबका हाल पूछ रहे हैं
+Open BlueMob and tap I'm OK, or I need help.	BlueMob खोलें और "मैं ठीक हूँ" या "मुझे मदद चाहिए" टैप करें।
+📨 Sent to your SOS contacts: {}	📨 आपके SOS संपर्कों को भेजा: {}
+📍 Found your position (±{} m). Sent to everyone nearby, your SOS contacts and your rescue group.	📍 आपकी जगह मिल गई (±{} मी)। आस-पास सबको, आपके SOS संपर्कों और बचाव ग्रुप को भेजी गई।
+✅ {} got your SOS	✅ {} को आपका SOS मिल गया
+I'm safe	मैं सुरक्षित हूँ
+Check the survival guide	सर्वाइवल गाइड देखें
+🧠 The offline AI couldn't answer just now, so here's what I know:\n\n	🧠 ऑफ़लाइन AI अभी जवाब नहीं दे सका, तो मुझे जो पता है वह यह है:\n\n
+🆘 In an emergency: {}	🆘 आपात स्थिति में: {}
+Open BlueMob → You → Account to add your blood group and SOS contacts.	अपना ब्लड ग्रुप और SOS संपर्क जोड़ने के लिए BlueMob → आप → खाता खोलें।
+Check-in timer	चेक-इन टाइमर
+Fall detection	गिरने की पहचान
+Going alone? An SOS if you don't check in by a time you set	अकेले जा रहे हैं? तय समय तक चेक-इन न करने पर SOS
+On: back by {}	चालू: {} तक वापस
+On: after a hard fall and no movement, 30 seconds to cancel, then SOS	चालू: ज़ोर से गिरने और हलचल न होने पर, रद्द करने के लिए 30 सेकंड, फिर SOS
+Off: send an SOS by itself after a hard fall	बंद: ज़ोर से गिरने पर अपने-आप SOS भेजें
+⏰ You'll be back by	⏰ आप इतने बजे तक लौटेंगे
+⏰ It's past your time	⏰ आपका समय निकल गया
+in {}	{} में
+Tap I'm back, or an SOS goes out soon	"मैं वापस आ गया" टैप करें, नहीं तो जल्द SOS जाएगा
+✓ I'm back safely	✓ मैं सुरक्षित लौट आया
++1 hour	+1 घंटा
+Going somewhere alone? Tell BlueMob when you'll be back. If you don't check in, it sends an SOS for you, with where you were going and your last position.	कहीं अकेले जा रहे हैं? BlueMob को बताएँ आप कब लौटेंगे। अगर आप चेक-इन नहीं करते, तो यह आपके लिए SOS भेजता है, आप कहाँ जा रहे थे और आपकी आख़िरी जगह के साथ।
+Where are you going? (optional)	आप कहाँ जा रहे हैं? (वैकल्पिक)
+e.g. Summit and back by the forest trail	जैसे: चोटी तक और जंगल वाले रास्ते से वापस
+I'll be back	मैं लौटूँगा
+In {} h	{} घंटे में
+Pick a time…	समय चुनें…
+What happens	क्या होता है
+15 minutes before, a reminder.	15 मिनट पहले, एक रिमाइंडर।
+At the time, BlueMob asks if you're back.	समय होने पर, BlueMob पूछता है कि आप लौट आए या नहीं।
+10 minutes later, a 30-second countdown, then an SOS to people nearby and your SOS contacts.	10 मिनट बाद, 30 सेकंड की उलटी गिनती, फिर आस-पास के लोगों और आपके SOS संपर्कों को SOS।
+Add an SOS contact (You → SOS) so someone far away hears about it too.	एक SOS संपर्क जोड़ें (आप → SOS) ताकि दूर किसी को भी पता चले।
+Background is off: turn it on (You → Connections & power) so the timer works with BlueMob closed.	बैकग्राउंड बंद है: इसे चालू करें (आप → कनेक्शन और पावर) ताकि BlueMob बंद होने पर भी टाइमर काम करे।
+Back by	इतने बजे तक वापस
+Tap a bar for details	जानकारी के लिए बार टैप करें
+When you're active	आप कब सक्रिय रहते हैं
+Safety & learning	सुरक्षा और सीखना
+Your people	आपके लोग
+Busiest time	सबसे व्यस्त समय
+Busiest day	सबसे व्यस्त दिन
+Per day	प्रति दिन
+Average call	औसत कॉल
+messages & calls	संदेश और कॉल
+Last 90 days	पिछले 90 दिन
+Not delivered yet	अभी नहीं पहुँचे
+sent	भेजे
+Groups	ग्रुप
+A rescue is happening now	अभी एक बचाव चल रहा है
+{} rescues happening now	अभी {} बचाव चल रहे हैं
+Tap to see who's coming and chat	कौन आ रहा है देखने और चैट के लिए टैप करें
+All rescues · {}	सभी बचाव · {}
+Your rescue record	आपका बचाव रिकॉर्ड
+{} happening now	{} अभी चल रहे हैं
+You helped {}	आपने {} की मदद की
+Nobody came	कोई नहीं आया
+No rescues yet	अभी कोई बचाव नहीं
+When you send an SOS, or go to help someone, it's kept here with who came and what was said.	जब आप SOS भेजते हैं, या किसी की मदद के लिए जाते हैं, वह यहाँ रखा जाता है: कौन आया और क्या कहा गया।
+Happening now	अभी चल रहा है
+LIVE	लाइव
+ENDED	ख़त्म
+NO NEWS	कोई ख़बर नहीं
+Verify with a QR code	QR कोड से सत्यापित करें
+Day	दिन

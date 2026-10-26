@@ -62,3 +62,8 @@ fun Text(
     style: TextStyle = LocalTextStyle.current,
 ) = M3Text(text, modifier, color, fontSize, fontStyle, fontWeight, fontFamily, letterSpacing, textDecoration, textAlign, lineHeight,
     overflow, softWrap, maxLines, minLines, inlineContent, onTextLayout, style)
+
+/** Text exactly as written, never translated: people's messages and names. */
+@Composable
+fun RawText(text: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified, maxLines: Int = Int.MAX_VALUE, style: TextStyle = LocalTextStyle.current) =
+    M3Text(text, modifier, color = color, maxLines = maxLines, style = style)

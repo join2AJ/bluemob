@@ -72,13 +72,13 @@ class Notifier(private val context: Context) {
 
     fun ongoing(connected: Int, carrying: Int, meshOn: Boolean = true): Notification = NotificationCompat.Builder(context, CH_MESH)
         .setSmallIcon(R.drawable.ic_stat_bluemob)
-        .setContentTitle(when {
+        .setContentTitle(t(when {
             !meshOn -> "BlueMob is on: calls and messages can reach you"
             connected == 0 -> "BlueMob is listening for people nearby"
             else -> "Connected to $connected ${if (connected == 1) "person" else "people"} nearby"
-        })
-        .setContentText((if (meshOn) "Calls, messages and SOS reach you with BlueMob closed" else "Over the internet. Turn on the mesh to reach people nearby too") +
-            if (carrying > 0) " · carrying $carrying for others" else "")
+        }))
+        .setContentText(t((if (meshOn) "Calls, messages and SOS reach you with BlueMob closed" else "Over the internet. Turn on the mesh to reach people nearby too") +
+            if (carrying > 0) " · carrying $carrying for others" else ""))
         .setOngoing(true).setSilent(true).setShowWhen(false)
         .setContentIntent(open(null, 1))
         .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
@@ -88,9 +88,9 @@ class Notifier(private val context: Context) {
 
     fun sos(s: SosSignal) = post(s.id.hashCode(), NotificationCompat.Builder(context, CH_SOS)
         .setSmallIcon(R.drawable.ic_stat_bluemob)
-        .setContentTitle("🆘 ${s.name} needs help")
-        .setContentText(s.note.ifBlank { "Tap to see where they are" })
-        .setStyle(NotificationCompat.BigTextStyle().bigText((if (s.note.isNotBlank()) "“${s.note}”\n" else "") + (s.pos?.describe() ?: "")))
+        .setContentTitle(t("🆘 ${s.name} needs help"))
+        .setContentText(t(s.note.ifBlank { "Tap to see where they are" }))
+        .setStyle(NotificationCompat.BigTextStyle().bigText(t((if (s.note.isNotBlank()) "“${s.note}”\n" else "") + (s.pos?.describe() ?: ""))))
         .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)
         .setColor(0xFFD94F55.toInt()).setAutoCancel(true)
         .setContentIntent(open(null, 2))
@@ -115,6 +115,7 @@ class Notifier(private val context: Context) {
 
     fun message(fromId: String, name: String, text: String) = post(fromId.hashCode(), NotificationCompat.Builder(context, ch(CH_MSG))
         .setSmallIcon(R.drawable.ic_stat_bluemob)
+        // People's names and words stay as they wrote them.
         .setContentTitle(name).setContentText(text)
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
         .setCategory(NotificationCompat.CATEGORY_MESSAGE).setAutoCancel(true)
@@ -124,18 +125,18 @@ class Notifier(private val context: Context) {
     /** News from the BlueMob team. Urgent alerts (a flood warning) sound even during do not disturb. */
     fun news(id: String, title: String, text: String, urgent: Boolean) = post(id.hashCode() + 31, NotificationCompat.Builder(context, if (urgent) CH_RESCUE else ch(CH_NEWS))
         .setSmallIcon(R.drawable.ic_stat_bluemob)
-        .setContentTitle(title).setContentText(text)
-        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setContentTitle(t(title)).setContentText(t(text))
+        .setStyle(NotificationCompat.BigTextStyle().bigText(t(text)))
         .setAutoCancel(true).setContentIntent(open(Route.News.key, id.hashCode() + 31))
         .build())
 
     fun rating(text: String) = post(4242, NotificationCompat.Builder(context, ch(CH_MSG))
-        .setSmallIcon(R.drawable.ic_stat_bluemob).setContentTitle("Your rating").setContentText(text).setAutoCancel(true)
+        .setSmallIcon(R.drawable.ic_stat_bluemob).setContentTitle(t("Your rating")).setContentText(t(text)).setAutoCancel(true)
         .setContentIntent(open(Route.Person(ME).key, 4242)).build())
 
     fun rescue(room: String, text: String) = post(room.hashCode() + 7, NotificationCompat.Builder(context, CH_RESCUE)
         .setSmallIcon(R.drawable.ic_stat_bluemob)
-        .setContentTitle("Rescue group").setContentText(text)
+        .setContentTitle(t("Rescue group")).setContentText(t(text))
         .setColor(0xFFD94F55.toInt()).setAutoCancel(true)
         .setContentIntent(open(Route.Rescue(room).key, room.hashCode() + 7))
         .build())
@@ -143,8 +144,8 @@ class Notifier(private val context: Context) {
     /** Anything else worth knowing right away: someone ringing to find us, a game invite, a missed call. */
     fun note(title: String, text: String, route: String? = null, id: Int = title.hashCode() + 11) = post(id, NotificationCompat.Builder(context, ch(CH_RESCUE))
         .setSmallIcon(R.drawable.ic_stat_bluemob)
-        .setContentTitle(title).setContentText(text)
-        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setContentTitle(t(title)).setContentText(t(text))
+        .setStyle(NotificationCompat.BigTextStyle().bigText(t(text)))
         .setColor(0xFF2F6F62.toInt()).setAutoCancel(true)
         .setContentIntent(open(route, id))
         .build())
@@ -183,6 +184,9 @@ class Notifier(private val context: Context) {
 
     fun cancelSosCountdown() = runCatching { manager.cancel(POWER_SOS_ID) }
 
+    /** Notification text in the app's language. */
+    private fun t(s: CharSequence?): String = Lang.tr(s?.toString() ?: "")
+
     private fun post(id: Int, n: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
@@ -195,8 +199,8 @@ class Notifier(private val context: Context) {
      */
     fun incomingCall(name: String, video: Boolean) = post(INCOMING_CALL_ID, NotificationCompat.Builder(context, CH_CALLS)
         .setSmallIcon(R.drawable.ic_stat_bluemob)
-        .setContentTitle("$name is calling")
-        .setContentText("${if (video) "Video" else "Voice"} call on BlueMob · tap to answer")
+        .setContentTitle(t("$name is calling"))
+        .setContentText(t("${if (video) "Video" else "Voice"} call on BlueMob · tap to answer"))
         .setCategory(NotificationCompat.CATEGORY_CALL).setPriority(NotificationCompat.PRIORITY_MAX)
         .setAutoCancel(true).setTimeoutAfter(45_000)
         .setContentIntent(open(Route.Call.key, 10))
@@ -206,8 +210,8 @@ class Notifier(private val context: Context) {
     /** The emergency card: readable on the lock screen, so whoever finds you knows who to call. */
     fun emergencyCard(title: String, text: String) = post(EMERGENCY_CARD_ID, NotificationCompat.Builder(context, CH_CARD)
         .setSmallIcon(R.drawable.ic_stat_bluemob)
-        .setContentTitle(title).setContentText(text)
-        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setContentTitle(t(title)).setContentText(t(text))
+        .setStyle(NotificationCompat.BigTextStyle().bigText(t(text)))
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setOngoing(true).setSilent(true).setShowWhen(false)
         .setPriority(NotificationCompat.PRIORITY_DEFAULT).setCategory(NotificationCompat.CATEGORY_STATUS).setOnlyAlertOnce(true)
         .setColor(0xFFD94F55.toInt())

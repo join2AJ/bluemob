@@ -61,10 +61,19 @@ class Dictionary(private val exact: Map<String, String>, private val patterns: L
                 (if (n.isEmpty()) values.getOrNull(i++) else values.getOrNull(n.toInt() - 1)) ?: ""
             }
         }
+        // Several lines (Sky's replies): each line on its own.
+        if ('\n' in text) {
+            val lines = text.split('\n')
+            val done = lines.map { if (it.isBlank()) it else translate(it) }
+            if (done != lines) return done.joinToString("\n")
+        }
+        // A numbered or bulleted line: keep the marker, translate the rest.
+        PREFIX.matchEntire(text)?.let { m -> val rest = translate(m.groupValues[2]); if (rest != m.groupValues[2]) return m.groupValues[1] + rest }
         return text
     }
 
     companion object {
+        private val PREFIX = Regex("^(\\s*(?:\\d+\\.|•|-|✕|✓)\\s+)(.+)$", RegexOption.DOT_MATCHES_ALL)
         fun parse(tsv: String): Dictionary {
             val exact = HashMap<String, String>()
             val patterns = ArrayList<Pair<Regex, String>>()

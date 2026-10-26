@@ -207,7 +207,10 @@ object SkyBot {
         return live(t, facts)
     }
 
-    fun reply(input: String, facts: SkyFacts): SkyAnswer {
+    fun reply(raw: String, facts: SkyFacts): SkyAnswer {
+        // Hindi and Hinglish questions are matched through their English keywords.
+        val input = HindiQuery.toEnglish(raw)
+        SkySafety.check(raw)?.let { return it }
         SkySafety.check(input)?.let { return it }
         val t = input.lowercase()
         turn++
