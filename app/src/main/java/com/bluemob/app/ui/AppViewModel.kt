@@ -263,6 +263,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- You: theme, emergency card, badges ----
     val theme = settings.theme
+    val language = settings.language
+    fun setLanguage(code: String) { settings.setLanguage(code); com.bluemob.app.i18n.Lang.set(code) }
     fun setTheme(t: String) = settings.setTheme(t)
     /** Sky's offline AI: download, import, switch on/off, delete. */
     val offlineAi get() = blueMob.offlineAi

@@ -166,6 +166,7 @@ class BlueMobApp : Application() {
         location = LocationTracker(this)
         connectivity = Connectivity(this)
         settings = AppSettings(this)
+        com.bluemob.app.i18n.Lang.init(this, settings.language.value)
         notifier.quiet = { settings.dndOn() }
         signals = SignalController(this)
         heading = HeadingSensor(this)

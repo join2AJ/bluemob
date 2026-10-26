@@ -36,6 +36,24 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.29: Hindi, power button SOS, verified contacts, badges as a game
+
+- **हिन्दी:** You → Language → हिन्दी (or Auto, to follow the phone). About 1,400 phrases on every screen are translated.
+  The survival guides and Sky's answers are still in English.
+- **Power button SOS:** press the power button 5 times quickly, even with the phone locked. It vibrates and counts down
+  5 seconds with a Cancel button, then sends the SOS. Turn it on under You → Safety. It needs Background on.
+- **Verify with a QR code:** on someone's profile, scan each other's code (or compare a 60-digit safety number). A ✓
+  shows next to their name in the chat. It resets if their key ever changes.
+- **Calls:** a recorded or duplicated piece of a call can't be played twice (a replay window).
+- **Badges as a game:**
+  - levels and XP, with ranks from Newcomer to Legend;
+  - Bronze, Silver, Gold and Diamond medals for each badge;
+  - strengths from other people's ratings (Helpful, Reliable…);
+  - a secret badge;
+  - three missions a day;
+  - confetti when you win a medal.
+- **Look:** the tab bar is docked to the bottom in a brighter blue-to-green, and "BlueMob" at the top is in brand colours.
+
 ## Android 0.28: faster start, easier with TalkBack and large text, tidier code
 
 - **Faster start:** a Baseline Profile ships with the app, so Android compiles the start-up code ahead of time.

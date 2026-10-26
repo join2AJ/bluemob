@@ -39,7 +39,7 @@ import androidx.compose.material.icons.outlined.DoNotDisturbOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import com.bluemob.app.i18n.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -119,6 +119,8 @@ fun ProfileScreen(
     onBadges: () -> Unit = {},
     theme: String = "auto",
     onTheme: (String) -> Unit = {},
+    language: String = "",
+    onLanguage: (String) -> Unit = {},
     emergencyCard: Boolean = false,
     onEmergencyCard: (Boolean) -> Unit = {},
     powerSos: Boolean = false,
@@ -272,6 +274,16 @@ fun ProfileScreen(
                         Text(l, style = MaterialTheme.typography.labelLarge, color = if (theme == k) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(if (theme == k) MaterialTheme.colorScheme.primary else Extra.sand)
                                 .clickable { onTheme(k) }.padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
+                }
+                // Language: English or Hindi, or whatever the phone uses.
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🌐", fontSize = 20.sp)
+                    Text("Language", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(start = 14.dp))
+                    (listOf("" to "Auto") + com.bluemob.app.i18n.Lang.SUPPORTED).forEach { (k, l) ->
+                        Text(l, style = MaterialTheme.typography.labelLarge, color = if (language == k) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(if (language == k) MaterialTheme.colorScheme.primary else Extra.sand)
+                                .clickable { onLanguage(k) }.padding(horizontal = 10.dp, vertical = 6.dp))
                     }
                 }
                 SettingRow(Icons.Outlined.Refresh, Color(0xFF7C6BD6), "Replay the intro", "How BlueMob works, in a minute", divider = true, onClick = onReplayIntro) { chevron() }

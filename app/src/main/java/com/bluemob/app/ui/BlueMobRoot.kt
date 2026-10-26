@@ -36,7 +36,7 @@ import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.bluemob.app.i18n.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.launch
@@ -380,6 +380,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             game = vm.game.collectAsStateWithLifecycle().value,
                             onBadges = { push(Route.Badges) },
                             theme = vm.theme.collectAsStateWithLifecycle().value, onTheme = vm::setTheme,
+                            language = vm.language.collectAsStateWithLifecycle().value, onLanguage = vm::setLanguage,
                             emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value, onEmergencyCard = vm::setEmergencyCard,
                             powerSos = vm.powerSos.collectAsStateWithLifecycle().value, onPowerSos = vm::setPowerSos,
                             remoteSignal = vm.allowRemoteSignal.collectAsStateWithLifecycle().value, onRemoteSignal = vm::setAllowRemoteSignal,
