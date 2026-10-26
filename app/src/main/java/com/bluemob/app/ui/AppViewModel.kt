@@ -287,19 +287,46 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setEmergencyCard(on: Boolean) = settings.setEmergencyCard(on)
     // Lazy: it uses flows declared further down this class.
     private val badgeInputs by lazy { combine(
-        combine(com.bluemob.app.guide.GuidePacks.read, com.bluemob.app.guide.GuidePacks.quizzesPassed, com.bluemob.app.guide.GuidePacks.readDays) { r, q, d -> Triple(r.size, q.size, com.bluemob.app.guide.Streak.of(d)) },
-        activity, settings.sosContacts, blueMob.groups.groups,
-        combine(blueMob.contacts.contacts, blueMob.profile.profile, trail.allTrips) { c, p, t -> Triple(c.count { it.value.lastSeen > 0 }, p.bloodGroup != null, t.size) },
-    ) { g, act, contacts, groups, other ->
+        combine(com.bluemob.app.guide.GuidePacks.read, com.bluemob.app.guide.GuidePacks.quizzesPassed, com.bluemob.app.guide.GuidePacks.readDays) { r, q, d -> Triple(r, q.size, com.bluemob.app.guide.Streak.of(d)) },
+        activity, combine(settings.sosContacts, settings.verified, blueMob.groups.groups) { c, v, g -> Triple(c.count { it.verified }, v.size, g.size) },
+        combine(blueMob.contacts.contacts, blueMob.profile.profile, trail.allTrips) { c, p, t -> Triple(c.values.toList(), p.bloodGroup != null, t) },
+        blueMob.trust.scores,
+    ) { g, act, circle, other, scores ->
+        val today = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0) }.timeInMillis
+        val sent = act.filter { it.type == com.bluemob.app.activity.ActivityType.MSG_SENT }
+        val cal = java.util.Calendar.getInstance()
+        val mine = scores[nodeId]
         com.bluemob.app.ui.profile.BadgeStats(
-            guidesRead = g.first, quizzes = g.second, streak = g.third,
+            guidesRead = g.first.size, quizzes = g.second, streak = g.third,
             rescuesJoined = act.count { it.type == com.bluemob.app.activity.ActivityType.HELPED },
-            sosContactsAccepted = contacts.count { it.verified }, messagesSent = act.count { it.type == com.bluemob.app.activity.ActivityType.MSG_SENT },
-            groups = groups.size, peopleMet = other.first, hasBloodGroup = other.second, tripsRecorded = other.third,
+            sosContactsAccepted = circle.first, messagesSent = sent.size, groups = circle.third,
+            peopleMet = other.first.count { it.lastSeen > 0 }, hasBloodGroup = other.second, tripsRecorded = other.third.size,
+            // A category counts once people rate this user well in it (4 stars or more on average).
+            goodRatings = mine?.categories.orEmpty().filterValues { it.stars >= 4.0 }.map { (c, cs) -> c.code to cs.count }.toMap(),
+            verifiedPeople = circle.second,
+            nightMessages = sent.count { cal.timeInMillis = it.at; cal.get(java.util.Calendar.HOUR_OF_DAY) < 4 },
+            longestTripKm = (other.third.maxOfOrNull { it.distanceM } ?: 0.0).div(1000).toInt(),
+            readToday = g.first.values.any { it >= today }, messagedToday = sent.any { it.at >= today },
+            metToday = other.first.any { it.nodeId != SkyBot.NODE_ID && it.lastSeen >= today },
         )
     } }
-    val badges: StateFlow<List<com.bluemob.app.ui.profile.Badge>> by lazy { badgeInputs.map { com.bluemob.app.ui.profile.Badges.of(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.bluemob.app.ui.profile.Badges.of(com.bluemob.app.ui.profile.BadgeStats())) }
+    /** Medals, XP, level and today's missions. */
+    val game: StateFlow<com.bluemob.app.ui.profile.GameProgress> by lazy { badgeInputs.map { com.bluemob.app.ui.profile.Badges.of(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, com.bluemob.app.ui.profile.Badges.of(com.bluemob.app.ui.profile.BadgeStats())) }
+    /** A medal won since it was last celebrated: (badge, medal index), or null. */
+    val newMedal: StateFlow<Pair<com.bluemob.app.ui.profile.Track, Int>?> by lazy {
+        combine(game, settings.seenMedals) { p, seen ->
+            when {
+                p.xp == 0 && p.medals == 0 -> null
+                // First time with medals: today's medals count as seen, so they don't all pop up at once.
+                seen == null -> { settings.setSeenMedals(p.earnedKeys); null }
+                else -> (p.earnedKeys - seen).firstOrNull()?.let { k ->
+                    p.tracks.firstOrNull { it.id == k.substringBeforeLast(':') }?.let { it to k.substringAfterLast(':').toInt() }
+                }
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }
+    fun medalSeen(t: com.bluemob.app.ui.profile.Track, tier: Int) = settings.setSeenMedals((settings.seenMedals.value ?: emptySet()) + "${t.id}:$tier")
 
     val allowRemoteSignal = settings.allowRemoteSignal
     fun setAllowRemoteSignal(on: Boolean) = settings.setAllowRemoteSignal(on)

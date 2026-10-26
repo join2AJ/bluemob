@@ -377,8 +377,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onToggleLocation = toggleLocation, onBatterySaver = actions.openBatterySaver, onKeepRunning = actions.askKeepRunning,
                             onSos = { push(Route.Sos) }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
                             onBridge = { push(Route.Bridge) }, onMyRating = { push(Route.Person(vm.nodeId)) }, onActivity = { push(Route.Activity) },
-                            badges = vm.badges.collectAsStateWithLifecycle().value.let { b -> b.count { it.earned } to b.size },
-                            badgeEmojis = vm.badges.collectAsStateWithLifecycle().value.filter { it.earned }.takeLast(4).joinToString("") { it.emoji },
+                            game = vm.game.collectAsStateWithLifecycle().value,
                             onBadges = { push(Route.Badges) },
                             theme = vm.theme.collectAsStateWithLifecycle().value, onTheme = vm::setTheme,
                             emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value, onEmergencyCard = vm::setEmergencyCard,
@@ -508,6 +507,12 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.acceptGame(m.id); push(Route.Match(m.id)) }) { Text("Play") } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { vm.declineGame(m.id) }) { Text("Not now") } },
             )
+        }
+
+        // A new medal: confetti, unless something more important is on screen.
+        val medal by vm.newMedal.collectAsStateWithLifecycle()
+        medal?.takeIf { !locked && alert == null && top !is Route.SosArea }?.let { (t, tier) ->
+            com.bluemob.app.ui.profile.MedalCelebration(t, tier) { vm.medalSeen(t, tier) }
         }
 
         val call by vm.call.collectAsStateWithLifecycle()

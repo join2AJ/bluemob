@@ -156,6 +156,11 @@ class AppSettings(context: Context) {
         prefs.edit().putString("verified", org.json.JSONObject(_verified.value).toString()).apply()
     }
 
+    private val _seenMedals = MutableStateFlow(if (prefs.contains("seen_medals")) prefs.getStringSet("seen_medals", emptySet())!!.toSet() else null)
+    /** Medals already celebrated ("track:tier"); null before the first look, so old medals don't all pop up at once. */
+    val seenMedals: StateFlow<Set<String>?> = _seenMedals.asStateFlow()
+    fun setSeenMedals(keys: Set<String>) { _seenMedals.value = keys; prefs.edit().putStringSet("seen_medals", keys).apply() }
+
     private val _powerSos = MutableStateFlow(prefs.getBoolean("power_sos", false))
     /** Press the power button 5 times quickly to send an SOS (needs Background on). */
     val powerSos: StateFlow<Boolean> = _powerSos.asStateFlow()

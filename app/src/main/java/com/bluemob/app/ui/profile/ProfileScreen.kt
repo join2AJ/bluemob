@@ -115,8 +115,7 @@ fun ProfileScreen(
     onActivity: () -> Unit = {},
     activitySummary: String = "",
     /** Badges earned / all, and opening them. */
-    badges: Pair<Int, Int> = 0 to 0,
-    badgeEmojis: String = "",
+    game: GameProgress? = null,
     onBadges: () -> Unit = {},
     theme: String = "auto",
     onTheme: (String) -> Unit = {},
@@ -195,12 +194,8 @@ fun ProfileScreen(
                     )
                     Text("  ›", color = Extra.ink3)
                 }
-                // Badges: what you've done that makes you (and others) safer.
-                Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).clickable(onClick = onBadges)
-                    .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("🏅  ${badges.first} of ${badges.second} badges  " + badgeEmojis, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-                    Text("  ›", color = Extra.ink3)
-                }
+                // Level, rank and medals: what you've done that makes you (and others) safer.
+                game?.let { LevelPill(it, Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).clickable(onClick = onBadges)) }
                 // Your activity at a glance: opens the dashboard with graphs.
                 Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).clickable(onClick = onActivity)
                     .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {

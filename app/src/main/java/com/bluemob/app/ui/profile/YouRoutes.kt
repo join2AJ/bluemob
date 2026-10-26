@@ -90,7 +90,7 @@ fun YouRoutes(route: Route.YouArea, s: Shell) {
             val witnesses by vm.witnesses.collectAsStateWithLifecycle()
             AuditScreen(audit.first, audit.second, s::pop, witnesses, vm.auditPublicKey, remember(audit.first.size) { vm.securityStatus() })
         }
-        Route.Badges -> BadgesScreen(vm.badges.collectAsStateWithLifecycle().value, s::pop)
+        Route.Badges -> BadgesScreen(vm.game.collectAsStateWithLifecycle().value, s::pop)
         Route.Activity -> {
             val events by vm.activity.collectAsStateWithLifecycle()
             val people by vm.people.collectAsStateWithLifecycle()
