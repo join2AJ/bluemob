@@ -298,6 +298,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
             locationServicesOff = MeshPermissions.needsLocationServices(this),
             keepsRunning = getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(packageName) == true,
             locationPermission = hasLocation(),
+            batterySaver = getSystemService(PowerManager::class.java)?.isPowerSaveMode == true,
         )
     }
 }

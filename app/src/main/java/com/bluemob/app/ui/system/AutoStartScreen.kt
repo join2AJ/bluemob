@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.system
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +40,15 @@ fun AutoStartScreen(
     /** Android lets BlueMob run with Battery Saver on (battery optimisation exemption granted). */
     keepsRunning: Boolean = true, onKeepRunning: () -> Unit = {},
     onConnections: () -> Unit = {}, onBatterySaver: () -> Unit = {},
+    /** The phone's Battery Saver is on. */
+    batterySaver: Boolean = false,
+    /** A row to point at when arriving from elsewhere: "battery". */
+    highlight: String = "",
 ) {
+    val glow = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (highlight == "battery") 1f else 0f) }
+    androidx.compose.runtime.LaunchedEffect(highlight) {
+        if (highlight == "battery") { kotlinx.coroutines.delay(2_500); glow.animateTo(0f, androidx.compose.animation.core.tween(1_500)) }
+    }
     SubScreen("Connections & power", onBack) {
         item {
             Text("Everything about staying reachable, in one place. BlueMob turns nothing on unless you choose it here; anything not chosen, it asks first.",
@@ -86,9 +95,12 @@ fun AutoStartScreen(
                         else -> "Off: SOS, messages and calls only arrive while BlueMob is open"
                     },
                     reachable) { on -> onBackground(on); if (on && !keepsRunning) onKeepRunning() }
-                Row(Modifier.fillMaxWidth().clickable(onClick = onBatterySaver).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().background(com.bluemob.app.ui.theme.Palette.Warning.copy(alpha = 0.22f * glow.value))
+                    .clickable(onClick = onBatterySaver).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Phone Battery Saver", style = MaterialTheme.typography.bodyLarge)
+                        Text(com.bluemob.app.ui.dashboard.powerNote(batterySaver, keepsRunning), style = MaterialTheme.typography.bodySmall,
+                            color = if (batterySaver && keepsRunning) MaterialTheme.colorScheme.primary else Extra.ember)
                         Text("Slows every other app to save battery. Opens Android settings", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
                     }
                     Text("›", color = Extra.ink3)

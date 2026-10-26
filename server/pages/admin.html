@@ -37,7 +37,7 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
 </div>
 <div id="app" class="hidden">
 <header><b>BlueMob admin</b>
-  <nav><button data-tab="overview" class="on">Overview</button><button data-tab="reports">Reports</button><button data-tab="news">News</button></nav>
+  <nav><button data-tab="overview" class="on">Overview</button><button data-tab="reports">Reports</button><button data-tab="news">News</button><button data-tab="lookup">Screenshot lookup</button></nav>
   <button class="ghost btn" id="out">Sign out</button>
 </header>
 <main>
@@ -66,6 +66,17 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
     </div>
     <h2>Sent</h2><div id="newsList"></div>
   </section>
+  <section id="lookup" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0">Whose phone took this chat screenshot?</h2>
+      <p class="muted">Every chat background carries a faint 16-character code (4 groups of 4) that changes every hour. Type it in, with roughly
+        when the screenshot was taken (the chat's message times help). It's checked against the 2 days before and 2 hours after.</p>
+      <input id="wCode" type="text" placeholder="Code, e.g. FVQT V7GN FX14 PVZ2" maxlength="24">
+      <p></p><input id="wAt" type="datetime-local">
+      <p></p><button class="btn" id="wGo">Look up</button> <span id="wMsg" class="muted"></span>
+      <div id="wOut"></div>
+    </div>
+  </section>
 </main></div>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -87,8 +98,22 @@ $("tok").onkeydown = (e) => { if (e.key === "Enter") $("go").click(); };
 $("out").onclick = () => { sessionStorage.removeItem("bm-admin"); location.reload(); };
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
-  ["overview", "reports", "news"].forEach((t) => $(t).classList.toggle("hidden", t !== b.dataset.tab));
+  ["overview", "reports", "news", "lookup"].forEach((t) => $(t).classList.toggle("hidden", t !== b.dataset.tab));
 });
+
+$("wGo").onclick = async () => {
+  const code = $("wCode").value.trim(), at = $("wAt").value ? new Date($("wAt").value).getTime() : Date.now();
+  if (code.replace(/\s/g, "").length < 16) { $("wMsg").textContent = "The code has 16 letters and numbers."; return; }
+  $("wMsg").textContent = "Looking…";
+  try {
+    const r = await api(`/v1/admin/watermark?code=${encodeURIComponent(code)}&at=${at}`);
+    $("wMsg").textContent = "";
+    const fmt = (id) => "BM " + id.toUpperCase().match(/.{4}/g).join(" ");
+    $("wOut").innerHTML = r.matches.length === 0 ? `<p>No match. Check the code (0/O and 1/I look alike) and the time.</p>`
+      : r.matches.map((m) => `<p><b>${esc(fmt(m.id))}</b> <span class="muted">· the hour starting ${esc(when(m.hour))}</span></p>`).join("") +
+        `<p class="muted">Use this ID in News (To:) to contact them, or with their reports.</p>`;
+  } catch (e) { $("wMsg").textContent = e.message === "token" ? "Sign in again." : "Couldn't reach the server."; }
+};
 
 async function loadOverview() {
   const s = await api("/v1/admin/stats");

@@ -137,6 +137,7 @@ fun ChatScreen(
     }
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        ChatWallpaper(myId, MaterialTheme.colorScheme.onBackground, Modifier.matchParentSize())
         Column(Modifier.fillMaxSize().imePadding()) {
             // Header
             Column(Modifier.background(MaterialTheme.colorScheme.surface).statusBarsPadding()) {

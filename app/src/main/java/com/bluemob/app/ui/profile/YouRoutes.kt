@@ -77,13 +77,14 @@ fun YouRoutes(route: Route.YouArea, s: Shell) {
                 // Turning it on asks Android once to let BlueMob run with Battery Saver on; turning it off never asks.
                 if (on && !s.system.keepsRunning) actions.askKeepRunning()
             })
-        Route.AutoStart -> AutoStartScreen(
+        Route.AutoStart, is Route.Power -> AutoStartScreen(
             vm.autoMesh.collectAsStateWithLifecycle().value, vm.bluetoothPolicy.collectAsStateWithLifecycle().value,
             vm.wifiPolicy.collectAsStateWithLifecycle().value, background, vm.shareLocation.collectAsStateWithLifecycle().value,
             s::pop, vm::setMeshAtStart, vm::setBluetoothPolicy, vm::setWifiPolicy, vm::setBackground, s.toggleLocation,
             running = vm.running.collectAsStateWithLifecycle().value, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
             keepsRunning = s.system.keepsRunning, onKeepRunning = actions.askKeepRunning,
             onConnections = { s.push(Route.Connections) }, onBatterySaver = actions.openBatterySaver,
+            batterySaver = s.system.batterySaver, highlight = (route as? Route.Power)?.highlight ?: "",
         )
         Route.Audit -> {
             val audit by vm.audit.collectAsStateWithLifecycle()

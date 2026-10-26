@@ -111,7 +111,9 @@ import com.bluemob.app.ui.nav.Tab
 import com.bluemob.app.ui.profile.YouRoutes
 import com.bluemob.app.ui.sos.SosRoutes
 
-data class SystemStatus(val permissionsGranted: Boolean, val locationServicesOff: Boolean, val keepsRunning: Boolean, val locationPermission: Boolean)
+data class SystemStatus(val permissionsGranted: Boolean, val locationServicesOff: Boolean, val keepsRunning: Boolean, val locationPermission: Boolean,
+    /** The phone's own Battery Saver is on. */
+    val batterySaver: Boolean = false)
 
 /** What the activity does for the UI: permission prompts and Android settings screens. */
 class SystemActions(
@@ -341,7 +343,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             background = vm.background.collectAsStateWithLifecycle().value,
                             onRequestPermissions = actions.requestMeshPermissions, onOpenLocationSettings = actions.openLocationSettings,
                             onShareLocation = { toggleLocation(true) }, onOpenChat = { push(Route.Chat(it)) },
-                            onTalkToSky = { push(Route.Chat(SkyBot.NODE_ID)) }, onOpenGuide = { tab = Tab.GUIDE }, onOpenBattery = { tab = Tab.YOU },
+                            onTalkToSky = { push(Route.Chat(SkyBot.NODE_ID)) }, onOpenGuide = { tab = Tab.GUIDE }, onOpenBattery = { push(Route.Power("battery")) },
+                            power = system.batterySaver to system.keepsRunning,
                             onConnections = { push(Route.Connections) }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push(Route.Games) },
                             onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
                             onCheckEveryone = { vm.checkOnEveryone() }, onClearCheck = vm::clearCheck,

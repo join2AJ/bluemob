@@ -96,6 +96,8 @@ fun NearbyScreen(
     onTalkToSky: () -> Unit,
     onOpenGuide: () -> Unit,
     onOpenBattery: () -> Unit,
+    /** How BlueMob and the phone's Battery Saver get on, for the battery card. */
+    power: Pair<Boolean, Boolean> = false to true,
     onConnections: () -> Unit = {},
     onFixRadio: (Radio) -> Unit = {},
     /** "Reachable when closed", shown with the radios. */
@@ -255,7 +257,7 @@ fun NearbyScreen(
                 FeatureCard(Icons.Outlined.SmartToy, Extra.sky, "Ask Sky", "Your built-in guide. Lives on your phone, works offline.", onTalkToSky)
                 FeatureCard(Icons.Outlined.MenuBook, Palette.Pine, "Survival guide", "First aid, water, fire, shelter and more. Stored on your phone.", onOpenGuide)
                 FeatureCard(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Play a game", "With someone nearby, or against the computer when no one's around.", onGames)
-                FeatureCard(Icons.Outlined.BatterySaver, Color(0xFF3A9A5B), "Make the battery last", "Battery Saver for the phone, while BlueMob keeps running.", onOpenBattery)
+                FeatureCard(Icons.Outlined.BatterySaver, Color(0xFF3A9A5B), "Make the battery last", powerNote(power.first, power.second), onOpenBattery)
             }
         }
         item {
@@ -350,4 +352,12 @@ private fun Notice(title: String, body: String, action: String, onAction: () -> 
             Button(onClick = onAction) { Text(action) }
         }
     }
+}
+
+/** The battery card's line: what's on, and what to do. [saver] is the phone's Battery Saver, [keeps] BlueMob allowed to keep running. */
+fun powerNote(saver: Boolean, keeps: Boolean): String = when {
+    saver && keeps -> "✓ Battery Saver on · BlueMob keeps running"
+    keeps -> "Battery Saver is off · tap to turn it on and last longer"
+    saver -> "⚠ Battery Saver may stop BlueMob · tap to allow it"
+    else -> "⚠ Android may stop BlueMob in the background · tap to allow it"
 }

@@ -54,6 +54,8 @@ sealed interface Route {
     data object Account : YouArea { override val key = "account" }
     data object Connections : YouArea { override val key = "connections" }
     data object AutoStart : YouArea { override val key = "autostart" }
+    /** Connections & power, scrolled to and highlighting one row ("battery"). */
+    data class Power(val highlight: String) : YouArea { override val key get() = "autostart:$highlight" }
     data object Audit : YouArea { override val key = "audit" }
     data object Badges : YouArea { override val key = "badges" }
     data object Activity : YouArea { override val key = "activity" }
@@ -76,7 +78,7 @@ sealed interface Route {
         private val withId: Map<String, (String) -> Route> = mapOf(
             "chat" to ::Chat, "group" to ::Group, "media" to ::Media, "photo" to ::Photo, "info" to ::Info,
             "article" to ::Article, "quiz" to ::Quiz, "rescue" to ::Rescue, "match" to ::Match, "game" to ::Game,
-            "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "sos-coming" to ::SosComing,
+            "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "autostart" to ::Power, "sos-coming" to ::SosComing,
         )
         private val plain: Map<String, Route> by lazy {
             listOf(NewChat, NewGroup, SkyAi, GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, Connections,

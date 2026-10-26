@@ -352,6 +352,27 @@ class Announcements {
 }
 
 /** Tells the team about something new (a report, an automatic error report), if ALERT_WEBHOOK is set: Slack, Discord, or any URL. */
+// ---- Chat watermark (see app chat/Watermark.kt): the hourly code in a chat screenshot gives back the BlueMob ID ----
+const WM_KEY = Buffer.from("bluemob-watermark-v1");
+const WM_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const wmMac = (text) => crypto.createHmac("sha256", WM_KEY).update(text).digest();
+function wmDecode(code, hour) {
+  const clean = String(code).toUpperCase().split("").filter((c) => WM_ALPHABET.includes(c));
+  const out = []; let buf = 0, bits = 0;
+  for (const c of clean) { buf = ((buf << 5) | WM_ALPHABET.indexOf(c)) & 0xffff; bits += 5; if (bits >= 8) { out.push((buf >> (bits - 8)) & 0xff); bits -= 8; } }
+  if (out.length < 10) return null;
+  const stream = wmMac(`stream|${hour}`);
+  const id = out.slice(0, 8).map((b, i) => (b ^ stream[i]).toString(16).padStart(2, "0")).join("");
+  const check = wmMac(`check|${id}|${hour}`).subarray(0, 2);
+  return check[0] === out[8] && check[1] === out[9] ? id : null;
+}
+/** Every BlueMob ID the code could belong to, trying the hours from 2 days before [at] to 2 hours after. */
+function watermarkLookup(code, at) {
+  const h0 = Math.floor(at / 3600e3), found = [];
+  for (let h = h0 - 48; h <= h0 + 2; h++) { const id = wmDecode(code, h); if (id) found.push({ id, hour: new Date(h * 3600e3).toISOString() }); }
+  return found;
+}
+
 function alertTeam(url, text) {
   if (!url || !/^https:\/\//.test(url)) return;
   try {
@@ -477,6 +498,11 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         "x-frame-options": "DENY", "referrer-policy": "no-referrer" });
       return res.end(fs.readFileSync(f, "utf8").replaceAll("{{EMAIL}}", contactEmail)
         .replaceAll("{{OFFICER}}", officer ? officer + ", " : ""));
+    }
+    if (req.method === "GET" && url.pathname === "/v1/admin/watermark") {
+      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      const at = Number(url.searchParams.get("at")) || Date.parse(url.searchParams.get("at") || "") || Date.now();
+      return send(res, 200, { matches: watermarkLookup(String(url.searchParams.get("code") || ""), at) });
     }
     if (req.method === "GET" && url.pathname === "/v1/admin/stats") {
       if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
@@ -650,7 +676,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
   });
 }
 
-module.exports = { createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
+module.exports = { wmDecode, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
