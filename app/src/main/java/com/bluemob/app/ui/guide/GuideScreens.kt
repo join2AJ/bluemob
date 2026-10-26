@@ -89,103 +89,10 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
         item { LargeTitle("Survival guide", over = "${dash.total} guides · stored on your phone, work offline") }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickCard("SOS", "Nearby now", Extra.rose, Color.White, Icons.Outlined.WarningAmber, Modifier.weight(1f), onSos)
-                QuickCard("I'm lost", "Stop, think, plan", Extra.emberTint, MaterialTheme.colorScheme.onSurface, Icons.Outlined.Explore, Modifier.weight(1f)) { onOpen("lost") }
-            }
-        }
-        // Sky lives here now: ask in your own words, it answers from these guides, offline.
-        item {
-            androidx.compose.material3.Surface(onClick = onAskSky, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(com.bluemob.app.bot.SkyBot.AVATAR, fontSize = 26.sp)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("Ask Sky", style = MaterialTheme.typography.titleSmall)
-                        Text("\"No water, what do I do?\" · answers from these guides, offline", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Text("›", color = Extra.ink3, fontSize = 20.sp)
-                }
-            }
-        }
-        // Dashboard: how much is here, what's new, what you've read.
-        item {
-            Group(Modifier.padding(top = 12.dp)) {
-                Column(Modifier.padding(14.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatTile("${dash.total}", "Guides", Modifier.weight(1f)) { category = null; savedOnly = false; newOnly = false }
-                        StatTile("${dash.downloaded}", if (dash.packs == 1) "From 1 pack" else "From ${dash.packs} packs", Modifier.weight(1f), onClick = onMore)
-                        StatTile("${dash.newCount}", "New today", Modifier.weight(1f), highlight = dash.newCount > 0) { newOnly = dash.newCount > 0; savedOnly = false; category = null }
-                        StatTile("${dash.saved}", "Saved", Modifier.weight(1f)) { savedOnly = true; newOnly = false; category = null }
-                    }
-                    Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Read ${dash.readCount} of ${dash.total}", style = MaterialTheme.typography.labelMedium, color = Extra.ink2, modifier = Modifier.width(110.dp))
-                        androidx.compose.material3.LinearProgressIndicator(progress = { dash.readShare }, modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)),
-                            trackColor = Extra.sand)
-                    }
-                    val days by com.bluemob.app.guide.GuidePacks.readDays.collectAsStateWithLifecycle()
-                    val quizzes by com.bluemob.app.guide.GuidePacks.quizzesPassed.collectAsStateWithLifecycle()
-                    val streak = com.bluemob.app.guide.Streak.of(days)
-                    Text((if (streak > 0) "🔥 $streak-day reading streak" else "Read a guide today to start a streak") + " · 🧠 ${quizzes.size} quiz${if (quizzes.size == 1) "" else "zes"} passed",
-                        style = MaterialTheme.typography.labelMedium, color = if (streak > 0) Extra.ember else Extra.ink3, modifier = Modifier.padding(top = 8.dp))
-                }
-            }
-        }
-        if (!filtering) {
-            dash.lastRead?.let { id -> all.firstOrNull { it.id == id } }?.let { a ->
-                item { GroupLabel("Continue reading") }
-                item { GuideRow(a, a.id in bookmarks, true, isNew(a.id)) { onOpen(a.id) } }
-            }
-            com.bluemob.app.guide.GuideDashboard.ofTheDay(all)?.let { a ->
-                item { GroupLabel("Guide of the day") }
-                item {
-                    Box(Modifier.fillMaxWidth().height(150.dp).clip(MaterialTheme.shapes.large).clickable { onOpen(a.id) }) {
-                        GuideArt(a.category, Modifier.fillMaxSize(), articleId = a.id)
-                        Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.45f)))).padding(14.dp)) {
-                            Text(a.title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("${a.category.label} · ${a.minutes} min", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f))
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            androidx.compose.material3.Surface(onClick = onMore, shape = MaterialTheme.shapes.large, color = Extra.pineTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("⬇️", fontSize = 22.sp)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("Download more guides", style = MaterialTheme.typography.titleSmall)
-                        Text(if (packs.isEmpty()) "Mountains, monsoon, heat, wildlife… for your trip" else "${packs.size} pack${if (packs.size == 1) "" else "s"} on this phone · get more",
-                            style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
-                    }
-                }
-            }
-        }
-        if (!filtering) {
-            item { GroupLabel("Topics") }
-            item {
-                // Three across, each with how many guides it has.
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GuideCategory.entries.chunked(3).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            row.forEach { c ->
-                                Column(Modifier.weight(1f).clip(MaterialTheme.shapes.medium).background(c.color.copy(alpha = 0.12f)).clickable { category = c; savedOnly = false; newOnly = false }.padding(12.dp)) {
-                                    Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(c.color), contentAlignment = Alignment.Center) {
-                                        Icon(c.icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                    }
-                                    Text(c.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp), maxLines = 1)
-                                    Text("${dash.byCategory[c] ?: 0} guides", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
-                                }
-                            }
-                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                        }
-                    }
-                }
-            }
-        }
+        // Search first: it's what people reach for in a hurry.
         item {
             Row(
-                Modifier.padding(top = 14.dp).fillMaxWidth().clip(MaterialTheme.shapes.small).background(Extra.sand).padding(horizontal = 12.dp, vertical = 11.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Extra.sand).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Outlined.Search, null, tint = Extra.ink3, modifier = Modifier.size(20.dp))
@@ -194,6 +101,70 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
                     if (query.isEmpty()) Text("Search bleeding, water, fire…", color = Extra.ink3, style = MaterialTheme.typography.bodyLarge)
                     BasicTextField(query, { query = it }, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+        if (!filtering) {
+            // Two quick ways in (SOS is always at the top of the screen).
+            item {
+                Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    QuickCard("I'm lost", "Stop, think, plan", Extra.emberTint, MaterialTheme.colorScheme.onSurface, Icons.Outlined.Explore, Modifier.weight(1f)) { onOpen("lost") }
+                    QuickCard("Ask Sky", "Answers offline", Extra.skyTint, MaterialTheme.colorScheme.onSurface, Icons.Outlined.Search, Modifier.weight(1f), onAskSky)
+                }
+            }
+            // Progress in one line.
+            item {
+                val days by com.bluemob.app.guide.GuidePacks.readDays.collectAsStateWithLifecycle()
+                val quizzes by com.bluemob.app.guide.GuidePacks.quizzesPassed.collectAsStateWithLifecycle()
+                val streak = com.bluemob.app.guide.Streak.of(days)
+                Column(Modifier.padding(top = 14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Read ${dash.readCount} of ${dash.total}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                        Text((if (streak > 0) "🔥 $streak  " else "") + "🧠 ${quizzes.size}" + (if (dash.saved > 0) "  ★ ${dash.saved}" else ""),
+                            style = MaterialTheme.typography.labelLarge, color = Extra.ember)
+                    }
+                    androidx.compose.material3.LinearProgressIndicator(progress = { dash.readShare }, modifier = Modifier.padding(top = 6.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                        trackColor = Extra.sand)
+                }
+            }
+            dash.lastRead?.let { id -> all.firstOrNull { it.id == id } }?.takeIf { it.id !in read || true }?.let { a ->
+                item { GroupLabel("Continue reading") }
+                item { GuideRow(a, a.id in bookmarks, true, isNew(a.id)) { onOpen(a.id) } }
+            }
+            com.bluemob.app.guide.GuideDashboard.ofTheDay(all)?.let { a ->
+                item { GroupLabel("Guide of the day") }
+                item {
+                    Box(Modifier.fillMaxWidth().height(120.dp).clip(MaterialTheme.shapes.large).clickable { onOpen(a.id) }) {
+                        GuideArt(a.category, Modifier.fillMaxSize(), articleId = a.id)
+                        Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f)))).padding(14.dp)) {
+                            Text(a.title, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("${a.category.label} · ${a.minutes} min", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f))
+                        }
+                    }
+                }
+            }
+            item { GroupLabel("Topics") }
+            item {
+                // Compact: icon, name and count, three across.
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GuideCategory.entries.chunked(3).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { c ->
+                                Row(Modifier.weight(1f).clip(MaterialTheme.shapes.medium).background(c.color.copy(alpha = 0.12f))
+                                    .clickable { category = c; savedOnly = false; newOnly = false }.padding(horizontal = 10.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).background(c.color), contentAlignment = Alignment.Center) {
+                                        Icon(c.icon, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    }
+                                    Column(Modifier.padding(start = 8.dp)) {
+                                        Text(c.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text("${dash.byCategory[c] ?: 0}", style = MaterialTheme.typography.labelSmall, color = Extra.ink2)
+                                    }
+                                }
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
                 }
             }
         }
@@ -224,6 +195,15 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
         }
         if (list.isEmpty()) item { Text("Nothing found. Try a simpler word.", color = Extra.ink2, modifier = Modifier.padding(24.dp)) }
         item {
+            Row(Modifier.padding(top = 16.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onMore).padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("⬇️", fontSize = 18.sp)
+                Text(if (packs.isEmpty()) "Download more guides for your trip" else "${packs.size} pack${if (packs.size == 1) "" else "s"} on this phone · download more",
+                    style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 10.dp).weight(1f))
+                Text("›", color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        item {
             Text("General guidance, not a substitute for trained medical help. Reach emergency services whenever you can.",
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 20.dp))
         }
@@ -248,15 +228,6 @@ private fun GuideRow(a: Article, saved: Boolean, read: Boolean, new: Boolean, on
             Text((if (saved) "★ " else "") + "${a.minutes} min", style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
             if (read) Text("✓ read", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
-    }
-}
-
-@Composable
-private fun StatTile(value: String, label: String, modifier: Modifier, highlight: Boolean = false, onClick: () -> Unit) {
-    Column(modifier.clip(MaterialTheme.shapes.medium).background(if (highlight) Extra.rose.copy(alpha = 0.12f) else Extra.sand).clickable(onClick = onClick).padding(vertical = 10.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.titleLarge, color = if (highlight) Extra.rose else MaterialTheme.colorScheme.onSurface)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Extra.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

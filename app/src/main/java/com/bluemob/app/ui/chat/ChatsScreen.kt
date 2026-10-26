@@ -156,11 +156,16 @@ fun ChatsScreen(
         rescues.filter { !it.ended }.takeIf { it.isNotEmpty() && query.isBlank() }?.let { live ->
             item { LiveRescueBanner(live.size) { onOpenRescue(if (live.size == 1) live.first().id else "") } }
         }
+        // New chat only: new groups and rescues live in the Groups tab.
         if (query.isBlank()) item {
-            Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                QuickAction("✉️", "New chat", Extra.pineTint, Modifier.weight(1f), onNewChat)
-                QuickAction("👥", "New group", Extra.skyTint, Modifier.weight(1f), onNewGroup)
-                QuickAction("🛟", "Rescues", Extra.emberTint, Modifier.weight(1f)) { onOpenRescue("") }
+            Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.pineTint)
+                .clickable(onClick = onNewChat).padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("✉️", fontSize = 20.sp)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("New chat", style = MaterialTheme.typography.titleSmall)
+                    Text("Message anyone by BlueMob ID, even far away", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                }
+                Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             }
         }
         if (onlineNow.isNotEmpty() && query.isBlank()) {
@@ -322,19 +327,17 @@ private fun CallsList(calls: List<com.bluemob.app.data.CallLogEntry>, people: Li
         item { LargeTitle("Calls", modifier = Modifier.padding(horizontal = Space.lg)) }
         item { ChatsCallsTabs(ChatsTab.CALLS, missedToday, onTab) }
         if (calls.isNotEmpty()) item {
-            Column(Modifier.padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LazyRow(contentPadding = PaddingValues(horizontal = Space.lg), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterBar(query, { query = it }, "Search by name",
+                    listOf(FilterMenu(if (period == Period.ANY) "📅" else period.label, Period.entries.map { it.label to (it == period) }) { period = Period.entries[it] }),
+                    Modifier.padding(horizontal = Space.lg))
+                LazyRow(contentPadding = PaddingValues(horizontal = Space.lg), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(CallKind.entries.toList()) { k ->
                         val n = calls.count { k.matches(it) && period.matches(it.startedAt, now) }
-                        Chip("${k.label} $n", kind == k) { kind = k }
+                        Chip(if (n > 0 && k != CallKind.ALL) "${k.label} · $n" else k.label, kind == k) { kind = k }
                     }
                 }
-                LazyRow(contentPadding = PaddingValues(horizontal = Space.lg), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(Period.entries.toList()) { p -> Chip(p.label, period == p) { period = p } }
-                }
-                androidx.compose.material3.OutlinedTextField(query, { query = it }, placeholder = { Text("Search by name") }, singleLine = true,
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) }, modifier = Modifier.padding(horizontal = Space.lg).fillMaxWidth(), textStyle = MaterialTheme.typography.bodyMedium)
-                Text("${shown.size} calls · talk time ${CallFilter.talkTime(shown)}", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(horizontal = Space.lg))
+                Text("${shown.size} calls · talk time ${CallFilter.talkTime(shown)}", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(horizontal = Space.lg))
             }
         }
         if (calls.isEmpty()) item {

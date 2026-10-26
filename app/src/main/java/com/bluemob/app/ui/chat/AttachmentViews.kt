@@ -201,26 +201,20 @@ fun androidx.compose.foundation.lazy.LazyListScope.fileBrowser(
     val counts = all.groupingBy { it.att.kind }.eachCount()
     item {
         Column(side, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val tabs = listOf("all" to "All ${all.size}", "photo" to "Photos ${counts[AttKind.IMAGE] ?: 0}", "video" to "Videos ${counts[AttKind.VIDEO] ?: 0}",
-                    "doc" to "Documents ${counts[AttKind.DOC] ?: 0}", "voice" to "Voice ${counts[AttKind.AUDIO] ?: 0}")
-                items(tabs) { (k, label) -> Chip(label, state.kind == k) { state.kind = k; state.ext = null } }
-            }
-            if (exts.size > 1) androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(exts) { (e, n) -> Chip("${e.uppercase()} $n", state.ext == e) { state.ext = if (state.ext == e) null else e } }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                androidx.compose.material3.OutlinedTextField(state.query, { state.query = it }, placeholder = { Text("Search file names") }, singleLine = true,
-                    modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodyMedium)
-                var open by remember { mutableStateOf(false) }
-                Box(Modifier.padding(start = 8.dp)) {
-                    Chip("⇅ ${state.sort.label}", true) { open = true }
-                    androidx.compose.material3.DropdownMenu(open, { open = false }) {
-                        FileSort.entries.forEach { s -> androidx.compose.material3.DropdownMenuItem(text = { Text(s.label) }, onClick = { state.sort = s; open = false }) }
-                    }
+            FilterBar(state.query, { state.query = it }, "Search file names", listOfNotNull(
+                FilterMenu("⇅", FileSort.entries.map { it.label to (it == state.sort) }) { state.sort = FileSort.entries[it] },
+                if (exts.size > 1) FilterMenu(state.ext?.uppercase() ?: "Format", listOf("All formats" to (state.ext == null)) + exts.map { (e, n) -> "${e.uppercase()} · $n" to (state.ext == e) }) { i ->
+                    state.ext = if (i == 0) null else exts[i - 1].first
+                } else null,
+            ))
+            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val tabs = listOf("all" to "All", "photo" to "📷 Photos", "video" to "🎬 Videos", "doc" to "📄 Documents", "voice" to "🎤 Voice")
+                val n = mapOf("all" to all.size, "photo" to (counts[AttKind.IMAGE] ?: 0), "video" to (counts[AttKind.VIDEO] ?: 0), "doc" to (counts[AttKind.DOC] ?: 0), "voice" to (counts[AttKind.AUDIO] ?: 0))
+                items(tabs.filter { (k, _) -> k == "all" || (n[k] ?: 0) > 0 || state.kind == k }) { (k, label) ->
+                    Chip(if (k == "all") label else "$label · ${n[k]}", state.kind == k) { state.kind = k; state.ext = null }
                 }
             }
-            if (all.isNotEmpty()) Text("${shown.size} of ${all.size} · ${Attachment.sizeText(shown.sumOf { it.att.size })}", style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
+            if (all.isNotEmpty()) Text("${shown.size} of ${all.size} · ${Attachment.sizeText(shown.sumOf { it.att.size })}", style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
         }
     }
     if (shown.isEmpty()) item {
