@@ -221,7 +221,7 @@ fun BadgesScreen(p: GameProgress, onBack: () -> Unit) {
 private fun LevelCard(p: GameProgress) {
     val span = (p.levelEnd - p.levelStart).coerceAtLeast(1)
     val into = p.xp - p.levelStart
-    val fill = remember { Animatable(0f) }
+    val fill = remember { Animatable(into.toFloat() / span) }
     LaunchedEffect(p.xp) { fill.animateTo(into.toFloat() / span, tween(900)) }
     Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(RoundedCornerShape(24.dp))
         .background(Brush.linearGradient(listOf(Color(0xFF1C7FD6), Color(0xFF7B4DDB), Color(0xFFFF7A3D)))).padding(18.dp)) {

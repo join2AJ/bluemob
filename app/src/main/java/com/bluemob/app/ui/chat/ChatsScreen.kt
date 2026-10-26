@@ -92,14 +92,18 @@ fun ChatsScreen(
     /** Missed calls since the Calls list was last opened: the red badge. */
     callsSeenAt: Long = 0L,
     onCallsSeen: () -> Unit = {},
+    /** Which list shows first (previews start on another). */
+    startTab: ChatsTab = ChatsTab.CHATS,
     onOpen: (String) -> Unit,
 ) {
-    var tab by rememberSaveable { mutableStateOf(ChatsTab.CHATS) }
+    var tab by rememberSaveable { mutableStateOf(startTab) }
     val missedToday = calls.count { !it.outgoing && it.outcome == "MISSED" && it.startedAt > callsSeenAt }
     if (tab == ChatsTab.CALLS) LaunchedEffect(calls.size) { onCallsSeen() }
     when (tab) {
         ChatsTab.CALLS -> { CallsList(calls, people, contentPadding, missedToday, onTab = { tab = it }, onCallBack = onCallBack, onClear = onClearCalls, onDelete = onDeleteCall); return }
         ChatsTab.FILES -> { FilesList(conversations, people, contentPadding, missedToday, onTab = { tab = it }, filesFor = filesFor); return }
+        ChatsTab.GROUPS -> { GroupsList(groups, conversations, typing, rescues, pinned, contentPadding, missedToday, onTab = { tab = it }, onNewGroup = onNewGroup,
+            onOpenRescue = onOpenRescue, onLeave = onLeaveGroup, onPin = onPin, onOpen = onOpen); return }
         ChatsTab.CHATS -> Unit
     }
     var query by rememberSaveable { mutableStateOf("") }
@@ -120,7 +124,6 @@ fun ChatsScreen(
         if (conversations[SkyBot.NODE_ID].orEmpty().isNotEmpty()) add(Entry(SkyBot.NODE_ID, SkyBot.NAME, SkyBot.AVATAR, Presence.ONLINE, false, "Lives on your phone · works offline", true))
         people.forEach { add(Entry(it.nodeId, it.name, it.avatar, it.presence, it.sharesName, statusLine(it), false, pinned = it.nodeId in pinned,
             online = it.presence == Presence.ONLINE || it.reach != null)) }
-        groups.forEach { g -> add(Entry(g.id, g.name, "👥", Presence.OFFLINE, false, "${g.members.size + 1} members", false, isGroup = true, pinned = g.id in pinned)) }
     }.sortedWith(compareByDescending<Entry> { it.pinned }.thenByDescending { lastTime(it.id) }).filter { e ->
         val msgs = conversations[e.id].orEmpty()
         (query.isBlank() || e.name.contains(query.trim(), ignoreCase = true)) && when (filter) {
@@ -149,48 +152,15 @@ fun ChatsScreen(
                 }
             }
         }
-        item {
-            androidx.compose.material3.Surface(onClick = onNewChat, shape = MaterialTheme.shapes.large, color = Extra.pineTint,
-                modifier = Modifier.padding(start = Space.lg, end = Space.lg, top = 14.dp).fillMaxWidth()) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("✉️", fontSize = 22.sp)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("Message anyone by BlueMob ID", style = MaterialTheme.typography.titleMedium)
-                        Text("Even if they're not nearby. Share your own ID too", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
-                    }
-                    Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                }
-            }
+        // A rescue happening now always shows first.
+        rescues.filter { !it.ended }.takeIf { it.isNotEmpty() && query.isBlank() }?.let { live ->
+            item { LiveRescueBanner(live.size) { onOpenRescue(if (live.size == 1) live.first().id else "") } }
         }
         if (query.isBlank()) item {
-            androidx.compose.material3.Surface(onClick = onNewGroup, shape = MaterialTheme.shapes.large, color = Extra.skyTint,
-                modifier = Modifier.padding(start = Space.lg, end = Space.lg, top = 10.dp).fillMaxWidth()) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("👥", fontSize = 22.sp)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("New group", style = MaterialTheme.typography.titleMedium)
-                        Text("Family, friends, a trek team: everyone in one chat, even with no signal", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
-                    }
-                    Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
-        // All rescues in one box: the ones you asked for and the ones you helped, open or ended.
-        if (rescues.isNotEmpty() && query.isBlank()) item {
-            val active = rescues.count { !it.ended }
-            val asked = rescues.count { it.mine }
-            val helped = rescues.count { !it.mine && it.iAmIn }
-            Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                .background(if (active > 0) Extra.rose.copy(alpha = 0.14f) else Extra.sand).clickable { onOpenRescue("") }.padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (active > 0) Extra.rose else Extra.sand2), contentAlignment = Alignment.Center) {
-                    Text("🆘", fontSize = 22.sp)
-                }
-                Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                    Text("Rescues" + if (active > 0) " · $active active" else "", style = MaterialTheme.typography.titleMedium)
-                    Text("You asked for help $asked × · you helped $helped ×", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
-                }
-                Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuickAction("✉️", "New chat", Extra.pineTint, Modifier.weight(1f), onNewChat)
+                QuickAction("👥", "New group", Extra.skyTint, Modifier.weight(1f), onNewGroup)
+                QuickAction("🛟", "Rescues", Extra.emberTint, Modifier.weight(1f)) { onOpenRescue("") }
             }
         }
         if (onlineNow.isNotEmpty() && query.isBlank()) {
@@ -301,13 +271,13 @@ private fun highlight(text: String, q: String, color: androidx.compose.ui.graphi
 }
 
 /** "Chats | Calls" switch at the top of the Chats tab. [missed] is today's missed calls. */
-enum class ChatsTab(val label: String) { CHATS("Chats"), CALLS("Calls"), FILES("Files") }
+enum class ChatsTab(val label: String) { CHATS("Chats"), GROUPS("Groups"), CALLS("Calls"), FILES("Files") }
 
 @Composable
 private fun ChatsCallsTabs(current: ChatsTab, missed: Int, onTab: (ChatsTab) -> Unit) {
     Row(Modifier.padding(horizontal = Space.lg).padding(bottom = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Extra.sand).padding(4.dp)) {
         ChatsTab.entries.forEach { t ->
-            val label = if (t == ChatsTab.CALLS && missed > 0 && current != ChatsTab.CALLS) "Calls · $missed missed" else t.label
+            val label = if (t == ChatsTab.CALLS && missed > 0 && current != ChatsTab.CALLS) "Calls · $missed" else t.label
             Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (current == t) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent)
                 .clickable { onTab(t) }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
                 Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1,
@@ -441,5 +411,89 @@ private fun callTime(at: Long): String {
             java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR) -> "Today $time"
         now - at < 2 * day -> "Yesterday $time"
         else -> SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(java.util.Date(at))
+    }
+}
+
+/** A small coloured button: emoji over a label. */
+@Composable
+private fun QuickAction(emoji: String, label: String, bg: androidx.compose.ui.graphics.Color, modifier: Modifier, onClick: () -> Unit) {
+    Column(modifier.clip(RoundedCornerShape(16.dp)).background(bg).clickable(onClick = onClick).padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(emoji, fontSize = 22.sp)
+        Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+/** Red, at the top: a rescue is happening now. */
+@Composable
+private fun LiveRescueBanner(count: Int, onClick: () -> Unit) {
+    Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 4.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(androidx.compose.ui.graphics.Color(0xFFD63A3F))
+        .clickable(onClick = onClick).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("🆘", fontSize = 22.sp)
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(if (count == 1) "A rescue is happening now" else "$count rescues happening now", style = MaterialTheme.typography.titleMedium,
+                color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold)
+            Text("Tap to see who's coming and chat", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f))
+        }
+        Text("›", style = MaterialTheme.typography.titleLarge, color = androidx.compose.ui.graphics.Color.White)
+    }
+}
+
+/** Groups you're in, rescue groups happening now, and a link to every rescue. */
+@Composable
+private fun GroupsList(
+    groups: List<com.bluemob.app.chat.ChatGroup>, conversations: Map<String, List<MessageEntity>>, typing: Set<String>,
+    rescues: List<com.bluemob.app.rescue.RescueRoom>, pinned: Set<String>, contentPadding: PaddingValues, missed: Int,
+    onTab: (ChatsTab) -> Unit, onNewGroup: () -> Unit, onOpenRescue: (String) -> Unit, onLeave: (String) -> Unit, onPin: (String, Boolean) -> Unit, onOpen: (String) -> Unit,
+) {
+    androidx.activity.compose.BackHandler { onTab(ChatsTab.CHATS) }
+    var leaving by remember { mutableStateOf<com.bluemob.app.chat.ChatGroup?>(null) }
+    leaving?.let { g ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { leaving = null },
+            title = { Text("Leave ${g.name}?") },
+            text = { Text("The others are told you left, and the group's messages are deleted from this phone.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { onLeave(g.id); leaving = null }) { Text("Leave", color = Extra.rose) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { leaving = null }) { Text("Keep") } },
+        )
+    }
+    val lastTime = { id: String -> conversations[id]?.lastOrNull()?.createdAt ?: 0L }
+    val sorted = groups.sortedWith(compareByDescending<com.bluemob.app.chat.ChatGroup> { it.id in pinned }.thenByDescending { lastTime(it.id) })
+    val live = rescues.filter { !it.ended }.sortedByDescending { it.startedAt }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
+        item { LargeTitle("Groups", modifier = Modifier.padding(horizontal = Space.lg)) }
+        item { ChatsCallsTabs(ChatsTab.GROUPS, missed, onTab) }
+        if (live.isNotEmpty()) {
+            item { Text("RESCUE GROUPS · NOW", style = MaterialTheme.typography.labelSmall, color = Extra.rose, modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 8.dp)) }
+            items(live, key = { "r-" + it.id }) { r ->
+                Row(Modifier.padding(horizontal = Space.lg, vertical = 4.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.rose.copy(alpha = 0.12f))
+                    .clickable { onOpenRescue(r.id) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color(0xFFD63A3F)), contentAlignment = Alignment.Center) { Text("🆘", fontSize = 20.sp) }
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text(if (r.mine) "Your SOS" else "Helping ${r.victimName}", style = MaterialTheme.typography.titleMedium)
+                        Text("${r.coming.size} coming · " + (r.chat.lastOrNull()?.let { (if (it.fromNodeId.isNotBlank()) it.fromName + ": " else "") + it.text } ?: "no messages yet"),
+                            style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+        item {
+            Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                QuickAction("👥", "New group", Extra.skyTint, Modifier.weight(1f), onNewGroup)
+                QuickAction("🛟", "All rescues · ${rescues.size}", Extra.emberTint, Modifier.weight(1f)) { onOpenRescue("") }
+            }
+        }
+        item { Text("YOUR GROUPS · ${groups.size}", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
+        if (groups.isEmpty()) item {
+            Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("👨‍👩‍👧‍👦", fontSize = 44.sp)
+                Text("Family, friends, a trek team: everyone in one chat, even with no signal", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
+        itemsIndexed(sorted, key = { _, g -> g.id }) { i, g ->
+            if (i > 0) InsetDivider()
+            ChatRow(Entry(g.id, g.name, "👥", Presence.OFFLINE, false, "${g.members.size + 1} members", false, isGroup = true, pinned = g.id in pinned),
+                conversations[g.id].orEmpty(), g.id in typing, onDelete = { leaving = g }, onPin = { onPin(g.id, g.id !in pinned) }) { onOpen(g.id) }
+        }
     }
 }

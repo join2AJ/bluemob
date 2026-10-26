@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -435,43 +436,115 @@ private fun RateRescue(room: RescueRoom, myId: String, rated: Set<String>, actio
 }
 
 
-/** Every rescue on this phone, in two lists: when you asked for help, and when you helped. Newest first. */
+/** Every rescue on this phone: a summary, then a timeline by month. Live ones first, then newest. */
 @Composable
 fun RescuesScreen(rescues: List<com.bluemob.app.rescue.RescueRoom>, onBack: () -> Unit, onOpen: (String) -> Unit, mySosId: String? = null) {
-    // Ongoing: our own SOS that's on right now, or one we're on the way to (or at) that hasn't ended. These go first.
     val now = System.currentTimeMillis()
+    // Ongoing: our own SOS that's on right now, or one we're on the way to (or at) that hasn't ended.
     val ongoing = { r: com.bluemob.app.rescue.RescueRoom ->
         !r.ended && (if (r.mine) r.id == mySosId else (r.myStatus == HelperStatus.COMING || r.myStatus == HelperStatus.ARRIVED) && now - r.startedAt < 24 * 3_600_000L)
     }
+    var filter by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) } // 0 all, 1 asked, 2 helped
+    val asked = rescues.count { it.mine }
+    val helped = rescues.count { !it.mine }
+    val shown = rescues.filter { filter == 0 || (filter == 1) == it.mine }
+        .sortedWith(compareByDescending<com.bluemob.app.rescue.RescueRoom> { ongoing(it) }.thenByDescending { it.startedAt })
+    val month = java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.getDefault())
     com.bluemob.app.ui.components.SubScreen("Rescues", onBack) {
-        val asked = rescues.filter { it.mine }.sortedWith(compareByDescending<com.bluemob.app.rescue.RescueRoom> { ongoing(it) }.thenByDescending { it.startedAt })
-        val helped = rescues.filter { !it.mine }.sortedWith(compareByDescending<com.bluemob.app.rescue.RescueRoom> { ongoing(it) }.thenByDescending { it.startedAt })
-        if (rescues.isEmpty()) item { Text("No rescues yet.", color = Extra.ink2, modifier = Modifier.padding(top = 16.dp)) }
-        listOf("You asked for help" to asked, "You helped" to helped).forEach { (label, list) ->
-            if (list.isNotEmpty()) {
-                item { com.bluemob.app.ui.components.GroupLabel("$label · ${list.size}") }
-                list.forEach { r ->
-                    item(key = r.id) {
-                        val live = ongoing(r)
-                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(16.dp))
-                            .background(if (live) Extra.rose.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
-                            .then(if (live) Modifier.border(1.5.dp, Extra.rose, RoundedCornerShape(16.dp)) else Modifier)
-                            .clickable { onOpen(r.id) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (r.ended) "✅" else "🆘", fontSize = 24.sp)
-                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (r.mine) "Your SOS" + (r.note.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") else "Helping ${r.victimName}",
-                                        style = MaterialTheme.typography.titleMedium, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
-                                    if (live) Text("ONGOING", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(6.dp)).background(Extra.rose).padding(horizontal = 7.dp, vertical = 2.dp))
-                                }
-                                Text(rescueStamp(r.startedAt) + " · " + (if (r.ended) "ended" else if (live) "happening now" else "no news") + " · ${r.coming.size} came to help",
-                                    style = MaterialTheme.typography.bodySmall, color = if (live) Extra.rose else Extra.ink2)
-                            }
-                        }
+        if (rescues.isEmpty()) {
+            item {
+                Column(Modifier.fillMaxWidth().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🛟", fontSize = 56.sp)
+                    Text("No rescues yet", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
+                    Text("When you send an SOS, or go to help someone, it's kept here with who came and what was said.",
+                        style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+            return@SubScreen
+        }
+        item { RescueSummary(asked, helped, rescues.filter { it.mine }.sumOf { it.coming.size }, rescues.count { ongoing(it) }) }
+        item {
+            Row(Modifier.padding(vertical = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Extra.sand).padding(4.dp)) {
+                listOf("All · ${rescues.size}", "Asked · $asked", "Helped · $helped").forEachIndexed { i, l ->
+                    Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (filter == i) MaterialTheme.colorScheme.surface else Color.Transparent)
+                        .clickable { filter = i }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Text(l, style = MaterialTheme.typography.labelLarge, fontWeight = if (filter == i) FontWeight.Bold else FontWeight.Normal)
                     }
+                }
+            }
+        }
+        var lastMonth = ""
+        shown.forEachIndexed { idx, r ->
+            val live = ongoing(r)
+            val m = if (live) "Happening now" else month.format(java.util.Date(r.startedAt))
+            if (m != lastMonth) { lastMonth = m; item(key = "m-$m") { com.bluemob.app.ui.components.GroupLabel(m) } }
+            item(key = r.id) { RescueTimelineCard(r, live, last = idx == shown.lastIndex || (shown.getOrNull(idx + 1)?.let { n -> month.format(java.util.Date(n.startedAt)) != m } ?: true)) { onOpen(r.id) } }
+        }
+    }
+}
+
+/** The numbers at the top: asked, helped, people who came, live now. */
+@Composable
+private fun RescueSummary(asked: Int, helped: Int, cameForYou: Int, live: Int) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(RoundedCornerShape(24.dp))
+        .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFE5484D), Color(0xFFF59E0B)))).padding(18.dp)) {
+        Text(if (live > 0) "🔴 $live happening now" else "Your rescue record", style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.Bold)
+        Row(Modifier.padding(top = 10.dp).fillMaxWidth()) {
+            listOf(Triple("$asked", "times you\nasked for help", "🆘"), Triple("$helped", "times you\nwent to help", "🏃"), Triple("$cameForYou", "people came\nfor you", "🤝")).forEach { (n, l, e) ->
+                Column(Modifier.weight(1f)) {
+                    Text("$e $n", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                    Text(l, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.9f))
                 }
             }
         }
     }
 }
+
+/** One rescue on the timeline: a dot and line on the left, the card on the right. */
+@Composable
+private fun RescueTimelineCard(r: com.bluemob.app.rescue.RescueRoom, live: Boolean, last: Boolean, onClick: () -> Unit) {
+    val accent = when { live -> Extra.rose; r.mine -> Color(0xFFE5484D); else -> Color(0xFF12A97A) }
+    val time = java.text.SimpleDateFormat("EEE d MMM · HH:mm", java.util.Locale.getDefault()).format(java.util.Date(r.startedAt))
+    val endAt = r.chat.lastOrNull()?.at ?: r.lastNews
+    val lasted = ((endAt - r.startedAt) / 60_000L).takeIf { r.ended && it in 1..(48 * 60) }
+    val messages = r.chat.count { it.kind == com.bluemob.app.rescue.RescueRoom.TEXT }
+    Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+        // The timeline.
+        Box(Modifier.width(28.dp).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+            if (!last) Box(Modifier.padding(top = 18.dp).width(2.dp).fillMaxHeight().background(Extra.line))
+            Box(Modifier.padding(top = 12.dp).size(14.dp).clip(CircleShape).background(accent).border(3.dp, MaterialTheme.colorScheme.background, CircleShape))
+        }
+        Column(Modifier.weight(1f).padding(bottom = 12.dp).clip(RoundedCornerShape(18.dp))
+            .background(if (live) Extra.rose.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
+            .then(if (live) Modifier.border(1.5.dp, Extra.rose, RoundedCornerShape(18.dp)) else Modifier)
+            .clickable(onClick = onClick).padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(40.dp).clip(CircleShape).background(accent.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+                    Text(if (r.mine) "🆘" else "🏃", fontSize = 20.sp)
+                }
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text(if (r.mine) "You asked for help" else "You helped ${r.victimName}", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    Text(time, style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                }
+                StatusPill(when { live -> "LIVE"; r.ended -> "ENDED"; else -> "NO NEWS" }, when { live -> Extra.rose; r.ended -> Color(0xFF12A97A); else -> Extra.ink3 })
+            }
+            if (r.note.isNotBlank()) Text("“${r.note}”", style = MaterialTheme.typography.bodyMedium, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                maxLines = 2, modifier = Modifier.padding(top = 8.dp))
+            Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                InfoChip(if (r.coming.isEmpty()) "Nobody came" else "🤝 ${r.coming.size} came", if (r.coming.isEmpty()) Extra.ink3 else Color(0xFF12A97A))
+                if (messages > 0) InfoChip("💬 $messages", Extra.sky)
+                lasted?.let { InfoChip("⏱ ${if (it < 60) "$it min" else "${it / 60} h ${it % 60} min"}", Extra.ember) }
+            }
+            if (r.coming.isNotEmpty()) Text(r.coming.take(4).joinToString(", ") { it.name } + if (r.coming.size > 4) " +${r.coming.size - 4}" else "",
+                style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+@Composable
+private fun StatusPill(text: String, color: Color) = Text(text, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = color,
+    modifier = Modifier.clip(RoundedCornerShape(50)).background(color.copy(alpha = 0.14f)).padding(horizontal = 8.dp, vertical = 3.dp))
+
+@Composable
+private fun InfoChip(text: String, color: Color) = Text(text, style = MaterialTheme.typography.labelMedium, color = color,
+    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(color.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 4.dp))

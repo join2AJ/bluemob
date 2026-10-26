@@ -36,6 +36,27 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.30: new Chats, Rescues and Activity designs; emergency card fixed
+
+- **Emergency card on the lock screen now shows.** Android 13 and newer hide "silent" notifications from the lock
+  screen, so the card moved to a normal (still silent) channel.
+- **Chats:**
+  - tabs are Chats, Groups, Calls and Files;
+  - New chat, New group and Rescues are three small buttons;
+  - a rescue happening now shows as a red banner on top;
+  - Groups has its own tab, with live rescue groups first.
+- **Rescues:**
+  - a summary of how often you asked, helped, and how many came for you;
+  - All, Asked and Helped filters;
+  - a timeline by month with status, who came, messages and how long it lasted.
+- **Your activity:**
+  - a headline card with the change from the period before;
+  - trend lines;
+  - bars you can tap, with day names;
+  - rings for how messages travelled and time per part of the app;
+  - a weekday × hour heat map;
+  - swipeable insight cards.
+
 ## Android 0.29: Hindi, power button SOS, verified contacts, badges as a game
 
 - **हिन्दी:** You → Language → हिन्दी (or Auto, to follow the phone). About 1,400 phrases on every screen are translated.

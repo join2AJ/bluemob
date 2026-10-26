@@ -552,7 +552,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
 
 /** Main tabs: a top bar with the SOS button, content, and a tab bar docked to the bottom. */
 @Composable
-private fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit, content: @Composable (PaddingValues) -> Unit) {
+internal fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit, content: @Composable (PaddingValues) -> Unit) {
     val barHeight = 52.dp
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Column(Modifier.fillMaxSize()) {
