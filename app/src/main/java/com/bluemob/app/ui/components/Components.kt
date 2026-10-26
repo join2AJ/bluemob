@@ -33,6 +33,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -125,8 +129,10 @@ fun Chip(text: String, selected: Boolean = false, onClick: () -> Unit) {
 /** Uppercase section label above a group. */
 @Composable
 fun GroupLabel(text: String, modifier: Modifier = Modifier) {
+    // Shown in capitals, read normally; a heading, so screen-reader users can jump between sections.
     Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = Extra.ink3,
-        modifier = modifier.padding(start = 12.dp, top = Space.xl, bottom = Space.sm))
+        modifier = modifier.padding(start = 12.dp, top = Space.xl, bottom = Space.sm)
+            .semantics { heading(); contentDescription = text })
 }
 
 /** A white rounded group of rows, like Signal's settings. Put [SettingRow]s inside. */
@@ -153,7 +159,8 @@ fun SettingRow(
     Column {
         if (divider) HorizontalDivider(Modifier.padding(start = 62.dp), color = Extra.line)
         Row(
-            Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            // One item for screen readers: the title, the subtitle and whatever is on the right (a switch, an arrow).
+            Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick, role = Role.Button) else Modifier.semantics(mergeDescendants = true) {})
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -177,7 +184,7 @@ fun SettingRow(
 fun LargeTitle(title: String, over: String? = null, modifier: Modifier = Modifier) {
     Column(modifier.padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = Space.lg)) {
         if (over != null) Text(over, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
-        Text(title, style = MaterialTheme.typography.displaySmall)
+        Text(title, style = MaterialTheme.typography.displaySmall, modifier = Modifier.semantics { heading() })
     }
 }
 
@@ -188,7 +195,8 @@ fun SosPill(onClick: () -> Unit) {
         "SOS",
         color = Color.White,
         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp),
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(Extra.rose).clickable(onClick = onClick)
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(Extra.rose).clickable(onClick = onClick, role = Role.Button)
+            .semantics { contentDescription = "SOS: ask for help" }
             .padding(horizontal = 14.dp, vertical = 7.dp),
     )
 }
@@ -196,7 +204,7 @@ fun SosPill(onClick: () -> Unit) {
 @Composable
 fun SectionHeader(title: String, action: String? = null, onAction: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = Space.xl, bottom = Space.sm), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
         if (action != null && onAction != null) {
             Text(action, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onAction).padding(8.dp))

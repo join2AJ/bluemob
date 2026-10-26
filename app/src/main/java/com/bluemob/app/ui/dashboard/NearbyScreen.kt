@@ -188,9 +188,11 @@ fun NearbyScreen(
                     Stat("$inRange", "in range"); Spacer(Modifier.width(14.dp))
                     Stat("${list.count { it.presence == Presence.OFFLINE && it.reach != null }}", "internet"); Spacer(Modifier.width(14.dp))
                     Stat("${list.size}", "met")
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.width(10.dp))
+                    // Takes only the room left, so large text wraps instead of running over the numbers.
                     Text(if (state.sharingLocation && state.hasMyFix) "nearby ring:\nby distance" else "",
-                        color = Color(0xFFEAF5F0).copy(alpha = 0.6f), style = MaterialTheme.typography.bodySmall)
+                        color = Color(0xFFEAF5F0).copy(alpha = 0.6f), style = MaterialTheme.typography.bodySmall,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.weight(1f))
                 }
             }
         }

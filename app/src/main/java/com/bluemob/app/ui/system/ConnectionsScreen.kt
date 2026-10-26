@@ -2,6 +2,7 @@ package com.bluemob.app.ui.system
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -108,7 +109,8 @@ fun ConnectionsScreen(state: RadioState, online: Boolean, onBack: () -> Unit, on
             item {
                 Group {
                     Column {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                        Row(Modifier.fillMaxWidth().toggleable(background, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = onBackground)
+                            .padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
                             Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(if (background) Palette.Pine else Extra.ink3), contentAlignment = Alignment.Center) {
                                 Icon(Icons.Outlined.Sync, null, tint = Color.White, modifier = Modifier.size(19.dp))
                             }
@@ -122,7 +124,7 @@ fun ConnectionsScreen(state: RadioState, online: Boolean, onBack: () -> Unit, on
                                     style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 2.dp))
                             }
                             Spacer(Modifier.width(8.dp))
-                            Switch(checked = background, onCheckedChange = onBackground)
+                            Switch(checked = background, onCheckedChange = null)
                         }
                     }
                 }
@@ -143,7 +145,8 @@ fun ConnectionsScreen(state: RadioState, online: Boolean, onBack: () -> Unit, on
 private fun RadioRow(r: Radio, on: Boolean, status: String, divider: Boolean, onSwitch: (Boolean) -> Unit) {
     Column {
         if (divider) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 62.dp), color = Extra.line)
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.fillMaxWidth().toggleable(on, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = onSwitch)
+            .padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
             Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(if (on) Palette.Pine else Extra.ink3), contentAlignment = Alignment.Center) {
                 Icon(r.icon(), null, tint = Color.White, modifier = Modifier.size(19.dp))
             }
@@ -154,7 +157,7 @@ private fun RadioRow(r: Radio, on: Boolean, status: String, divider: Boolean, on
                 Text(r.why, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 2.dp))
             }
             Spacer(Modifier.width(8.dp))
-            Switch(checked = on, onCheckedChange = onSwitch)
+            Switch(checked = on, onCheckedChange = null)
         }
     }
 }

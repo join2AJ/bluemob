@@ -104,11 +104,13 @@ class ScreenshotTest {
             now - 50_000, MessageStatus.READ, actions = "Open full guide|guide:purify"),
     )
 
-    private fun shot(dark: Boolean = false, tall: Boolean = false, content: @Composable () -> Unit) {
+    private fun shot(dark: Boolean = false, tall: Boolean = false, bigText: Boolean = false, content: @Composable () -> Unit) {
         var config = DeviceConfig.PIXEL_6
         if (dark) config = config.copy(nightMode = NightMode.NIGHT)
         if (tall) config = config.copy(screenHeight = config.screenHeight * 2)
-        if (dark || tall) paparazzi.unsafeUpdateConfig(config)
+        // Phone text size at 150%, as many older users set it: nothing should be cut off.
+        if (bigText) config = config.copy(fontScale = 1.5f)
+        if (dark || tall || bigText) paparazzi.unsafeUpdateConfig(config)
         paparazzi.snapshot {
             BlueMobTheme(dark = dark) { Surface(color = MaterialTheme.colorScheme.background) { content() } }
         }
@@ -116,6 +118,8 @@ class ScreenshotTest {
 
     private val nearby = NearbyState("Arjun", true, people, true, false, true, true, false)
 
+    @Test fun nearbyBigText() = shot(tall = true, bigText = true) { NearbyScreen(nearby, pad, {}, {}, {}, {}, {}, {}, {}, {}) }
+    @Test fun sosHubBigText() = shot(tall = true, bigText = true) { hub(SosHubState(null, 2, SignalMode.SCREEN, contacts)) }
     @Test fun onboarding() = shot { OnboardingScreen("Arjun", "🦅", onFinish = { _, _ -> }) }
     @Test fun nearby() = shot(tall = true) { NearbyScreen(nearby, pad, {}, {}, {}, {}, {}, {}, {}, {}) }
     @Test fun nearbyDark() = shot(dark = true) { NearbyScreen(nearby, pad, {}, {}, {}, {}, {}, {}, {}, {}) }

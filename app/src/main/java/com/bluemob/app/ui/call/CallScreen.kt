@@ -63,6 +63,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -357,6 +361,12 @@ private fun TalkButton(talking: Boolean, theyTalking: Boolean, onTalk: (Boolean)
             Modifier.size(132.dp).scale(if (talking) 1.08f else 1f).clip(CircleShape)
                 .background(if (talking) Rose else if (theyTalking) Color.White.copy(alpha = 0.2f) else Pine)
                 .border(4.dp, Color.White.copy(alpha = if (talking) 0.9f else 0.4f), CircleShape)
+                // Screen readers can't press and hold: for them a double-tap starts talking and another stops.
+                .semantics {
+                    role = androidx.compose.ui.semantics.Role.Button
+                    contentDescription = if (talking) "Talking. Double-tap to stop and listen" else "Push to talk. Double-tap to start talking"
+                    onClick { talk(!talking); true }
+                }
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown().consume()

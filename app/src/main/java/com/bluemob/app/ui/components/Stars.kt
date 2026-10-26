@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -47,7 +48,9 @@ fun StarRow(stars: Double, size: Dp = 18.dp, modifier: Modifier = Modifier) {
 /** A compact "★ 4.5" chip. Shows "New" for someone nobody has rated yet. */
 @Composable
 fun StarChip(stars: Double, count: Int, modifier: Modifier = Modifier) {
-    Row(modifier.clip(RoundedCornerShape(50)).background(StarGold.copy(alpha = 0.16f)).padding(horizontal = 7.dp, vertical = 2.dp),
+    Row(modifier.semantics(mergeDescendants = true) {
+        contentDescription = if (count == 0) "Not rated yet" else "Rated %.1f out of 5 by %d %s".format(stars, count, if (count == 1) "person" else "people")
+    }.clip(RoundedCornerShape(50)).background(StarGold.copy(alpha = 0.16f)).padding(horizontal = 7.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Filled.Star, null, tint = StarGold, modifier = Modifier.size(13.dp))
         Text(if (count == 0) " New" else " " + ((stars * 10).roundToInt() / 10.0), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
@@ -76,6 +79,8 @@ fun QuarterStars(stars: Double, size: Dp = 18.dp, modifier: Modifier = Modifier)
 fun StarPicker(value: Int, size: Dp = 30.dp, onPick: (Int) -> Unit) {
     Row {
         for (i in 1..5) Icon(if (i <= value) Icons.Filled.Star else Icons.Filled.StarBorder, "$i star${if (i > 1) "s" else ""}", tint = StarGold,
-            modifier = Modifier.size(size + 8.dp).clip(RoundedCornerShape(50)).clickable { onPick(i) }.padding(4.dp))
+            modifier = Modifier.size(maxOf(size + 8.dp, 48.dp)).clip(RoundedCornerShape(50))
+                .clickable(role = androidx.compose.ui.semantics.Role.RadioButton, onClickLabel = "Give $i star${if (i > 1) "s" else ""}") { onPick(i) }
+                .semantics { selected = i == value }.padding(4.dp + (maxOf(size + 8.dp, 48.dp) - size - 8.dp) / 2))
     }
 }
