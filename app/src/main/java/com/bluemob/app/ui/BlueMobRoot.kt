@@ -97,14 +97,18 @@ import com.bluemob.app.ui.system.BridgeScreen
 import com.bluemob.app.ui.sos.SosHubScreen
 import com.bluemob.app.ui.sos.SosSignalScreen
 import com.bluemob.app.ui.theme.Extra
-
-private enum class Tab(val label: String, val icon: ImageVector) {
-    NEARBY("Nearby", Icons.Outlined.Radar),
-    CHATS("Chats", Icons.AutoMirrored.Outlined.Chat),
-    COMPASS("Compass", Icons.Outlined.Explore),
-    GUIDE("Guide", Icons.AutoMirrored.Outlined.MenuBook),
-    YOU("You", Icons.Outlined.Person),
-}
+import com.bluemob.app.ui.chat.ChatRoutes
+import com.bluemob.app.ui.compass.TripRoutes
+import com.bluemob.app.ui.games.GameRoutes
+import com.bluemob.app.ui.guide.GuideRoutes
+import com.bluemob.app.ui.nav.Nav
+import com.bluemob.app.ui.account.AccountViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bluemob.app.ui.nav.Route
+import com.bluemob.app.ui.nav.Shell
+import com.bluemob.app.ui.nav.Tab
+import com.bluemob.app.ui.profile.YouRoutes
+import com.bluemob.app.ui.sos.SosRoutes
 
 data class SystemStatus(val permissionsGranted: Boolean, val locationServicesOff: Boolean, val keepsRunning: Boolean, val locationPermission: Boolean)
 
@@ -144,12 +148,13 @@ class SystemActions(
 
 @Composable
 fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) {
+    val account: AccountViewModel = viewModel()
     val onboarded by vm.onboardingDone.collectAsStateWithLifecycle()
     val name by vm.name.collectAsStateWithLifecycle()
     val avatar by vm.avatar.collectAsStateWithLifecycle()
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        val profile by vm.profile.collectAsStateWithLifecycle()
+        val profile by account.profile.collectAsStateWithLifecycle()
         var restoring by rememberSaveable { mutableStateOf(false) }
         var introSeen by rememberSaveable { mutableStateOf(false) }
         // People who used BlueMob before sign-up existed verify their number once, with their name filled in.
@@ -168,7 +173,7 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
                 "restore" -> {
                     BackHandler { restoring = false }
                     com.bluemob.app.ui.account.RestoreScreen(onBack = { restoring = false }, onRestore = { code ->
-                        vm.restore(code).also { if (it == null) actions.restartApp() }
+                        account.restore(code).also { if (it == null) actions.restartApp() }
                     })
                 }
                 "intro" -> OnboardingScreen(initialName = name, initialAvatar = avatar, signedIn = profile.verified,
@@ -178,9 +183,9 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
                     bluemobId = com.bluemob.app.util.formatId(vm.nodeId),
                     onRestore = if (upgrading) null else ({ restoring = true }),
                     verifier = remember { actions.phoneVerifier() },
-                    privacyUrl = vm.bridgeUrl.collectAsStateWithLifecycle().value.trimEnd('/').let { if (it.isBlank()) "" else "$it/privacy" },
+                    privacyUrl = vm.privacyUrl(),
                     onDone = { r ->
-                        vm.completeSignup(r)
+                        account.completeSignup(r)
                         if (!system.permissionsGranted) actions.requestMeshPermissions() else vm.startMesh()
                     },
                 )
@@ -192,16 +197,17 @@ fun BlueMobRoot(vm: AppViewModel, system: SystemStatus, actions: SystemActions) 
 
 @Composable
 private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemActions) {
+    val account: AccountViewModel = viewModel()
     var tab by rememberSaveable { mutableStateOf(Tab.NEARBY) }
     var compassTarget by rememberSaveable { mutableStateOf<String?>(null) }
     val stack = rememberSaveable(saver = listSaver({ it.toList() }, { it.toMutableStateList() })) { mutableStateListOf<String>() }
-    val top = stack.lastOrNull()
+    val nav = remember(stack) { Nav(stack) { tab = it } }
+    val top = stack.lastOrNull()?.let(Route::parse)
     // Time spent in each part of the app, for the activity dashboard (counted on this phone only).
     val inCallNow = vm.call.collectAsStateWithLifecycle().value.let { it != null && it.phase != com.bluemob.app.call.CallPhase.ENDED }
-    LaunchedEffect(top, tab, inCallNow) { com.bluemob.app.activity.Usage.enter(com.bluemob.app.activity.Usage.areaOf(top, tab.name, inCallNow)) }
-    fun push(route: String) { stack.add(route) }
-    fun pop() { if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) }
-    fun goTab(t: Tab) { stack.clear(); tab = t }
+    LaunchedEffect(top, tab, inCallNow) { com.bluemob.app.activity.Usage.enter(com.bluemob.app.activity.Usage.areaOf(top?.key, tab.name, inCallNow)) }
+    fun push(route: Route) = nav.push(route)
+    fun goTab(t: Tab) = nav.goTab(t)
 
     val name by vm.name.collectAsStateWithLifecycle()
     val avatar by vm.avatar.collectAsStateWithLifecycle()
@@ -234,7 +240,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val trailPoints by vm.trailPoints.collectAsStateWithLifecycle()
     val estimate by vm.estimate.collectAsStateWithLifecycle()
     val lostOn by vm.lostOn.collectAsStateWithLifecycle()
-    var sosReached by rememberSaveable { mutableStateOf(-1) }
+    val sosReached = rememberSaveable { mutableStateOf(-1) }
     val rescues by vm.rescues.collectAsStateWithLifecycle()
     val trustScores by vm.trustScores.collectAsStateWithLifecycle()
     var notice by remember { mutableStateOf<RescueNotice?>(null) }
@@ -242,12 +248,13 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val pendingRoute by vm.pendingRoute.collectAsStateWithLifecycle()
     LaunchedEffect(pendingRoute) {
         pendingRoute?.let {
-            stack.clear()
-            when {
-                it == "calls" -> goTab(Tab.CHATS)
+            nav.clear()
+            when (val r = Route.parse(it)) {
+                Route.Calls -> goTab(Tab.CHATS)
                 // "I'm coming" straight from the SOS alarm notification.
-                it.startsWith("sos-coming:") -> { val id = it.removePrefix("sos-coming:"); vm.dismissSosAlert(); vm.comingToSos(id); push("rescue:$id") }
-                else -> push(it)
+                is Route.SosComing -> { vm.dismissSosAlert(); vm.comingToSos(r.id); push(Route.Rescue(r.id)) }
+                null, is Route.Action -> {}
+                else -> push(r)
             }
             vm.pendingRoute.value = null
         }
@@ -256,8 +263,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val hereFix = myFix ?: estimate?.let { GeoPoint(it.lat, it.lon, it.uncertaintyM.toFloat(), it.at) }
     val askSteps = { if (vm.stepCounterAvailable && !vm.hasStepPermission()) actions.requestSteps() }
 
-    LaunchedEffect(top) { vm.openChat(top?.takeIf { it.startsWith("chat:") }?.removePrefix("chat:")) }
-    BackHandler(enabled = stack.isNotEmpty() || tab != Tab.NEARBY) { if (stack.isNotEmpty()) pop() else tab = Tab.NEARBY }
+    LaunchedEffect(top) { vm.openChat((top as? Route.Chat)?.id) }
+    BackHandler(enabled = stack.isNotEmpty() || tab != Tab.NEARBY) { if (stack.isNotEmpty()) nav.pop() else tab = Tab.NEARBY }
 
     val fileProgress by vm.fileProgress.collectAsStateWithLifecycle()
     val voicePlaying by vm.voicePlaying.collectAsStateWithLifecycle()
@@ -268,14 +275,14 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
         thumbnail = { vm.thumbnail(it) },
         onOpen = { m ->
             val att = com.bluemob.app.files.Attachment.fromJson(m.att)
-            if (att?.kind == com.bluemob.app.files.AttKind.IMAGE) push("photo:" + m.id)
+            if (att?.kind == com.bluemob.app.files.AttKind.IMAGE) push(Route.Photo(m.id))
             else scope.launch { vm.openCopy(m)?.let { actions.openFile(it, att?.mime ?: "*/*") } }
         },
         onPlay = vm::playVoice,
         onAttach = { kind -> actions.pickFile(kind) { uri -> vm.sendFile(peer, uri) } },
         onRecordStart = { if (!vm.startVoiceNote()) actions.requestCallPermissions(false) {} },
         onRecordStop = { send -> vm.stopVoiceNote(peer, send) },
-        onMedia = { push("media:$peer") },
+        onMedia = { push(Route.Media(peer)) },
     )
     val toggleLocation: (Boolean) -> Unit = { on -> if (on) actions.enableLocationSharing() else vm.setShareLocation(false) }
     /** "Teach Sky the answer": the question being taught, while the dialog is open. */
@@ -301,16 +308,19 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val onSkyAction: (String) -> Unit = { target ->
         when {
             target.startsWith("teach:") -> teaching = target.removePrefix("teach:")
-            target == "sos" -> push("sos")
-            target == "sos_signal" -> push("signal")
+            target == "sos" -> push(Route.Sos)
+            target == "sos_signal" -> push(Route.Signal)
             target == "power" -> actions.openBatterySaver()
-            target == "games" -> push("games")
-            target.startsWith("guide:") -> push("article:" + target.removePrefix("guide:"))
+            target == "games" -> push(Route.Games)
+            target.startsWith("guide:") -> push(Route.Article(target.removePrefix("guide:")))
             target.startsWith("tab:") -> goTab(when (target.removePrefix("tab:")) {
                 "nearby" -> Tab.NEARBY; "chats" -> Tab.CHATS; "compass" -> Tab.COMPASS; "guide" -> Tab.GUIDE; else -> Tab.YOU
             })
         }
     }
+
+    val shell = Shell(vm, system, actions, nav, scope, hereFix, headings, sosReached, ::chatFiles, onSkyAction, turnOnForSos, toggleLocation,
+        showOnCompass = { compassTarget = it; goTab(Tab.COMPASS) })
 
     Box(Modifier.fillMaxSize()) {
         AnimatedContent(top, transitionSpec = {
@@ -318,7 +328,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             else fadeIn() togetherWith fadeOut()
         }, label = "screen") { route ->
             when {
-                route == null -> Tabs(tab, vm.unreadCount(conversations), onTab = { tab = it }, onSos = { push("sos") }) { padding ->
+                route == null -> Tabs(tab, vm.unreadCount(conversations), onTab = { tab = it }, onSos = { push(Route.Sos) }) { padding ->
                     when (tab) {
                         Tab.NEARBY -> NearbyScreen(
                             NearbyState(name, running, people, system.permissionsGranted, system.locationServicesOff, sharing, myFix != null, online, radios,
@@ -327,20 +337,20 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             padding, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             background = vm.background.collectAsStateWithLifecycle().value,
                             onRequestPermissions = actions.requestMeshPermissions, onOpenLocationSettings = actions.openLocationSettings,
-                            onShareLocation = { toggleLocation(true) }, onOpenChat = { push("chat:$it") },
-                            onTalkToSky = { push("chat:" + SkyBot.NODE_ID) }, onOpenGuide = { tab = Tab.GUIDE }, onOpenBattery = { tab = Tab.YOU },
-                            onConnections = { push("connections") }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push("games") },
+                            onShareLocation = { toggleLocation(true) }, onOpenChat = { push(Route.Chat(it)) },
+                            onTalkToSky = { push(Route.Chat(SkyBot.NODE_ID)) }, onOpenGuide = { tab = Tab.GUIDE }, onOpenBattery = { tab = Tab.YOU },
+                            onConnections = { push(Route.Connections) }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push(Route.Games) },
                             onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
                             onCheckEveryone = { vm.checkOnEveryone() }, onClearCheck = vm::clearCheck,
                         )
-                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push("rescues") else push("rescue:$it") }, onNewChat = { push("newchat") },
+                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push(Route.Rescues) else push(Route.Rescue(it)) }, onNewChat = { push(Route.NewChat) },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
                             onCallBack = { id, n, video -> actions.requestCallPermissions(video) { vm.startCall(id, n, video) } },
                             onClearCalls = { vm.clearCallLog() }, onDeleteCall = { vm.deleteCall(it) }, onDeleteChat = { vm.deleteChat(it) },
                             filesFor = { chatFiles(it) },
                             groups = vm.groups.collectAsStateWithLifecycle().value.values.toList(), pinned = vm.pinnedChats.collectAsStateWithLifecycle().value,
-                            onPin = vm::setPinned, onNewGroup = { push("newgroup") }, onLeaveGroup = vm::leaveGroup,
-                            callsSeenAt = vm.callsSeenAt.collectAsStateWithLifecycle().value, onCallsSeen = vm::markCallsSeen) { push("chat:$it") }
+                            onPin = vm::setPinned, onNewGroup = { push(Route.NewGroup) }, onLeaveGroup = vm::leaveGroup,
+                            callsSeenAt = vm.callsSeenAt.collectAsStateWithLifecycle().value, onCallsSeen = vm::markCallsSeen) { push(Route.Chat(it)) }
                         Tab.COMPASS -> CompassScreen(
                             people, spots, hereFix, headings, vm.compassAvailable, system.locationPermission, compassTarget, padding,
                             altitude = vm.altitude.collectAsStateWithLifecycle().value, compassAccuracy = vm.compassAccuracy.collectAsStateWithLifecycle().value,
@@ -352,28 +362,28 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                                 onTrail = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setTrail(on) },
                                 onLost = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setLost(on) },
                                 onBaseCamp = { if (!system.locationPermission) actions.requestLocation() else vm.setBaseCamp() }, onClear = vm::clearTrail, onAllowSteps = actions.requestSteps,
-                                onTrips = { push("trips") },
+                                onTrips = { push(Route.Trips) },
                             ),
                             onRing = vm::ring,
                         )
-                        Tab.GUIDE -> GuideScreen(bookmarks, padding, onOpen = { push("article:$it") }, onSos = { push("sos") }, onMore = { push("guide-packs") },
-                            onAskSky = { push("chat:" + SkyBot.NODE_ID) })
+                        Tab.GUIDE -> GuideScreen(bookmarks, padding, onOpen = { push(Route.Article(it)) }, onSos = { push(Route.Sos) }, onMore = { push(Route.GuidePacks) },
+                            onAskSky = { push(Route.Chat(SkyBot.NODE_ID)) })
                         Tab.YOU -> ProfileScreen(
                             name, avatar, vm.nodeId, running, sharing, system.keepsRunning, signalDefault, log, padding,
                             onName = vm::setName, onAvatar = vm::setAvatar, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onToggleLocation = toggleLocation, onBatterySaver = actions.openBatterySaver, onKeepRunning = actions.askKeepRunning,
-                            onSos = { push("sos") }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
-                            onBridge = { push("bridge") }, onMyRating = { push("person:" + vm.nodeId) }, onActivity = { push("activity") },
+                            onSos = { push(Route.Sos) }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
+                            onBridge = { push(Route.Bridge) }, onMyRating = { push(Route.Person(vm.nodeId)) }, onActivity = { push(Route.Activity) },
                             badges = vm.badges.collectAsStateWithLifecycle().value.let { b -> b.count { it.earned } to b.size },
                             badgeEmojis = vm.badges.collectAsStateWithLifecycle().value.filter { it.earned }.takeLast(4).joinToString("") { it.emoji },
-                            onBadges = { push("badges") },
+                            onBadges = { push(Route.Badges) },
                             theme = vm.theme.collectAsStateWithLifecycle().value, onTheme = vm::setTheme,
                             emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value, onEmergencyCard = vm::setEmergencyCard,
                             remoteSignal = vm.allowRemoteSignal.collectAsStateWithLifecycle().value, onRemoteSignal = vm::setAllowRemoteSignal,
                             dndUntil = vm.dndUntil.collectAsStateWithLifecycle().value, onDndUntil = vm::setDndUntil,
                             dndSosCalls = vm.dndAllowSosContacts.collectAsStateWithLifecycle().value, onDndSosCalls = vm::setDndAllowSosContacts,
                             newsUnread = vm.news.items.collectAsStateWithLifecycle().value.count { it.at > vm.news.seenAt.collectAsStateWithLifecycle().value },
-                            onNews = { push("news") },
+                            onNews = { push(Route.News) },
                             activitySummary = vm.activity.collectAsStateWithLifecycle().value.let { ev ->
                                 val week = System.currentTimeMillis() - 7 * 86_400_000L
                                 val recent = ev.filter { it.at >= week }
@@ -383,233 +393,34 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             },
                             lastError = remember { vm.lastError() },
                             myStars = (trustScores[vm.nodeId] ?: vm.scoreFor(vm.nodeId)).stars, myRatingCount = trustScores[vm.nodeId]?.let { maxOf(it.raters, it.ratings) } ?: 0,
-                            onConnections = { push("connections") }, onSosContacts = { push("sos-contacts") }, onAudit = { push("audit") },
-                            onGames = { push("games") }, onAccount = { push("account") }, onAutoStart = { push("autostart") }, onBackup = { push("backup") }, sosContactCount = sosContacts.size,
+                            onConnections = { push(Route.Connections) }, onSosContacts = { push(Route.SosContacts) }, onAudit = { push(Route.Audit) },
+                            onGames = { push(Route.Games) }, onAccount = { push(Route.Account) }, onAutoStart = { push(Route.AutoStart) }, onBackup = { push(Route.Backup) }, sosContactCount = sosContacts.size,
                             background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
-                            onStorage = { push("storage") }, onDiagnostics = { push("diagnostics") },
+                            onStorage = { push(Route.Storage) }, onDiagnostics = { push(Route.Diagnostics) },
                         )
                     }
                 }
-                route.startsWith("chat:") -> {
-                    val id = route.removePrefix("chat:")
-                    ChatScreen(
-                        nodeId = id, person = people.firstOrNull { it.nodeId == id }, messages = conversations[id].orEmpty(), typing = id in typing,
-                        meshEvents = vm.meshEvents, myName = name, myId = vm.nodeId, onBack = ::pop, onSend = { vm.send(id, it) },
-                        onPing = { vm.ping(id) }, onInfo = { push("info:$it") }, onPerson = { if (id != SkyBot.NODE_ID) push("person:$id") }, onAction = onSkyAction,
-                        files = chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
-                        group = vm.groups.collectAsStateWithLifecycle().value[id],
-                        onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onGroupInfo = { push("group:$id") },
-                        aiReady = vm.aiStatus.collectAsStateWithLifecycle().value.ready, onAiSetup = if (id == SkyBot.NODE_ID) ({ push("skyai") }) else null,
-                        onCall = { video ->
-                            val who = people.firstOrNull { it.nodeId == id }?.name ?: "them"
-                            actions.requestCallPermissions(video) { vm.startCall(id, who, video) }
-                        },
-                    )
-                }
-                route.startsWith("quiz:") -> {
-                    val a = com.bluemob.app.guide.GuideContent.all().firstOrNull { it.id == route.removePrefix("quiz:") }
-                    if (a == null) LaunchedEffect(Unit) { pop() } else com.bluemob.app.ui.guide.GuideQuizScreen(a, ::pop, onRead = ::pop)
-                }
-                route == "newgroup" -> com.bluemob.app.ui.chat.NewGroupScreen(people.filter { it.nodeId != SkyBot.NODE_ID }, ::pop) { n, members ->
-                    vm.createGroup(n, members)?.let { pop(); push("chat:$it") }
-                }
-                route.startsWith("group:") -> {
-                    val g = vm.groups.collectAsStateWithLifecycle().value[route.removePrefix("group:")]
-                    if (g == null) LaunchedEffect(Unit) { pop() }
-                    else com.bluemob.app.ui.chat.GroupInfoScreen(g, people, ::pop, onAdd = { vm.addToGroup(g.id, it) },
-                        onLeave = { vm.leaveGroup(g.id); stack.clear() }, onPerson = { push("person:$it") })
-                }
-                route.startsWith("media:") -> {
-                    val id = route.removePrefix("media:")
-                    com.bluemob.app.ui.chat.MediaScreen(people.firstOrNull { it.nodeId == id }?.name ?: "them", conversations[id].orEmpty(), chatFiles(id), ::pop)
-                }
-                route.startsWith("photo:") -> {
-                    val m = vm.message(route.removePrefix("photo:"))
-                    if (m == null) LaunchedEffect(Unit) { pop() } else PhotoViewer(m, vm, ::pop)
-                }
-                route.startsWith("info:") -> {
-                    val m = vm.message(route.removePrefix("info:"))
-                    if (m == null) LaunchedEffect(Unit) { pop() }
-                    else MessageInfoScreen(m, name, vm.nodeId, people.firstOrNull { it.nodeId == m.peer }?.name ?: "them", ::pop)
-                }
-                route.startsWith("article:") -> {
-                    val a = GuideContent.byId(route.removePrefix("article:"))
-                    if (a == null) LaunchedEffect(Unit) { pop() }
-                    else ArticleScreen(a, a.id in bookmarks, ::pop, onToggleSaved = { vm.toggleBookmark(a.id) }, onSos = { push("sos") }, onOpen = { push("article:$it") },
-                        onQuiz = { push("quiz:" + a.id) })
-                }
-                route == "sos" -> SosHubScreen(
-                    SosHubState(mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, sosContacts, sosReached),
-                    message = vm::sosMessage, onBack = ::pop,
-                    onSend = {
-                        sosReached = vm.sendSos(it)
-                        // Ask for the most important missing piece right away (Android shows one prompt at a time).
-                        when {
-                            !system.permissionsGranted -> actions.requestMeshPermissions()
-                            !system.locationPermission -> actions.requestLocation()
-                            !radios.bluetooth -> actions.switchRadio(com.bluemob.app.system.Radio.BLUETOOTH, true)
-                            !radios.location -> actions.switchRadio(com.bluemob.app.system.Radio.LOCATION, true)
-                        }
-                    }, onSafe = { vm.cancelSos(); sosReached = -1 }, onSignal = { push("signal") },
-                    onDefaultSignal = vm::setSignalDefault, onHowToHelp = { push("article:help-sos") }, onContacts = { push("sos-contacts") },
-                    onText = actions.textSos, onPreviewAlert = vm::previewSosAlert,
-                    rescue = rescues.firstOrNull { it.mine && it.id == mySos?.id }, onOpenRescue = { mySos?.let { push("rescue:" + it.id) } },
-                )
-                route == "news" -> com.bluemob.app.ui.profile.NewsScreen(vm.news.items.collectAsStateWithLifecycle().value,
-                    vm.news.seenAt.collectAsStateWithLifecycle().value, ::pop, vm.news::markSeen)
-                route == "skyai" -> com.bluemob.app.ui.chat.SkyAiScreen(vm, ::pop)
-                route == "newchat" -> NewChatScreen(vm.nodeId, people, ::pop,
-                    onStart = { id, n -> vm.startChatById(id, n); pop(); push("chat:$id") },
-                    onOpen = { pop(); push("chat:$it") }, onShareId = actions.shareId)
-                route == "rescues" -> com.bluemob.app.ui.rescue.RescuesScreen(rescues, ::pop, onOpen = { push("rescue:$it") }, mySosId = mySos?.id)
-                route.startsWith("rescue:") -> {
-                    val room = rescues.firstOrNull { it.id == route.removePrefix("rescue:") }
-                    if (room == null) LaunchedEffect(Unit) { delay(1_500); pop() }
-                    else RescueScreen(room, vm.nodeId, hereFix, headings, medical = vm.medicalFor(room.victimId), rated = remember(trustScores, room.id) {
-                        (room.helpers.map { it.nodeId } + room.victimId).flatMap { s -> vm.myRatingsOf(s).filter { it.ctx == room.id }.map { "$s|${it.kind.code}" } }.toSet()
-                    }, actions = RescueActions(
-                        onBack = ::pop, onJoin = { vm.joinRescue(room.id) }, onSend = { vm.sendRescue(room.id, it) },
-                        onArrived = { vm.arrivedRescue(room.id) }, onLeave = { vm.leaveRescue(room.id) },
-                        onNavigate = { compassTarget = room.victimId; goTab(Tab.COMPASS) }, onGuide = { push("article:$it") },
-                        onSignal = { push("signal") }, onSafe = { vm.cancelSos(); sosReached = -1 },
-                        readiness = if (!room.mine) emptyMap() else mapOf(
-                            "location" to (system.locationPermission && radios.location), "bluetooth" to radios.bluetooth,
-                            "mesh" to running, "internet" to online),
-                        onTurnOn = { k -> turnOnForSos(k) },
-                        onSignalThem = { what -> vm.ring(room.victimId, what) },
-                        onRate = { who, kind -> vm.rate(who, kind, room.id, "") },
-                    ))
-                }
-                route == "sos-contacts" -> SosContactsScreen(sosContacts, ::pop, onAdd = { n, p, id -> vm.addSosContact(n, p, id) }, onRemove = vm::removeSosContact,
-                    onInvite = { c -> actions.textSos(listOf(c.phone), vm.inviteText(c.name)) },
-                    people = people.filter { it.nodeId != SkyBot.NODE_ID }, onAskAgain = vm::askSosContactAgain)
-                route == "connections" -> ConnectionsScreen(radios, online, ::pop, onSwitch = actions.switchRadio,
-                    background = vm.background.collectAsStateWithLifecycle().value, onBackground = { on ->
-                        vm.setBackground(on)
-                        // Turning it on asks Android once to let BlueMob run with Battery Saver on; turning it off never asks.
-                        if (on && !system.keepsRunning) actions.askKeepRunning()
-                    })
-                route == "audit" -> {
-                    val audit by vm.audit.collectAsStateWithLifecycle()
-                    val witnesses by vm.witnesses.collectAsStateWithLifecycle()
-                    AuditScreen(audit.first, audit.second, ::pop, witnesses, vm.auditPublicKey, remember(audit.first.size) { vm.securityStatus() })
-                }
-                route.startsWith("person:") -> {
-                    val id = route.removePrefix("person:")
-                    val scores by vm.trustScores.collectAsStateWithLifecycle()
-                    val p = people.firstOrNull { it.nodeId == id }
-                    val isMe = id == vm.nodeId
-                    PersonScreen(id, if (isMe) name else p?.name ?: "Someone", if (isMe) avatar else p?.avatar, scores[id] ?: vm.scoreFor(id), isMe,
-                        remember(scores) { vm.myRatingsOf(id) }, rescues.firstOrNull { it.victimId == id }?.id, ::pop,
-                        onMessage = { pop(); push("chat:$id") }, onRate = { kind, ctx, remark -> vm.rate(id, kind, ctx, remark) },
-                        eligible = remember(id, scores) { vm.canRate(id) }, lastRatedAt = remember(id, scores) { vm.lastRatedAt(id) },
-                        onRateCategories = { stars, remark -> vm.rateCategories(id, stars, remark) },
-                        blocked = id in vm.blocked.collectAsStateWithLifecycle().value, onBlock = { vm.setBlocked(id, it) },
-                        onReport = { reason, text, msgs -> vm.reportPerson(id, reason, text, msgs) })
-                }
-                route == "badges" -> com.bluemob.app.ui.profile.BadgesScreen(vm.badges.collectAsStateWithLifecycle().value, ::pop)
-                route == "activity" -> {
-                    val events by vm.activity.collectAsStateWithLifecycle()
-                    LaunchedEffect(Unit) { com.bluemob.app.activity.Usage.flush() }
-                    val guidesRead = com.bluemob.app.guide.GuidePacks.read.collectAsStateWithLifecycle().value.size
-                    val quizzes = com.bluemob.app.guide.GuidePacks.quizzesPassed.collectAsStateWithLifecycle().value.size
-                    val streak = com.bluemob.app.guide.Streak.of(com.bluemob.app.guide.GuidePacks.readDays.collectAsStateWithLifecycle().value)
-                    com.bluemob.app.ui.profile.ActivityScreen(events, ::pop,
-                        names = people.associate { it.nodeId to it.name } + vm.groups.collectAsStateWithLifecycle().value.mapValues { it.value.name },
-                        usage = com.bluemob.app.activity.Usage.days.collectAsStateWithLifecycle().value,
-                        learning = Triple(guidesRead, quizzes, streak))
-                }
-                route == "bridge" -> {
-                    val st by vm.bridgeStatus.collectAsStateWithLifecycle()
-                    val url by vm.bridgeUrl.collectAsStateWithLifecycle()
-                    BridgeScreen(st, url, ::pop, onSave = vm::setBridgeUrl, builtIn = vm.builtInRelay, liveConnected = vm.liveConnected.collectAsStateWithLifecycle().value)
-                }
-                route == "games" -> {
-                    val all by vm.matches.collectAsStateWithLifecycle()
-                    GamesScreen(::pop, onPlay = { push("game:$it") },
-                        // Nearby now, or anyone you've met when this phone is on the internet relay.
-                        people = vm.liveConnected.collectAsStateWithLifecycle().value.let { live -> people.filter { it.presence == Presence.ONLINE || (live && it.lastSeen > 0) } },
-                        matches = all.values.sortedByDescending { it.updatedAt },
-                        onChallenge = { p, game -> vm.challenge(p.nodeId, p.name, game)?.let { push("match:$it") } },
-                        onOpenMatch = { push("match:$it") }, onAccept = vm::acceptGame, onDecline = vm::declineGame)
-                }
-                route.startsWith("match:") -> {
-                    val all by vm.matches.collectAsStateWithLifecycle()
-                    val m = all[route.removePrefix("match:")]
-                    if (m == null) LaunchedEffect(Unit) { pop() }
-                    else MatchScreen(m, ::pop, onPlay = { vm.playGame(m.id, it) }, onAgain = { vm.gameAgain(m.id) }, onLeave = { vm.leaveGame(m.id) },
-                        reaction = vm.gameReactions.collectAsStateWithLifecycle().value[m.id], onReact = { vm.reactInGame(m.id, it) })
-                }
-                route.startsWith("game:") -> com.bluemob.app.ui.games.ComputerGameScreen(route.removePrefix("game:"), ::pop)
-                route == "trips" -> com.bluemob.app.ui.compass.TripsScreen(vm.trips.collectAsStateWithLifecycle().value, vm.currentTrip.collectAsStateWithLifecycle().value,
-                    ::pop, onOpen = { push("trip:$it") }, onNewTrip = { if (!system.locationPermission) actions.requestLocation(); vm.startNewTrip(it) })
-                route.startsWith("trip:") -> {
-                    val id = route.removePrefix("trip:")
-                    val trip = vm.trips.collectAsStateWithLifecycle().value.firstOrNull { it.id == id }
-                    val current = vm.currentTrip.collectAsStateWithLifecycle().value
-                    val live by vm.trailPoints.collectAsStateWithLifecycle()
-                    val stored = com.bluemob.app.ui.chat.rememberLoaded(id, trip?.points) { vm.pointsOf(id) }
-                    if (trip == null) LaunchedEffect(Unit) { pop() }
-                    else com.bluemob.app.ui.compass.TripScreen(trip, if (id == current) live else stored.orEmpty(), spots, id == current, ::pop,
-                        onRename = { vm.renameTrip(id, it) }, onDelete = { vm.deleteTrip(id) },
-                        onShareGpx = { scope.launch { vm.tripGpxFile(id)?.let { actions.shareFile(it, "application/gpx+xml") } } },
-                        onExport = { scope.launch { vm.exportTrip(id).takeIf { it.isNotEmpty() }?.let { actions.shareFiles(it) } } },
-                        mode = vm.tripModes.collectAsStateWithLifecycle().value[id]?.let { m -> runCatching { com.bluemob.app.trail.TravelMode.valueOf(m) }.getOrNull() },
-                        onMode = { vm.setTripMode(id, it) })
-                }
-                route == "backup" -> com.bluemob.app.ui.system.BackupScreen(vm.backups, vm.backups.status.collectAsStateWithLifecycle().value,
-                    vm.backups.every.collectAsStateWithLifecycle().value, vm.backups.folder.collectAsStateWithLifecycle().value, actions.backup, ::pop)
-                route == "guide-packs" -> com.bluemob.app.ui.guide.GuidePacksScreen(vm.bridgeUrl.collectAsStateWithLifecycle().value, online, ::pop)
-                route == "autostart" -> com.bluemob.app.ui.system.AutoStartScreen(
-                    vm.autoMesh.collectAsStateWithLifecycle().value, vm.bluetoothPolicy.collectAsStateWithLifecycle().value,
-                    vm.wifiPolicy.collectAsStateWithLifecycle().value, vm.background.collectAsStateWithLifecycle().value, sharing,
-                    ::pop, vm::setMeshAtStart, vm::setBluetoothPolicy, vm::setWifiPolicy, vm::setBackground, toggleLocation,
-                    running = running, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
-                    keepsRunning = system.keepsRunning, onKeepRunning = actions.askKeepRunning,
-                    onConnections = { push("connections") }, onBatterySaver = actions.openBatterySaver,
-                )
-                route == "storage" -> com.bluemob.app.ui.profile.StorageScreen(
-                    messages = conversations.values.sumOf { it.size }, files = conversations.values.sumOf { l -> l.count { it.att.isNotEmpty() } }, people = people.size,
-                    onBack = ::pop, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages, onBackup = { push("backup") },
-                )
-                route == "diagnostics" -> com.bluemob.app.ui.profile.DiagnosticsScreen(
-                    vm.techDetails.collectAsStateWithLifecycle().value, vm::setTechDetails, log, remember { vm.lastError() },
-                    onBack = ::pop, onBridge = { push("bridge") }, onAudit = { push("audit") },
-                    onReport = { text, details -> vm.reportProblem(text, details, log) },
-                    onOpenReport = { push("report") },
-                    autoReports = vm.autoErrorReports.collectAsStateWithLifecycle().value, onAutoReports = vm::setAutoErrorReports,
-                )
-                route == "report" -> com.bluemob.app.ui.profile.ReportScreen(::pop,
-                    onAddPhoto = { done -> actions.pickFile("photo") { uri -> vm.reportPhoto(uri, done) } },
-                    onSend = { c, sub, text, details, photos -> vm.reportProblem(text, details, log, c, sub, photos) })
-                route == "account" -> com.bluemob.app.ui.account.AccountScreen(
-                    shortId = com.bluemob.app.util.formatId(vm.nodeId),
-                    profile = vm.profile.collectAsStateWithLifecycle().value, hasPin = vm.pinSet.collectAsStateWithLifecycle().value,
-                    onDetails = vm::setMedical, onEmail = vm::setEmail, onTurnOffPin = vm::clearPin,
-                    biometric = vm.biometric.collectAsStateWithLifecycle().value, canUseBiometric = remember { actions.canUseBiometric() },
-                    lockAfterMs = vm.lockAfterMs.collectAsStateWithLifecycle().value, recoverySaved = vm.recoverySaved.collectAsStateWithLifecycle().value,
-                    onBack = ::pop, onBiometric = { on -> if (on) actions.biometricUnlock { vm.setBiometric(true) } else vm.setBiometric(false) },
-                    onLockAfter = vm::setLockAfter, onLockNow = vm::lockNow, checkPin = vm::checkPin, onNewPin = vm::setPin,
-                    recoveryCode = vm::recoveryCode, onRecoverySaved = vm::setRecoverySaved,
-                    onBackup = { push("backup") },
-                    onDeleteAccount = { phoneOnly -> vm.deleteAccount(phoneOnly) },
-                    onExportData = { scope.launch { actions.shareFiles(listOf(vm.exportMyData())) } },
-                    privacyUrl = vm.bridgeUrl.collectAsStateWithLifecycle().value.trimEnd('/').let { if (it.isBlank()) "" else "$it/privacy" },
-                )
-                route == "signal" -> SosSignalScreen(signalDefault, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = ::pop)
+                route is Route.ChatArea -> ChatRoutes(route, shell)
+                route is Route.GuideArea -> GuideRoutes(route, shell)
+                route is Route.SosArea -> SosRoutes(route, shell)
+                route is Route.GamesArea -> GameRoutes(route, shell)
+                route is Route.TripsArea -> TripRoutes(route, shell)
+                route is Route.YouArea -> YouRoutes(route, shell)
+                // Actions never stay on the stack; an unknown key (from an older version) is dropped.
+                else -> LaunchedEffect(route) { nav.pop() }
             }
         }
 
         // People who signed up before the consent step: asked once to agree to the privacy policy.
-        var askConsent by remember { mutableStateOf(vm.needsConsent()) }
+        var askConsent by remember { mutableStateOf(account.needsConsent()) }
         if (askConsent) {
             val uri = androidx.compose.ui.platform.LocalUriHandler.current
-            val policy = vm.bridgeUrl.collectAsStateWithLifecycle().value.trimEnd('/').let { if (it.isBlank()) "" else "$it/privacy" }
+            val policy = vm.privacyUrl()
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = {},
                 title = { Text("Our privacy policy") },
                 text = { Text("BlueMob keeps your details encrypted on your phone. Your health details are shared only inside an SOS, and you can download or delete your data any time (You → Account). Please read and agree to keep using BlueMob.") },
-                confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.recordConsent(false); askConsent = false }) { Text("I agree") } },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { account.recordConsent(false); askConsent = false }) { Text("I agree") } },
                 dismissButton = { if (policy.isNotBlank()) androidx.compose.material3.TextButton(onClick = { runCatching { uri.openUri(policy) } }) { Text("Read it") } },
             )
         }
@@ -644,13 +455,13 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             val preview = sos.id == SosManager.PREVIEW_ID
             SosAlert(
                 sos, people.firstOrNull { it.nodeId == sos.fromNodeId }, hereFix?.lat, hereFix?.lon,
-                onComing = { vm.dismissSosAlert(); if (!preview) { vm.comingToSos(sos.id); push("rescue:" + sos.id) } },
+                onComing = { vm.dismissSosAlert(); if (!preview) { vm.comingToSos(sos.id); push(Route.Rescue(sos.id)) } },
                 onWay = { if (!preview) compassTarget = sos.fromNodeId; vm.dismissSosAlert(); if (!preview) goTab(Tab.COMPASS) },
-                onHowTo = { vm.dismissSosAlert(); push("article:help-sos") },
+                onHowTo = { vm.dismissSosAlert(); push(Route.Article("help-sos")) },
                 onClose = vm::dismissSosAlert,
                 coming = rescues.firstOrNull { it.id == sos.id }?.coming?.map { it.name }.orEmpty(),
                 trust = if (preview) null else (trustScores[sos.fromNodeId] ?: vm.scoreFor(sos.fromNodeId)),
-                onProfile = { vm.dismissSosAlert(); push("person:" + sos.fromNodeId) },
+                onProfile = { vm.dismissSosAlert(); push(Route.Person(sos.fromNodeId)) },
             )
         }
 
@@ -664,13 +475,13 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
         // "Start the mesh when BlueMob opens", only if the user chose it.
         LaunchedEffect(Unit) { if (vm.autoMesh.value && system.permissionsGranted && !running) vm.startMesh() }
 
-        val locked by vm.locked.collectAsStateWithLifecycle()
-        val biometricOn by vm.biometric.collectAsStateWithLifecycle()
+        val locked by account.locked.collectAsStateWithLifecycle()
+        val biometricOn by account.biometric.collectAsStateWithLifecycle()
         if (locked) {
             BackHandler { actions.leaveApp() }
             com.bluemob.app.ui.account.LockScreen(
                 name, avatar, com.bluemob.app.util.formatId(vm.nodeId).take(9), biometricOn,
-                onPin = vm::checkPin, onBiometric = { actions.biometricUnlock { vm.unlockedByBiometric() } },
+                onPin = account::checkPin, onBiometric = { actions.biometricUnlock { account.unlockedByBiometric() } },
                 onSos = {
                     val reached = vm.sendSos("")
                     when {
@@ -685,12 +496,12 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
         }
 
         val matchesNow by vm.matches.collectAsStateWithLifecycle()
-        matchesNow.values.firstOrNull { it.state == com.bluemob.app.games.MatchState.INVITED }?.takeIf { top != "games" && !locked }?.let { m ->
+        matchesNow.values.firstOrNull { it.state == com.bluemob.app.games.MatchState.INVITED }?.takeIf { top != Route.Games && !locked }?.let { m ->
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = {},
                 title = { Text("${m.opponentName} wants to play") },
                 text = { Text("${com.bluemob.app.games.Match.title(m.game)} over the mesh, phone to phone.") },
-                confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.acceptGame(m.id); push("match:" + m.id) }) { Text("Play") } },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.acceptGame(m.id); push(Route.Match(m.id)) }) { Text("Play") } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { vm.declineGame(m.id) }) { Text("Not now") } },
             )
         }
@@ -711,9 +522,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             )
         }
 
-        notice?.takeIf { top != "rescue:" + it.room && !locked }?.let { n ->
+        notice?.takeIf { top != Route.Rescue(it.room) && !locked }?.let { n ->
             Surface(
-                onClick = { notice = null; push("rescue:" + n.room) }, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp,
+                onClick = { notice = null; push(Route.Rescue(n.room)) }, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp,
                 modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp).fillMaxWidth(),
             ) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -770,23 +581,3 @@ private fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit,
 
 private fun <T> List<T>.toMutableStateList() = mutableStateListOf<T>().also { it.addAll(this) }
 
-
-/** A photo from a chat, full screen. It's decrypted in memory only. */
-@Composable
-private fun PhotoViewer(m: com.bluemob.app.data.MessageEntity, vm: AppViewModel, onBack: () -> Unit) {
-    val bmp = com.bluemob.app.ui.chat.rememberLoaded(m.id) { vm.thumbnail(m, 2048) }
-    val att = remember(m.att) { com.bluemob.app.files.Attachment.fromJson(m.att) }
-    var scale by remember { mutableStateOf(1f) }
-    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
-    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)
-        .pointerInput(Unit) { detectTransformGestures { _, pan, zoom, _ -> scale = (scale * zoom).coerceIn(1f, 5f); offset = if (scale == 1f) androidx.compose.ui.geometry.Offset.Zero else offset + pan } }) {
-        bmp?.let {
-            androidx.compose.foundation.Image(it.asImageBitmap(), att?.name, Modifier.fillMaxSize()
-                .graphicsLayer(scaleX = scale, scaleY = scale, translationX = offset.x, translationY = offset.y), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-        } ?: Text("Opening…", color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.align(Alignment.Center))
-        Row(Modifier.statusBarsPadding().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.material3.IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = androidx.compose.ui.graphics.Color.White) }
-            Text(att?.name ?: "Photo", color = androidx.compose.ui.graphics.Color.White, style = MaterialTheme.typography.titleMedium)
-        }
-    }
-}

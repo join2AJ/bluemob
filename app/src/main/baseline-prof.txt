@@ -15,6 +15,8 @@ HSPLcom/bluemob/app/contacts/**;->**(**)**
 # The first screen people see: the root, theme, shared components, Nearby with its radar, and Chats.
 HSPLcom/bluemob/app/ui/BlueMobRoot*;->**(**)**
 HSPLcom/bluemob/app/ui/AppViewModel*;->**(**)**
+HSPLcom/bluemob/app/ui/nav/**;->**(**)**
+HSPLcom/bluemob/app/ui/account/AccountViewModel*;->**(**)**
 HSPLcom/bluemob/app/ui/theme/**;->**(**)**
 HSPLcom/bluemob/app/ui/components/**;->**(**)**
 HSPLcom/bluemob/app/ui/dashboard/**;->**(**)**

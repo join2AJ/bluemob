@@ -200,7 +200,11 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
 
     /** A notification asked to open a chat or rescue group. */
     private fun handleRoute(intent: Intent?) {
-        intent?.getStringExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)?.takeIf { it != "call" }?.let { viewModel.pendingRoute.value = it.replace("person:me", "person:" + viewModel.nodeId) }
+        intent?.getStringExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)?.let { com.bluemob.app.ui.nav.Route.parse(it) }?.let { r ->
+            if (r == com.bluemob.app.ui.nav.Route.Call) return@let
+            val me = com.bluemob.app.ui.nav.Route.Person(com.bluemob.app.service.Notifier.ME)
+            viewModel.pendingRoute.value = (if (r == me) com.bluemob.app.ui.nav.Route.Person(viewModel.nodeId) else r).key
+        }
         intent?.removeExtra(com.bluemob.app.service.Notifier.EXTRA_ROUTE)
     }
 

@@ -1,5 +1,6 @@
 package com.bluemob.app.service
 
+import com.bluemob.app.ui.nav.Route
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
@@ -89,7 +90,7 @@ class Notifier(private val context: Context) {
         .setContentIntent(open(null, 2))
         // On phones that allow it, the SOS alert opens over the lock screen, like an incoming call.
         .setFullScreenIntent(open(null, 3), true)
-        .addAction(0, "I'm coming", open("sos-coming:" + s.id, 4 + s.id.hashCode()))
+        .addAction(0, "I'm coming", open(Route.SosComing(s.id).key, 4 + s.id.hashCode()))
         .addAction(0, "Open map", mapFor(s) ?: open(null, 5 + s.id.hashCode()))
         .build())
 
@@ -111,7 +112,7 @@ class Notifier(private val context: Context) {
         .setContentTitle(name).setContentText(text)
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
         .setCategory(NotificationCompat.CATEGORY_MESSAGE).setAutoCancel(true)
-        .setContentIntent(open("chat:$fromId", fromId.hashCode()))
+        .setContentIntent(open(Route.Chat(fromId).key, fromId.hashCode()))
         .build())
 
     /** News from the BlueMob team. Urgent alerts (a flood warning) sound even during do not disturb. */
@@ -119,18 +120,18 @@ class Notifier(private val context: Context) {
         .setSmallIcon(R.drawable.ic_stat_bluemob)
         .setContentTitle(title).setContentText(text)
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-        .setAutoCancel(true).setContentIntent(open("news", id.hashCode() + 31))
+        .setAutoCancel(true).setContentIntent(open(Route.News.key, id.hashCode() + 31))
         .build())
 
     fun rating(text: String) = post(4242, NotificationCompat.Builder(context, ch(CH_MSG))
         .setSmallIcon(R.drawable.ic_stat_bluemob).setContentTitle("Your rating").setContentText(text).setAutoCancel(true)
-        .setContentIntent(open("person:me", 4242)).build())
+        .setContentIntent(open(Route.Person(ME).key, 4242)).build())
 
     fun rescue(room: String, text: String) = post(room.hashCode() + 7, NotificationCompat.Builder(context, CH_RESCUE)
         .setSmallIcon(R.drawable.ic_stat_bluemob)
         .setContentTitle("Rescue group").setContentText(text)
         .setColor(0xFFD94F55.toInt()).setAutoCancel(true)
-        .setContentIntent(open("rescue:$room", room.hashCode() + 7))
+        .setContentIntent(open(Route.Rescue(room).key, room.hashCode() + 7))
         .build())
 
     /** Anything else worth knowing right away: someone ringing to find us, a game invite, a missed call. */
@@ -158,8 +159,8 @@ class Notifier(private val context: Context) {
         .setContentText("${if (video) "Video" else "Voice"} call on BlueMob · tap to answer")
         .setCategory(NotificationCompat.CATEGORY_CALL).setPriority(NotificationCompat.PRIORITY_MAX)
         .setAutoCancel(true).setTimeoutAfter(45_000)
-        .setContentIntent(open("call", 10))
-        .setFullScreenIntent(open("call", 11), true)
+        .setContentIntent(open(Route.Call.key, 10))
+        .setFullScreenIntent(open(Route.Call.key, 11), true)
         .build())
 
     /** The emergency card: readable on the lock screen, so whoever finds you knows who to call. */
@@ -169,13 +170,13 @@ class Notifier(private val context: Context) {
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setOngoing(true).setSilent(true).setShowWhen(false)
         .setColor(0xFFD94F55.toInt())
-        .setContentIntent(open("account", 12))
+        .setContentIntent(open(Route.Account.key, 12))
         .build())
 
     fun cancel(id: Int) { runCatching { manager.cancel(id) } }
 
     /** Opens BlueMob on the call that's going on. */
-    fun openCall(): PendingIntent = open("call", 9)
+    fun openCall(): PendingIntent = open(Route.Call.key, 9)
 
     private fun open(route: String?, code: Int): PendingIntent = PendingIntent.getActivity(
         context, code,
@@ -188,6 +189,8 @@ class Notifier(private val context: Context) {
         const val EMERGENCY_CARD_ID = 1009
         private const val CH_CARD = "emergency_card"
         const val EXTRA_ROUTE = "route"
+        /** Stands for this phone's own ID in a notification's route; the app swaps in the real one. */
+        const val ME = "me"
         const val CH_MESH = "mesh"
         const val CALL_ID = 1002
         /** Same ID as the in-app incoming-call note, so one replaces the other. */

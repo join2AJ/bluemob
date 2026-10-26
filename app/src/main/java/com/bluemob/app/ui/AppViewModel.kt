@@ -257,7 +257,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun answerCheck(r: com.bluemob.app.nearby.CheckRequest, ok: Boolean) {
         blueMob.peerStatus.answer(r, if (ok) com.bluemob.app.nearby.CheckIn.OK else com.bluemob.app.nearby.CheckIn.HELP)
         // "I need help" also opens their chat, so they can say what's wrong.
-        if (!ok) { send(r.from, "🆘 I need help"); pendingRoute.value = "chat:" + r.from }
+        if (!ok) { send(r.from, "🆘 I need help"); pendingRoute.value = com.bluemob.app.ui.nav.Route.Chat(r.from).key }
     }
     fun clearCheck() = blueMob.peerStatus.clearCheck()
 
@@ -324,130 +324,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun unreadCount(all: Map<String, List<MessageEntity>>) = all.values.sumOf { list -> list.count { !it.fromMe && it.status == MessageStatus.RECEIVED } }
 
     fun forgetPeople() = blueMob.contacts.forgetAll()
-    /** Sends a problem report. Null when sent, otherwise why not. */
-    /** A picture for a problem report: scaled to at most 1280 px and compressed, so a report stays small. */
-    fun reportPhoto(uri: android.net.Uri, done: (com.bluemob.app.ui.profile.ReportPhoto?) -> Unit) = viewModelScope.launch {
-        val p = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching {
-                val app = getApplication<android.app.Application>()
-                // Read the size first, then decode at about 1280 px (works on every Android version).
-                val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                app.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
-                var sample = 1
-                while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 1280) sample *= 2
-                val raw = app.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }) }
-                    ?: error("unreadable")
-                val scale = minOf(1f, 1280f / maxOf(raw.width, raw.height))
-                val bmp = if (scale < 1f) android.graphics.Bitmap.createScaledBitmap(raw, (raw.width * scale).toInt(), (raw.height * scale).toInt(), true) else raw
-                var q = 75
-                var out: ByteArray
-                do { out = java.io.ByteArrayOutputStream().also { bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, q, it) }.toByteArray(); q -= 15 } while (out.size > 800 * 1024 && q > 20)
-                com.bluemob.app.ui.profile.ReportPhoto(bmp, out)
-            }.getOrNull()
-        }
-        done(p)
-    }
-
-    suspend fun reportProblem(text: String, details: Boolean, log: List<com.bluemob.app.mesh.LogLine>,
-        category: String = "", sub: String = "", photos: List<ByteArray> = emptyList()): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val app = getApplication<android.app.Application>()
-        // With technical details on, the team also gets this BlueMob ID, so they can reply to this person from the admin page.
-        val device = com.bluemob.app.util.CrashLog.deviceLine(app) + " · reply to BM " + com.bluemob.app.util.formatId(identity.nodeId)
-        val extra = if (!details) "" else buildString {
-            com.bluemob.app.util.CrashLog.lastNonFatal(app)?.let { append("Last background error:\n").append(it.take(6000)).append("\n\n") }
-            com.bluemob.app.util.CrashLog.read(app)?.let { append("Last crash:\n").append(it.take(6000)).append("\n\n") }
-            append("Mesh log:\n")
-            log.take(80).forEach { append(java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date(it.timeMillis))).append("  ").append(it.text).append('\n') }
-        }
-        com.bluemob.app.util.ProblemReport.send(settings.bridgeUrl.value, text, com.bluemob.app.BuildConfig.VERSION_NAME, if (details) device else "", extra,
-            category.substringAfter(' '), sub, photos)
-    }
-
-    /**
-     * "Download my data" (DPDP / GDPR right of access): everything BlueMob keeps about the user on this phone, as one
-     * readable JSON file to save or share. Keys and the PIN are left out.
-     */
-    suspend fun exportMyData(): java.io.File = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val iso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
-        fun t(ms: Long) = iso.format(java.util.Date(ms))
-        val p = blueMob.profile.profile.value
-        val j = org.json.JSONObject()
-        j.put("exported", t(System.currentTimeMillis())).put("app", "BlueMob " + com.bluemob.app.BuildConfig.VERSION_NAME)
-        j.put("you", org.json.JSONObject().put("name", identity.displayName.value).put("bluemobId", identity.nodeId).put("phone", p.phone ?: "")
-            .put("email", p.email ?: "").put("dateOfBirth", p.dob ?: "").put("age", p.age ?: org.json.JSONObject.NULL).put("sex", p.sex ?: "")
-            .put("bloodGroup", p.bloodGroup ?: "").put("allergies", p.allergies ?: "").put("medicalConditions", p.conditions ?: ""))
-        j.put("sosContacts", org.json.JSONArray(settings.sosContacts.value.map { org.json.JSONObject().put("name", it.name).put("phone", it.phone).put("state", it.state.label) }))
-        j.put("peopleMet", org.json.JSONArray(blueMob.contacts.contacts.value.values.map { org.json.JSONObject().put("bluemobId", it.nodeId).put("name", it.name).put("lastSeen", if (it.lastSeen > 0) t(it.lastSeen) else "") }))
-        j.put("blocked", org.json.JSONArray(settings.blocked.value.toList()))
-        j.put("messages", org.json.JSONArray(blueMob.database.messages().all().filter { !it.hidden }.sortedBy { it.createdAt }.map { m ->
-            org.json.JSONObject().put("chat", m.peer).put("fromMe", m.fromMe).put("text", m.text).put("time", t(m.createdAt)).put("status", m.status.name)
-        }))
-        j.put("calls", org.json.JSONArray(blueMob.callLog.all().map { c ->
-            org.json.JSONObject().put("with", c.name).put("bluemobId", c.peer).put("video", c.video).put("outgoing", c.outgoing).put("outcome", c.outcome).put("time", t(c.startedAt)).put("seconds", c.durationS)
-        }))
-        j.put("trips", org.json.JSONArray(trips.value.map { tr -> org.json.JSONObject().put("name", tr.name).put("start", t(tr.startedAt)).put("end", tr.endedAt?.let { t(it) } ?: "").put("metres", tr.distanceM.toInt()) }))
-        j.put("guidesRead", org.json.JSONObject(com.bluemob.app.guide.GuidePacks.read.value.mapValues { t(it.value) }))
-        j.put("auditTrail", org.json.JSONArray(audit.value.first.map { a -> org.json.JSONObject().put("time", t(a.time)).put("kind", a.kind).put("text", a.text) }))
-        val dir = java.io.File(getApplication<android.app.Application>().cacheDir, "open").apply { mkdirs() }
-        dir.resolve("bluemob-my-data.json").apply { writeText(j.toString(2)) }
-    }
-
-    /** Records that the user agreed to the privacy policy (and, for under-18s, that a parent or guardian agreed). */
-    /** Signed up before the consent step existed: asked once to agree. */
-    fun needsConsent(): Boolean = identity.onboardingDone.value && blueMob.profile.consentAt == 0L
-    fun recordConsent(parental: Boolean) {
-        blueMob.profile.setConsent(System.currentTimeMillis(), parental)
-        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Agreed to the privacy policy" + if (parental) " (with a parent's or guardian's consent)" else "")
-    }
-
     // ---- block and report people ----
     val blocked = settings.blocked
     fun setBlocked(id: String, on: Boolean) {
         settings.setBlocked(id, on)
         blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, (if (on) "Blocked " else "Unblocked ") + (blueMob.contacts.contacts.value[id]?.name ?: "someone") + " (BM " + com.bluemob.app.util.formatId(id) + ")")
         toast(if (on) "Blocked. Their messages and calls won't reach you. Their SOS still will." else "Unblocked")
-    }
-
-    /** Reports someone to the BlueMob team: why, what happened, and (if the user agrees) the last messages they sent us. */
-    suspend fun reportPerson(id: String, reason: String, text: String, includeMessages: Boolean): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val name = blueMob.contacts.contacts.value[id]?.name ?: "Someone"
-        val details = buildString {
-            append("Reported: ").append(name).append(" · BlueMob ID ").append(id).append('\n')
-            append("Reported by: ").append(identity.nodeId).append('\n')
-            if (includeMessages) {
-                append("\nTheir last messages to the reporter (shared with the reporter's consent):\n")
-                repo.conversations.value[id].orEmpty().filter { !it.fromMe }.takeLast(10).forEach { m ->
-                    append(java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date(m.createdAt))).append("  ").append(m.text.take(500)).append('\n')
-                }
-            }
-        }
-        com.bluemob.app.util.ProblemReport.send(settings.bridgeUrl.value, text.ifBlank { reason }, com.bluemob.app.BuildConfig.VERSION_NAME, "", details, "Report a person", reason)
-    }
-
-    /**
-     * Deletes the account: the relay forgets this BlueMob ID (key, number, email, backups, waiting messages), then
-     * everything on this phone is wiped and BlueMob closes. With [phoneOnly], skips the relay (e.g. no internet).
-     */
-    suspend fun deleteAccount(phoneOnly: Boolean = false): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        if (!phoneOnly) {
-            val base = settings.bridgeUrl.value.trimEnd('/')
-            val err = runCatching {
-                val at = System.currentTimeMillis()
-                val keys = identity.keys
-                val sig = com.bluemob.app.crypto.Crypto.encode(keys.sign("bluemob-delete|$at".toByteArray()))
-                val c = java.net.URL("$base/v1/account/delete").openConnection() as java.net.HttpURLConnection
-                try {
-                    c.requestMethod = "POST"; c.doOutput = true; c.connectTimeout = 20_000; c.readTimeout = 30_000
-                    c.setRequestProperty("content-type", "application/json")
-                    c.outputStream.use { it.write(org.json.JSONObject().put("pk", keys.publicB64).put("at", at).put("sig", sig).toString().toByteArray()) }
-                    if (c.responseCode == 200) null else "The BlueMob server said no (${c.responseCode})."
-                } finally { c.disconnect() }
-            }.getOrElse { "No internet, so the BlueMob server couldn't be told." }
-            if (err != null) return@withContext err
-        }
-        val app = getApplication<android.app.Application>()
-        app.getSystemService(android.app.ActivityManager::class.java)?.clearApplicationUserData()
-        null
     }
 
     fun deleteChat(peer: String) = viewModelScope.launch {
@@ -474,39 +356,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setTrail(on: Boolean) = trail.setEnabled(on)
-    val trips = trail.allTrips
     val backups = blueMob.backups
-    val currentTrip = trail.currentTrip
-    fun startNewTrip(name: String) = trail.startNewTrip(name)
-    suspend fun pointsOf(id: String) = trail.pointsOf(id)
-    fun renameTrip(id: String, name: String) = viewModelScope.launch { trail.renameTrip(id, name) }
-    fun deleteTrip(id: String) = viewModelScope.launch { trail.deleteTrip(id) }
-    /** The trip as a GPX file in the temporary share folder. */
-    suspend fun tripGpxFile(id: String): java.io.File? {
-        val t = trips.value.firstOrNull { it.id == id } ?: return null
-        val gpx = com.bluemob.app.ui.compass.tripGpx(t, trail.pointsOf(id))
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            java.io.File(getApplication<android.app.Application>().cacheDir, "open").apply { mkdirs() }
-                .resolve(com.bluemob.app.files.Attachment.safeName(t.name) + ".gpx").apply { writeText(gpx) }
-        }
-    }
-    /** Picture (PNG), every point with timestamps (CSV), and GPX: everything about a trip, ready to share. */
-    suspend fun exportTrip(id: String): List<java.io.File> {
-        val t = trips.value.firstOrNull { it.id == id } ?: return emptyList()
-        val points = trail.pointsOf(id)
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val dir = java.io.File(getApplication<android.app.Application>().cacheDir, "open").apply { mkdirs() }
-            val base = com.bluemob.app.files.Attachment.safeName(t.name)
-            val png = dir.resolve("$base.png").apply {
-                outputStream().use { com.bluemob.app.trail.TripImage.render(t, points).compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-            }
-            val csv = dir.resolve("$base.csv").apply { writeText(com.bluemob.app.ui.compass.tripCsv(points)) }
-            val gpx = dir.resolve("$base.gpx").apply { writeText(com.bluemob.app.ui.compass.tripGpx(t, points)) }
-            listOf(png, csv, gpx)
-        }
-    }
-    val tripModes = settings.tripModes
-    fun setTripMode(tripId: String, mode: com.bluemob.app.trail.TravelMode?) = settings.setTripMode(tripId, mode?.name)
     fun clearTrail() = trail.clear()
     fun onStepPermission() = trail.onStepPermission()
     fun setLost(on: Boolean) = if (on) lostMode.start() else lostMode.stop()
@@ -548,6 +398,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val bridgeStatus = blueMob.bridge.status
     val bridgeUrl = settings.bridgeUrl
+    /** The relay's privacy policy page, or "" when no relay is set. */
+    fun privacyUrl(): String = bridgeUrl.value.trimEnd('/').let { if (it.isBlank()) "" else "$it/privacy" }
     val builtInRelay: String get() = settings.defaultBridgeUrl
     fun setBridgeUrl(url: String) { settings.setBridgeUrl(url); blueMob.bridge.reconfigure(); blueMob.live.reconnect() }
     /** Signed in to the relay for internet calls. */
@@ -660,48 +512,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun isBot(nodeId: String) = nodeId == SkyBot.NODE_ID
 
-    val profile = blueMob.profile.profile
-    /** Sign-up finished: the number is verified, the details saved, and the app opens. */
-    fun completeSignup(r: com.bluemob.app.ui.account.SignupResult) {
-        identity.setDisplayName(r.name); identity.setAvatar(r.avatar)
-        blueMob.profile.setVerifiedPhone(r.phone)
-        blueMob.profile.setMedical(r.dob, r.sex, r.bloodGroup, r.allergies, r.conditions)
-        recordConsent(r.parentalConsent)
-        blueMob.profile.setEmail(r.email)
-        syncEmail()
-        identity.setOnboardingDone(true)
-        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Signed up: mobile number verified (${r.phone.take(5)}…)")
-    }
     /** "🩸 B+ · age 34" from someone's SOS, if they shared it. */
     fun medicalFor(nodeId: String): String? = sosManager.received.value[nodeId]?.let { s ->
         listOfNotNull(s.bloodGroup?.let { "🩸 Blood group $it" }, s.age?.let { "age $it" }, s.medical).joinToString(" · ").ifBlank { null }
-    }
-    fun setMedical(dob: String?, sex: String?, blood: String?, allergies: String?, conditions: String?) = blueMob.profile.setMedical(dob, sex, blood, allergies, conditions)
-    fun setDetails(age: Int?, blood: String?) = blueMob.profile.setDetails(age, blood)
-    /** Optional recovery email: saved on the phone, and on the relay as soon as we're online. */
-    fun setEmail(email: String?) { blueMob.profile.setEmail(email); syncEmail() }
-    private fun syncEmail() = viewModelScope.launch { blueMob.syncEmail() }
-    fun clearPin() { lock.clearPin(); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "PIN lock turned off") }
-
-    private val lock = blueMob.lock
-    val pinSet = lock.pinSet
-    val locked = lock.locked
-    val biometric = lock.biometric
-    val lockAfterMs = lock.lockAfterMs
-    val recoverySaved = lock.recoverySaved
-    fun setPin(pin: String) { val first = !lock.hasPin; lock.setPin(pin); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, if (first) "Account PIN created" else "Account PIN changed") }
-    fun checkPin(pin: String) = lock.check(pin).also { if (it is com.bluemob.app.account.PinResult.Wait) blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Several wrong PINs: login paused") }
-    fun unlockedByBiometric() = lock.unlockedByBiometric()
-    fun setBiometric(on: Boolean) = lock.setBiometric(on)
-    fun setLockAfter(ms: Long) = lock.setLockAfter(ms)
-    fun lockNow() = lock.lockNow()
-    fun recoveryCode(): String = identity.recoveryCode()
-    fun setRecoverySaved() { lock.setRecoverySaved(); blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "Recovery code saved") }
-    /** Restores an ID from a recovery code. Returns an error to show, or null when the app should restart. */
-    fun restore(code: String): String? {
-        val id = identity.restore(code) ?: return "That code isn't right. Check each group of 4, especially 0/O and 1/I."
-        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "BlueMob ID restored from a recovery code: BM ${com.bluemob.app.util.formatId(id)}")
-        return null
     }
 
     val matches = blueMob.matches.all

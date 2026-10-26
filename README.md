@@ -36,6 +36,24 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.28: faster start, easier with TalkBack and large text, tidier code
+
+- **Faster start:** a Baseline Profile ships with the app, so Android compiles the start-up code ahead of time.
+- **Accessibility:**
+  - screen titles and section headings are announced as headings;
+  - switches say their name and state;
+  - star ratings are read as "4 of 5 stars";
+  - push-to-talk works with TalkBack;
+  - screens are checked at 150% text size.
+- **Code tidy-up:**
+  - every screen is a typed route (`ui/nav/Route.kt`) instead of a string;
+  - each feature draws its own screens (`ChatRoutes`, `SosRoutes`, `YouRoutes`, `GameRoutes`, `TripRoutes`, `GuideRoutes`);
+  - account, reports and trips have their own view models.
+- **Server:** stores its data in SQLite (`node:sqlite`, Node 22) and imports the old `relay.jsonl` once. Every server
+  test runs on GitHub on each push.
+- **Security review:** `docs/crypto.md` describes the encryption for an expert to check, with known weaknesses and
+  the option of moving to Google Tink.
+
 ## Android 0.27: speed colours, your own travel mode, messages to people
 
 - **Trips:** colour the trail and chart by **speed**:
