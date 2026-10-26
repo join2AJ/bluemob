@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -129,6 +130,8 @@ class SystemActions(
     /** Asks for the microphone (and camera for video), then runs the callback whatever the answer. */
     val requestCallPermissions: (Boolean, () -> Unit) -> Unit = { _, then -> then() },
     val canUseBiometric: () -> Boolean = { false },
+    /** Asks for the camera only, then runs the callback whatever the answer. */
+    val requestCamera: (() -> Unit) -> Unit = { it() },
     /** Sends and checks sign-up codes: real SMS when Firebase is set up, otherwise the test code. */
     val phoneVerifier: () -> com.bluemob.app.account.PhoneVerifier = { com.bluemob.app.account.TestVerifier },
     /** Shows the phone's fingerprint / face prompt and calls back on success. */
@@ -379,6 +382,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onBadges = { push(Route.Badges) },
                             theme = vm.theme.collectAsStateWithLifecycle().value, onTheme = vm::setTheme,
                             emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value, onEmergencyCard = vm::setEmergencyCard,
+                            powerSos = vm.powerSos.collectAsStateWithLifecycle().value, onPowerSos = vm::setPowerSos,
                             remoteSignal = vm.allowRemoteSignal.collectAsStateWithLifecycle().value, onRemoteSignal = vm::setAllowRemoteSignal,
                             dndUntil = vm.dndUntil.collectAsStateWithLifecycle().value, onDndUntil = vm::setDndUntil,
                             dndSosCalls = vm.dndAllowSosContacts.collectAsStateWithLifecycle().value, onDndSosCalls = vm::setDndAllowSosContacts,
@@ -540,43 +544,68 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     }
 }
 
-/** Main tabs: a solid top bar with the SOS button, content, and a floating tab bar. */
+/** Main tabs: a top bar with the SOS button, content, and a tab bar docked to the bottom. */
 @Composable
 private fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit, content: @Composable (PaddingValues) -> Unit) {
     val barHeight = 52.dp
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    Box(Modifier.fillMaxSize()) {
-        content(PaddingValues(top = topInset + barHeight))
-        Row(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).statusBarsPadding().height(barHeight).padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("BlueMob", style = MaterialTheme.typography.titleMedium, color = Extra.ink3)
-            Spacer(Modifier.weight(1f))
-            SosPill(onSos)
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            content(PaddingValues(top = topInset + barHeight))
+            Row(
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).statusBarsPadding().height(barHeight).padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BrandTitle()
+                Spacer(Modifier.weight(1f))
+                SosPill(onSos)
+            }
         }
+        // Docked to the bottom edge, in the brand gradient, with the selected tab in a white pill.
         Row(
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(horizontal = 10.dp, vertical = 12.dp)
-                .fillMaxWidth().height(64.dp).shadow(14.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.surface).border(1.dp, Extra.line, RoundedCornerShape(50)).padding(6.dp),
+            Modifier.fillMaxWidth().shadow(12.dp).background(tabBarBrush())
+                .navigationBarsPadding().height(66.dp).padding(horizontal = 6.dp, vertical = 7.dp),
         ) {
             Tab.entries.forEach { t ->
                 val selected = t == tab
-                val bg by animateColorAsState(if (selected) Extra.pineTint else Color.Transparent, label = "tabbg")
+                val bg by animateColorAsState(if (selected) Color.White else Color.Transparent, label = "tabbg")
+                val fg = if (selected) MaterialTheme.colorScheme.primary else Color.White
                 Column(
-                    Modifier.weight(1f).fillMaxSize().clip(RoundedCornerShape(50)).background(bg).clickable { onTab(t) },
+                    Modifier.weight(1f).fillMaxSize().padding(horizontal = 3.dp).clip(RoundedCornerShape(18.dp)).background(bg)
+                        .clickable(role = androidx.compose.ui.semantics.Role.Tab) { onTab(t) },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
                 ) {
                     Box {
-                        Icon(t.icon, t.label, tint = if (selected) MaterialTheme.colorScheme.primary else Extra.ink3, modifier = Modifier.size(22.dp))
-                        if (t == Tab.CHATS && unread > 0) Box(Modifier.align(Alignment.TopEnd).padding(start = 14.dp).size(9.dp).background(Extra.rose, CircleShape))
+                        Icon(t.icon, null, tint = fg, modifier = Modifier.size(23.dp))
+                        if (t == Tab.CHATS && unread > 0) Box(Modifier.align(Alignment.TopEnd).padding(start = 14.dp).size(10.dp)
+                            .background(Color(0xFFFF5A5F), CircleShape).border(1.5.dp, Color.White, CircleShape))
                     }
                     Text(t.label, style = MaterialTheme.typography.labelSmall.copy(letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing),
-                        color = if (selected) MaterialTheme.colorScheme.primary else Extra.ink3, maxLines = 1)
+                        fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium,
+                        color = fg, maxLines = 1)
                 }
             }
         }
     }
+}
+
+/** A brighter take on the brand gradient, still dark enough for white labels. */
+@Composable
+private fun tabBarBrush(): androidx.compose.ui.graphics.Brush =
+    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xFF1D5F94), Color(0xFF15745A)))
+    else androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xFF1C7FD6), Color(0xFF0E9468)))
+
+/** "BlueMob" in the brand colours: Blue in sky, Mob in pine. */
+@Composable
+private fun BrandTitle() {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    Text(
+        androidx.compose.ui.text.buildAnnotatedString {
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = if (dark) Color(0xFF7DB7EA) else Color(0xFF1E7BD8))); append("Blue"); pop()
+            pushStyle(androidx.compose.ui.text.SpanStyle(color = if (dark) Color(0xFF3FC897) else Color(0xFF0E9F6E))); append("Mob"); pop()
+        },
+        style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+    )
 }
 
 private fun <T> List<T>.toMutableStateList() = mutableStateListOf<T>().also { it.addAll(this) }

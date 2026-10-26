@@ -1,6 +1,6 @@
 # BlueMob cryptography: design for review
 
-This document describes exactly what the app does today (version 0.27), so a cryptographer can review it. Code
+This document describes exactly what the app does today (version 0.29), so a cryptographer can review it. Code
 references point at `app/src/main/java/com/bluemob/app/`. Section 9 lists the weaknesses we already know about.
 Section 10 lists the questions we want answered. Section 11 describes a possible move to Google Tink.
 
@@ -72,7 +72,8 @@ downloads are signed by the recipient. Files are deleted after download, or afte
   by the caller.
 - **Frames:** encrypted with AES-256-GCM. The nonce is the first 4 bytes of the sender's ID followed by a 64-bit
   per-call counter. AAD is the marker plus the media kind.
-- **Replay:** the counter is sent in clear. There is no replay window yet: a replayed frame decrypts and plays again.
+- **Replay (since 0.29):** the counter is sent in clear. Each phone keeps a 64-frame window per sender, like IPsec's: a frame
+  plays only once and frames older than the window are dropped. Only a frame that decrypts moves the window.
 - **Signalling** (invite, accept, end) uses signed `app` envelopes.
 
 ## 7. Data at rest
@@ -103,9 +104,9 @@ tokens and timing.
 | W3 | 64-bit IDs. Making another key with the *same* ID costs about 2^64 work: hard, but within reach of a very well-funded attacker | Medium for the long term | Show the full fingerprint or a safety number when verifying a contact; consider 96- or 128-bit IDs |
 | W4 | Identity from a 120-bit seed (P-256 itself gives about 128 bits) | Low | Accept, or move to 16 bytes and a slightly longer recovery code |
 | W5 | Random 96-bit GCM nonces under a static pairwise key | Low unless one pair sends billions of messages | Goes away with W1; or use a derived per-message key |
-| W6 | Calls: no replay window; the caller chooses `callId` | Low (replaying audio within a call) | Keep the highest counter seen, drop older frames; derive the key from both sides' random values |
+| W6 | Calls: ~~no replay window~~ (fixed in 0.29: 64-frame window); the caller chooses `callId` | Low | Derive the key from both sides' random values |
 | W7 | Hop count `h` and rescue-room content aren't confidential; receipts are unencrypted | By design (relaying needs it) | Document it; keep it |
-| W8 | No safety-number check between users (a fake key could be given to someone who never met the person) | Medium: keys are bound to IDs, but the ID itself must be trusted | Add "Verify with a QR code" in a chat |
+| W8 | ~~No safety-number check~~ (0.29: "Verify with a QR code" and a 60-digit safety number, section 12) | Was medium | Done; verification is optional |
 | W9 | Our own HKDF code (simple, but home-made) | Low | Use a library implementation (Tink or BouncyCastle) |
 | W10 | Keystore fallback stores the wrapping key in app-private storage | Low (only on broken phones; shown to the user) | Keep it; warn more clearly |
 
@@ -139,3 +140,12 @@ change. Tink adds about 1 MB to the app.
 
 **Recommendation:** have an expert review this document first. For real forward secrecy (W1), libsignal (the Signal
 Protocol) is the stronger long-term choice. Tink is the quicker step that removes our home-made code.
+
+## 12. Verifying a contact (`crypto/SafetyNumber.kt`, since 0.29)
+
+- **QR code:** `bluemob:verify:1:<ID>:<public key, base64 DER>`. Scanning checks that the key hashes to the ID and that
+  the ID is the chat's; the key is learned if it wasn't known yet.
+- **Safety number:** for each person, `SHA-512` iterated 5,200 times over `0x0001 || key || ID` (then `|| key` each
+  round), the first 30 bytes as six 5-digit groups; the two halves sorted by ID. 60 digits, the same on both phones.
+- **Stored:** `ID → first 8 bytes of SHA-256(key)`. If the key for that ID ever changes, the contact shows as not
+  verified again.

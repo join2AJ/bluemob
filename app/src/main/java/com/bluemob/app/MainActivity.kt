@@ -116,6 +116,13 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         callPermissionLauncher.launch(want.toTypedArray())
     }
 
+    /** Just the camera (e.g. to scan a QR code), then [then] whatever the answer. */
+    private fun requestCamera(then: () -> Unit) {
+        if (checkSelfPermission(Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) return then()
+        afterCallPermissions = then
+        callPermissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -147,6 +154,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) stepPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
             },
             requestCallPermissions = ::requestCallPermissions,
+            requestCamera = ::requestCamera,
             canUseBiometric = ::canUseBiometric,
             phoneVerifier = { if (com.bluemob.app.push.Push.ready) com.bluemob.app.account.FirebaseVerifier(this) else com.bluemob.app.account.TestVerifier },
             biometricUnlock = ::biometricUnlock,

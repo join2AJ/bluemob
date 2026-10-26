@@ -48,6 +48,7 @@ sealed interface Route {
     /** The You tab's pages: people, account, settings. */
     sealed interface YouArea : Route
     data class Person(val id: String) : YouArea { override val key get() = "person:$id" }
+    data class Verify(val id: String) : YouArea { override val key get() = "verify:$id" }
     data object News : YouArea { override val key = "news" }
     data object Account : YouArea { override val key = "account" }
     data object Connections : YouArea { override val key = "connections" }
@@ -74,7 +75,7 @@ sealed interface Route {
         private val withId: Map<String, (String) -> Route> = mapOf(
             "chat" to ::Chat, "group" to ::Group, "media" to ::Media, "photo" to ::Photo, "info" to ::Info,
             "article" to ::Article, "quiz" to ::Quiz, "rescue" to ::Rescue, "match" to ::Match, "game" to ::Game,
-            "trip" to ::Trip, "person" to ::Person, "sos-coming" to ::SosComing,
+            "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "sos-coming" to ::SosComing,
         )
         private val plain: Map<String, Route> by lazy {
             listOf(NewChat, NewGroup, SkyAi, GuidePacks, Sos, Signal, SosContacts, Rescues, Games, Trips, News, Account, Connections,

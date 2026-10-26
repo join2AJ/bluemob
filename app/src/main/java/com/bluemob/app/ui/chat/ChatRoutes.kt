@@ -54,6 +54,7 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
                 files = s.chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
                 group = vm.groups.collectAsStateWithLifecycle().value[id],
                 onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onGroupInfo = { s.push(Route.Group(id)) },
+                verified = vm.isVerified(id, vm.verified.collectAsStateWithLifecycle().value),
                 aiReady = vm.aiStatus.collectAsStateWithLifecycle().value.ready, onAiSetup = if (id == SkyBot.NODE_ID) ({ s.push(Route.SkyAi) }) else null,
                 onCall = { video ->
                     val who = people.firstOrNull { it.nodeId == id }?.name ?: "them"

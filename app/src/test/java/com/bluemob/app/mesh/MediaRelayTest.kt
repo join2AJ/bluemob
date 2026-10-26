@@ -6,6 +6,8 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class MediaRelayTest {
@@ -77,5 +79,25 @@ class MediaRelayTest {
         val relabelled = sealed.copyOf().also { it[1] = 'V'.code.toByte() }
         assertNull(atB.open(relabelled, ida))
         assertNotNull(atB.open(atA.seal(byteArrayOf('V'.code.toByte(), 1, 2, 3)), ida))
+    }
+
+    @Test fun replayedCallFramesAreDropped() {
+        val ka = Crypto.generate(); val kb = Crypto.generate()
+        val ida = Crypto.idFor(ka.public.encoded); val idb = Crypto.idFor(kb.public.encoded)
+        val atA = CallCipher(Crypto.sharedKey(ka.private, kb.public, ida, idb), "c-1", ida)
+        val atB = CallCipher(Crypto.sharedKey(kb.private, ka.public, idb, ida), "c-1", idb)
+        val frames = (1..5).map { atA.seal(byteArrayOf('A'.code.toByte(), it.toByte())) }
+        // Out of order is fine (frames take different paths)...
+        assertNotNull(atB.open(frames[2], ida)); assertNotNull(atB.open(frames[0], ida)); assertNotNull(atB.open(frames[1], ida))
+        // ...but each plays once: a replay, or the same frame over a second path, is dropped.
+        assertNull(atB.open(frames[0], ida)); assertNull(atB.open(frames[2], ida))
+        assertNotNull(atB.open(frames[4], ida)); assertNotNull(atB.open(frames[3], ida))
+    }
+
+    @Test fun replayWindowForgetsVeryOldFrames() {
+        val w = ReplayWindow()
+        assertTrue(w.accept(1)); assertTrue(w.accept(100))
+        assertFalse(w.fresh(100 - ReplayWindow.SIZE.toLong())); assertFalse(w.accept(30))
+        assertTrue(w.accept(99)); assertFalse(w.accept(99)); assertTrue(w.accept(200)); assertFalse(w.accept(100))
     }
 }

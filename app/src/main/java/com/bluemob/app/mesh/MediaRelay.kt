@@ -117,19 +117,65 @@ class CallCipher(shared: ByteArray, callId: String, private val myId: String) {
         return byteArrayOf(MARK, frame[0]) + ByteBuffer.allocate(8).putLong(ctr).array() + c.doFinal(frame)
     }
 
-    /** The original frame, or null if it wasn't sealed with this call's key by [senderId]. */
+    /**
+     * The original frame, or null if it wasn't sealed with this call's key by [senderId], or if it was already played:
+     * a recorded frame sent again (or the same frame arriving over both the mesh and the internet) is dropped.
+     */
     fun open(bytes: ByteArray, senderId: String): ByteArray? {
         if (bytes.size < 2 + 8 + 16 || bytes[0] != MARK) return null
         val ctr = ByteBuffer.wrap(bytes, 2, 8).long
-        return runCatching {
+        if (ctr <= 0) return null
+        val window = windows.getOrPut(senderId) { ReplayWindow() }
+        if (!window.fresh(ctr)) return null
+        val frame = runCatching {
             Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, nonce(senderId, ctr))); updateAAD(byteArrayOf(MARK, bytes[1])) }
                 .doFinal(bytes, 10, bytes.size - 10)
-        }.getOrNull()?.takeIf { it.isNotEmpty() && it[0] == bytes[1] }
+        }.getOrNull()?.takeIf { it.isNotEmpty() && it[0] == bytes[1] } ?: return null
+        // Only a frame that really came from them moves the window, so forged counters can't push real frames out.
+        return frame.takeIf { window.accept(ctr) }
     }
+
+    private val windows = java.util.concurrent.ConcurrentHashMap<String, ReplayWindow>()
 
     private fun nonce(id: String, ctr: Long) = RelayFrame.idBytes(id).copyOf(4) + ByteBuffer.allocate(8).putLong(ctr).array()
 
     companion object {
         const val MARK: Byte = 'E'.code.toByte()
+    }
+}
+
+/**
+ * Which frame counters were already played, like IPsec's anti-replay window: the highest counter seen, and a bit for
+ * each of the [SIZE] before it. Frames may arrive a little out of order (several paths), but each plays once.
+ */
+class ReplayWindow {
+    private var highest = 0L
+    private var seen = 0L // bit i: counter (highest - i) was played
+
+    /** Could [ctr] still be new? Cheap check before decrypting. */
+    @Synchronized fun fresh(ctr: Long): Boolean = when {
+        ctr > highest -> true
+        highest - ctr >= SIZE -> false
+        else -> seen and (1L shl (highest - ctr).toInt()) == 0L
+    }
+
+    /** Marks [ctr] as played. False if it already was (or is too old). */
+    @Synchronized fun accept(ctr: Long): Boolean {
+        if (ctr > highest) {
+            val shift = ctr - highest
+            seen = if (shift >= SIZE) 1L else (seen shl shift.toInt()) or 1L
+            highest = ctr
+            return true
+        }
+        val back = highest - ctr
+        if (back >= SIZE) return false
+        val bit = 1L shl back.toInt()
+        if (seen and bit != 0L) return false
+        seen = seen or bit
+        return true
+    }
+
+    companion object {
+        const val SIZE = 64
     }
 }

@@ -45,7 +45,16 @@ fun YouRoutes(route: Route.YouArea, s: Shell) {
                 eligible = remember(id, scores) { vm.canRate(id) }, lastRatedAt = remember(id, scores) { vm.lastRatedAt(id) },
                 onRateCategories = { stars, remark -> vm.rateCategories(id, stars, remark) },
                 blocked = id in vm.blocked.collectAsStateWithLifecycle().value, onBlock = { vm.setBlocked(id, it) },
-                onReport = { reason, text, msgs -> reports.reportPerson(id, reason, text, msgs) })
+                onReport = { reason, text, msgs -> reports.reportPerson(id, reason, text, msgs) },
+                verified = vm.isVerified(id, vm.verified.collectAsStateWithLifecycle().value), onVerify = { s.push(Route.Verify(id)) })
+        }
+        is Route.Verify -> {
+            val id = route.id
+            val all by vm.verified.collectAsStateWithLifecycle()
+            val people by vm.people.collectAsStateWithLifecycle()
+            VerifyScreen(people.firstOrNull { it.nodeId == id }?.name ?: "them", vm.isVerified(id, all), remember { vm.myVerifyCode() },
+                remember(id, all) { vm.safetyNumber(id) }, s::pop, onScanned = { vm.onVerifyScanned(id, it) },
+                onSetVerified = { vm.setVerified(id, it) }, askCamera = actions.requestCamera)
         }
         Route.News -> NewsScreen(vm.news.items.collectAsStateWithLifecycle().value, vm.news.seenAt.collectAsStateWithLifecycle().value, s::pop, vm.news::markSeen)
         Route.Account -> AccountScreen(

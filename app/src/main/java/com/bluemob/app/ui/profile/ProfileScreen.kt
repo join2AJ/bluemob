@@ -122,6 +122,8 @@ fun ProfileScreen(
     onTheme: (String) -> Unit = {},
     emergencyCard: Boolean = false,
     onEmergencyCard: (Boolean) -> Unit = {},
+    powerSos: Boolean = false,
+    onPowerSos: (Boolean) -> Unit = {},
     remoteSignal: Boolean = true,
     onRemoteSignal: (Boolean) -> Unit = {},
     /** Do not disturb: until when (0 = off), and whether SOS contacts' calls still ring. */
@@ -161,7 +163,7 @@ fun ProfileScreen(
 
     LazyColumn(
         Modifier.fillMaxSize().background(Extra.sand),
-        contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding() + 8.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding() + 8.dp, bottom = 24.dp),
     ) {
         item {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -243,6 +245,9 @@ fun ProfileScreen(
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS",
                     "Signal ${signalDefault.emoji} ${signalDefault.label} · " + if (sosContactCount == 0) "no SOS contacts yet" else "$sosContactCount SOS contact${if (sosContactCount == 1) "" else "s"}",
                     onClick = onSos) { chevron() }
+                SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Power button SOS",
+                    if (powerSos) "On: press the power button 5 times quickly, even locked. 5 seconds to cancel" else "Off: press the power button 5 times to send an SOS",
+                    divider = true) { androidx.compose.material3.Switch(powerSos, onPowerSos) }
                 SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Emergency card on lock screen",
                     if (emergencyCard) "On: blood group and SOS contacts show without unlocking" else "Off: let whoever finds you see who to call",
                     divider = true) { androidx.compose.material3.Switch(emergencyCard, onEmergencyCard) }

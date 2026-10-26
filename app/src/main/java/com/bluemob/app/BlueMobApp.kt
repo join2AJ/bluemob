@@ -63,6 +63,8 @@ class BlueMobApp : Application() {
     lateinit var settings: AppSettings private set
     lateinit var signals: SignalController private set
     lateinit var sos: SosManager private set
+    /** Five presses of the power button send an SOS (when the user turns it on). */
+    val powerSos by lazy { com.bluemob.app.sos.PowerButtonSos(this) }
     lateinit var groups: com.bluemob.app.chat.GroupStore private set
     lateinit var sosCircle: com.bluemob.app.sos.SosCircle private set
     lateinit var peerStatus: com.bluemob.app.nearby.PeerStatus private set

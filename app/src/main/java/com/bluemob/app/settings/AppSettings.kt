@@ -146,6 +146,26 @@ class AppSettings(context: Context) {
         prefs.edit().putString("trip_modes", org.json.JSONObject(_tripModes.value).toString()).apply()
     }
 
+    private val _verified = MutableStateFlow(runCatching {
+        org.json.JSONObject(prefs.getString("verified", "{}")!!).let { o -> o.keys().asSequence().associateWith { o.getString(it) } }
+    }.getOrDefault(emptyMap()))
+    /** People verified in person (QR code or safety number): ID → tag of the key that was checked. */
+    val verified: StateFlow<Map<String, String>> = _verified.asStateFlow()
+    fun setVerified(id: String, keyTag: String?) {
+        _verified.value = if (keyTag == null) _verified.value - id else _verified.value + (id to keyTag)
+        prefs.edit().putString("verified", org.json.JSONObject(_verified.value).toString()).apply()
+    }
+
+    private val _powerSos = MutableStateFlow(prefs.getBoolean("power_sos", false))
+    /** Press the power button 5 times quickly to send an SOS (needs Background on). */
+    val powerSos: StateFlow<Boolean> = _powerSos.asStateFlow()
+    fun setPowerSos(on: Boolean) { _powerSos.value = on; prefs.edit().putBoolean("power_sos", on).apply() }
+
+    private val _language = MutableStateFlow(prefs.getString("language", "") ?: "")
+    /** "en", "hi", or "" to follow the phone's language. */
+    val language: StateFlow<String> = _language.asStateFlow()
+    fun setLanguage(code: String) { _language.value = code; prefs.edit().putString("language", code).apply() }
+
     private val _blocked = MutableStateFlow(prefs.getStringSet("blocked", emptySet())!!.toSet())
     /** People this user blocked: their messages and calls don't reach them. Their SOS still does (safety first). */
     val blocked: StateFlow<Set<String>> = _blocked.asStateFlow()

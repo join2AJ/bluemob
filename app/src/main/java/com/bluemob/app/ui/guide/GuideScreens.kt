@@ -87,7 +87,7 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
     }
     val filtering = q.isNotEmpty() || category != null || savedOnly || newOnly
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 120.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
         item { LargeTitle("Survival guide", over = "${dash.total} guides · stored on your phone, work offline") }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

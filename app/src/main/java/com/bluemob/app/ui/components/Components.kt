@@ -293,7 +293,7 @@ fun TypingDots(color: Color = Extra.ink3) {
 fun InsetDivider(start: Dp = 82.dp) = HorizontalDivider(Modifier.padding(start = start), color = Extra.line)
 
 /** Bottom padding so content clears the floating tab bar. */
-val TabBarClearance = PaddingValues(bottom = 108.dp)
+val TabBarClearance = PaddingValues(bottom = 24.dp)
 
 @Composable
 fun Gap(h: Dp) = Spacer(Modifier.height(h))

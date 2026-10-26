@@ -132,7 +132,7 @@ fun ChatsScreen(
     }
     val onlineNow = people.filter { it.presence == Presence.ONLINE || it.reach != null }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 120.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
         item { LargeTitle("Chats", modifier = Modifier.padding(horizontal = Space.lg)) }
         item { ChatsCallsTabs(ChatsTab.CHATS, missedToday) { tab = it } }
         item {
@@ -325,7 +325,7 @@ private fun FilesList(conversations: Map<String, List<MessageEntity>>, people: L
     val state = rememberFileBrowserState()
     val all = remember(conversations) { sharedFiles(conversations.values.flatten()) }
     val names = people.associate { it.nodeId to it.name }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 120.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
         item { LargeTitle("Files", modifier = Modifier.padding(horizontal = Space.lg)) }
         item { ChatsCallsTabs(ChatsTab.FILES, missed, onTab) }
         fileBrowser(state, all, nameOf = { names[it] ?: "Someone" }, filesFor = filesFor, showPeople = true, sidePadding = Space.lg)
@@ -348,7 +348,7 @@ private fun CallsList(calls: List<com.bluemob.app.data.CallLogEntry>, people: Li
     var menuFor by remember { mutableStateOf<String?>(null) }
     val shown = CallFilter.apply(calls, kind, period, query)
     val now = System.currentTimeMillis()
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 120.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
         item { LargeTitle("Calls", modifier = Modifier.padding(horizontal = Space.lg)) }
         item { ChatsCallsTabs(ChatsTab.CALLS, missedToday, onTab) }
         if (calls.isNotEmpty()) item {

@@ -1,5 +1,7 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -76,6 +78,9 @@ fun PersonScreen(
     onBlock: (Boolean) -> Unit = {},
     /** Reports them to the BlueMob team: (reason, what happened, include their last messages). Null when sent. */
     onReport: suspend (String, String, Boolean) -> String? = { _, _, _ -> null },
+    /** Verified in person with a QR code or the safety number. */
+    verified: Boolean = false,
+    onVerify: () -> Unit = {},
 ) {
     var reporting by remember { mutableStateOf(false) }
     var confirmBlock by remember { mutableStateOf(false) }
@@ -97,6 +102,7 @@ fun PersonScreen(
                 Avatar(avatar, name, nodeId, 84.dp)
                 Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 8.dp))
                 Text("BM " + formatId(nodeId), style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace), color = Extra.ink3)
+                if (!isMe) VerifyPill(verified, onVerify)
                 com.bluemob.app.ui.components.QuarterStars(score.stars, 30.dp, Modifier.padding(top = 12.dp))
                 Text(if (score.raters == 0 && score.fakeSos == 0) "New · no ratings yet" else "%.2f out of 5 · %d %s rated".format(score.quarters, score.raters, if (score.raters == 1) "person" else "people"),
                     style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
@@ -309,4 +315,15 @@ private fun ReportPersonDialog(name: String, onReport: suspend (String, String, 
         },
         dismissButton = { if (!done) TextButton(onClick = onClose) { Text("Cancel") } },
     )
+}
+
+/** "✓ Verified" when checked in person, otherwise a button to do it. */
+@Composable
+fun VerifyPill(verified: Boolean, onVerify: () -> Unit) {
+    val bg = if (verified) Extra.pineTint else Extra.skyTint
+    val fg = if (verified) MaterialTheme.colorScheme.primary else Extra.sky
+    Row(Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(bg).clickable(onClick = onVerify).padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(if (verified) "✓ Verified in person" else "🔒 Verify with a QR code", style = MaterialTheme.typography.labelLarge, color = fg)
+    }
 }

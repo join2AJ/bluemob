@@ -1,5 +1,7 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -112,6 +114,8 @@ fun ChatScreen(
     /** Sky only: whether the offline AI is downloaded and on, and where to set it up. */
     aiReady: Boolean = false,
     onAiSetup: (() -> Unit)? = null,
+    /** Checked in person with a QR code: a tick by their name. */
+    verified: Boolean = false,
 ) {
     val isBot = nodeId == SkyBot.NODE_ID
     val isGroup = group != null
@@ -144,6 +148,8 @@ fun ChatScreen(
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(name, style = MaterialTheme.typography.titleMedium)
+                                if (verified) Text(" ✓", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.semantics { contentDescription = "Verified" })
                                 if (!isBot && !isGroup && person != null) com.bluemob.app.ui.components.StarChip(person.stars, person.ratingCount, Modifier.padding(start = 6.dp))
                             }
                             Text(

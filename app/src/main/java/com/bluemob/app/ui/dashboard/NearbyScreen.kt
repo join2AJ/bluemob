@@ -122,7 +122,7 @@ fun NearbyScreen(
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 120.dp),
+        contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 24.dp),
     ) {
         item { LargeTitle("Nearby", over = "${greeting()}, ${state.name}") }
         state.radios?.let { radios ->

@@ -125,6 +125,9 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.auth)
     implementation(libs.camerax.lifecycle)
+    // "Verify with a QR code": the camera preview, and reading and drawing QR codes.
+    implementation(libs.camerax.view)
+    implementation(libs.zxing.core)
     testImplementation("org.json:json:20240303")
     testImplementation(libs.robolectric)
     testImplementation(libs.junit)

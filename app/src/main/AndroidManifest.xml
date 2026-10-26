@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Bluetooth: legacy permissions for Android 11 and below -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
@@ -93,6 +94,11 @@
             android:name=".service.MeshService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice|remoteMessaging" />
+
+        <!-- "Cancel" on the power button SOS countdown -->
+        <receiver
+            android:name=".sos.PowerButtonSos$Cancel"
+            android:exported="false" />
 
         <!-- Starts BlueMob again after the phone restarts or BlueMob is updated (when "Reachable when closed" is on) -->
         <receiver

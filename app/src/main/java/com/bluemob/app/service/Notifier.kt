@@ -143,6 +143,23 @@ class Notifier(private val context: Context) {
         .setContentIntent(open(route, id))
         .build())
 
+    /** Counting down to an SOS from 5 power-button presses, with a big "Cancel". */
+    fun powerSosCountdown(secondsLeft: Int) {
+        val cancel = PendingIntent.getBroadcast(context, 77, android.content.Intent(context, com.bluemob.app.sos.PowerButtonSos.Cancel::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        post(POWER_SOS_ID, NotificationCompat.Builder(context, CH_SOS)
+            .setSmallIcon(R.drawable.ic_stat_bluemob)
+            .setContentTitle("🆘 Sending SOS in $secondsLeft s")
+            .setContentText("You pressed the power button 5 times. Tap Cancel if it was a mistake.")
+            .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOngoing(true).setOnlyAlertOnce(true).setColor(0xFFD94F55.toInt())
+            .addAction(0, "Cancel", cancel)
+            .build())
+    }
+
+    fun cancelPowerSos() = runCatching { manager.cancel(POWER_SOS_ID) }
+
     private fun post(id: Int, n: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
@@ -189,6 +206,7 @@ class Notifier(private val context: Context) {
         const val EMERGENCY_CARD_ID = 1009
         private const val CH_CARD = "emergency_card"
         const val EXTRA_ROUTE = "route"
+        private const val POWER_SOS_ID = 7707
         /** Stands for this phone's own ID in a notification's route; the app swaps in the real one. */
         const val ME = "me"
         const val CH_MESH = "mesh"

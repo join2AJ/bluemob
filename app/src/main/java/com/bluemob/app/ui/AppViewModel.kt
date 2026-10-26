@@ -277,6 +277,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val dndAllowSosContacts = settings.dndAllowSosContacts
     fun setDndAllowSosContacts(on: Boolean) = settings.setDndAllowSosContacts(on)
     val emergencyCard = settings.emergencyCard
+    val powerSos = settings.powerSos
+    /** Power button SOS listens from the background service, so turning it on turns Background on too. */
+    fun setPowerSos(on: Boolean) {
+        settings.setPowerSos(on)
+        if (on && !background.value) setBackground(true)
+        if (on) toast("Power button SOS is on: press it 5 times quickly. You'll have 5 seconds to cancel.")
+    }
     fun setEmergencyCard(on: Boolean) = settings.setEmergencyCard(on)
     // Lazy: it uses flows declared further down this class.
     private val badgeInputs by lazy { combine(
@@ -369,6 +376,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             pendingWifi = false; pendingUntil = 0
             if (!blueMob.radios.state.value.wifi) mesh.start(useWifi = false)
         }
+    }
+
+    // ---- Verify with a QR code ----
+    val verified = settings.verified
+    /** Their key as this phone knows it, or null if it never got it. */
+    private fun keyOf(id: String): String? = blueMob.keyBook.b64(id)
+    /** Verified in person, and their key hasn't changed since. */
+    fun isVerified(id: String, all: Map<String, String> = verified.value): Boolean =
+        all[id] != null && keyOf(id)?.let { com.bluemob.app.crypto.SafetyNumber.tag(it) } == all[id]
+    /** The 60-digit number both phones show for this chat, or null before their key is known. */
+    fun safetyNumber(id: String): String? = keyOf(id)?.let { com.bluemob.app.crypto.Crypto.decode(it) }
+        ?.let { com.bluemob.app.crypto.SafetyNumber.of(nodeId, identity.keys.publicEncoded, id, it) }
+    fun myVerifyCode(): String = com.bluemob.app.crypto.SafetyNumber.qr(nodeId, identity.keys.publicB64)
+    enum class ScanResult { VERIFIED, WRONG_PERSON, NOT_BLUEMOB }
+    /** A QR code scanned on the Verify screen for [expectedId]. */
+    fun onVerifyScanned(expectedId: String, text: String): ScanResult {
+        val (id, key) = com.bluemob.app.crypto.SafetyNumber.read(text) ?: return ScanResult.NOT_BLUEMOB
+        if (id != expectedId) return ScanResult.WRONG_PERSON
+        // The ID is a hash of the key, so a matching ID means the key is theirs; learn it if this is the first time.
+        if (keyOf(id) == null) blueMob.keyBook.add(key)
+        setVerified(id, true)
+        return ScanResult.VERIFIED
+    }
+    fun setVerified(id: String, on: Boolean) {
+        val key = keyOf(id)
+        settings.setVerified(id, if (on && key != null) com.bluemob.app.crypto.SafetyNumber.tag(key) else null)
+        val who = (blueMob.contacts.contacts.value[id]?.name ?: "someone") + " (BM " + com.bluemob.app.util.formatId(id) + ")"
+        blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, (if (on) "Verified " else "Removed verification of ") + who)
     }
 
     /** Adds someone by ID so their chat can open. Uses the name they gave, or a short form of the ID. */

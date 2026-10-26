@@ -134,7 +134,7 @@ fun CompassScreen(
     val bearing = if (myLocation != null && target != null) Geo.bearingDeg(myLocation, target.point).toFloat() else null
     val distance = if (myLocation != null && target != null) Geo.distanceM(myLocation, target.point) else null
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 120.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
         item { LargeTitle("Compass", over = "Works with no signal · GPS + compass") }
         if (!hasLocationPermission) item {
             Group {

@@ -85,7 +85,7 @@ object Usage {
         route == "sos" || route == "signal" || route.startsWith("rescue") || route == "sos-contacts" -> AppArea.SOS
         route == "games" || route.startsWith("game:") || route.startsWith("match:") -> AppArea.GAMES
         route == "trips" -> AppArea.COMPASS
-        route.startsWith("person:") || route == "activity" || route == "badges" -> AppArea.YOU
+        route.startsWith("person:") || route.startsWith("verify:") || route == "activity" || route == "badges" -> AppArea.YOU
         else -> AppArea.SETTINGS
     }
 

@@ -40,6 +40,7 @@ class MeshService : Service() {
             ServiceCompat.startForeground(this, Notifier.ONGOING_ID, app.notifier.ongoing(0, app.mesh.router.carrying, app.mesh.running.value), type)
         }.isSuccess
         if (!started) { stopSelf(); return }
+        scope.launch { app.settings.powerSos.collect { app.powerSos.listen(it) } }
         scope.launch {
             kotlinx.coroutines.flow.combine(app.mesh.peers, app.mesh.running) { peers, on -> peers to on }.collect { (peers, on) ->
                 val connected = peers.values.count { it.state == PeerState.CONNECTED }
@@ -72,6 +73,7 @@ class MeshService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
+        (application as BlueMobApp).powerSos.listen(false)
         super.onDestroy()
     }
 
