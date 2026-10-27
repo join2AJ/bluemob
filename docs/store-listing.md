@@ -41,7 +41,8 @@ messages on, phone to phone, so you can reach people on a trek, at a festival, i
 - Read aloud, in English or Hindi.
 - Sky, a built-in helper. An optional offline AI runs entirely on your phone.
 - Trips, trail and lost mode, a compass that works without maps or data.
-- Badges, levels and daily missions that make preparing a habit.
+- Trip groups: everyone scans one code before setting off, and a roll call shows every phone can be reached.
+- Field test: try it with your group for a few hours first, and see what gets through and the battery it uses.
 
 BlueMob is free, with no ads. Available in English and Hindi.
 
@@ -74,7 +75,8 @@ BlueMob adds help from people nearby but can't guarantee anyone receives an SOS.
 - अंग्रेज़ी या हिन्दी में पढ़कर सुनाएँ।
 - Sky, एक बिल्ट-इन साथी। वैकल्पिक ऑफ़लाइन AI पूरी तरह आपके फ़ोन पर चलता है।
 - यात्राएँ, ट्रेल और खोया मोड, ऐसा कंपास जो बिना नक्शे या डेटा के काम करे।
-- बैज, लेवल और रोज़ के मिशन, जो तैयारी को आदत बनाएँ।
+- ट्रिप ग्रुप: निकलने से पहले सब एक कोड स्कैन करें, और हाज़िरी दिखाती है कि हर फ़ोन तक पहुँचा जा सकता है।
+- फ़ील्ड टेस्ट: पहले कुछ घंटे अपने ग्रुप के साथ आज़माएँ, और देखें क्या पहुँचता है और कितनी बैटरी लगती है।
 
 BlueMob मुफ़्त है, बिना विज्ञापन। अंग्रेज़ी और हिन्दी में उपलब्ध।
 

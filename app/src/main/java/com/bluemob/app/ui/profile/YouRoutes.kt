@@ -127,8 +127,18 @@ fun YouRoutes(route: Route.YouArea, s: Shell) {
             onBack = s::pop, onBridge = { s.push(Route.Bridge) }, onAudit = { s.push(Route.Audit) },
             onReport = { text, details -> reports.reportProblem(text, details, log) },
             onOpenReport = { s.push(Route.Report) },
+            onFieldTest = { s.push(Route.FieldTest()) },
             autoReports = vm.autoErrorReports.collectAsStateWithLifecycle().value, onAutoReports = vm::setAutoErrorReports,
         )
+        is Route.FieldTest -> {
+            val ft = vm.fieldTest
+            val session by ft.session.collectAsStateWithLifecycle()
+            val tick by ft.changed.collectAsStateWithLifecycle()
+            val report = remember(tick, session) { ft.report() }
+            com.bluemob.app.ui.system.FieldTestScreen(session, report, vm.groups.collectAsStateWithLifecycle().value.values.filter { it.trip }.sortedByDescending { it.createdAt },
+                route.trip.ifBlank { null }, onStart = vm::startFieldTest, onStop = vm::stopFieldTest, onShare = actions.shareText,
+                onShareRaw = { actions.shareText(ft.export()) }, onNewTrip = { s.push(Route.NewTrip) }, onBack = s::pop)
+        }
         Route.Report -> ReportScreen(s::pop,
             onAddPhoto = { done -> actions.pickFile("photo") { uri -> reports.reportPhoto(uri, done) } },
             onSend = { c, sub, text, details, photos -> reports.reportProblem(text, details, log, c, sub, photos) })

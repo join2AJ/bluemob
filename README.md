@@ -36,6 +36,25 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.33: a safety app for trips and crowds
+
+- **Trip groups:** Nearby → "Going somewhere together?" → name it → everyone scans one QR code before setting off.
+  Whoever shows the code adds the person who scanned it and tells the whole group. A trip group is a normal group
+  chat too.
+- **Roll call:** one tap in the trip group. Every member's phone answers by itself (its delivery receipt), and the
+  screen shows how each one was reached: directly, through N other phones, or over the internet, and how fast.
+  Members get "✅ I'm OK" and "🆘 I need help" buttons under it.
+- **Field test:** You → Diagnostics → Field test (or a trip group → Field test with this group). While it runs,
+  each phone notes every minute that it's alive, the battery every 5 minutes, and sends a roll call every 5, 10 or 15
+  minutes. The result shows delivery %, time to reach, paths, battery per hour, and how often the phone paused or
+  closed BlueMob. Share it as text or raw data. The plan for a real field day is in `docs/field-day.md`.
+- **Games and badges are hidden, not deleted.** `app/src/main/java/com/bluemob/app/Features.kt` has two switches,
+  `GAMES` and `BADGES`. Set one back to `true` and every way in returns: the Games row and card, Sky's "Play a game",
+  game invites, the level pill and medal confetti. All their code, screens and tests stay.
+- **Wording:** the intro and the store listing now lead with safety for treks, yatras and melas.
+- **Docs:** `docs/partners.md` (a one-pager for trek operators, yatra organisers and volunteer groups) and
+  `docs/lora.md` (the plan for kilometre range with a LoRa radio, for after the field day).
+
 ## Android 0.32: your feedback on Nearby, chats, guide, safety and games
 
 - **Battery card (Nearby):** shows whether Battery Saver is on and BlueMob may keep running. Tapping it opens

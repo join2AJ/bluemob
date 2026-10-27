@@ -316,7 +316,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             target == "sos" -> push(Route.Sos)
             target == "sos_signal" -> push(Route.Signal)
             target == "power" -> actions.openBatterySaver()
-            target == "games" -> push(Route.Games)
+            target == "games" -> if (com.bluemob.app.Features.GAMES) push(Route.Games)
+            target.startsWith("trip-ok:") -> vm.send(target.removePrefix("trip-ok:"), "✅ I'm OK")
             target.startsWith("guide:") -> push(Route.Article(target.removePrefix("guide:")))
             target.startsWith("tab:") -> goTab(when (target.removePrefix("tab:")) {
                 "nearby" -> Tab.NEARBY; "chats" -> Tab.CHATS; "compass" -> Tab.COMPASS; "guide" -> Tab.GUIDE; else -> Tab.YOU
@@ -348,6 +349,11 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onConnections = { push(Route.Connections) }, onFixRadio = { actions.switchRadio(it, true) }, onGames = { push(Route.Games) },
                             onFindLost = { compassTarget = it; goTab(Tab.COMPASS) },
                             onCheckEveryone = { vm.checkOnEveryone() }, onClearCheck = vm::clearCheck,
+                            trips = run {
+                                val rolls by vm.rollCalls.collectAsStateWithLifecycle()
+                                vm.groups.collectAsStateWithLifecycle().value.values.filter { it.trip }.sortedByDescending { it.createdAt }.map { it to rolls[it.id] }
+                            },
+                            onTrip = { push(Route.Group(it)) }, onNewTrip = { push(Route.NewTrip) },
                         )
                         Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push(Route.Rescues) else push(Route.Rescue(it)) }, onNewChat = { push(Route.NewChat) },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
@@ -508,7 +514,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
         }
 
         val matchesNow by vm.matches.collectAsStateWithLifecycle()
-        matchesNow.values.firstOrNull { it.state == com.bluemob.app.games.MatchState.INVITED }?.takeIf { top != Route.Games && !locked }?.let { m ->
+        matchesNow.values.firstOrNull { it.state == com.bluemob.app.games.MatchState.INVITED }?.takeIf { com.bluemob.app.Features.GAMES && top != Route.Games && !locked }?.let { m ->
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = {},
                 title = { Text("${m.opponentName} wants to play") },
@@ -520,7 +526,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
 
         // A new medal: confetti, unless something more important is on screen.
         val medal by vm.newMedal.collectAsStateWithLifecycle()
-        medal?.takeIf { !locked && alert == null && top !is Route.SosArea }?.let { (t, tier) ->
+        medal?.takeIf { com.bluemob.app.Features.BADGES && !locked && alert == null && top !is Route.SosArea }?.let { (t, tier) ->
             com.bluemob.app.ui.profile.MedalCelebration(t, tier) { vm.medalSeen(t, tier) }
         }
 

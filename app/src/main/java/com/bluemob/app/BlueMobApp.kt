@@ -72,6 +72,7 @@ class BlueMobApp : Application() {
     /** "I'll be back by…": an SOS if the user doesn't check in. */
     val checkIn by lazy { com.bluemob.app.safety.CheckInTimer(this) }
     lateinit var groups: com.bluemob.app.chat.GroupStore private set
+    lateinit var fieldTest: com.bluemob.app.safety.FieldTest private set
     lateinit var sosCircle: com.bluemob.app.sos.SosCircle private set
     lateinit var peerStatus: com.bluemob.app.nearby.PeerStatus private set
     lateinit var heading: HeadingSensor private set
@@ -202,7 +203,7 @@ class BlueMobApp : Application() {
         lost = LostMode(mesh, identity, trail, audit, appScope, location, signals, sosActive = { sos.mine.value != null }, say = ::say,
             allowed = { settings.allowRemoteSignal.value }, allowedKinds = { settings.helperKinds.value })
         matches = com.bluemob.app.games.Matches(mesh, appScope) { m ->
-            if (!inForeground) notifier.note("${m.opponentName} wants to play", "${com.bluemob.app.games.Match.title(m.game)} over the mesh. Tap to answer.", "games")
+            if (!inForeground && Features.GAMES) notifier.note("${m.opponentName} wants to play", "${com.bluemob.app.games.Match.title(m.game)} over the mesh. Tap to answer.", "games")
         }
         calls = com.bluemob.app.call.CallManager(this, mesh, audit, appScope, onIncoming = { c ->
             if (!inForeground) notifier.incomingCall(c.name, c.video)
@@ -279,13 +280,29 @@ class BlueMobApp : Application() {
         callLog = db.calls()
         backups = com.bluemob.app.backup.BackupManager(this)
         groups = com.bluemob.app.chat.GroupStore(SecurePrefs.open(this, "groups"))
+        fieldTest = com.bluemob.app.safety.FieldTest(java.io.File(filesDir, "field-test.jsonl"))
         offlineAi = com.bluemob.app.bot.OfflineAi(this, appScope)
         messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text, partial -> skyReply(text, partial) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
             onIncoming = { peer, text -> contacts.markOnline(peer); if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
             groups = groups, me = { identity.nodeId to identity.displayName.value }, blocked = { it in settings.blocked.value },
             onRoomEnvelope = { mesh.receiveRoomEnvelope(it) },
+            onDelivered = { m, hops, internet -> if (m.parent.isNotBlank()) fieldTest.delivered(m.parent, m.peer, hops, internet, (m.deliveredAt ?: m.createdAt) - m.createdAt) },
         )
+        // A field test, while one runs: alive every minute, battery every 5, a roll call to the trip group every few.
+        appScope.launch {
+            fieldTest.session.collectLatest { s ->
+                if (s == null) return@collectLatest
+                var minute = 0
+                while (true) {
+                    fieldTest.beat(mesh.peers.value.values.count { it.state == com.bluemob.app.mesh.PeerState.CONNECTED }, mesh.running.value)
+                    if (minute % 5 == 0) sos.batteryPct()?.let { fieldTest.battery(it, getSystemService(android.os.BatteryManager::class.java)?.isCharging == true) }
+                    if (s.tripId != null && minute % s.everyMin == 0) messages.rollCall(s.tripId) { id, n -> fieldTest.probe(id, n) }
+                    minute++
+                    kotlinx.coroutines.delay(60_000)
+                }
+            }
+        }
         // SOS contacts: alerted in BlueMob (online, nearby, or when they next connect) when we send an SOS.
         sosCircle = com.bluemob.app.sos.SosCircle(settings, mesh, identity.keys, { identity.displayName.value },
             { profile.profile.value.takeIf { it.verified }?.phone }, { settings.bridgeUrl.value.takeIf { it.isNotBlank() } },

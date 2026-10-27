@@ -68,6 +68,9 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
         is Route.Group -> {
             val g = vm.groups.collectAsStateWithLifecycle().value[route.id]
             if (g == null) LaunchedEffect(Unit) { s.pop() }
+            else if (g.trip) TripGroupScreen(g, vm.nodeId, vm.rollCalls.collectAsStateWithLifecycle().value[g.id], people, remember(g.id) { vm.tripInvite(g.id) }, s::pop,
+                onRollCall = { vm.rollCall(g.id) }, onOpenChat = { s.push(Route.Chat(g.id)) }, onPerson = { s.push(Route.Person(it)) },
+                onFieldTest = { s.push(Route.FieldTest(g.id)) }, onLeave = { vm.leaveGroup(g.id); s.nav.clear() })
             else GroupInfoScreen(g, people, s::pop, onAdd = { vm.addToGroup(g.id, it) },
                 onLeave = { vm.leaveGroup(g.id); s.nav.clear() }, onPerson = { s.push(Route.Person(it)) })
         }
@@ -86,6 +89,10 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
             onStart = { id, n -> vm.startChatById(id, n); s.nav.replace(Route.Chat(id)) },
             onOpen = { s.nav.replace(Route.Chat(it)) }, onShareId = s.actions.shareId)
         Route.SkyAi -> SkyAiScreen(vm, s::pop)
+        Route.NewTrip -> NewTripScreen(s::pop, onCreate = { n -> vm.createTrip(n)?.let { s.nav.replace(Route.Group(it)) } }, onJoin = { s.nav.replace(Route.JoinTrip) })
+        Route.JoinTrip -> JoinTripScreen(s::pop, onScanned = { code ->
+            vm.joinTrip(code).fold({ s.nav.replace(Route.Group(it)); null }, { it.message })
+        }, askCamera = s.actions.requestCamera)
     }
 }
 

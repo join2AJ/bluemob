@@ -1905,3 +1905,96 @@ Microphone	माइक्रोफ़ोन
 A helper's call answers by itself after 3 seconds, so they can hear you	मदद करने वाले की कॉल 3 सेकंड बाद अपने-आप उठती है, ताकि वे आपको सुन सकें
 Useful if you can't reach your phone. Only voice calls, only from people in your rescue group, only during your SOS.	तब काम आता है जब आप फ़ोन तक न पहुँच सकें। केवल वॉइस कॉल, केवल आपके बचाव ग्रुप के लोगों से, केवल आपके SOS के दौरान।
 nothing chosen	कुछ नहीं चुना
+Trip group	ट्रिप ग्रुप
+🧭 Going somewhere together?	🧭 साथ में कहीं जा रहे हैं?
+Going somewhere together?	साथ में कहीं जा रहे हैं?
+Make a trip group before you set off. Everyone scans one code, so all your phones can reach each other, even where there's no signal.	निकलने से पहले ट्रिप ग्रुप बनाइए। सब एक कोड स्कैन करें, ताकि सबके फ़ोन एक-दूसरे तक पहुँच सकें, वहाँ भी जहाँ सिग्नल नहीं है।
+Make a trip group before you set off: everyone scans one code, and all your phones can reach each other	निकलने से पहले ट्रिप ग्रुप बनाइए: सब एक कोड स्कैन करें, और सबके फ़ोन एक-दूसरे तक पहुँच सकें
+Name of the trip	ट्रिप का नाम
+Create and show the code	बनाइए और कोड दिखाइए
+Someone already made one?	किसी ने पहले से बनाया है?
+Scan their code to join	जुड़ने के लिए उनका कोड स्कैन करें
+Everyone in one place, BlueMob open, Bluetooth on	सब एक जगह, BlueMob खुला, ब्लूटूथ चालू
+Each person scans the trip code	हर व्यक्ति ट्रिप कोड स्कैन करे
+Do a roll call: every phone should get a ✓	हाज़िरी लीजिए: हर फ़ोन पर ✓ आना चाहिए
+Keep "Reachable when closed" on, and phones out of battery saver	"बंद होने पर भी पहुँच में" चालू रखें, और फ़ोन बैटरी सेवर से बाहर रखें
+Join a trip group	ट्रिप ग्रुप से जुड़ें
+Ask someone in the group to open it and show the code. Point your camera at it.	ग्रुप के किसी व्यक्ति से उसे खोलकर कोड दिखाने को कहें। अपना कैमरा उस पर रखें।
+Scan the code	कोड स्कैन करें
+Leave the trip group?	ट्रिप ग्रुप छोड़ें?
+Leave the trip group	ट्रिप ग्रुप छोड़ें
+The others are told, and the group's chat goes from this phone.	बाकी लोगों को बताया जाएगा, और ग्रुप की चैट इस फ़ोन से हट जाएगी।
+Only you so far. Show the code below to the others	अभी सिर्फ़ आप हैं। नीचे दिया कोड बाकी लोगों को दिखाइए
+{} people. Do a roll call to check every phone can be reached	{} लोग। हर फ़ोन तक पहुँचा जा सकता है या नहीं, यह जाँचने के लिए हाज़िरी लीजिए
+{} of {} reached · roll call just now	{2} में से {1} तक पहुँचे · हाज़िरी अभी-अभी
+{} of {} reached · roll call {} min ago	{2} में से {1} तक पहुँचे · हाज़िरी {3} मिनट पहले
+{} of {} reached · roll call {} h ago	{2} में से {1} तक पहुँचे · हाज़िरी {3} घंटे पहले
+{} of {} reached in the last roll call	पिछली हाज़िरी में {2} में से {1} तक पहुँचे
+{} people · tap for a roll call	{} लोग · हाज़िरी के लिए टैप करें
+📋 Roll call	📋 हाज़िरी
+💬 Group chat	💬 ग्रुप चैट
+Join code	जुड़ने का कोड
+Hide the code	कोड छिपाएँ
+Show the code	कोड दिखाएँ
+Anyone who scans it joins this trip group	जो भी इसे स्कैन करे, इस ट्रिप ग्रुप से जुड़ जाता है
+Others: Nearby → Trip group → Scan their code	बाकी लोग: आस-पास → ट्रिप ग्रुप → उनका कोड स्कैन करें
+People · {}	लोग · {}
+Not in a roll call yet	अभी किसी हाज़िरी में नहीं
+Not reached yet	अभी तक नहीं पहुँचे
+Reached directly · {}	सीधे पहुँचे · {}
+Reached through {} phone · {}	{} फ़ोन के ज़रिए पहुँचे · {}
+Reached through {} phones · {}	{} फ़ोन के ज़रिए पहुँचे · {}
+Reached over the internet · {}	इंटरनेट से पहुँचे · {}
+Not reached yet? They may be out of range, or their phone stopped BlueMob. Walk closer, or ask them to open it.	अभी तक नहीं पहुँचे? हो सकता है वे दायरे से बाहर हों, या उनके फ़ोन ने BlueMob बंद कर दिया हो। पास जाइए, या उन्हें इसे खोलने को कहिए।
+A roll call goes to everyone. Each ✓ shows the phone was reached, and how: straight to it, through other phones, or over the internet.	हाज़िरी सबके पास जाती है। हर ✓ बताता है कि फ़ोन तक पहुँचे, और कैसे: सीधे, दूसरे फ़ोन के ज़रिए, या इंटरनेट से।
+Test before you go	जाने से पहले जाँचें
+Field test with this group	इस ग्रुप के साथ फ़ील्ड टेस्ट
+Roll calls every few minutes for a few hours: how many get through, how fast, and battery used	कुछ घंटों तक हर कुछ मिनट में हाज़िरी: कितनी पहुँचीं, कितनी जल्दी, और कितनी बैटरी लगी
++ {} more trip group	+ {} और ट्रिप ग्रुप
++ {} more trip groups	+ {} और ट्रिप ग्रुप
+Field test	फ़ील्ड टेस्ट
+Check with your group, before a trip, how well BlueMob works on your phones	ट्रिप से पहले अपने ग्रुप के साथ जाँचें कि BlueMob आपके फ़ोन पर कितना अच्छा चलता है
+🧪 Will it work out there?	🧪 क्या यह वहाँ काम करेगा?
+Run this with your group for a few hours, phones in pockets, like on the day. Each phone measures how many roll calls got through, how fast, the battery used, and whether the phone stopped BlueMob.	इसे अपने ग्रुप के साथ कुछ घंटे चलाइए, फ़ोन जेब में, जैसे उस दिन होंगे। हर फ़ोन मापता है कि कितनी हाज़िरी पहुँचीं, कितनी जल्दी, कितनी बैटरी लगी, और क्या फ़ोन ने BlueMob बंद किया।
+Trip group to test with	किस ट्रिप ग्रुप के साथ जाँचें
+No trip group yet. Without one, the test still measures battery and whether the phone stops BlueMob.	अभी कोई ट्रिप ग्रुप नहीं। इसके बिना भी टेस्ट बैटरी और यह मापता है कि फ़ोन BlueMob बंद करता है या नहीं।
+Make a trip group	ट्रिप ग्रुप बनाइए
+None	कोई नहीं
+Roll call every	हाज़िरी हर
+Start the field test	फ़ील्ड टेस्ट शुरू करें
+Start it on every phone in the group. Keep "Reachable when closed" on. Stop it at the end, then share the results.	इसे ग्रुप के हर फ़ोन पर शुरू करें। "बंद होने पर भी पहुँच में" चालू रखें। आख़िर में रोकें, फिर नतीजे शेयर करें।
+Last test	पिछला टेस्ट
+Field test running	फ़ील्ड टेस्ट चल रहा है
+{} h {} min so far · roll call every {} min	अब तक {} घंटे {} मिनट · हर {} मिनट में हाज़िरी
+So far	अब तक
+Stop the test	टेस्ट रोकें
+Share results	नतीजे शेयर करें
+Share raw data	पूरा डेटा शेयर करें
+Time to reach	पहुँचने में समय
+Battery	बैटरी
+Stopped by phone	फ़ोन ने रोका
+no roll calls yet	अभी कोई हाज़िरी नहीं
+{} of {}	{2} में से {1}
+slowest {}	सबसे धीमा {}
+typical	आम तौर पर
+measured every 5 min	हर 5 मिनट में मापा
+never: good	कभी नहीं: अच्छा
+{} min in all	कुल {} मिनट
+How answers travelled	जवाब कैसे पहुँचे
+Direct	सीधे
+1 phone	1 फ़ोन
+2 phones	2 फ़ोन
+3+ phones	3+ फ़ोन
+The phone paused or closed BlueMob. Turn off battery saver for BlueMob (You → Connections & power) and test again.	फ़ोन ने BlueMob को रोका या बंद किया। BlueMob के लिए बैटरी सेवर बंद करें (आप → कनेक्शन और पावर) और फिर से जाँचें।
+✅ I'm OK	✅ मैं ठीक हूँ
+That isn't a trip group code.	यह ट्रिप ग्रुप का कोड नहीं है।
+That's your own code. Show it to the others.	यह आपका अपना कोड है। इसे बाकी लोगों को दिखाइए।
+Couldn't join. Try again.	जुड़ नहीं पाए। फिर से कोशिश करें।
+Games are resting in this version, so BlueMob stays light and focused on keeping you safe. A guide quiz is a good way to pass the time and learn something useful.	इस वर्ज़न में गेम बंद हैं, ताकि BlueMob हल्का रहे और आपकी सुरक्षा पर ध्यान दे। गाइड क्विज़ समय बिताने और कुछ काम का सीखने का अच्छा तरीका है।
+Try a guide quiz	गाइड क्विज़ आज़माएँ
+Learn a guide or two from the survival guide, then try its quiz	सर्वाइवल गाइड से एक-दो गाइड पढ़िए, फिर उसका क्विज़ कीजिए
+Check everyone in your trip group can be reached	जाँचिए कि आपके ट्रिप ग्रुप में सब तक पहुँचा जा सकता है
+Safe together, anywhere	हर जगह, साथ में सुरक्षित
+On a trek, a yatra or in a crowded mela, BlueMob links your group's phones directly over Bluetooth and Wi-Fi, so SOS and messages get through where the network doesn't.	ट्रेक पर, यात्रा में या भीड़ भरे मेले में, BlueMob आपके ग्रुप के फ़ोन को सीधे ब्लूटूथ और वाई-फ़ाई से जोड़ता है, ताकि SOS और संदेश वहाँ भी पहुँचें जहाँ नेटवर्क नहीं पहुँचता।
+Your group, in one code	आपका ग्रुप, एक कोड में
+Make a trip group before you set off. Everyone scans one code, and a roll call shows every phone can be reached.	निकलने से पहले ट्रिप ग्रुप बनाइए। सब एक कोड स्कैन करें, और हाज़िरी दिखाती है कि हर फ़ोन तक पहुँचा जा सकता है।

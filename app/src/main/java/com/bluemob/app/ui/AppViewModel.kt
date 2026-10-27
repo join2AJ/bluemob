@@ -243,6 +243,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val groups = blueMob.groups.groups
     fun createGroup(name: String, members: Map<String, String>) = repo.createGroup(name, members)
     fun leaveGroup(id: String) { repo.leaveGroup(id); settings.setPinned(id, false) }
+
+    // ---- trip groups and field tests ----
+    fun createTrip(name: String) = repo.createTrip(name)?.also { settings.setPinned(it, true) }
+    /** Joins from a scanned code: the group's ID, or why not. */
+    fun joinTrip(code: String): Result<String> {
+        val invite = com.bluemob.app.chat.TripInvite.parse(code) ?: return Result.failure(IllegalArgumentException("That isn't a trip group code."))
+        if (invite.inviterId == nodeId) return Result.failure(IllegalArgumentException("That's your own code. Show it to the others."))
+        return repo.joinTrip(invite)?.let { settings.setPinned(it, true); Result.success(it) } ?: Result.failure(IllegalStateException("Couldn't join. Try again."))
+    }
+    fun tripInvite(id: String) = repo.tripInvite(id)?.encode()
+    fun rollCall(id: String) = repo.rollCall(id) { mid, n -> blueMob.fieldTest.probe(mid, n) }
+    val rollCalls get() = repo.rollCalls
+    val fieldTest get() = blueMob.fieldTest
+    fun startFieldTest(trip: String?, everyMin: Int) =
+        blueMob.fieldTest.start(trip, everyMin, "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}")
+    fun stopFieldTest() = blueMob.fieldTest.stop()
     /** Adds people to a group: everyone (them included) learns the new member list with the message. */
     fun addToGroup(id: String, people: Map<String, String>) {
         val g = blueMob.groups.get(id) ?: return

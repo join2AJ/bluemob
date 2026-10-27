@@ -59,9 +59,9 @@ private data class Slide(val kind: HeroKind, val title: String, val body: String
 
 private val slides = listOf(
     Slide(
-        HeroKind.OFF_GRID, "Talk freely, anywhere",
-        "No towers. No internet. BlueMob links phones directly over Bluetooth and Wi-Fi: " +
-            "in the mountains, at sea, or when the network goes down.",
+        HeroKind.OFF_GRID, "Safe together, anywhere",
+        "On a trek, a yatra or in a crowded mela, BlueMob links your group's phones directly over Bluetooth and Wi-Fi, " +
+            "so SOS and messages get through where the network doesn't.",
     ),
     Slide(
         HeroKind.HOPS, "Every phone is a path",
@@ -75,8 +75,8 @@ private val slides = listOf(
         comingSoon = true,
     ),
     Slide(
-        HeroKind.RADAR, "See who's around",
-        "A live radar shows who's online, how far away they are, and when you last saw them.",
+        HeroKind.RADAR, "Your group, in one code",
+        "Make a trip group before you set off. Everyone scans one code, and a roll call shows every phone can be reached.",
     ),
     Slide(
         HeroKind.BUDDY, "Never alone",

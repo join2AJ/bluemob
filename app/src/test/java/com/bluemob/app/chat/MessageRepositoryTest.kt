@@ -221,6 +221,50 @@ class MessageRepositoryTest {
     }
 
     @Test
+    fun tripGroupJoinByCodeAndRollCall() = runTest {
+        val p = Phones(this)
+        p.radio.connected = true
+        val gid = p.a.createTrip("Kedarnath trek")!!
+        settle()
+        assertTrue(p.groupsA.get(gid)!!.trip)
+        // B scans A's code: A adds B and tells the group.
+        assertEquals("Kedarnath trek", p.a.tripInvite(gid)!!.name)
+        p.b.joinTrip(p.a.tripInvite(gid)!!)
+        settle()
+        assertTrue("B" in p.groupsA.get(gid)!!.members)
+        assertTrue(p.groupsB.get(gid)!!.trip)
+        assertTrue(p.daoB.rows.value.any { !it.fromMe && it.peer == gid && "joined the trip group" in it.text })
+        // A roll call: B's phone is reached directly, and B gets "I'm OK" / "I need help".
+        var probe: Pair<String, Int>? = null
+        p.a.rollCall(gid) { id, n -> probe = id to n }
+        settle()
+        val roll = p.a.rollCalls.value[gid]!!
+        assertEquals(probe!!.first, roll.messageId)
+        assertEquals(1, roll.reached)
+        assertTrue(roll.members["B"] is Reach.Direct)
+        assertTrue(p.daoB.rows.value.single { !it.fromMe && it.text == RollCall.TEXT }.actions.contains("trip-ok:$gid"))
+    }
+
+    @Test
+    fun tripCodesOnlyParseWhenWellFormed() {
+        val code = TripInvite("g-abc123", "0123456789abcdef", "Family at the mela 🎪").encode()
+        assertEquals(TripInvite("g-abc123", "0123456789abcdef", "Family at the mela 🎪"), TripInvite.parse(code))
+        assertEquals(null, TripInvite.parse("bluemob:verify:1:xyz"))
+        assertEquals(null, TripInvite.parse("bluemob:trip:1:notagroup:0123456789abcdef:eA"))
+        assertEquals(null, TripInvite.parse("bluemob:trip:1:g-abc:short:eA"))
+    }
+
+    @Test
+    fun reachReadsHowEachCopyWasDelivered() {
+        val base = MessageEntity("c", "B", true, "x", 1_000, MessageStatus.DELIVERED, deliveredAt = 4_000)
+        assertEquals(Reach.Direct(3_000), Reach.of(base.copy(deliveredVia = Reach.via(1, false, "Bluetooth"))))
+        assertEquals(Reach.Mesh(2, 3_000), Reach.of(base.copy(deliveredVia = Reach.via(3, false, "Bluetooth"))))
+        assertEquals(Reach.Mesh(1, 3_000), Reach.of(base.copy(deliveredVia = Reach.via(2, false, "Bluetooth"))))
+        assertEquals(Reach.Internet(3_000), Reach.of(base.copy(deliveredVia = Reach.via(1, true, "Bluetooth"))))
+        assertEquals(Reach.Waiting, Reach.of(base.copy(status = MessageStatus.SENT, deliveredAt = null)))
+    }
+
+    @Test
     fun richRoundTrip() {
         val r = Rich("hi", group = "g-1", groupName = "Fam", members = mapOf("0123456789abcdef" to "Asha"), groupMsgId = "m-1", replyId = "m-0", replyName = "Bala", replyText = "ok")
         assertEquals(r, Rich.decode(r.encode()))

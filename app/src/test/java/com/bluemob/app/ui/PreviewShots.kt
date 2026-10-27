@@ -217,4 +217,22 @@ class PreviewShots {
 
     @Test fun emergencyCardScreen() = shot { com.bluemob.app.ui.profile.EmergencyCardScreen(true, {}, { "🆘 In an emergency: Arjun\n🩸 Blood group B+ · age 34\n📞 Papa: +91 98100 12345" }, {}) }
     @Test fun helperSignalsScreen() = shot { com.bluemob.app.ui.profile.HelperSignalsScreen(true, {}, setOf("sound", "flash", "mic"), { _, _ -> }, {}) }
+
+    private val trip = com.bluemob.app.chat.ChatGroup("g-trip", "Kedarnath trek", mapOf("a1c2" to "Asha", "b7e4" to "Ravi", "c3d9" to "Meera", "d5f1" to "Imran"), now, trip = true)
+    private val roll = com.bluemob.app.chat.RollCall("m-1", now - 4 * 60_000, mapOf(
+        "a1c2" to com.bluemob.app.chat.Reach.Direct(1_800), "b7e4" to com.bluemob.app.chat.Reach.Mesh(2, 14_000),
+        "c3d9" to com.bluemob.app.chat.Reach.Internet(6_000), "d5f1" to com.bluemob.app.chat.Reach.Waiting))
+    @Test fun nearbyTrip() = shot(tall = true) {
+        NearbyScreen(NearbyState("Arjun", true, people, true, false, true, true, false), pad, {}, {}, {}, {}, {}, {}, {}, {}, trips = listOf(trip to roll))
+    }
+    @Test fun newTrip() = shot(tall = true) { com.bluemob.app.ui.chat.NewTripScreen({}, {}, {}) }
+    @Test fun tripGroup() = shot(tall = true) {
+        com.bluemob.app.ui.chat.TripGroupScreen(trip, "3f9a1c2b7d4e8a01", roll, people, null, {}, {}, {}, {}, {}, {}, now = now)
+    }
+    @Test fun fieldTestRunning() = shot(tall = true) {
+        com.bluemob.app.ui.system.FieldTestScreen(com.bluemob.app.safety.FieldTest.Session(now - 150 * 60_000, "g-trip", 10),
+            com.bluemob.app.safety.FieldTest.Report("Motorola edge 50 · Android 14", 150, 60, 54, 9_000, 190_000,
+                mapOf("Direct" to 31, "1 phone" to 14, "2 phones" to 6, "Internet" to 3), 3.4, 92, 84, 1, 12, 6, 3.2),
+            listOf(trip), "g-trip", { _, _ -> }, {}, {}, {}, {}, {})
+    }
 }

@@ -24,7 +24,7 @@ class SkyBotTest {
         "Hey water is not with me what to do?" to "Finding water",
         "Water not available what to do" to "Finding water",
         "hey" to "H",
-        "can we play a game" to "Open Games",
+        "can we play a game" to if (com.bluemob.app.Features.GAMES) "Open Games" else "guide quiz",
         "how do I start a fire" to "Lighting a fire",
         "how do I build a shelter" to "Emergency shelter",
         "I'm lost" to "If you are lost",

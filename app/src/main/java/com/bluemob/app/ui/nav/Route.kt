@@ -19,6 +19,9 @@ sealed interface Route {
     data object NewChat : ChatArea { override val key = "newchat" }
     data object NewGroup : ChatArea { override val key = "newgroup" }
     data object SkyAi : ChatArea { override val key = "skyai" }
+    /** Start a trip group (its own screen is [Group], which shows trip groups their own way). */
+    data object NewTrip : ChatArea { override val key = "new-trip" }
+    data object JoinTrip : ChatArea { override val key = "join-trip" }
 
     /** Guide articles, quizzes and packs. */
     sealed interface GuideArea : Route
@@ -66,6 +69,8 @@ sealed interface Route {
     data object Storage : YouArea { override val key = "storage" }
     data object Diagnostics : YouArea { override val key = "diagnostics" }
     data object Report : YouArea { override val key = "report" }
+    /** A field test, set up to use trip group [trip] ("" for none chosen yet). */
+    data class FieldTest(val trip: String = "") : YouArea { override val key get() = if (trip.isEmpty()) "field-test" else "field-test:$trip" }
 
     /** Opened from a notification only, never kept on the stack. */
     sealed interface Action : Route
@@ -80,10 +85,10 @@ sealed interface Route {
         private val withId: Map<String, (String) -> Route> = mapOf(
             "chat" to ::Chat, "group" to ::Group, "media" to ::Media, "photo" to ::Photo, "info" to ::Info,
             "article" to ::Article, "quiz" to ::Quiz, "rescue" to ::Rescue, "match" to ::Match, "game" to ::Game,
-            "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "autostart" to ::Power, "sos-coming" to ::SosComing,
+            "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "autostart" to ::Power, "sos-coming" to ::SosComing, "field-test" to ::FieldTest,
         )
         private val plain: Map<String, Route> by lazy {
-            listOf(NewChat, NewGroup, SkyAi, GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, EmergencyCard, HelperSignals, Connections,
+            listOf(NewChat, NewGroup, SkyAi, NewTrip, JoinTrip, FieldTest(), GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, EmergencyCard, HelperSignals, Connections,
                 AutoStart, Audit, Badges, Activity, Bridge, Backup, Storage, Diagnostics, Report, Calls, Call).associateBy { it.key }
         }
 

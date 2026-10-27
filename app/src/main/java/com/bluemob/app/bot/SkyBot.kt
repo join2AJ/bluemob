@@ -138,9 +138,12 @@ object SkyBot {
             listOf(tab("you", "See your rating"))),
         Help(listOf("split", "money", "upi", "expense", "owe"),
             "Splitting trip money is coming in a later BlueMob update. You can try it now in the web preview."),
-        Help(listOf("game", "play", "tic tac", "tic-tac", "connect 4"),
+        if (com.bluemob.app.Features.GAMES) Help(listOf("game", "play", "tic tac", "tic-tac", "connect 4"),
             "Open Games to play with someone nearby over the mesh (or over the internet), or against the computer: Tic-tac-toe, Infinite tic-tac-toe, Connect 4 and more.",
-            listOf(SkyAction("Play a game", "games"))),
+            listOf(SkyAction("Play a game", "games")))
+        else Help(listOf("game", "play", "tic tac", "tic-tac", "connect 4"),
+            "Games are resting in this version, so BlueMob stays light and focused on keeping you safe. A guide quiz is a good way to pass the time and learn something useful.",
+            listOf(tab("guide", "Try a guide quiz"))),
         Help(listOf("how does bluemob", "how bluemob works", "how it works", "how does it work", "how does this work", "how does the app", "mesh network", "without towers"),
             "Here's the magic ✨: phones running BlueMob find each other over Bluetooth and Wi-Fi and link up directly. No SIM, no towers, no internet.\n\n" +
                 "Messages go straight to people in range, or travel phone to phone to people further away, end-to-end encrypted and shown exactly once."),
@@ -216,6 +219,11 @@ object SkyBot {
         turn++
         phoneAnswer(input, facts)?.let { return it }
         appHelp.firstOrNull { h -> h.keys.any { atWord(t, it) } }?.let { return SkyAnswer(it.text, it.actions) }
+        if (freeTime.containsMatchIn(t) && !com.bluemob.app.Features.GAMES) return SkyAnswer(
+            "Some ideas for free time out here 🌿\n• Learn a guide or two from the survival guide, then try its quiz\n" +
+                "• Check who's around on the radar and say hi\n• Check everyone in your trip group can be reached",
+            listOf(tab("guide", "Browse the guide"), tab("nearby", "Open Nearby")),
+        )
         if (freeTime.containsMatchIn(t)) return SkyAnswer(
             "Some ideas for free time out here 🌿\n• Play Tic-tac-toe or Connect 4 with someone nearby over the mesh, or against the computer if no one's around\n" +
                 "• Learn a guide or two from the survival guide\n• Check who's around on the radar and say hi",

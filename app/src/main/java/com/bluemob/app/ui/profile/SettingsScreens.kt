@@ -109,6 +109,7 @@ fun DiagnosticsScreen(
     onOpenReport: (() -> Unit)? = null,
     autoReports: Boolean = true,
     onAutoReports: (Boolean) -> Unit = {},
+    onFieldTest: () -> Unit = {},
 ) {
     val clipboard = LocalClipboardManager.current
     var reporting by rememberSaveable { mutableStateOf(false) }
@@ -149,6 +150,8 @@ fun DiagnosticsScreen(
         item {
             Group {
                 SettingRow(Icons.Outlined.Terminal, Extra.rose, "Report a problem", reportNote ?: "Tell the BlueMob team what went wrong, with screenshots", onClick = { onOpenReport?.invoke() ?: run { reporting = true } }) { chevron() }
+                SettingRow(Icons.Outlined.Tune, com.bluemob.app.ui.theme.Palette.Violet, "Field test", "Check with your group, before a trip, how well BlueMob works on your phones",
+                    divider = true, onClick = onFieldTest) { chevron() }
             }
         }
         item { GroupLabel("Show") }

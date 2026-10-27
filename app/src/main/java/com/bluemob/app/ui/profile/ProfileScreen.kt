@@ -208,7 +208,7 @@ fun ProfileScreen(
                     Text("  ›", color = Extra.ink3)
                 }
                 // Level, rank and medals: what you've done that makes you (and others) safer.
-                game?.let { LevelPill(it, Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).clickable(onClick = onBadges)) }
+                game?.takeIf { com.bluemob.app.Features.BADGES }?.let { LevelPill(it, Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).clickable(onClick = onBadges)) }
                 // Your activity at a glance: opens the dashboard with graphs.
                 Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).clickable(onClick = onActivity)
                     .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -284,7 +284,7 @@ fun ProfileScreen(
         item { GroupLabel("More") }
         item {
             Group {
-                SettingRow(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Games", "5 games, against the computer or people nearby", onClick = onGames) { chevron() }
+                if (com.bluemob.app.Features.GAMES) SettingRow(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Games", "5 games, against the computer or people nearby", onClick = onGames) { chevron() }
                 // Appearance: follow the phone, or always light / dark.
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("🌗", fontSize = 20.sp)

@@ -30,6 +30,12 @@ data class Rich(
      * and acknowledged, so "I'm coming" and "I'm safe" reach someone who was offline at that moment.
      */
     val env: String? = null,
+    /** The group is a trip group (see [TripInvite]). */
+    val trip: Boolean = false,
+    /** Joining a trip group by its QR code: sent to whoever showed the code, who adds us and tells everyone. */
+    val join: Boolean = false,
+    /** A roll call in a trip group: the phone that gets it shows "I'm OK" and "I need help". */
+    val rollCall: Boolean = false,
 ) {
     fun encode(): String {
         val j = JSONObject()
@@ -42,11 +48,14 @@ data class Rich(
         replyId?.let { j.put("r", it).put("rn", replyName).put("rq", replyText) }
         react?.let { j.put("x", it).put("xi", reactTo) }
         if (leave) j.put("lv", 1)
+        if (trip) j.put("tp", 1)
+        if (join) j.put("jn", 1)
+        if (rollCall) j.put("rc", 1)
         env?.let { j.put("rm", it) }
         return MARK + j.toString()
     }
 
-    val isControl: Boolean get() = react != null || leave || env != null
+    val isControl: Boolean get() = react != null || leave || env != null || join
 
     companion object {
         /** Invisible separator, then JSON. Plain messages never start with it. */
@@ -74,6 +83,7 @@ data class Rich(
                 react = if (j.has("x")) j.optString("x").take(8) else null, reactTo = j.optString("xi").takeIf { it.isNotBlank() },
                 leave = j.optInt("lv") == 1,
                 env = j.optString("rm").takeIf { it.isNotBlank() && it.length <= 8_000 },
+                trip = j.optInt("tp") == 1, join = j.optInt("jn") == 1, rollCall = j.optInt("rc") == 1,
             )
         }
 
@@ -94,7 +104,7 @@ data class Rich(
 }
 
 /** A group chat this phone is in. [id] is "g-…", used as the chat's peer ID. */
-data class ChatGroup(val id: String, val name: String, val members: Map<String, String>, val createdAt: Long = System.currentTimeMillis())
+data class ChatGroup(val id: String, val name: String, val members: Map<String, String>, val createdAt: Long = System.currentTimeMillis(), val trip: Boolean = false)
 
 /** Groups are kept in encrypted settings: name and members. Messages live with all the others. */
 /** [prefs] null keeps groups in memory only (tests). */
@@ -112,14 +122,14 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
         (0 until a.length()).map { a.getJSONObject(it) }.associate { o ->
             val m = LinkedHashMap<String, String>()
             o.optJSONObject("m")?.let { mo -> mo.keys().forEach { k -> m[k] = mo.optString(k) } }
-            o.getString("id") to ChatGroup(o.getString("id"), o.optString("n"), m, o.optLong("at"))
+            o.getString("id") to ChatGroup(o.getString("id"), o.optString("n"), m, o.optLong("at"), o.optBoolean("tr"))
         }
     }.getOrDefault(emptyMap())
 
     private fun save() {
         if (prefs == null) return
         val a = JSONArray()
-        _groups.value.values.forEach { g -> a.put(JSONObject().put("id", g.id).put("n", g.name).put("at", g.createdAt).put("m", JSONObject(g.members as Map<*, *>))) }
+        _groups.value.values.forEach { g -> a.put(JSONObject().put("id", g.id).put("n", g.name).put("at", g.createdAt).put("m", JSONObject(g.members as Map<*, *>)).put("tr", g.trip)) }
         prefs.edit().putString(KEY, a.toString()).apply()
     }
 

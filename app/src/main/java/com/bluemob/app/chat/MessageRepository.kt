@@ -60,6 +60,8 @@ class MessageRepository(
     private val blocked: (String) -> Boolean = { false },
     /** A rescue-group message that came inside a hidden chat message (see [Rich.env]). */
     private val onRoomEnvelope: (String) -> Unit = {},
+    /** The first receipt for one of our messages (a member's copy of a group message included): (it, hops, over the internet). */
+    private val onDelivered: (MessageEntity, Int, Boolean) -> Unit = { _, _, _ -> },
 ) {
     /** Every message shown in a chat (copies that only carry group messages and reactions are left out). */
     val messages: StateFlow<List<MessageEntity>> = dao.observeAll().map { all -> all.filter { !it.hidden } }.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -124,8 +126,8 @@ class MessageRepository(
      * A group message: shown once in the group chat, and carried to each member as its own encrypted message (so it
      * travels every way a normal message does, and each member's receipts come back).
      */
-    private suspend fun sendToGroup(gid: String, text: String, reply: String, now: Long) {
-        val g = groups?.get(gid) ?: return
+    private suspend fun sendToGroup(gid: String, text: String, reply: String, now: Long, rollCall: Boolean = false): Pair<String, Int>? {
+        val g = groups?.get(gid) ?: return null
         val (myId, myName) = me()
         val id = newId()
         val members = g.members + (myId to myName)
@@ -134,10 +136,12 @@ class MessageRepository(
             replyTo = reply, sender = myId, senderName = myName,
             history = event(now, "Written on your phone") + event(now, "Sent to ${others.size} ${if (others.size == 1) "member" else "members"} of ${g.name}, each end-to-end encrypted")))
         val r = Rich.replyParts(reply)
-        val wire = Rich(text, group = gid, groupName = g.name, members = members, groupMsgId = id, replyId = r?.first, replyName = r?.second.orEmpty(), replyText = r?.third.orEmpty()).encode()
+        val wire = Rich(text, group = gid, groupName = g.name, members = members, groupMsgId = id, replyId = r?.first, replyName = r?.second.orEmpty(), replyText = r?.third.orEmpty(),
+            trip = g.trip, rollCall = rollCall).encode()
         others.forEach { to -> dao.insert(carrier(to, wire, id, now)) }
         record(AuditKind.MESSAGE, gid, "Group message $id written to ${g.name} (${others.size} members): \"${text.take(80)}\"")
         deliverAll()
+        return id to others.size
     }
 
     private fun carrier(to: String, wire: String, parent: String, now: Long) = MessageEntity(
@@ -162,6 +166,54 @@ class MessageRepository(
         send(gid, "👋 $myName created the group \"${name.trim().take(40)}\"")
         return gid
     }
+
+    /** Starts a trip group with only us in it; the others join by scanning its QR code ([tripInvite]). */
+    fun createTrip(name: String): String? {
+        val store = groups ?: return null
+        val (_, myName) = me()
+        val gid = GroupStore.PREFIX + UUID.randomUUID().toString().replace("-", "").take(12)
+        store.put(ChatGroup(gid, name.trim().take(40).ifBlank { "Trip" }, emptyMap(), trip = true))
+        send(gid, "🧭 $myName started the trip group \"${name.trim().take(40).ifBlank { "Trip" }}\". Scan its QR code to join")
+        return gid
+    }
+
+    /** The QR code that lets someone join trip group [gid] through us. */
+    fun tripInvite(gid: String): TripInvite? = groups?.get(gid)?.takeIf { it.trip }?.let { TripInvite(it.id, me().first, it.name) }
+
+    /**
+     * Joins a trip group from its QR code: we ask whoever showed it to add us; they tell everyone, and the reply
+     * brings us the whole member list. Returns the group's ID (already open even before the answer comes).
+     */
+    fun joinTrip(invite: TripInvite): String? {
+        val store = groups ?: return null
+        val (myId, myName) = me()
+        if (invite.inviterId == myId) return null
+        val known = store.get(invite.groupId)
+        store.put(ChatGroup(invite.groupId, invite.name, (known?.members.orEmpty()) + (invite.inviterId to (known?.members?.get(invite.inviterId) ?: "")),
+            known?.createdAt ?: System.currentTimeMillis(), trip = true))
+        if (known != null && myId !in known.members) return invite.groupId
+        scope.launch {
+            val now = System.currentTimeMillis()
+            val wire = Rich("$myName joined", group = invite.groupId, groupName = invite.name, members = mapOf(myId to myName), trip = true, join = true).encode()
+            dao.insert(MessageEntity(id = newId(), peer = invite.groupId, fromMe = true, text = "👋 You joined \"${invite.name}\". Waiting for the group to answer", createdAt = now,
+                status = MessageStatus.LOCAL, sender = myId, senderName = myName))
+            dao.insert(carrier(invite.inviterId, wire, "", now))
+            deliverAll()
+        }
+        return invite.groupId
+    }
+
+    /** Asks every phone in trip group [gid] to answer: their delivery receipts show who can be reached, and how. */
+    fun rollCall(gid: String, onSent: (messageId: String, members: Int) -> Unit = { _, _ -> }) {
+        if (groups?.get(gid)?.trip != true) return
+        scope.launch { sendToGroup(gid, RollCall.TEXT, "", System.currentTimeMillis(), rollCall = true)?.let { (id, n) -> onSent(id, n) } }
+    }
+
+    /** The latest roll call of each trip group. */
+    val rollCalls: StateFlow<Map<String, RollCall>> =
+        kotlinx.coroutines.flow.combine(dao.observeAll(), groups?.groups ?: MutableStateFlow(emptyMap())) { all, gs ->
+            RollCall.latest(all, gs.values.filter { it.trip }.map { it.id })
+        }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     /** Leaves a group: the others are told, and the chat goes from this phone. */
     fun leaveGroup(gid: String) {
@@ -315,14 +367,27 @@ class MessageRepository(
         val (myId, _) = me()
         val gid = rich.group?.takeIf { GroupStore.isGroup(it) }
         // Keep the group's name and members up to date (whoever writes last knows best).
+        if (gid != null && groups != null && rich.join) {
+            // Someone scanned our trip group's code: add them and tell everyone (the message carries the new list).
+            val known = groups.get(gid) ?: return
+            if (!known.trip || known.members.size >= Rich.MAX_MEMBERS - 1) return
+            val name = rich.members[e.fromNodeId].orEmpty().ifBlank { "Someone" }
+            val isNew = e.fromNodeId !in known.members
+            groups.put(known.copy(members = known.members + (e.fromNodeId to name)))
+            if (isNew) sendToGroup(gid, "👋 $name joined the trip group", "", now)
+            else sendToGroup(gid, "👋 $name is back in the trip group", "", now)
+            return
+        }
         if (gid != null && groups != null) {
             val known = groups.get(gid)
             if (rich.leave) {
                 known?.let { groups.put(it.copy(members = it.members - e.fromNodeId)) }
             } else if (rich.members.isNotEmpty()) {
-                groups.put(ChatGroup(gid, rich.groupName.ifBlank { known?.name ?: "Group" }, rich.members - myId, known?.createdAt ?: now))
+                // A trip group only grows by joining; names are filled in as they arrive.
+                val members = if (rich.trip && known != null) known.members + (rich.members - myId).mapValues { (id, n) -> n.ifBlank { known.members[id].orEmpty() } } else rich.members - myId
+                groups.put(ChatGroup(gid, rich.groupName.ifBlank { known?.name ?: "Group" }, members, known?.createdAt ?: now, trip = rich.trip || known?.trip == true))
             } else if (known == null) {
-                groups.put(ChatGroup(gid, rich.groupName.ifBlank { "Group" }, mapOf(e.fromNodeId to ""), now))
+                groups.put(ChatGroup(gid, rich.groupName.ifBlank { "Group" }, mapOf(e.fromNodeId to ""), now, trip = rich.trip))
             }
         }
         if (rich.react != null) {
@@ -350,6 +415,7 @@ class MessageRepository(
             sender = if (gid != null) e.fromNodeId else "", senderName = senderName,
             replyTo = rich.replyId?.let { Rich.replyField(it, rich.replyName, rich.replyText) } ?: "",
             parent = if (gid != null) e.messageId else "",
+            actions = if (gid != null && rich.rollCall) "✅ I'm OK|trip-ok:$gid\n🆘 I need help|sos" else "",
         ))
     }
 
@@ -371,7 +437,8 @@ class MessageRepository(
         val m = dao.get(e.messageId) ?: return
         if (!m.fromMe || m.peer != e.fromNodeId) return
         val now = System.currentTimeMillis()
-        val link = m.deliveredVia ?: if (e.viaInternet) "the internet (BlueMob relay)" else if (e.hops <= 1) mesh.linkName(e.fromNodeId) else "the mesh (${e.hops - 1} phone${if (e.hops > 2) "s" else ""} carried it)"
+        if (m.deliveredAt == null) onDelivered(m.copy(deliveredAt = now), e.hops, e.viaInternet)
+        val link = m.deliveredVia ?: Reach.via(e.hops, e.viaInternet, mesh.linkName(e.fromNodeId))
         val delivered = m.copy(
             deliveredAt = m.deliveredAt ?: now, deliveredVia = link,
             // The path that delivered first is marked; the other one is no longer needed.

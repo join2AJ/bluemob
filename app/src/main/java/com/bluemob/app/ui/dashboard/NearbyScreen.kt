@@ -1,6 +1,7 @@
 package com.bluemob.app.ui.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -106,6 +107,10 @@ fun NearbyScreen(
     onFindLost: (String) -> Unit = {},
     onCheckEveryone: () -> Unit = {},
     onClearCheck: () -> Unit = {},
+    /** Trip groups, newest first, with their last roll call. */
+    trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemob.app.chat.RollCall?>> = emptyList(),
+    onTrip: (String) -> Unit = {},
+    onNewTrip: () -> Unit = {},
 ) {
     val list = state.people
     var filter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(NearbyFilter.ALL) }
@@ -199,6 +204,9 @@ fun NearbyScreen(
             }
         }
 
+        // Trip groups: the way a whole group gets the mesh before setting off.
+        item { TripCard(trips, onTrip, onNewTrip) }
+
         // "Check on everyone": one tap asks every phone nearby "Are you OK?".
         item {
             val c = state.check
@@ -256,7 +264,7 @@ fun NearbyScreen(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 FeatureCard(Icons.Outlined.SmartToy, Extra.sky, "Ask Sky", "Your built-in guide. Lives on your phone, works offline.", onTalkToSky)
                 FeatureCard(Icons.Outlined.MenuBook, Palette.Pine, "Survival guide", "First aid, water, fire, shelter and more. Stored on your phone.", onOpenGuide)
-                FeatureCard(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Play a game", "With someone nearby, or against the computer when no one's around.", onGames)
+                if (com.bluemob.app.Features.GAMES) FeatureCard(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Play a game", "With someone nearby, or against the computer when no one's around.", onGames)
                 FeatureCard(Icons.Outlined.BatterySaver, Color(0xFF3A9A5B), "Make the battery last", powerNote(power.first, power.second), onOpenBattery)
             }
         }
@@ -360,4 +368,31 @@ fun powerNote(saver: Boolean, keeps: Boolean): String = when {
     keeps -> "Battery Saver is off · tap to turn it on and last longer"
     saver -> "⚠ Battery Saver may stop BlueMob · tap to allow it"
     else -> "⚠ Android may stop BlueMob in the background · tap to allow it"
+}
+
+@Composable
+private fun TripCard(trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemob.app.chat.RollCall?>>, onTrip: (String) -> Unit, onNewTrip: () -> Unit) {
+    val first = trips.firstOrNull()
+    com.bluemob.app.ui.components.HeroCard(com.bluemob.app.ui.theme.Gradients.brand(), Modifier.padding(top = 16.dp)
+        .clip(MaterialTheme.shapes.large).clickable { if (first == null) onNewTrip() else onTrip(first.first.id) }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("🧭", fontSize = 26.sp)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                if (first == null) {
+                    Text("Going somewhere together?", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                    Text("Make a trip group before you set off: everyone scans one code, and all your phones can reach each other",
+                        style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.88f))
+                } else {
+                    val (g, roll) = first
+                    com.bluemob.app.i18n.RawText(g.name, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 1)
+                    Text(if (roll == null) "${g.members.size + 1} people · tap for a roll call" else "${roll.reached} of ${roll.members.size} reached in the last roll call",
+                        style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.88f))
+                }
+            }
+            Text(if (first == null) "Start" else "Open", style = MaterialTheme.typography.labelLarge, color = com.bluemob.app.ui.theme.Palette.BrandBlue,
+                modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Color.White).padding(horizontal = 14.dp, vertical = 7.dp))
+        }
+        if (trips.size > 1) Text("+ ${trips.size - 1} more trip group${if (trips.size > 2) "s" else ""}", style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = 0.8f), modifier = Modifier.padding(top = 8.dp))
+    }
 }

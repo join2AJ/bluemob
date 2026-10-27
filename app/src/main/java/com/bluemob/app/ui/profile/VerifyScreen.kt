@@ -145,7 +145,7 @@ fun qrBitmap(text: String): Bitmap {
 
 /** The back camera, reading QR codes; [onCode] gets each code read (on the main thread). */
 @Composable
-private fun QrScanner(modifier: Modifier, onCode: (String) -> Unit) {
+internal fun QrScanner(modifier: Modifier, onCode: (String) -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
