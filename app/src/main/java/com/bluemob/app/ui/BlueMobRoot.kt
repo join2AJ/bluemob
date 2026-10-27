@@ -391,6 +391,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             fallDetect = vm.fallDetect.collectAsStateWithLifecycle().value, onFallDetect = if (vm.fallAvailable) vm::setFallDetect else null,
                             remoteSignal = vm.allowRemoteSignal.collectAsStateWithLifecycle().value, onRemoteSignal = vm::setAllowRemoteSignal,
                             helperKinds = vm.helperKinds.collectAsStateWithLifecycle().value, onHelperKind = vm::setHelperKind,
+                            onEmergencyCardOpen = { push(Route.EmergencyCard) }, onHelperSignalsOpen = { push(Route.HelperSignals) },
                             dndUntil = vm.dndUntil.collectAsStateWithLifecycle().value, onDndUntil = vm::setDndUntil,
                             dndSosCalls = vm.dndAllowSosContacts.collectAsStateWithLifecycle().value, onDndSosCalls = vm::setDndAllowSosContacts,
                             newsUnread = vm.news.items.collectAsStateWithLifecycle().value.count { it.at > vm.news.seenAt.collectAsStateWithLifecycle().value },

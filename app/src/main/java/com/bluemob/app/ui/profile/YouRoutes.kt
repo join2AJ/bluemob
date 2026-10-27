@@ -56,6 +56,9 @@ fun YouRoutes(route: Route.YouArea, s: Shell) {
                 remember(id, all) { vm.safetyNumber(id) }, s::pop, onScanned = { vm.onVerifyScanned(id, it) },
                 onSetVerified = { vm.setVerified(id, it) }, askCamera = actions.requestCamera)
         }
+        Route.EmergencyCard -> EmergencyCardScreen(vm.emergencyCard.collectAsStateWithLifecycle().value, vm::setEmergencyCard, vm::emergencyCardText, s::pop)
+        Route.HelperSignals -> HelperSignalsScreen(vm.allowRemoteSignal.collectAsStateWithLifecycle().value, vm::setAllowRemoteSignal,
+            vm.helperKinds.collectAsStateWithLifecycle().value, vm::setHelperKind, s::pop)
         Route.News -> NewsScreen(vm.news.items.collectAsStateWithLifecycle().value, vm.news.seenAt.collectAsStateWithLifecycle().value, s::pop, vm.news::markSeen)
         Route.Account -> AccountScreen(
             shortId = formatId(vm.nodeId),

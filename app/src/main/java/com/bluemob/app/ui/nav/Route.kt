@@ -52,6 +52,8 @@ sealed interface Route {
     data class Verify(val id: String) : YouArea { override val key get() = "verify:$id" }
     data object News : YouArea { override val key = "news" }
     data object Account : YouArea { override val key = "account" }
+    data object EmergencyCard : YouArea { override val key = "emergency-card" }
+    data object HelperSignals : YouArea { override val key = "helper-signals" }
     data object Connections : YouArea { override val key = "connections" }
     data object AutoStart : YouArea { override val key = "autostart" }
     /** Connections & power, scrolled to and highlighting one row ("battery"). */
@@ -81,7 +83,7 @@ sealed interface Route {
             "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "autostart" to ::Power, "sos-coming" to ::SosComing,
         )
         private val plain: Map<String, Route> by lazy {
-            listOf(NewChat, NewGroup, SkyAi, GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, Connections,
+            listOf(NewChat, NewGroup, SkyAi, GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, EmergencyCard, HelperSignals, Connections,
                 AutoStart, Audit, Badges, Activity, Bridge, Backup, Storage, Diagnostics, Report, Calls, Call).associateBy { it.key }
         }
 
