@@ -36,6 +36,8 @@ data class Rich(
     val join: Boolean = false,
     /** A roll call in a trip group: the phone that gets it shows "I'm OK" and "I need help". */
     val rollCall: Boolean = false,
+    /** A trip group's settings as the sender knows them; only the group admin's count (see [ChatGroup.merge]). */
+    val meta: TripMeta? = null,
 ) {
     fun encode(): String {
         val j = JSONObject()
@@ -51,6 +53,7 @@ data class Rich(
         if (trip) j.put("tp", 1)
         if (join) j.put("jn", 1)
         if (rollCall) j.put("rc", 1)
+        meta?.let { j.put("tm", it.toJson()) }
         env?.let { j.put("rm", it) }
         return MARK + j.toString()
     }
@@ -84,6 +87,7 @@ data class Rich(
                 leave = j.optInt("lv") == 1,
                 env = j.optString("rm").takeIf { it.isNotBlank() && it.length <= 8_000 },
                 trip = j.optInt("tp") == 1, join = j.optInt("jn") == 1, rollCall = j.optInt("rc") == 1,
+                meta = j.optJSONObject("tm")?.let(TripMeta::fromJson),
             )
         }
 
@@ -104,7 +108,65 @@ data class Rich(
 }
 
 /** A group chat this phone is in. [id] is "g-…", used as the chat's peer ID. */
-data class ChatGroup(val id: String, val name: String, val members: Map<String, String>, val createdAt: Long = System.currentTimeMillis(), val trip: Boolean = false)
+data class ChatGroup(
+    val id: String, val name: String, val members: Map<String, String>, val createdAt: Long = System.currentTimeMillis(), val trip: Boolean = false,
+    /** Trip groups: the group admin (who made it), and for a team, its main group and its captain. */
+    val owner: String = "", val parent: String = "", val captain: String = "",
+    /** When the trip ends (0: no end), and when the group was closed (0: open). */
+    val expiresAt: Long = 0, val closedAt: Long = 0,
+    /** Automatic roll call every this many minutes (0: off), sent by the admin's or captain's phone. */
+    val autoMin: Int = 0,
+    /** This phone only: we already asked the admin whether to close it when the trip ended. */
+    val askedToClose: Boolean = false,
+) {
+    val meta: TripMeta get() = TripMeta(owner, parent, captain, expiresAt, closedAt, autoMin)
+    val isTeam: Boolean get() = parent.isNotBlank()
+
+    /** Closed: by the admin, or by itself a day after the trip ended without the admin keeping it open. */
+    fun closedTime(now: Long): Long = when {
+        closedAt > 0 -> closedAt
+        expiresAt > 0 && now >= expiresAt + TripMeta.GRACE_MS -> expiresAt + TripMeta.GRACE_MS
+        else -> 0
+    }
+    fun isClosed(now: Long) = closedTime(now) > 0
+    fun isOwner(me: String) = owner.isNotBlank() && owner == me
+    /** Roll calls, the automatic check and adding people: the admin, and a team's captain. */
+    fun canManage(me: String) = isOwner(me) || (captain.isNotBlank() && captain == me) || (trip && owner.isBlank())
+
+    /**
+     * What we know after a trip-group message from [from]: members only grow (leaving is its own message), and the
+     * name and settings change only when the admin sent them (or when we don't know the admin yet).
+     */
+    fun merge(from: String, name: String, others: Map<String, String>, m: TripMeta?): ChatGroup {
+        val trusted = owner.isBlank() || from == owner
+        val members = members + others.mapValues { (id, n) -> n.ifBlank { members[id].orEmpty() } }
+        if (!trusted || m == null) return copy(members = members, trip = true)
+        return copy(name = name.ifBlank { this.name }, members = members, trip = true, owner = owner.ifBlank { m.owner },
+            parent = m.parent, captain = m.captain, expiresAt = m.expiresAt, closedAt = maxOf(closedAt, m.closedAt), autoMin = m.autoMin,
+            askedToClose = askedToClose && m.expiresAt == expiresAt)
+    }
+}
+
+/** A trip group's settings, as they travel inside its messages. */
+data class TripMeta(val owner: String = "", val parent: String = "", val captain: String = "", val expiresAt: Long = 0, val closedAt: Long = 0, val autoMin: Int = 0) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        if (owner.isNotBlank()) put("o", owner)
+        if (parent.isNotBlank()) put("p", parent)
+        if (captain.isNotBlank()) put("c", captain)
+        if (expiresAt > 0) put("x", expiresAt)
+        if (closedAt > 0) put("cl", closedAt)
+        if (autoMin > 0) put("a", autoMin)
+    }
+
+    companion object {
+        /** After the end time, the group stays open this long unless the admin closes it or keeps it open. */
+        const val GRACE_MS = 24 * 3_600_000L
+
+        private fun id(s: String) = s.takeIf { it.length in 1..16 && it.all { c -> c.isLetterOrDigit() } }.orEmpty()
+        fun fromJson(j: JSONObject) = TripMeta(id(j.optString("o")), j.optString("p").takeIf { GroupStore.isGroup(it) && it.length <= 40 }.orEmpty(),
+            id(j.optString("c")), j.optLong("x").coerceAtLeast(0), j.optLong("cl").coerceAtLeast(0), j.optInt("a").coerceIn(0, 24 * 60))
+    }
+}
 
 /** Groups are kept in encrypted settings: name and members. Messages live with all the others. */
 /** [prefs] null keeps groups in memory only (tests). */
@@ -122,14 +184,16 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
         (0 until a.length()).map { a.getJSONObject(it) }.associate { o ->
             val m = LinkedHashMap<String, String>()
             o.optJSONObject("m")?.let { mo -> mo.keys().forEach { k -> m[k] = mo.optString(k) } }
-            o.getString("id") to ChatGroup(o.getString("id"), o.optString("n"), m, o.optLong("at"), o.optBoolean("tr"))
+            o.getString("id") to ChatGroup(o.getString("id"), o.optString("n"), m, o.optLong("at"), o.optBoolean("tr"),
+                o.optString("ow"), o.optString("pa"), o.optString("cp"), o.optLong("ex"), o.optLong("cl"), o.optInt("am"), o.optBoolean("ask"))
         }
     }.getOrDefault(emptyMap())
 
     private fun save() {
         if (prefs == null) return
         val a = JSONArray()
-        _groups.value.values.forEach { g -> a.put(JSONObject().put("id", g.id).put("n", g.name).put("at", g.createdAt).put("m", JSONObject(g.members as Map<*, *>)).put("tr", g.trip)) }
+        _groups.value.values.forEach { g -> a.put(JSONObject().put("id", g.id).put("n", g.name).put("at", g.createdAt).put("m", JSONObject(g.members as Map<*, *>)).put("tr", g.trip)
+            .put("ow", g.owner).put("pa", g.parent).put("cp", g.captain).put("ex", g.expiresAt).put("cl", g.closedAt).put("am", g.autoMin).put("ask", g.askedToClose)) }
         prefs.edit().putString(KEY, a.toString()).apply()
     }
 

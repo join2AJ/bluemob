@@ -225,9 +225,31 @@ class PreviewShots {
     @Test fun nearbyTrip() = shot(tall = true) {
         NearbyScreen(NearbyState("Arjun", true, people, true, false, true, true, false), pad, {}, {}, {}, {}, {}, {}, {}, {}, trips = listOf(trip to roll))
     }
-    @Test fun newTrip() = shot(tall = true) { com.bluemob.app.ui.chat.NewTripScreen({}, {}, {}) }
+    @Test fun newTrip() = shot(tall = true) { com.bluemob.app.ui.chat.NewTripScreen({}, { _, _ -> }, {}, nextNumber = 11) }
+    private val me = "3f9a1c2b7d4e8a01"
+    private val adminTrip = trip.copy(owner = me, autoMin = 10, expiresAt = now + 2 * 24 * 3_600_000L)
+    private val team1 = com.bluemob.app.chat.ChatGroup("g-t1", "Team 1", mapOf("a1c2" to "Asha", "c3d9" to "Meera"), now, trip = true, owner = me, parent = "g-trip", captain = "a1c2")
+    private val team2 = com.bluemob.app.chat.ChatGroup("g-t2", "Team 2", mapOf("b7e4" to "Ravi", "d5f1" to "Imran"), now + 1, trip = true, owner = me, parent = "g-trip", captain = "b7e4")
     @Test fun tripGroup() = shot(tall = true) {
-        com.bluemob.app.ui.chat.TripGroupScreen(trip, "3f9a1c2b7d4e8a01", roll, people, null, {}, {}, {}, {}, {}, {}, now = now)
+        com.bluemob.app.ui.chat.TripGroupScreen(adminTrip, me, roll, people, "bluemob:t:AkEE5BIbSMTHI5c-psSUNt0zhOXYwzmjrptxOJJu24YKwIWVw_ZH7oNjDpfEzRFz",
+            com.bluemob.app.ui.chat.TripActions(), teams = listOf(team1, team2), now = now)
+    }
+    @Test fun tripTeamCaptain() = shot(tall = true) {
+        com.bluemob.app.ui.chat.TripGroupScreen(team1.copy(members = team1.members - "a1c2" + (me to "Arjun")), "a1c2", null, people, null,
+            com.bluemob.app.ui.chat.TripActions(), main = adminTrip, now = now)
+    }
+    @Test fun tripEnded() = shot(tall = true) {
+        com.bluemob.app.ui.chat.TripGroupScreen(adminTrip.copy(expiresAt = now - 3_600_000L, autoMin = 0), me, roll, people, null,
+            com.bluemob.app.ui.chat.TripActions(), teams = listOf(team1), now = now)
+    }
+    @Test fun newTeam() = shot(tall = true) {
+        com.bluemob.app.ui.chat.NewTeamScreen(adminTrip, me, "Arjun", people, 2, {}) { _, _, _ -> }
+    }
+    @Test fun chatsWithGroups() = shot(tall = true) {
+        ChatsScreen(people, convos, emptySet(), pad, rescues, groups = groups + adminTrip) {}
+    }
+    @Test fun groupsTabTrip() = shot(tall = true) {
+        ChatsScreen(people, convos, emptySet(), pad, rescues, groups = groups + adminTrip, startTab = ChatsTab.GROUPS) {}
     }
     @Test fun fieldTestRunning() = shot(tall = true) {
         com.bluemob.app.ui.system.FieldTestScreen(com.bluemob.app.safety.FieldTest.Session(now - 150 * 60_000, "g-trip", 10),

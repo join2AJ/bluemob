@@ -379,6 +379,44 @@ function watermarkLookup(code, at) {
   return found;
 }
 
+// ---- Trip group codes (see app chat/Trip.kt TripCode): who made a group and when, sealed to the admin's key ----
+const TRIP_INFO = Buffer.from("bluemob-trip-admin-v1");
+const TRIP_AAD = Buffer.from("bluemob:t:2");
+/** Same HKDF as the app (Crypto.hkdf): extract with a zero salt, one block of expand. */
+function hkdf1(ikm, info) {
+  const prk = crypto.createHmac("sha256", Buffer.alloc(32)).update(ikm).digest();
+  return crypto.createHmac("sha256", prk).update(Buffer.concat([info, Buffer.from([1])])).digest();
+}
+/** The admin's part of a trip group code, opened with ADMIN_SEAL_KEY (hex), or null if it isn't one or the key is wrong. */
+function openTripCode(text, keyHex) {
+  try {
+    const m = String(text).match(/bluemob:t:([A-Za-z0-9_-]{40,})/);
+    if (!m || !/^[0-9a-f]{64}$/i.test(keyHex || "")) return null;
+    const raw = Buffer.from(m[1], "base64url");
+    if (raw[0] !== 2) return null;
+    const el = raw[1], eph = raw.subarray(2, 2 + el);
+    const al = raw.readUInt16BE(2 + el), sealed = raw.subarray(4 + el, 4 + el + al);
+    const ecdh = crypto.createECDH("prime256v1");
+    ecdh.setPrivateKey(Buffer.from(keyHex, "hex"));
+    const key = hkdf1(ecdh.computeSecret(eph), TRIP_INFO);
+    const d = crypto.createDecipheriv("aes-256-gcm", key, sealed.subarray(0, 12));
+    d.setAAD(TRIP_AAD);
+    d.setAuthTag(sealed.subarray(sealed.length - 16));
+    return JSON.parse(Buffer.concat([d.update(sealed.subarray(12, sealed.length - 16)), d.final()]).toString("utf8"));
+  } catch { return null; }
+}
+/** Makes a code the way the app does (tests, and to check a new key pair). */
+function sealTripCode(adminPublicHex, adminPart, appPart = {}) {
+  const ecdh = crypto.createECDH("prime256v1"); ecdh.generateKeys();
+  const key = hkdf1(ecdh.computeSecret(Buffer.from(adminPublicHex, "hex")), TRIP_INFO);
+  const gcm = (k, obj) => { const n = crypto.randomBytes(12), c = crypto.createCipheriv("aes-256-gcm", k, n); c.setAAD(TRIP_AAD);
+    const body = Buffer.concat([c.update(JSON.stringify(obj)), c.final()]); return Buffer.concat([n, body, c.getAuthTag()]); };
+  const eph = ecdh.getPublicKey(), a = gcm(key, adminPart);
+  const appKey = crypto.createHash("sha256").update("bluemob-trip-code-v2 for phones").digest();
+  const len = Buffer.alloc(2); len.writeUInt16BE(a.length);
+  return "bluemob:t:" + Buffer.concat([Buffer.from([2, eph.length]), eph, len, a, gcm(appKey, appPart)]).toString("base64url");
+}
+
 function alertTeam(url, text) {
   if (!url || !/^https:\/\//.test(url)) return;
   try {
@@ -432,7 +470,7 @@ class Reports {
 
 function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null), reports = new Reports(null),
   { news = new Announcements(null), adminToken = reports.token, alertUrl = "", contactEmail = "the contact address on BlueMob's Play Store page",
-    officer = "", liveOnline = () => 0, startedAt = Date.now() } = {}) {
+    officer = "", liveOnline = () => 0, startedAt = Date.now(), sealKey = "" } = {}) {
   // The team: the admin token (or the older reports token), compared in constant time.
   const isAdmin = (tok) => [adminToken, reports.token].some((want) => {
     if (!want || typeof tok !== "string") return false;
@@ -512,6 +550,12 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
       const bits = String(url.searchParams.get("bits") || "");
       const code = /^[01]{80}$/.test(bits) ? wmFromBits(bits) : String(url.searchParams.get("code") || "");
       return send(res, 200, { matches: watermarkLookup(code, at) });
+    }
+    if (req.method === "GET" && url.pathname === "/v1/admin/tripcode") {
+      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      if (!sealKey) return send(res, 503, { error: "ADMIN_SEAL_KEY isn't set on the server" });
+      const found = openTripCode(String(url.searchParams.get("code") || "").slice(0, 4000), sealKey);
+      return found ? send(res, 200, found) : send(res, 404, { error: "not a trip group code, or made for another key" });
     }
     if (req.method === "GET" && url.pathname === "/v1/admin/stats") {
       if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
@@ -685,7 +729,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
   });
 }
 
-module.exports = { wmDecode, wmFromBits, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
+module.exports = { openTripCode, sealTripCode, wmDecode, wmFromBits, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
@@ -701,7 +745,8 @@ if (require.main === module) {
   const news = new Announcements(path.join(dataDir, "announcements.json"));
   const server = createServer(store, loadGuides(), blobs, backups, reports,
     { news, adminToken: process.env.ADMIN_TOKEN || process.env.REPORTS_TOKEN || "", alertUrl: process.env.ALERT_WEBHOOK || "",
-      contactEmail: process.env.CONTACT_EMAIL || undefined, officer: process.env.GRIEVANCE_OFFICER || "", liveOnline: () => liveCount() });
+      contactEmail: process.env.CONTACT_EMAIL || undefined, officer: process.env.GRIEVANCE_OFFICER || "", liveOnline: () => liveCount(),
+      sealKey: (process.env.ADMIN_SEAL_KEY || "").trim() });
   let liveCount = () => 0;
   const { createPusher, loadAccount } = require("./push");
   const pusher = createPusher(loadAccount());

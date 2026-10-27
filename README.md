@@ -36,6 +36,32 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.34: trip groups with an admin, teams and captains
+
+- **Where:** Groups tab → Trip group card (New trip group, Join with a code, "How is it different from a group?").
+  Groups now also show in the Chats list, with All / People / Groups filters.
+- **Roles:** whoever makes the trip group is its admin. The admin adds teams (Team 1, Team 2…), each with a captain
+  and its people. The admin is in every team; a captain sees the main group and their team. Anyone can still chat
+  privately with anyone. Only the admin's phone can change the group's name and settings: other phones ignore changes
+  from anyone else.
+- **Automatic roll call:** the admin (or a team's captain) picks Off, 5, 10, 15, 30 or 60 min. Their phone sends the
+  roll call, and rings if a phone hasn't answered within 3 minutes.
+- **The trip ends:** the admin can set no end, 1–3 days or a week (when making the group or later). When it ends, the
+  admin is asked to close it or keep it open another day. Without an answer it closes by itself a day later. A closed
+  group can still be read, but no one can write in it.
+- **Numbered groups:** the name suggestion counts up ("Group 1", "Group 10"…) for operators running regular batches.
+- **Join codes look random.** Share one as text, or show it as a QR code. Inside it:
+  - **for BlueMob's admin only:** who made the group and when, who made this code and when, the phone and app
+    version. This part is sealed to the admin's public key (P-256 ECDH, then AES-256-GCM). Only the server's
+    `ADMIN_SEAL_KEY` opens it: admin page → Trip code.
+  - **for the joining phone:** the group and whom to ask, scrambled with a key inside the app (a phone has to read it
+    to join).
+- **Server:** set `ADMIN_SEAL_KEY` on Render to the private key (64 hex characters) that matches
+  `TripCode.ADMIN_PUBLIC` in the app. Keep it nowhere else. To change the pair, make a new one
+  (`node -e 'const e=require("crypto").createECDH("prime256v1");e.generateKeys();console.log(e.getPublicKey("hex"),e.getPrivateKey("hex"))'`),
+  put the public half in `TripCode.ADMIN_PUBLIC`, and ship a new app version. Codes made by older versions then
+  open only with the old key.
+
 ## Android 0.33: a safety app for trips and crowds
 
 - **Trip groups:** Nearby → "Going somewhere together?" → name it → everyone scans one QR code before setting off.

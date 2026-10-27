@@ -57,7 +57,7 @@ object Crypto {
         return hkdf(secret, info)
     }
 
-    private fun hkdf(ikm: ByteArray, info: ByteArray): ByteArray {
+    internal fun hkdf(ikm: ByteArray, info: ByteArray): ByteArray {
         val prk = Mac.getInstance("HmacSHA256").run { init(SecretKeySpec(ByteArray(32), "HmacSHA256")); doFinal(ikm) }
         return Mac.getInstance("HmacSHA256").run { init(SecretKeySpec(prk, "HmacSHA256")); update(info); update(1); doFinal() }
     }

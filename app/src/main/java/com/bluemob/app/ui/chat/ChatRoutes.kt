@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,9 +69,19 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
         is Route.Group -> {
             val g = vm.groups.collectAsStateWithLifecycle().value[route.id]
             if (g == null) LaunchedEffect(Unit) { s.pop() }
-            else if (g.trip) TripGroupScreen(g, vm.nodeId, vm.rollCalls.collectAsStateWithLifecycle().value[g.id], people, remember(g.id) { vm.tripInvite(g.id) }, s::pop,
-                onRollCall = { vm.rollCall(g.id) }, onOpenChat = { s.push(Route.Chat(g.id)) }, onPerson = { s.push(Route.Person(it)) },
-                onFieldTest = { s.push(Route.FieldTest(g.id)) }, onLeave = { vm.leaveGroup(g.id); s.nav.clear() })
+            else if (g.trip) {
+                val all by vm.groups.collectAsStateWithLifecycle()
+                val now by produceState(System.currentTimeMillis()) { while (true) { kotlinx.coroutines.delay(30_000); value = System.currentTimeMillis() } }
+                TripGroupScreen(g, vm.nodeId, vm.rollCalls.collectAsStateWithLifecycle().value[g.id], people,
+                    remember(g.id, g.expiresAt, g.name) { vm.tripInvite(g.id) },
+                    TripActions(onBack = s::pop, onRollCall = { vm.rollCall(g.id) }, onOpenChat = { s.push(Route.Chat(g.id)) }, onPerson = { s.push(Route.Person(it)) },
+                        onFieldTest = { s.push(Route.FieldTest(g.id)) }, onLeave = { vm.leaveGroup(g.id); s.nav.clear() },
+                        onShare = { code -> s.actions.shareText("Join my BlueMob trip group. In BlueMob: Groups → Trip group → Join, then paste this code:\n\n$code") },
+                        onAutoMin = { vm.setAutoRollCall(g.id, it) }, onEnd = { vm.setTripEnd(g.id, it) }, onKeepOpen = { vm.keepTripOpen(g.id) },
+                        onClose = { vm.closeTrip(g.id); all.values.filter { it.parent == g.id }.forEach { t -> vm.closeTrip(t.id) } },
+                        onNewTeam = { s.push(Route.NewTeam(g.id)) }, onOpenGroup = { s.push(Route.Group(it)) }, onAdd = { vm.addToTrip(g.id, it) }),
+                    teams = all.values.filter { it.parent == g.id }.sortedBy { it.createdAt }, main = all[g.parent], now = now)
+            }
             else GroupInfoScreen(g, people, s::pop, onAdd = { vm.addToGroup(g.id, it) },
                 onLeave = { vm.leaveGroup(g.id); s.nav.clear() }, onPerson = { s.push(Route.Person(it)) })
         }
@@ -89,7 +100,19 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
             onStart = { id, n -> vm.startChatById(id, n); s.nav.replace(Route.Chat(id)) },
             onOpen = { s.nav.replace(Route.Chat(it)) }, onShareId = s.actions.shareId)
         Route.SkyAi -> SkyAiScreen(vm, s::pop)
-        Route.NewTrip -> NewTripScreen(s::pop, onCreate = { n -> vm.createTrip(n)?.let { s.nav.replace(Route.Group(it)) } }, onJoin = { s.nav.replace(Route.JoinTrip) })
+        Route.NewTrip -> {
+            val mine = vm.groups.collectAsStateWithLifecycle().value.values.filter { it.trip && !it.isTeam && it.owner == vm.nodeId }
+            val next = (mine.mapNotNull { Regex("""^Group (\d+)$""").find(it.name)?.groupValues?.get(1)?.toIntOrNull() }.maxOrNull() ?: 0) + 1
+            NewTripScreen(s::pop, onCreate = { n, end -> vm.createTrip(n, end)?.let { s.nav.replace(Route.Group(it)) } }, onJoin = { s.nav.replace(Route.JoinTrip) }, nextNumber = next)
+        }
+        is Route.NewTeam -> {
+            val main = vm.groups.collectAsStateWithLifecycle().value[route.main]
+            val teams = vm.groups.collectAsStateWithLifecycle().value.values.count { it.parent == route.main }
+            if (main == null) LaunchedEffect(Unit) { s.pop() }
+            else NewTeamScreen(main, vm.nodeId, vm.name.collectAsStateWithLifecycle().value, people, teams, s::pop) { n, captain, members ->
+                vm.createTeam(main.id, n, captain, members)?.let { s.nav.replace(Route.Group(it)) }
+            }
+        }
         Route.JoinTrip -> JoinTripScreen(s::pop, onScanned = { code ->
             vm.joinTrip(code).fold({ s.nav.replace(Route.Group(it)); null }, { it.message })
         }, askCamera = s.actions.requestCamera)

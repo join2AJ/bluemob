@@ -59,7 +59,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private enum class ChatFilter(val label: String) { ALL("All"), UNREAD("Unread"), ONLINE("Online"), WAITING("Waiting") }
+private enum class ChatFilter(val label: String) { ALL("All"), PEOPLE("People"), GROUPS("Groups"), UNREAD("Unread"), ONLINE("Online"), WAITING("Waiting") }
 
 private data class Entry(val id: String, val name: String, val emoji: String?, val presence: Presence, val sharesName: Boolean, val status: String, val isBot: Boolean,
     val isGroup: Boolean = false, val pinned: Boolean = false,
@@ -88,6 +88,8 @@ fun ChatsScreen(
     pinned: Set<String> = emptySet(),
     onPin: (String, Boolean) -> Unit = { _, _ -> },
     onNewGroup: () -> Unit = {},
+    onNewTrip: () -> Unit = {},
+    onJoinTrip: () -> Unit = {},
     onLeaveGroup: (String) -> Unit = {},
     /** Missed calls since the Calls list was last opened: the red badge. */
     callsSeenAt: Long = 0L,
@@ -102,7 +104,7 @@ fun ChatsScreen(
     when (tab) {
         ChatsTab.CALLS -> { CallsList(calls, people, contentPadding, missedToday, onTab = { tab = it }, onCallBack = onCallBack, onClear = onClearCalls, onDelete = onDeleteCall); return }
         ChatsTab.FILES -> { FilesList(conversations, people, contentPadding, missedToday, onTab = { tab = it }, filesFor = filesFor); return }
-        ChatsTab.GROUPS -> { GroupsList(groups, conversations, typing, rescues, pinned, contentPadding, missedToday, onTab = { tab = it }, onNewGroup = onNewGroup,
+        ChatsTab.GROUPS -> { GroupsList(groups, conversations, typing, rescues, pinned, contentPadding, missedToday, onTab = { tab = it }, onNewGroup = onNewGroup, onNewTrip = onNewTrip, onJoinTrip = onJoinTrip,
             onOpenRescue = onOpenRescue, onLeave = onLeaveGroup, onPin = onPin, onOpen = onOpen); return }
         ChatsTab.CHATS -> Unit
     }
@@ -124,10 +126,14 @@ fun ChatsScreen(
         if (conversations[SkyBot.NODE_ID].orEmpty().isNotEmpty()) add(Entry(SkyBot.NODE_ID, SkyBot.NAME, SkyBot.AVATAR, Presence.ONLINE, false, "Lives on your phone · works offline", true))
         people.forEach { add(Entry(it.nodeId, it.name, it.avatar, it.presence, it.sharesName, statusLine(it), false, pinned = it.nodeId in pinned,
             online = it.presence == Presence.ONLINE || it.reach != null)) }
+        // Groups show here too, so every conversation is in one list (the filter picks people or groups).
+        groups.forEach { g -> add(Entry(g.id, g.name, if (g.trip && !g.isTeam) "🧭" else "👥", Presence.OFFLINE, false, groupLine(g), false, isGroup = true, pinned = g.id in pinned)) }
     }.sortedWith(compareByDescending<Entry> { it.pinned }.thenByDescending { lastTime(it.id) }).filter { e ->
         val msgs = conversations[e.id].orEmpty()
         (query.isBlank() || e.name.contains(query.trim(), ignoreCase = true)) && when (filter) {
             ChatFilter.ALL -> true
+            ChatFilter.PEOPLE -> !e.isGroup
+            ChatFilter.GROUPS -> e.isGroup
             ChatFilter.UNREAD -> msgs.any { !it.fromMe && it.status == MessageStatus.RECEIVED }
             ChatFilter.ONLINE -> e.online && !e.isBot
             ChatFilter.WAITING -> msgs.any { it.fromMe && (it.status == MessageStatus.PENDING || it.status == MessageStatus.SENT) }
@@ -446,7 +452,7 @@ private fun LiveRescueBanner(count: Int, onClick: () -> Unit) {
 private fun GroupsList(
     groups: List<com.bluemob.app.chat.ChatGroup>, conversations: Map<String, List<MessageEntity>>, typing: Set<String>,
     rescues: List<com.bluemob.app.rescue.RescueRoom>, pinned: Set<String>, contentPadding: PaddingValues, missed: Int,
-    onTab: (ChatsTab) -> Unit, onNewGroup: () -> Unit, onOpenRescue: (String) -> Unit, onLeave: (String) -> Unit, onPin: (String, Boolean) -> Unit, onOpen: (String) -> Unit,
+    onTab: (ChatsTab) -> Unit, onNewGroup: () -> Unit, onNewTrip: () -> Unit, onJoinTrip: () -> Unit, onOpenRescue: (String) -> Unit, onLeave: (String) -> Unit, onPin: (String, Boolean) -> Unit, onOpen: (String) -> Unit,
 ) {
     androidx.activity.compose.BackHandler { onTab(ChatsTab.CHATS) }
     var leaving by remember { mutableStateOf<com.bluemob.app.chat.ChatGroup?>(null) }
@@ -485,6 +491,25 @@ private fun GroupsList(
                 QuickAction("🛟", "All rescues · ${rescues.size}", Extra.emberTint, Modifier.weight(1f)) { onOpenRescue("") }
             }
         }
+        item {
+            var why by rememberSaveable { mutableStateOf(false) }
+            Column(Modifier.padding(start = Space.lg, end = Space.lg, top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.pineTint).padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🧭", fontSize = 22.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Trip group", style = MaterialTheme.typography.titleSmall)
+                        Text("For treks, yatras and melas: join by one code, roll calls, teams with captains", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                }
+                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Chip("New trip group", true, onNewTrip)
+                    Chip("Join with a code", false, onJoinTrip)
+                }
+                Text(if (why) "Hide" else "How is it different from a group?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 10.dp).clip(RoundedCornerShape(8.dp)).clickable { why = !why }.padding(vertical = 4.dp))
+                if (why) com.bluemob.app.ui.chat.TripVsGroup(Modifier.padding(top = 8.dp))
+            }
+        }
         item { Text("YOUR GROUPS · ${groups.size}", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
         if (groups.isEmpty()) item {
             Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -495,8 +520,16 @@ private fun GroupsList(
         }
         itemsIndexed(sorted, key = { _, g -> g.id }) { i, g ->
             if (i > 0) InsetDivider()
-            ChatRow(Entry(g.id, g.name, "👥", Presence.OFFLINE, false, "${g.members.size + 1} members", false, isGroup = true, pinned = g.id in pinned),
+            ChatRow(Entry(g.id, g.name, if (g.trip && !g.isTeam) "🧭" else "👥", Presence.OFFLINE, false, groupLine(g), false, isGroup = true, pinned = g.id in pinned),
                 conversations[g.id].orEmpty(), g.id in typing, onDelete = { leaving = g }, onPin = { onPin(g.id, g.id !in pinned) }) { onOpen(g.id) }
         }
     }
+}
+
+/** "Trip group · 12 people", "Team · 5 people", "6 members", "Closed". */
+private fun groupLine(g: com.bluemob.app.chat.ChatGroup): String = when {
+    g.trip && g.isClosed(System.currentTimeMillis()) -> "Trip group · closed"
+    g.isTeam -> "Team · ${g.members.size + 1} people"
+    g.trip -> "Trip group · ${g.members.size + 1} people"
+    else -> "${g.members.size + 1} members"
 }

@@ -37,7 +37,7 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
 </div>
 <div id="app" class="hidden">
 <header><b>BlueMob admin</b>
-  <nav><button data-tab="overview" class="on">Overview</button><button data-tab="reports">Reports</button><button data-tab="news">News</button><button data-tab="lookup">Screenshot lookup</button></nav>
+  <nav><button data-tab="overview" class="on">Overview</button><button data-tab="reports">Reports</button><button data-tab="news">News</button><button data-tab="lookup">Screenshot lookup</button><button data-tab="trip">Trip code</button></nav>
   <button class="ghost btn" id="out">Sign out</button>
 </header>
 <main>
@@ -79,6 +79,16 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
       <div id="wOut"></div>
     </div>
   </section>
+  <section id="trip" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0">Who made this trip group code?</h2>
+      <p class="muted">Paste a trip group code (it starts with <code>bluemob:t:</code>, or paste the whole shared message). Only this server
+        can open it: it shows who made the group and when, who made this code and when, and from which phone.</p>
+      <textarea id="tCode" placeholder="bluemob:t:…" style="min-height:90px"></textarea>
+      <p></p><button class="btn" id="tGo">Open</button> <span id="tMsg" class="muted"></span>
+      <div id="tOut"></div>
+    </div>
+  </section>
 </main></div>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -100,7 +110,7 @@ $("tok").onkeydown = (e) => { if (e.key === "Enter") $("go").click(); };
 $("out").onclick = () => { sessionStorage.removeItem("bm-admin"); location.reload(); };
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
-  ["overview", "reports", "news", "lookup"].forEach((t) => $(t).classList.toggle("hidden", t !== b.dataset.tab));
+  ["overview", "reports", "news", "lookup", "trip"].forEach((t) => $(t).classList.toggle("hidden", t !== b.dataset.tab));
 });
 
 const wBits = Array(80).fill(0);
@@ -121,6 +131,22 @@ $("wGo").onclick = async () => {
       : r.matches.map((m) => `<p><b>${esc(fmt(m.id))}</b> <span class="muted">· the hour starting ${esc(when(m.hour))}</span></p>`).join("") +
         `<p class="muted">Use this ID in News (To:) to contact them, or with their reports.</p>`;
   } catch (e) { $("wMsg").textContent = e.message === "token" ? "Sign in again." : "Couldn't reach the server."; }
+};
+
+$("tGo").onclick = async () => {
+  $("tMsg").textContent = "Opening…"; $("tOut").innerHTML = "";
+  try {
+    const r = await fetch(`/v1/admin/tripcode?code=${encodeURIComponent($("tCode").value.trim())}`, { headers: { "x-admin-token": token } });
+    if (r.status === 401 || r.status === 403) throw new Error("token");
+    const j = await r.json();
+    if (!r.ok) { $("tMsg").textContent = j.error || "Couldn't open it."; return; }
+    $("tMsg").textContent = "";
+    const fmt = (id) => id ? "BM " + String(id).toUpperCase().match(/.{4}/g).join(" ") : "–";
+    const row = (k, v) => `<p><span class="muted">${k}</span><br><b>${esc(v)}</b></p>`;
+    $("tOut").innerHTML = row("Group", `${j.name} (${j.group})`) + row("Made by (group admin)", fmt(j.creator)) + row("Group made", j.createdAt ? when(j.createdAt) : "–") +
+      row("This code made by", fmt(j.madeBy)) + row("Code made", j.madeAt ? when(j.madeAt) : "–") + row("Phone · app", `${j.device} · BlueMob ${j.version}`) +
+      row("Trip ends", j.expiresAt ? when(j.expiresAt) : "no end set");
+  } catch (e) { $("tMsg").textContent = e.message === "token" ? "Sign in again." : "Couldn't reach the server."; }
 };
 
 async function loadOverview() {

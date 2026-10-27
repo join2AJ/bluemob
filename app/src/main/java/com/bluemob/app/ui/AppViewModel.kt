@@ -245,14 +245,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun leaveGroup(id: String) { repo.leaveGroup(id); settings.setPinned(id, false) }
 
     // ---- trip groups and field tests ----
-    fun createTrip(name: String) = repo.createTrip(name)?.also { settings.setPinned(it, true) }
+    fun createTrip(name: String, expiresAt: Long = 0) = repo.createTrip(name, expiresAt)?.also { settings.setPinned(it, true) }
     /** Joins from a scanned code: the group's ID, or why not. */
     fun joinTrip(code: String): Result<String> {
         val invite = com.bluemob.app.chat.TripInvite.parse(code) ?: return Result.failure(IllegalArgumentException("That isn't a trip group code."))
         if (invite.inviterId == nodeId) return Result.failure(IllegalArgumentException("That's your own code. Show it to the others."))
         return repo.joinTrip(invite)?.let { settings.setPinned(it, true); Result.success(it) } ?: Result.failure(IllegalStateException("Couldn't join. Try again."))
     }
-    fun tripInvite(id: String) = repo.tripInvite(id)?.encode()
+    /** The trip group's join code: random letters to anyone but BlueMob's admin (see [com.bluemob.app.chat.TripCode]). */
+    fun tripInvite(id: String): String? {
+        val inv = repo.tripInvite(id) ?: return null
+        val g = blueMob.groups.get(id) ?: return null
+        return com.bluemob.app.chat.TripCode.encode(inv, com.bluemob.app.chat.TripCode.Origin(g.owner.ifBlank { nodeId }, g.createdAt, nodeId, System.currentTimeMillis(),
+            "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}", com.bluemob.app.BuildConfig.VERSION_NAME))
+    }
+    fun setAutoRollCall(id: String, min: Int) = repo.updateTrip(id, if (min == 0) "⏱ Automatic roll call is off" else "⏱ Automatic roll call every $min min") { it.copy(autoMin = min) }
+    fun setTripEnd(id: String, at: Long) = repo.updateTrip(id, if (at == 0L) "📅 The trip has no end date" else
+        "📅 The trip ends ${java.text.SimpleDateFormat("EEE d MMM, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(at))}. The group closes a day later unless the admin keeps it open") {
+        it.copy(expiresAt = at, askedToClose = false)
+    }
+    fun keepTripOpen(id: String) {
+        val g = blueMob.groups.get(id) ?: return
+        setTripEnd(id, maxOf(System.currentTimeMillis(), g.expiresAt) + 24 * 3_600_000L)
+    }
+    fun closeTrip(id: String) = repo.closeTrip(id)
+    fun createTeam(main: String, name: String, captain: String, members: Map<String, String>) = repo.createTeam(main, name, captain, members)
+    fun addToTrip(id: String, people: Map<String, String>) = repo.addToTrip(id, people)
     fun rollCall(id: String) = repo.rollCall(id) { mid, n -> blueMob.fieldTest.probe(mid, n) }
     val rollCalls get() = repo.rollCalls
     val fieldTest get() = blueMob.fieldTest

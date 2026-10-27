@@ -22,6 +22,8 @@ sealed interface Route {
     /** Start a trip group (its own screen is [Group], which shows trip groups their own way). */
     data object NewTrip : ChatArea { override val key = "new-trip" }
     data object JoinTrip : ChatArea { override val key = "join-trip" }
+    /** Start a team in trip group [main]. */
+    data class NewTeam(val main: String) : ChatArea { override val key get() = "new-team:$main" }
 
     /** Guide articles, quizzes and packs. */
     sealed interface GuideArea : Route
@@ -85,7 +87,7 @@ sealed interface Route {
         private val withId: Map<String, (String) -> Route> = mapOf(
             "chat" to ::Chat, "group" to ::Group, "media" to ::Media, "photo" to ::Photo, "info" to ::Info,
             "article" to ::Article, "quiz" to ::Quiz, "rescue" to ::Rescue, "match" to ::Match, "game" to ::Game,
-            "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "autostart" to ::Power, "sos-coming" to ::SosComing, "field-test" to ::FieldTest,
+            "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "autostart" to ::Power, "sos-coming" to ::SosComing, "field-test" to ::FieldTest, "new-team" to ::NewTeam,
         )
         private val plain: Map<String, Route> by lazy {
             listOf(NewChat, NewGroup, SkyAi, NewTrip, JoinTrip, FieldTest(), GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, EmergencyCard, HelperSignals, Connections,

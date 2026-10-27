@@ -246,6 +246,36 @@ class MessageRepositoryTest {
     }
 
     @Test
+    fun tripAdminSettingsTeamsAndClosing() = runTest {
+        val p = Phones(this)
+        p.radio.connected = true
+        val gid = p.a.createTrip("Group 7", expiresAt = System.currentTimeMillis() + 86_400_000)!!
+        p.b.joinTrip(p.a.tripInvite(gid)!!)
+        settle()
+        assertEquals("A", p.groupsB.get(gid)!!.owner)
+        // The admin's settings reach everyone; a member's don't.
+        p.a.updateTrip(gid, "⏱ Automatic roll call every 10 min") { it.copy(autoMin = 10) }
+        settle()
+        assertEquals(10, p.groupsB.get(gid)!!.autoMin)
+        p.b.updateTrip(gid, "trying") { it.copy(autoMin = 1, name = "Mine now") }
+        settle()
+        assertEquals(10, p.groupsA.get(gid)!!.autoMin)
+        assertEquals("Group 7", p.groupsA.get(gid)!!.name)
+        // A team with B as captain: B sees it, with A in it.
+        val team = p.a.createTeam(gid, "Team 1", "B", emptyMap())!!
+        settle()
+        val bTeam = p.groupsB.get(team)!!
+        assertEquals(gid, bTeam.parent)
+        assertEquals("B", bTeam.captain)
+        assertTrue("A" in bTeam.members)
+        assertTrue(bTeam.canManage("B"))
+        // Closing reaches everyone.
+        p.a.closeTrip(gid)
+        settle()
+        assertTrue(p.groupsB.get(gid)!!.isClosed(System.currentTimeMillis()))
+    }
+
+    @Test
     fun tripCodesOnlyParseWhenWellFormed() {
         val code = TripInvite("g-abc123", "0123456789abcdef", "Family at the mela 🎪").encode()
         assertEquals(TripInvite("g-abc123", "0123456789abcdef", "Family at the mela 🎪"), TripInvite.parse(code))

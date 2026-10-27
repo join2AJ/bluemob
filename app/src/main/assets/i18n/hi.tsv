@@ -1998,3 +1998,78 @@ Safe together, anywhere	हर जगह, साथ में सुरक्ष
 On a trek, a yatra or in a crowded mela, BlueMob links your group's phones directly over Bluetooth and Wi-Fi, so SOS and messages get through where the network doesn't.	ट्रेक पर, यात्रा में या भीड़ भरे मेले में, BlueMob आपके ग्रुप के फ़ोन को सीधे ब्लूटूथ और वाई-फ़ाई से जोड़ता है, ताकि SOS और संदेश वहाँ भी पहुँचें जहाँ नेटवर्क नहीं पहुँचता।
 Your group, in one code	आपका ग्रुप, एक कोड में
 Make a trip group before you set off. Everyone scans one code, and a roll call shows every phone can be reached.	निकलने से पहले ट्रिप ग्रुप बनाइए। सब एक कोड स्कैन करें, और हाज़िरी दिखाती है कि हर फ़ोन तक पहुँचा जा सकता है।
+Trip group or normal group?	ट्रिप ग्रुप या आम ग्रुप?
+👥 Group	👥 ग्रुप
+🧭 Trip group	🧭 ट्रिप ग्रुप
+You pick people you've met	आप उन लोगों को चुनते हैं जिनसे मिल चुके हैं
+Everyone is equal	सब बराबर हैं
+Stays until you leave	जब तक आप न छोड़ें, बना रहता है
+Join by one QR code or shared code	एक QR कोड या शेयर किए कोड से जुड़ें
+An admin, teams and captains	एक एडमिन, टीमें और कप्तान
+Roll calls, automatic checks and an alert when a phone can't be reached	हाज़िरी, अपने-आप जाँच, और फ़ोन तक न पहुँचने पर अलर्ट
+Can end with the trip	ट्रिप के साथ ख़त्म हो सकता है
+New trip group	नया ट्रिप ग्रुप
+The trip ends	ट्रिप ख़त्म होगी
+No end	कोई अंत नहीं
+1 day	1 दिन
+2 days	2 दिन
+3 days	3 दिन
+1 week	1 हफ़्ता
+The group stays until you close it.	ग्रुप तब तक रहेगा जब तक आप उसे बंद न करें।
+It closes a day after the end, unless you keep it open.	यह ख़त्म होने के एक दिन बाद बंद हो जाएगा, जब तक आप इसे खुला न रखें।
+Scan or paste their code to join	जुड़ने के लिए उनका कोड स्कैन करें या पेस्ट करें
+Ask someone in the group to show the code, and point your camera at it. Or paste a code they shared.	ग्रुप के किसी व्यक्ति से कोड दिखाने को कहें, और कैमरा उस पर रखें। या उनका शेयर किया कोड पेस्ट करें।
+Or paste a shared code	या शेयर किया कोड पेस्ट करें
+Join	जुड़ें
+Team	टीम
+Close the trip group?	ट्रिप ग्रुप बंद करें?
+Everyone can still read it, but no one can write, and roll calls stop. Teams close too.	सब इसे पढ़ सकेंगे, पर कोई लिख नहीं सकेगा, और हाज़िरी रुक जाएगी। टीमें भी बंद होंगी।
+Close it	बंद करें
+Add people from {}	{} से लोग जोड़ें
++ Add people from {}	+ {} से लोग जोड़ें
+Everyone in {} is already in this team.	{} के सभी लोग पहले से इस टीम में हैं।
+You're the admin · captain: {}	आप एडमिन हैं · कप्तान: {}
+You're the admin	आप एडमिन हैं
+You're the captain of this team	आप इस टीम के कप्तान हैं
+Captain: {}	कप्तान: {}
+Admin: {}	एडमिन: {}
+Closed {}. You can still read it	{} को बंद हुआ। आप इसे अब भी पढ़ सकते हैं
+⏱ Automatic roll call every {} min	⏱ हर {} मिनट में अपने-आप हाज़िरी
+💬 Team chat	💬 टीम चैट
+🏁 The trip has ended	🏁 ट्रिप ख़त्म हो गई
+Close the group now, or keep it open another day. If you do nothing, it closes by itself {}.	ग्रुप अभी बंद करें, या एक दिन और खुला रखें। अगर आप कुछ न करें, तो यह {} अपने-आप बंद हो जाएगा।
+Close now	अभी बंद करें
+Keep open 1 day	1 दिन खुला रखें
+Others: Groups → Trip group → Join	बाकी लोग: ग्रुप → ट्रिप ग्रुप → जुड़ें
+Share the code	कोड शेयर करें
+Send it in any app; they paste it in BlueMob to join	किसी भी ऐप से भेजें; वे जुड़ने के लिए इसे BlueMob में पेस्ट करें
+Teams · {}	टीमें · {}
+Captain: {} · {} people	कप्तान: {} · {} लोग
++ Add a team	+ टीम जोड़ें
+Pick a captain and their people. You see every team; each captain runs theirs	कप्तान और उनके लोग चुनें। आप हर टीम देखते हैं; हर कप्तान अपनी टीम चलाता है
+Automatic roll call	अपने-आप हाज़िरी
+Your phone sends a roll call this often. If a phone doesn't answer within 3 minutes, your phone sounds an alert.	आपका फ़ोन इतनी बार हाज़िरी भेजेगा। अगर कोई फ़ोन 3 मिनट में जवाब न दे, तो आपका फ़ोन अलर्ट बजाएगा।
+No end date: the group stays until you close it.	कोई अंतिम तारीख़ नहीं: ग्रुप तब तक रहेगा जब तक आप उसे बंद न करें।
+Ends {}. It closes a day later unless you keep it open.	{} को ख़त्म। यह एक दिन बाद बंद होगा, जब तक आप इसे खुला न रखें।
+Close the trip group	ट्रिप ग्रुप बंद करें
+Leave the team	टीम छोड़ें
+Admin	एडमिन
+Captain	कप्तान
+Captain · {}	कप्तान · {}
+New team	नई टीम
+A team has its own chat and roll calls, run by its captain. You see every team; the captain sees theirs and the main group.	टीम की अपनी चैट और हाज़िरी होती है, जिसे उसका कप्तान चलाता है। आप हर टीम देखते हैं; कप्तान अपनी टीम और मुख्य ग्रुप देखता है।
+Team name	टीम का नाम
+People in the team · {}	टीम में लोग · {}
+Create the team	टीम बनाएँ
+For treks, yatras and melas: join by one code, roll calls, teams with captains	ट्रेक, यात्रा और मेलों के लिए: एक कोड से जुड़ें, हाज़िरी, कप्तानों वाली टीमें
+Join with a code	कोड से जुड़ें
+How is it different from a group?	यह आम ग्रुप से कैसे अलग है?
+Hide	छिपाएँ
+Trip group · closed	ट्रिप ग्रुप · बंद
+Team · {} people	टीम · {} लोग
+Trip group · {} people	ट्रिप ग्रुप · {} लोग
+🏁 This trip group closed on {}. You can still read it.	🏁 यह ट्रिप ग्रुप {} को बंद हुआ। आप इसे अब भी पढ़ सकते हैं।
+⚠️ Can't reach {} in {}	⚠️ {2} में {1} तक नहीं पहुँच पा रहे
+Their phone didn't answer the last roll call. They may be out of range, or the phone stopped BlueMob.	उनके फ़ोन ने पिछली हाज़िरी का जवाब नहीं दिया। हो सकता है वे दायरे से बाहर हों, या फ़ोन ने BlueMob बंद कर दिया हो।
+🏁 {} has ended	🏁 {} ख़त्म हो गई
+Close the trip group, or keep it open? If you do nothing, it closes by itself in a day.	ट्रिप ग्रुप बंद करें, या खुला रखें? अगर आप कुछ न करें, तो यह एक दिन में अपने-आप बंद हो जाएगा।

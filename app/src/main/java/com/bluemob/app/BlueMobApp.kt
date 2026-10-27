@@ -289,6 +289,32 @@ class BlueMobApp : Application() {
             onRoomEnvelope = { mesh.receiveRoomEnvelope(it) },
             onDelivered = { m, hops, internet -> if (m.parent.isNotBlank()) fieldTest.delivered(m.parent, m.peer, hops, internet, (m.deliveredAt ?: m.createdAt) - m.createdAt) },
         )
+        // Trip groups this phone runs (as admin or captain): automatic roll calls, alerts, and the end of the trip.
+        appScope.launch {
+            val alerted = HashSet<String>()
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                val now = System.currentTimeMillis()
+                val gs = groups.groups.value
+                com.bluemob.app.chat.TripWatch.due(gs.values, messages.rollCalls.value, identity.nodeId, now, alerted).forEach { act ->
+                    when (act) {
+                        is com.bluemob.app.chat.TripWatch.Act.RollCall -> messages.rollCall(act.gid) { id, n -> fieldTest.probe(id, n) }
+                        is com.bluemob.app.chat.TripWatch.Act.Unreachable -> {
+                            alerted += act.rollId
+                            val g = gs[act.gid] ?: return@forEach
+                            val names = act.ids.map { id -> contacts.contacts.value[id]?.name ?: g.members[id].orEmpty().ifBlank { "Someone" } }
+                            notifier.tripAlert(act.gid, com.bluemob.app.i18n.Lang.tr("⚠️ Can't reach ${names.joinToString()} in ${g.name}"), com.bluemob.app.i18n.Lang.tr("Their phone didn't answer the last roll call. They may be out of range, or the phone stopped BlueMob."))
+                        }
+                        is com.bluemob.app.chat.TripWatch.Act.AskToClose -> {
+                            messages.markAskedToClose(act.gid)
+                            val g = gs[act.gid] ?: return@forEach
+                            notifier.tripAlert(act.gid, com.bluemob.app.i18n.Lang.tr("🏁 ${g.name} has ended"),
+                                com.bluemob.app.i18n.Lang.tr("Close the trip group, or keep it open? If you do nothing, it closes by itself in a day."))
+                        }
+                    }
+                }
+            }
+        }
         // A field test, while one runs: alive every minute, battery every 5, a roll call to the trip group every few.
         appScope.launch {
             fieldTest.session.collectLatest { s ->

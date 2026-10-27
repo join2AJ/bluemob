@@ -152,6 +152,16 @@ class Notifier(private val context: Context) {
         .setContentIntent(open(route, id))
         .build())
 
+    /** For a trip group's admin or captain: a phone didn't answer the roll call, or the trip has ended. Rings. */
+    fun tripAlert(gid: String, title: String, text: String) = post(gid.hashCode() + 19, NotificationCompat.Builder(context, CH_RESCUE)
+        .setSmallIcon(R.drawable.ic_stat_bluemob)
+        .setContentTitle(title).setContentText(text)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_ALARM)
+        .setColor(0xFFF59E0B.toInt()).setAutoCancel(true)
+        .setContentIntent(open(Route.Group(gid).key, gid.hashCode() + 19))
+        .build())
+
     /** Counting down to an SOS the phone started by itself, with a big "Cancel". [why] says what happened. */
     fun sosCountdown(secondsLeft: Int, why: String) {
         val cancel = PendingIntent.getBroadcast(context, 77, android.content.Intent(context, com.bluemob.app.safety.SosCountdown.Cancel::class.java),

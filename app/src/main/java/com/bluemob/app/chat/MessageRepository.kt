@@ -137,7 +137,7 @@ class MessageRepository(
             history = event(now, "Written on your phone") + event(now, "Sent to ${others.size} ${if (others.size == 1) "member" else "members"} of ${g.name}, each end-to-end encrypted")))
         val r = Rich.replyParts(reply)
         val wire = Rich(text, group = gid, groupName = g.name, members = members, groupMsgId = id, replyId = r?.first, replyName = r?.second.orEmpty(), replyText = r?.third.orEmpty(),
-            trip = g.trip, rollCall = rollCall).encode()
+            trip = g.trip, rollCall = rollCall, meta = if (g.trip) g.meta else null).encode()
         others.forEach { to -> dao.insert(carrier(to, wire, id, now)) }
         record(AuditKind.MESSAGE, gid, "Group message $id written to ${g.name} (${others.size} members): \"${text.take(80)}\"")
         deliverAll()
@@ -168,17 +168,18 @@ class MessageRepository(
     }
 
     /** Starts a trip group with only us in it; the others join by scanning its QR code ([tripInvite]). */
-    fun createTrip(name: String): String? {
+    fun createTrip(name: String, expiresAt: Long = 0): String? {
         val store = groups ?: return null
         val (_, myName) = me()
         val gid = GroupStore.PREFIX + UUID.randomUUID().toString().replace("-", "").take(12)
-        store.put(ChatGroup(gid, name.trim().take(40).ifBlank { "Trip" }, emptyMap(), trip = true))
+        store.put(ChatGroup(gid, name.trim().take(40).ifBlank { "Trip" }, emptyMap(), trip = true, owner = me().first, expiresAt = expiresAt))
         send(gid, "🧭 $myName started the trip group \"${name.trim().take(40).ifBlank { "Trip" }}\". Scan its QR code to join")
         return gid
     }
 
     /** The QR code that lets someone join trip group [gid] through us. */
-    fun tripInvite(gid: String): TripInvite? = groups?.get(gid)?.takeIf { it.trip }?.let { TripInvite(it.id, me().first, it.name) }
+    fun tripInvite(gid: String): TripInvite? = groups?.get(gid)?.takeIf { it.trip && !it.isTeam && !it.isClosed(System.currentTimeMillis()) }
+        ?.let { TripInvite(it.id, me().first, it.name, it.owner, it.expiresAt, it.createdAt) }
 
     /**
      * Joins a trip group from its QR code: we ask whoever showed it to add us; they tell everyone, and the reply
@@ -189,8 +190,8 @@ class MessageRepository(
         val (myId, myName) = me()
         if (invite.inviterId == myId) return null
         val known = store.get(invite.groupId)
-        store.put(ChatGroup(invite.groupId, invite.name, (known?.members.orEmpty()) + (invite.inviterId to (known?.members?.get(invite.inviterId) ?: "")),
-            known?.createdAt ?: System.currentTimeMillis(), trip = true))
+        store.put((known ?: ChatGroup(invite.groupId, invite.name, emptyMap(), invite.createdAt.takeIf { it > 0 } ?: System.currentTimeMillis(), trip = true,
+            owner = invite.owner, expiresAt = invite.expiresAt)).let { it.copy(members = it.members + (invite.inviterId to (it.members[invite.inviterId] ?: ""))) })
         if (known != null && myId !in known.members) return invite.groupId
         scope.launch {
             val now = System.currentTimeMillis()
@@ -207,6 +208,49 @@ class MessageRepository(
     fun rollCall(gid: String, onSent: (messageId: String, members: Int) -> Unit = { _, _ -> }) {
         if (groups?.get(gid)?.trip != true) return
         scope.launch { sendToGroup(gid, RollCall.TEXT, "", System.currentTimeMillis(), rollCall = true)?.let { (id, n) -> onSent(id, n) } }
+    }
+
+    /**
+     * Changes a trip group's settings (the admin, or a team's captain for roll calls) and tells everyone with [note]:
+     * the message carries the new settings, which the other phones take from the admin.
+     */
+    fun updateTrip(gid: String, note: String, change: (ChatGroup) -> ChatGroup) {
+        val store = groups ?: return
+        val g = store.get(gid)?.takeIf { it.trip } ?: return
+        store.put(change(g))
+        send(gid, note)
+    }
+
+    /** This phone asked the admin whether to close [gid]; don't ask again (unless the end time changes). */
+    fun markAskedToClose(gid: String) { groups?.get(gid)?.let { groups.put(it.copy(askedToClose = true)) } }
+
+    /** Closes a trip group now: no more messages or roll calls; it stays readable. */
+    fun closeTrip(gid: String) = updateTrip(gid, "🏁 ${me().second} closed the trip group") { it.copy(closedAt = System.currentTimeMillis()) }
+
+    /**
+     * Starts a team in trip group [mainGid]: its own trip group with [captain] and [members] (and us, the admin), so
+     * the admin sees every team and each captain runs their own.
+     */
+    fun createTeam(mainGid: String, name: String, captain: String, members: Map<String, String>): String? {
+        val store = groups ?: return null
+        val main = store.get(mainGid)?.takeIf { it.trip && !it.isTeam } ?: return null
+        val (myId, myName) = me()
+        val gid = GroupStore.PREFIX + UUID.randomUUID().toString().replace("-", "").take(12)
+        val people = (members + (captain to (main.members[captain] ?: members[captain].orEmpty()))).filterKeys { it != myId }
+        store.put(ChatGroup(gid, name.trim().take(40).ifBlank { "Team" }, people.entries.take(Rich.MAX_MEMBERS - 1).associate { it.key to it.value }, trip = true,
+            owner = main.owner.ifBlank { myId }, parent = mainGid, captain = captain, expiresAt = main.expiresAt))
+        val captainName = if (captain == myId) myName else people[captain].orEmpty().ifBlank { "the captain" }
+        send(gid, "👥 Team \"${name.trim().take(40)}\" started. Captain: $captainName")
+        send(mainGid, "👥 New team \"${name.trim().take(40)}\" with captain $captainName (${people.size + 1} people)")
+        return gid
+    }
+
+    /** Adds people to a trip group or team (the admin or the captain); they hear about it with the message. */
+    fun addToTrip(gid: String, people: Map<String, String>) {
+        val g = groups?.get(gid) ?: return
+        val fresh = people.filterKeys { it != me().first && it !in g.members }
+        if (fresh.isEmpty()) return
+        updateTrip(gid, "➕ ${me().second} added ${fresh.values.joinToString { it.ifBlank { "someone" } }}") { it.copy(members = (it.members + fresh).entries.take(Rich.MAX_MEMBERS - 1).associate { e -> e.key to e.value }) }
     }
 
     /** The latest roll call of each trip group. */
@@ -370,7 +414,7 @@ class MessageRepository(
         if (gid != null && groups != null && rich.join) {
             // Someone scanned our trip group's code: add them and tell everyone (the message carries the new list).
             val known = groups.get(gid) ?: return
-            if (!known.trip || known.members.size >= Rich.MAX_MEMBERS - 1) return
+            if (!known.trip || known.isTeam || known.isClosed(now) || known.members.size >= Rich.MAX_MEMBERS - 1) return
             val name = rich.members[e.fromNodeId].orEmpty().ifBlank { "Someone" }
             val isNew = e.fromNodeId !in known.members
             groups.put(known.copy(members = known.members + (e.fromNodeId to name)))
@@ -382,12 +426,14 @@ class MessageRepository(
             val known = groups.get(gid)
             if (rich.leave) {
                 known?.let { groups.put(it.copy(members = it.members - e.fromNodeId)) }
+            } else if (rich.trip) {
+                // A trip group only grows by joining; names are filled in as they arrive; settings come from its admin.
+                groups.put((known ?: ChatGroup(gid, rich.groupName.ifBlank { "Trip" }, mapOf(e.fromNodeId to ""), now, trip = true))
+                    .merge(e.fromNodeId, rich.groupName, rich.members - myId, rich.meta))
             } else if (rich.members.isNotEmpty()) {
-                // A trip group only grows by joining; names are filled in as they arrive.
-                val members = if (rich.trip && known != null) known.members + (rich.members - myId).mapValues { (id, n) -> n.ifBlank { known.members[id].orEmpty() } } else rich.members - myId
-                groups.put(ChatGroup(gid, rich.groupName.ifBlank { known?.name ?: "Group" }, members, known?.createdAt ?: now, trip = rich.trip || known?.trip == true))
+                groups.put(ChatGroup(gid, rich.groupName.ifBlank { known?.name ?: "Group" }, rich.members - myId, known?.createdAt ?: now))
             } else if (known == null) {
-                groups.put(ChatGroup(gid, rich.groupName.ifBlank { "Group" }, mapOf(e.fromNodeId to ""), now, trip = rich.trip))
+                groups.put(ChatGroup(gid, rich.groupName.ifBlank { "Group" }, mapOf(e.fromNodeId to ""), now, trip = rich.trip, owner = rich.meta?.owner.orEmpty()))
             }
         }
         if (rich.react != null) {

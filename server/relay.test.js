@@ -350,3 +350,29 @@ test("chat watermark: the admin lookup finds the BlueMob ID from a screenshot's 
   const bits = "FVQTV7GNFX14PVZ2".split("").map((c) => A.indexOf(c).toString(2).padStart(5, "0")).join("");
   assert.equal(require("./relay").wmFromBits(bits), "FVQTV7GNFX14PVZ2");
 });
+
+test("trip group codes: only the admin's key opens who made the group and when", async () => {
+  const { openTripCode, sealTripCode, createServer, Store } = require("./relay");
+  // A test key pair (not the real one). This code was made by the app (TripCodeTest).
+  const pub = "04306aa4f1c896f2e9f8db57da07eea30efcec9f1751623a06882633e5abb195368c126eb62dcc980328776f51796b1ec49a60dfc8e21ab4e6b6cb30df4898910e";
+  const key = "301a40bbaa59b401e663aaad34ce91bba0f280dc0f57030b9ae764532f86ef7f";
+  const fromApp = "bluemob:t:AkEEnVfTHKPacCs_feefdyjF7fERn93pj4XS9Z3Eseu0Q0e_yCWzVHuq_4z9xT8cJW-hchlFjurCiySgSoGQCjptqQDpuwJfrPEH_XweOlBsWSqwiBj0y8BbTPyoOWBJUbUYIvdKGOOV2Q73TINPyo4c_BtHiUgDNGVrTh8ydVkBjyAfixLlNgsb9882r4nKp3crvM3oGrnRvGI03Fmg7_06kaa97N7OO8BQWPSF74b4YyDystn7S58LSroKbGx2I5glbHbAYFUhs0qn61CFVRH2Km46e6JGRpRCwoTfMAeDe51qcZ-fYkvzvi77Ngb5cMYZuSmC-DB_h5279EzgROqvtgsvXbXXX07rAvxgyi714Qau9mz9lsI6FBChbddMkByCskf6URMW-vKB7bQ7hFN_bRTSndX5mNck1654oxVgpvjQJZmwQsBe84U1YmPWFgdSSXF0PhFQpz8DNQaUuEhW1uhvvrDOH34k8T2b6NQj0QUGIE1D23MBDkLqu1D1t0KSHpgrPrjz7h5fGYW7I7gYsNTDO3-Mg06o91umBa-oqyN5A5UKrwmUbVI0RY0";
+  const got = openTripCode("Join my BlueMob trip group: " + fromApp, key);
+  assert.equal(got.creator, "3f9a1c2b7d4e8a01");
+  assert.equal(got.madeAt, 1790000600000);
+  assert.equal(got.device, "Motorola edge 50");
+  assert.equal(openTripCode(fromApp, "11".repeat(32)), null);
+  assert.equal(openTripCode("bluemob:t:" + "A".repeat(60), key), null);
+  const made = sealTripCode(pub, { creator: "aaaaaaaaaaaaaaaa", madeAt: 5 });
+  assert.equal(openTripCode(made, key).creator, "aaaaaaaaaaaaaaaa");
+  // Over HTTP: admin only, and only with the key set.
+  const server = createServer(new Store(), undefined, undefined, undefined, undefined, { adminToken: "t0k", sealKey: key }).listen(0);
+  const port = server.address().port;
+  const get = (q, tok) => fetch(`http://127.0.0.1:${port}/v1/admin/tripcode?code=${encodeURIComponent(q)}`, { headers: tok ? { "x-admin-token": tok } : {} });
+  assert.equal((await get(fromApp)).status, 403);
+  const ok = await get(fromApp, "t0k");
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).name, "Group 10");
+  assert.equal((await get("nope", "t0k")).status, 404);
+  server.close();
+});
