@@ -271,6 +271,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun closeTrip(id: String) = repo.closeTrip(id)
     fun createTeam(main: String, name: String, captain: String, members: Map<String, String>) = repo.createTeam(main, name, captain, members)
     fun addToTrip(id: String, people: Map<String, String>) = repo.addToTrip(id, people)
+    fun setItinerary(id: String, stops: List<com.bluemob.app.chat.Stop>) = repo.setItinerary(id, stops)
+    fun checkIn(id: String, stop: String) = repo.checkIn(id, stop)
+    /** Where this phone is, for a checkpoint's place ("use where I am"). */
+    fun here() = blueMob.location.location.value ?: blueMob.location.lastKnown()
+    // Showing a trip group to phones nearby, with a passcode (kept on this phone only).
+    val tripsNearby get() = blueMob.tripAds.nearby
+    val joinNotes get() = repo.joinNotes
+    fun setShowNearby(id: String, on: Boolean) {
+        val g = blueMob.groups.get(id) ?: return
+        blueMob.groups.put(g.copy(advertise = on, passcode = g.passcode.ifBlank { newPasscode() }))
+        if (on) blueMob.tripAds.announce()
+    }
+    fun changePasscode(id: String) { blueMob.groups.get(id)?.let { blueMob.groups.put(it.copy(passcode = newPasscode())) } }
+    private fun newPasscode() = (1000 + java.security.SecureRandom().nextInt(9000)).toString()
+    fun joinNearby(ad: com.bluemob.app.nearby.TripAd, passcode: String) = repo.requestJoin(ad.groupId, ad.owner, ad.name, passcode)
     fun rollCall(id: String) = repo.rollCall(id) { mid, n -> blueMob.fieldTest.probe(mid, n) }
     val rollCalls get() = repo.rollCalls
     val fieldTest get() = blueMob.fieldTest

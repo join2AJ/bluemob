@@ -36,6 +36,26 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.35: itinerary, checkpoints, and joining nearby with a passcode
+
+- **Itinerary:** the admin plans the main group and a captain plans their team: stops with a day, time, place
+  name and note. Everyone sees the plan in time order, with the next stop marked. The trip group screen shows the
+  next stop in an Itinerary card. Saving sends the plan to everyone, and anyone who joins later gets it with the
+  welcome message. Other phones ignore a plan from anyone who isn't the admin, or the team's captain.
+- **Checkpoints:** a stop can be a checkpoint, optionally with its place ("Use where I am") and a 50, 150 or 500 m
+  circle. A phone inside the circle checks in by itself, if its location is on and the fix is recent and accurate.
+  Anyone can also tap "📍 I'm here". Check-ins are group messages, so they reach the admin as soon as any phone can
+  carry them, including when a team on its own path comes back in range. Each checkpoint shows who passed it, and
+  when.
+- **Team on a different path:** a captain's team roll call is summed up in the team chat once it's done ("4 of 5
+  reached. Not reached: Ravi"). The admin is in every team, so it reaches them when the team is back in reach. On the
+  trip group screen, anyone not reached shows when they were last heard from, and how (in the chat, in a team, or at
+  a checkpoint).
+- **Join nearby with a passcode:** the admin turns on "Show to people nearby" and gets a 4-digit passcode (or a new
+  one). Phones connected straight to the admin's phone see the group under Nearby (and on the Join screen), tap it,
+  and type the passcode the admin says out loud. Only the admin's phone checks the passcode; it's never sent to
+  anyone. After 5 wrong tries in an hour, that phone has to wait. A wrong passcode gets a clear answer.
+
 ## Android 0.34: trip groups with an admin, teams and captains
 
 - **Where:** Groups tab → Trip group card (New trip group, Join with a code, "How is it different from a group?").

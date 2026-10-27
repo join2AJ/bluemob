@@ -276,6 +276,37 @@ class MessageRepositoryTest {
     }
 
     @Test
+    fun passcodeJoinItineraryAndCheckpoints() = runTest {
+        val p = Phones(this)
+        p.radio.connected = true
+        val gid = p.a.createTrip("Group 3")!!
+        p.groupsA.put(p.groupsA.get(gid)!!.copy(advertise = true, passcode = "4821"))
+        val day = 86_400_000L
+        p.a.setItinerary(gid, listOf(Stop("s2", 2 * day, "Summit", checkpoint = true), Stop("s1", day, "Base camp", "Tents and dinner")))
+        settle()
+        // A wrong passcode: B is told, and isn't in.
+        p.b.requestJoin(gid, "A", "Group 3", "1111")
+        settle()
+        assertTrue(p.b.joinNotes.value[gid]!!.startsWith("Wrong passcode"))
+        assertEquals(null, p.groupsB.get(gid))
+        // The right one: B is in, with the itinerary (in time order).
+        p.b.requestJoin(gid, "A", "Group 3", "4821")
+        settle()
+        val g = p.groupsB.get(gid)!!
+        assertTrue(g.trip)
+        assertEquals(listOf("Base camp", "Summit"), g.itinerary.map { it.title })
+        assertTrue("B" in p.groupsA.get(gid)!!.members)
+        // B reaches the summit: A sees it.
+        p.b.checkIn(gid, "s2")
+        settle()
+        assertTrue(p.groupsA.get(gid)!!.checkins["s2"]!!.containsKey("B"))
+        // Only the admin plans: B's itinerary isn't taken.
+        p.b.setItinerary(gid, listOf(Stop("x", 1, "Mine")))
+        settle()
+        assertEquals(2, p.groupsA.get(gid)!!.itinerary.size)
+    }
+
+    @Test
     fun tripCodesOnlyParseWhenWellFormed() {
         val code = TripInvite("g-abc123", "0123456789abcdef", "Family at the mela 🎪").encode()
         assertEquals(TripInvite("g-abc123", "0123456789abcdef", "Family at the mela 🎪"), TripInvite.parse(code))

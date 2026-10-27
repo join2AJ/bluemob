@@ -126,7 +126,7 @@ class MessageRepository(
      * A group message: shown once in the group chat, and carried to each member as its own encrypted message (so it
      * travels every way a normal message does, and each member's receipts come back).
      */
-    private suspend fun sendToGroup(gid: String, text: String, reply: String, now: Long, rollCall: Boolean = false): Pair<String, Int>? {
+    private suspend fun sendToGroup(gid: String, text: String, reply: String, now: Long, rollCall: Boolean = false, extra: (Rich) -> Rich = { it }): Pair<String, Int>? {
         val g = groups?.get(gid) ?: return null
         val (myId, myName) = me()
         val id = newId()
@@ -137,7 +137,7 @@ class MessageRepository(
             history = event(now, "Written on your phone") + event(now, "Sent to ${others.size} ${if (others.size == 1) "member" else "members"} of ${g.name}, each end-to-end encrypted")))
         val r = Rich.replyParts(reply)
         val wire = Rich(text, group = gid, groupName = g.name, members = members, groupMsgId = id, replyId = r?.first, replyName = r?.second.orEmpty(), replyText = r?.third.orEmpty(),
-            trip = g.trip, rollCall = rollCall, meta = if (g.trip) g.meta else null).encode()
+            trip = g.trip, rollCall = rollCall, meta = if (g.trip) g.meta else null).let(extra).encode()
         others.forEach { to -> dao.insert(carrier(to, wire, id, now)) }
         record(AuditKind.MESSAGE, gid, "Group message $id written to ${g.name} (${others.size} members): \"${text.take(80)}\"")
         deliverAll()
@@ -251,6 +251,64 @@ class MessageRepository(
         val fresh = people.filterKeys { it != me().first && it !in g.members }
         if (fresh.isEmpty()) return
         updateTrip(gid, "➕ ${me().second} added ${fresh.values.joinToString { it.ifBlank { "someone" } }}") { it.copy(members = (it.members + fresh).entries.take(Rich.MAX_MEMBERS - 1).associate { e -> e.key to e.value }) }
+    }
+
+    /** Sets trip group [gid]'s itinerary (the admin; a team's captain for the team) and sends it to everyone. */
+    fun setItinerary(gid: String, stops: List<Stop>) {
+        val store = groups ?: return
+        val g = store.get(gid)?.takeIf { it.trip && it.canPlan(me().first) } ?: return
+        val now = System.currentTimeMillis()
+        val plan = stops.sortedBy { it.at }.take(Stop.MAX)
+        store.put(g.copy(itinerary = plan, itineraryAt = now))
+        val cps = plan.count { it.checkpoint }
+        scope.launch {
+            sendToGroup(gid, "🗺 Itinerary updated: ${plan.size} stop${if (plan.size == 1) "" else "s"}" + (if (cps > 0) ", $cps checkpoint${if (cps == 1) "" else "s"}" else ""), "", now) {
+                it.copy(itinerary = plan, itineraryAt = now)
+            }
+        }
+    }
+
+    /** "I reached this checkpoint": saved here, and told to the group (it gets there when the group is in reach). */
+    fun checkIn(gid: String, stopId: String, auto: Boolean = false) {
+        val store = groups ?: return
+        val g = store.get(gid) ?: return
+        val stop = g.itinerary.firstOrNull { it.id == stopId } ?: return
+        val (myId, myName) = me()
+        if (g.checkins[stopId]?.containsKey(myId) == true) return
+        val now = System.currentTimeMillis()
+        store.put(g.copy(checkins = g.checkins + (stopId to (g.checkins[stopId].orEmpty() + (myId to now)))))
+        scope.launch { sendToGroup(gid, "📍 $myName reached ${stop.title}" + if (auto) " (checked in by location)" else "", "", now) { it.copy(checkIn = stopId, checkInAt = now) } }
+    }
+
+    private val _joinNotes = MutableStateFlow<Map<String, String>>(emptyMap())
+    /** Joining by passcode: what the admin's phone answered, by group (only when it said no). */
+    val joinNotes: StateFlow<Map<String, String>> = _joinNotes.asStateFlow()
+
+    /** Asks the admin of a group shown nearby to let us in with [passcode]. The group appears when they do. */
+    fun requestJoin(gid: String, owner: String, name: String, passcode: String) {
+        val (myId, myName) = me()
+        if (owner == myId) return
+        _joinNotes.update { it - gid }
+        scope.launch {
+            val wire = Rich("$myName asks to join", group = gid, groupName = name, members = mapOf(myId to myName), trip = true, join = true, passcode = passcode.trim()).encode()
+            dao.insert(carrier(owner, wire, "", System.currentTimeMillis()))
+            deliverAll()
+        }
+    }
+
+    /** Wrong passcodes: at most 5 tries an hour from one phone. */
+    private val tries = HashMap<String, MutableList<Long>>()
+    private fun tryPasscode(from: String, now: Long): Boolean {
+        val l = tries.getOrPut(from) { mutableListOf() }
+        l.removeAll { now - it > 3_600_000 }
+        l += now
+        return l.size <= 5
+    }
+
+    /** A captain's team roll call, summed up in the team chat, so the admin (in every team) sees it when back in reach. */
+    fun postRollSummary(gid: String, roll: RollCall, names: (String) -> String) {
+        val missing = roll.members.filterValues { it == Reach.Waiting }.keys.map(names)
+        send(gid, "📋 Roll call: ${roll.reached} of ${roll.members.size} reached" + if (missing.isEmpty()) ". Everyone's fine" else ". Not reached: ${missing.joinToString()}")
     }
 
     /** The latest roll call of each trip group. */
@@ -414,12 +472,32 @@ class MessageRepository(
         if (gid != null && groups != null && rich.join) {
             // Someone scanned our trip group's code: add them and tell everyone (the message carries the new list).
             val known = groups.get(gid) ?: return
-            if (!known.trip || known.isTeam || known.isClosed(now) || known.members.size >= Rich.MAX_MEMBERS - 1) return
+            if (!known.trip || known.isTeam) return
+            // From a group shown nearby: only the admin's phone checks the passcode, and only a few tries an hour.
+            if (rich.passcode != null) {
+                val why = when {
+                    !known.isOwner(myId) -> return
+                    !tryPasscode(e.fromNodeId, now) -> "Too many wrong passcodes. Try again in an hour."
+                    !known.advertise || known.passcode.isBlank() -> "This group isn't taking passcodes right now. Ask the admin for its code."
+                    rich.passcode != known.passcode -> "Wrong passcode. Ask the admin again."
+                    else -> null
+                }
+                if (why != null || known.isClosed(now) || known.members.size >= Rich.MAX_MEMBERS - 1) {
+                    dao.insert(carrier(e.fromNodeId, Rich(group = gid, groupName = known.name, denied = why ?: "This group is closed or full.").encode(), "", now))
+                    deliverAll()
+                    return
+                }
+            } else if (known.isClosed(now) || known.members.size >= Rich.MAX_MEMBERS - 1) return
             val name = rich.members[e.fromNodeId].orEmpty().ifBlank { "Someone" }
             val isNew = e.fromNodeId !in known.members
             groups.put(known.copy(members = known.members + (e.fromNodeId to name)))
-            if (isNew) sendToGroup(gid, "👋 $name joined the trip group", "", now)
-            else sendToGroup(gid, "👋 $name is back in the trip group", "", now)
+            // The message carries the member list, and the itinerary when we're the one who plans it.
+            val withPlan: (Rich) -> Rich = { r -> if (known.canPlan(myId) && known.itinerary.isNotEmpty()) r.copy(itinerary = known.itinerary, itineraryAt = known.itineraryAt) else r }
+            sendToGroup(gid, if (isNew) "👋 $name joined the trip group" else "👋 $name is back in the trip group", "", now, extra = withPlan)
+            return
+        }
+        if (gid != null && groups != null && rich.denied != null) {
+            _joinNotes.update { it + (gid to rich.denied) }
             return
         }
         if (gid != null && groups != null) {
@@ -435,6 +513,17 @@ class MessageRepository(
             } else if (known == null) {
                 groups.put(ChatGroup(gid, rich.groupName.ifBlank { "Group" }, mapOf(e.fromNodeId to ""), now, trip = rich.trip, owner = rich.meta?.owner.orEmpty()))
             }
+        }
+        if (gid != null && groups != null) groups.get(gid)?.takeIf { it.trip }?.let { g ->
+            var changed = g
+            // A newer itinerary, from whoever plans this group.
+            rich.itinerary?.let { plan -> if (g.canPlan(e.fromNodeId) && rich.itineraryAt > g.itineraryAt) changed = changed.copy(itinerary = plan, itineraryAt = rich.itineraryAt) }
+            // A member reached a checkpoint (the time is theirs, but never in the future).
+            rich.checkIn?.let { stop ->
+                val at = rich.checkInAt.takeIf { it in 1..(now + 5 * 60_000) } ?: now
+                changed = changed.copy(checkins = changed.checkins + (stop to (changed.checkins[stop].orEmpty() + (e.fromNodeId to at))))
+            }
+            if (changed != g) groups.put(changed)
         }
         if (rich.react != null) {
             val target = rich.reactTo?.let { dao.get(it) } ?: return

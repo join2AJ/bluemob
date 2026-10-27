@@ -79,8 +79,10 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
                         onShare = { code -> s.actions.shareText("Join my BlueMob trip group. In BlueMob: Groups → Trip group → Join, then paste this code:\n\n$code") },
                         onAutoMin = { vm.setAutoRollCall(g.id, it) }, onEnd = { vm.setTripEnd(g.id, it) }, onKeepOpen = { vm.keepTripOpen(g.id) },
                         onClose = { vm.closeTrip(g.id); all.values.filter { it.parent == g.id }.forEach { t -> vm.closeTrip(t.id) } },
-                        onNewTeam = { s.push(Route.NewTeam(g.id)) }, onOpenGroup = { s.push(Route.Group(it)) }, onAdd = { vm.addToTrip(g.id, it) }),
-                    teams = all.values.filter { it.parent == g.id }.sortedBy { it.createdAt }, main = all[g.parent], now = now)
+                        onNewTeam = { s.push(Route.NewTeam(g.id)) }, onOpenGroup = { s.push(Route.Group(it)) }, onAdd = { vm.addToTrip(g.id, it) },
+                        onItinerary = { s.push(Route.Itinerary(g.id)) }, onShowNearby = { vm.setShowNearby(g.id, it) }, onNewPasscode = { vm.changePasscode(g.id) }),
+                    teams = all.values.filter { it.parent == g.id }.sortedBy { it.createdAt }, main = all[g.parent], now = now,
+                    lastHeard = remember(conversations, g, all) { lastHeard(g, all.values.filter { it.parent == g.id || it.id == g.parent }, conversations) })
             }
             else GroupInfoScreen(g, people, s::pop, onAdd = { vm.addToGroup(g.id, it) },
                 onLeave = { vm.leaveGroup(g.id); s.nav.clear() }, onPerson = { s.push(Route.Person(it)) })
@@ -100,6 +102,12 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
             onStart = { id, n -> vm.startChatById(id, n); s.nav.replace(Route.Chat(id)) },
             onOpen = { s.nav.replace(Route.Chat(it)) }, onShareId = s.actions.shareId)
         Route.SkyAi -> SkyAiScreen(vm, s::pop)
+        is Route.Itinerary -> {
+            val g = vm.groups.collectAsStateWithLifecycle().value[route.group]
+            if (g == null) LaunchedEffect(Unit) { s.pop() }
+            else ItineraryScreen(g, vm.nodeId, nameOf = { id -> people.firstOrNull { it.nodeId == id }?.name ?: g.members[id].orEmpty().ifBlank { "Someone" } },
+                here = vm::here, onSave = { vm.setItinerary(g.id, it) }, onCheckIn = { vm.checkIn(g.id, it) }, onBack = s::pop)
+        }
         Route.NewTrip -> {
             val mine = vm.groups.collectAsStateWithLifecycle().value.values.filter { it.trip && !it.isTeam && it.owner == vm.nodeId }
             val next = (mine.mapNotNull { Regex("""^Group (\d+)$""").find(it.name)?.groupValues?.get(1)?.toIntOrNull() }.maxOrNull() ?: 0) + 1
@@ -115,7 +123,9 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
         }
         Route.JoinTrip -> JoinTripScreen(s::pop, onScanned = { code ->
             vm.joinTrip(code).fold({ s.nav.replace(Route.Group(it)); null }, { it.message })
-        }, askCamera = s.actions.requestCamera)
+        }, askCamera = s.actions.requestCamera,
+            nearby = vm.tripsNearby.collectAsStateWithLifecycle().value.values.sortedByDescending { it.seenAt }, notes = vm.joinNotes.collectAsStateWithLifecycle().value,
+            onJoinNearby = vm::joinNearby)
     }
 }
 
@@ -137,4 +147,18 @@ private fun PhotoViewer(m: MessageEntity, vm: AppViewModel, onBack: () -> Unit) 
             Text(att?.name ?: "Photo", color = Color.White, style = MaterialTheme.typography.titleMedium)
         }
     }
+}
+
+/**
+ * When we last heard from each member of trip group [g], and how: their latest message in it or a linked team (a team
+ * on its own path is heard again when it's back in reach), or their latest checkpoint.
+ */
+private fun lastHeard(g: com.bluemob.app.chat.ChatGroup, linked: List<com.bluemob.app.chat.ChatGroup>, conversations: Map<String, List<MessageEntity>>): Map<String, Pair<Long, String>> {
+    val out = HashMap<String, Pair<Long, String>>()
+    fun note(id: String, at: Long, how: String) { if ((out[id]?.first ?: 0) < at) out[id] = at to how }
+    (listOf(g) + linked).forEach { grp ->
+        conversations[grp.id].orEmpty().filter { !it.fromMe && it.sender.isNotBlank() }.forEach { m -> note(m.sender, m.createdAt, if (grp.id == g.id) "in the chat" else "in ${grp.name}") }
+        grp.checkins.forEach { (stop, who) -> val title = grp.itinerary.firstOrNull { it.id == stop }?.title ?: "a checkpoint"; who.forEach { (id, at) -> note(id, at, "at $title") } }
+    }
+    return out
 }

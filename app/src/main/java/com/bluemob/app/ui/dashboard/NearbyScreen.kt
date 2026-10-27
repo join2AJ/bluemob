@@ -111,6 +111,10 @@ fun NearbyScreen(
     trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemob.app.chat.RollCall?>> = emptyList(),
     onTrip: (String) -> Unit = {},
     onNewTrip: () -> Unit = {},
+    /** Trip groups phones nearby are showing, and joining one with its passcode. */
+    tripAds: List<com.bluemob.app.nearby.TripAd> = emptyList(),
+    joinNotes: Map<String, String> = emptyMap(),
+    onJoinAd: (com.bluemob.app.nearby.TripAd, String) -> Unit = { _, _ -> },
 ) {
     val list = state.people
     var filter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(NearbyFilter.ALL) }
@@ -206,6 +210,7 @@ fun NearbyScreen(
 
         // Trip groups: the way a whole group gets the mesh before setting off.
         item { TripCard(trips, onTrip, onNewTrip) }
+        if (tripAds.isNotEmpty()) item { com.bluemob.app.ui.chat.NearbyTripGroups(tripAds, joinNotes, onJoinAd) }
 
         // "Check on everyone": one tap asks every phone nearby "Are you OK?".
         item {

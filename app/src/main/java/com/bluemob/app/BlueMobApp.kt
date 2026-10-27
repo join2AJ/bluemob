@@ -73,6 +73,7 @@ class BlueMobApp : Application() {
     val checkIn by lazy { com.bluemob.app.safety.CheckInTimer(this) }
     lateinit var groups: com.bluemob.app.chat.GroupStore private set
     lateinit var fieldTest: com.bluemob.app.safety.FieldTest private set
+    lateinit var tripAds: com.bluemob.app.nearby.TripAds private set
     lateinit var sosCircle: com.bluemob.app.sos.SosCircle private set
     lateinit var peerStatus: com.bluemob.app.nearby.PeerStatus private set
     lateinit var heading: HeadingSensor private set
@@ -289,14 +290,16 @@ class BlueMobApp : Application() {
             onRoomEnvelope = { mesh.receiveRoomEnvelope(it) },
             onDelivered = { m, hops, internet -> if (m.parent.isNotBlank()) fieldTest.delivered(m.parent, m.peer, hops, internet, (m.deliveredAt ?: m.createdAt) - m.createdAt) },
         )
+        tripAds = com.bluemob.app.nearby.TripAds(mesh, appScope, { groups.groups.value.values }, { identity.nodeId })
         // Trip groups this phone runs (as admin or captain): automatic roll calls, alerts, and the end of the trip.
         appScope.launch {
             val alerted = HashSet<String>()
+            val summarized = HashSet<String>()
             while (true) {
                 kotlinx.coroutines.delay(60_000)
                 val now = System.currentTimeMillis()
                 val gs = groups.groups.value
-                com.bluemob.app.chat.TripWatch.due(gs.values, messages.rollCalls.value, identity.nodeId, now, alerted).forEach { act ->
+                com.bluemob.app.chat.TripWatch.due(gs.values, messages.rollCalls.value, identity.nodeId, now, alerted, summarized, location.location.value).forEach { act ->
                     when (act) {
                         is com.bluemob.app.chat.TripWatch.Act.RollCall -> messages.rollCall(act.gid) { id, n -> fieldTest.probe(id, n) }
                         is com.bluemob.app.chat.TripWatch.Act.Unreachable -> {
@@ -305,6 +308,12 @@ class BlueMobApp : Application() {
                             val names = act.ids.map { id -> contacts.contacts.value[id]?.name ?: g.members[id].orEmpty().ifBlank { "Someone" } }
                             notifier.tripAlert(act.gid, com.bluemob.app.i18n.Lang.tr("⚠️ Can't reach ${names.joinToString()} in ${g.name}"), com.bluemob.app.i18n.Lang.tr("Their phone didn't answer the last roll call. They may be out of range, or the phone stopped BlueMob."))
                         }
+                        is com.bluemob.app.chat.TripWatch.Act.Summary -> {
+                            summarized += act.rollId
+                            val g = gs[act.gid] ?: return@forEach
+                            messages.rollCalls.value[act.gid]?.let { r -> messages.postRollSummary(act.gid, r) { id -> contacts.contacts.value[id]?.name ?: g.members[id].orEmpty().ifBlank { "someone" } } }
+                        }
+                        is com.bluemob.app.chat.TripWatch.Act.CheckIn -> messages.checkIn(act.gid, act.stopId, auto = true)
                         is com.bluemob.app.chat.TripWatch.Act.AskToClose -> {
                             messages.markAskedToClose(act.gid)
                             val g = gs[act.gid] ?: return@forEach

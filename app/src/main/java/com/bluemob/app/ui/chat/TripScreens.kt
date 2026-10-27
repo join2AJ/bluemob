@@ -166,7 +166,8 @@ private fun Steps() {
 
 /** Scan a trip group's code, or paste one someone shared. [onScanned] returns null when it joined, or why not. */
 @Composable
-fun JoinTripScreen(onBack: () -> Unit, onScanned: (String) -> String?, askCamera: (() -> Unit) -> Unit) {
+fun JoinTripScreen(onBack: () -> Unit, onScanned: (String) -> String?, askCamera: (() -> Unit) -> Unit,
+    nearby: List<com.bluemob.app.nearby.TripAd> = emptyList(), notes: Map<String, String> = emptyMap(), onJoinNearby: (com.bluemob.app.nearby.TripAd, String) -> Unit = { _, _ -> }) {
     var scanning by rememberSaveable { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
     var pasted by rememberSaveable { mutableStateOf("") }
@@ -191,6 +192,7 @@ fun JoinTripScreen(onBack: () -> Unit, onScanned: (String) -> String?, askCamera
             OutlinedButton(onClick = { note = onScanned(pasted) }, enabled = pasted.isNotBlank(), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Join") }
         }
         note?.let { item { Text(it, color = Extra.rose, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) } }
+        item { NearbyTripGroups(nearby, notes, onJoinNearby) }
     }
 }
 
@@ -201,6 +203,7 @@ class TripActions(
     val onLeave: () -> Unit = {}, val onShare: (String) -> Unit = {}, val onAutoMin: (Int) -> Unit = {}, val onEnd: (Long) -> Unit = {},
     val onKeepOpen: () -> Unit = {}, val onClose: () -> Unit = {}, val onNewTeam: () -> Unit = {}, val onOpenGroup: (String) -> Unit = {},
     val onAdd: (Map<String, String>) -> Unit = {},
+    val onItinerary: () -> Unit = {}, val onShowNearby: (Boolean) -> Unit = {}, val onNewPasscode: () -> Unit = {},
 )
 
 /**
@@ -219,6 +222,8 @@ fun TripGroupScreen(
     teams: List<ChatGroup> = emptyList(),
     main: ChatGroup? = null,
     now: Long = System.currentTimeMillis(),
+    /** When we last heard from each member (a message, a check-in, a roll call answer), and how. */
+    lastHeard: Map<String, Pair<Long, String>> = emptyMap(),
 ) {
     val closedAt = g.closedTime(now)
     val owner = g.isOwner(myId)
@@ -308,6 +313,7 @@ fun TripGroupScreen(
                 }
             }
         }
+        if (g.itinerary.isNotEmpty() || g.canPlan(myId)) item { ItineraryCard(g, myId, now, a.onItinerary) }
         if (invite != null && closedAt == 0L) {
             item { GroupLabel("Join code") }
             item {
@@ -323,6 +329,17 @@ fun TripGroupScreen(
                     }
                     SettingRow(Icons.Outlined.Share, Palette.BrandGreen, "Share the code", "Send it in any app; they paste it in BlueMob to join",
                         divider = true, onClick = { a.onShare(invite) })
+                    if (owner && !g.isTeam) {
+                        SettingRow(Icons.Outlined.Groups, Palette.Violet, "Show to people nearby", "They see it in Nearby and join by typing a passcode you tell them",
+                            divider = true) { androidx.compose.material3.Switch(g.advertise, a.onShowNearby) }
+                        if (g.advertise) Row(Modifier.fillMaxWidth().padding(start = 62.dp, end = 14.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Passcode", style = MaterialTheme.typography.labelMedium, color = Extra.ink3)
+                                RawText(g.passcode.chunked(1).joinToString(" "), style = MaterialTheme.typography.headlineMedium, color = Palette.Violet)
+                            }
+                            TextButton(onClick = a.onNewPasscode) { Text("New passcode") }
+                        }
+                    }
                 }
             }
         }
@@ -332,7 +349,8 @@ fun TripGroupScreen(
                 MemberRow("You", null, myId, null, null, roleOf(g, myId, teams), self = true, divider = false) {}
                 g.members.entries.sortedBy { (id, _) -> rank(roll?.members?.get(id)) }.forEach { (id, name) ->
                     val p = people.firstOrNull { it.nodeId == id }
-                    MemberRow(p?.name ?: name.ifBlank { "Someone" }, p?.avatar, id, p, roll?.members?.get(id), roleOf(g, id, teams), divider = true) { a.onPerson(id) }
+                    MemberRow(p?.name ?: name.ifBlank { "Someone" }, p?.avatar, id, p, roll?.members?.get(id), roleOf(g, id, teams), divider = true,
+                        heard = lastHeard[id]?.let { (at, how) -> "Last heard ${ago(now - at)} · $how" }) { a.onPerson(id) }
                 }
                 if (manage && g.isTeam && main != null) SettingRow(null, Palette.BrandBlue, "+ Add people from ${main.name}", null, divider = true, onClick = { adding = true })
             }
@@ -467,7 +485,8 @@ private fun ago(ms: Long): String = when {
 }
 
 @Composable
-private fun MemberRow(name: String, avatar: String?, id: String, p: Person?, reach: Reach?, role: String? = null, self: Boolean = false, divider: Boolean, onClick: () -> Unit) {
+private fun MemberRow(name: String, avatar: String?, id: String, p: Person?, reach: Reach?, role: String? = null, self: Boolean = false, divider: Boolean,
+    heard: String? = null, onClick: () -> Unit) {
     Column {
         if (divider) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 66.dp), color = Extra.line)
         Row(Modifier.fillMaxWidth().then(if (self) Modifier else Modifier.clickable(onClick = onClick))
@@ -480,6 +499,8 @@ private fun MemberRow(name: String, avatar: String?, id: String, p: Person?, rea
                         .clip(RoundedCornerShape(50)).background(Palette.Violet.copy(alpha = 0.14f)).padding(horizontal = 8.dp, vertical = 2.dp)) }
                 }
                 Text(if (self) "This phone" else reachText(reach), style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                // Not reached now: when we last heard from them tells the admin where to look (a team on its own path).
+                if (!self && heard != null && (reach == null || reach == Reach.Waiting)) Text(heard, style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
             }
             if (!self) ReachDot(reach)
         }
@@ -504,4 +525,46 @@ fun reachText(r: Reach?): String = when (r) {
     is Reach.Direct -> "Reached directly · ${FieldTest.Report.secs(r.ms)}"
     is Reach.Mesh -> "Reached through ${r.carriers} phone${if (r.carriers == 1) "" else "s"} · ${FieldTest.Report.secs(r.ms)}"
     is Reach.Internet -> "Reached over the internet · ${FieldTest.Report.secs(r.ms)}"
+}
+
+/** Trip groups that phones nearby are showing: tap, type the passcode the admin says, and their phone lets you in. */
+@Composable
+fun NearbyTripGroups(ads: List<com.bluemob.app.nearby.TripAd>, notes: Map<String, String>, onJoin: (com.bluemob.app.nearby.TripAd, String) -> Unit, modifier: Modifier = Modifier) {
+    if (ads.isEmpty()) return
+    var joining by remember { mutableStateOf<com.bluemob.app.nearby.TripAd?>(null) }
+    var asked by remember { mutableStateOf(setOf<String>()) }
+    joining?.let { ad ->
+        var code by remember { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { joining = null },
+            title = { RawText("🧭 ${ad.name}", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column {
+                    Text("Ask ${ad.ownerName.ifBlank { "the admin" }} for the passcode and type it here.", style = MaterialTheme.typography.bodyMedium)
+                    OutlinedTextField(code, { code = it.filter(Char::isLetterOrDigit).take(12) }, label = { Text("Passcode") }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        modifier = Modifier.padding(top = 10.dp))
+                }
+            },
+            confirmButton = { TextButton(onClick = { onJoin(ad, code); asked = asked + ad.groupId; joining = null }, enabled = code.length >= 4) { Text("Join") } },
+            dismissButton = { TextButton(onClick = { joining = null }) { Text("Cancel") } },
+        )
+    }
+    Column(modifier) {
+        GroupLabel("Trip groups nearby")
+        Group {
+            ads.forEachIndexed { i, ad ->
+                val note = notes[ad.groupId] ?: if (ad.groupId in asked) "Asked to join. You're in as soon as the admin's phone answers" else null
+                if (i > 0) androidx.compose.material3.HorizontalDivider(color = Extra.line)
+                Row(Modifier.fillMaxWidth().clickable { joining = ad }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🧭", style = MaterialTheme.typography.titleLarge)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        RawText(ad.name, style = MaterialTheme.typography.titleMedium)
+                        Text(note ?: "${ad.people} people · run by ${ad.ownerName.ifBlank { "someone nearby" }}", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    Text("Join", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
 }

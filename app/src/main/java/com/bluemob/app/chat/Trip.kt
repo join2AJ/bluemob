@@ -209,3 +209,46 @@ data class RollCall(val messageId: String, val at: Long, val members: Map<String
         }
     }
 }
+
+/**
+ * One stop on a trip group's itinerary: when, where, and what to know. A checkpoint is a stop everyone should pass;
+ * with a place set, a phone within [radiusM] checks in by itself, and anyone can tap "I'm here".
+ */
+data class Stop(
+    val id: String, val at: Long, val title: String, val note: String = "",
+    val checkpoint: Boolean = false, val lat: Double? = null, val lon: Double? = null, val radiusM: Int = 150,
+) {
+    val hasPlace: Boolean get() = lat != null && lon != null
+
+    companion object {
+        const val MAX = 40
+
+        fun toJson(stops: List<Stop>): org.json.JSONArray = org.json.JSONArray().apply {
+            stops.forEach { s ->
+                put(org.json.JSONObject().put("i", s.id).put("t", s.at).put("n", s.title).put("d", s.note).put("c", s.checkpoint).put("r", s.radiusM)
+                    .apply { if (s.lat != null && s.lon != null) put("la", s.lat).put("lo", s.lon) })
+            }
+        }
+
+        fun fromJson(a: org.json.JSONArray): List<Stop> = (0 until minOf(a.length(), MAX)).mapNotNull { i ->
+            val o = a.optJSONObject(i) ?: return@mapNotNull null
+            val id = o.optString("i").takeIf { it.isNotBlank() && it.length <= 40 } ?: return@mapNotNull null
+            val la = if (o.has("la")) o.optDouble("la").takeIf { it in -90.0..90.0 } else null
+            val lo = if (o.has("lo")) o.optDouble("lo").takeIf { it in -180.0..180.0 } else null
+            Stop(id, o.optLong("t").coerceAtLeast(0), o.optString("n").take(60), o.optString("d").take(300), o.optBoolean("c"),
+                la.takeIf { lo != null }, lo.takeIf { la != null }, o.optInt("r", 150).coerceIn(20, 5_000))
+        }.sortedBy { it.at }
+
+        fun checkinsToJson(c: Map<String, Map<String, Long>>) = org.json.JSONObject().apply {
+            c.forEach { (stop, who) -> put(stop, org.json.JSONObject().apply { who.forEach { (id, at) -> put(id, at) } }) }
+        }
+
+        fun checkinsFromJson(o: org.json.JSONObject?): Map<String, Map<String, Long>> {
+            if (o == null) return emptyMap()
+            return o.keys().asSequence().associateWith { stop -> o.optJSONObject(stop)?.let { w -> w.keys().asSequence().associateWith { w.optLong(it) } }.orEmpty() }
+        }
+
+        /** The next stop after [now] (or the last one, once all are past). */
+        fun next(stops: List<Stop>, now: Long): Stop? = stops.firstOrNull { it.at >= now } ?: stops.lastOrNull()
+    }
+}

@@ -32,4 +32,29 @@ class TripWatchTest {
         assertTrue(TripWatch.due(listOf(ended.copy(askedToClose = true)), emptyMap(), me, now, emptySet()).isEmpty())
         assertTrue(TripWatch.due(listOf(ended.copy(expiresAt = now + 1)), emptyMap(), me, now, emptySet()).isEmpty())
     }
+
+    @Test fun captainSumsUpTheTeamRollCallOnce() {
+        val team = ChatGroup("g-t", "Team 1", mapOf(me to "Arjun"), 0, trip = true, owner = me, parent = "g-1", captain = ravi)
+        val roll = RollCall("m9", now - 4 * 60_000, mapOf(me to Reach.Direct(5)))
+        assertTrue(TripWatch.Act.Summary("g-t", "m9") in TripWatch.due(listOf(team), mapOf("g-t" to roll), ravi, now, emptySet()))
+        assertTrue(TripWatch.due(listOf(team), mapOf("g-t" to roll), ravi, now, emptySet(), summarized = setOf("m9")).none { it is TripWatch.Act.Summary })
+    }
+
+    @Test fun checksInNearACheckpointOnce() {
+        val cp = Stop("cp", 0, "Bridge", checkpoint = true, lat = 30.0, lon = 78.0, radiusM = 150)
+        val trip = g.copy(autoMin = 0, itinerary = listOf(cp))
+        val near = com.bluemob.app.contacts.GeoPoint(30.0005, 78.0, 10f, now)
+        val far = com.bluemob.app.contacts.GeoPoint(30.01, 78.0, 10f, now)
+        assertEquals(listOf(TripWatch.Act.CheckIn("g-1", "cp")), TripWatch.due(listOf(trip), emptyMap(), ravi, now, emptySet(), here = near))
+        assertTrue(TripWatch.due(listOf(trip), emptyMap(), ravi, now, emptySet(), here = far).isEmpty())
+        assertTrue(TripWatch.due(listOf(trip.copy(checkins = mapOf("cp" to mapOf(ravi to 1L)))), emptyMap(), ravi, now, emptySet(), here = near).isEmpty())
+        // An old position doesn't count.
+        assertTrue(TripWatch.due(listOf(trip), emptyMap(), ravi, now, emptySet(), here = near.copy(time = now - 10 * 60_000)).isEmpty())
+    }
+
+    @Test fun itinerarySurvivesTheTrip() {
+        val stops = listOf(Stop("a", 5, "Camp", "note", checkpoint = true, lat = 30.1, lon = 78.2, radiusM = 500), Stop("b", 1, "Start"))
+        assertEquals(stops.sortedBy { it.at }, Stop.fromJson(Stop.toJson(stops)))
+        assertEquals("a", Stop.next(stops.sortedBy { it.at }, 3)!!.id)
+    }
 }

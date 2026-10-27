@@ -257,4 +257,25 @@ class PreviewShots {
                 mapOf("Direct" to 31, "1 phone" to 14, "2 phones" to 6, "Internet" to 3), 3.4, 92, 84, 1, 12, 6, 3.2),
             listOf(trip), "g-trip", { _, _ -> }, {}, {}, {}, {}, {})
     }
+
+    private val day0 = java.util.Calendar.getInstance().apply { timeInMillis = now; set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0) }.timeInMillis
+    private val plan = listOf(
+        com.bluemob.app.chat.Stop("s1", day0 + 6 * 3_600_000L, "Start at Gaurikund", "Meet at the bus stand. Water and rain jackets"),
+        com.bluemob.app.chat.Stop("s2", day0 + 11 * 3_600_000L, "Rambara bridge", checkpoint = true, lat = 30.7, lon = 79.0, radiusM = 150),
+        com.bluemob.app.chat.Stop("s3", now + 3 * 3_600_000L, "Linchauli", "Lunch and rest", checkpoint = true),
+        com.bluemob.app.chat.Stop("s4", day0 + 30 * 3_600_000L, "Kedarnath temple", "Darshan, then back to camp"))
+    private val planned = adminTrip.copy(itinerary = plan, itineraryAt = now, advertise = true, passcode = "4821",
+        checkins = mapOf("s2" to mapOf(me to now - 3 * 3_600_000L, "a1c2" to now - 3 * 3_600_000L, "b7e4" to now - 2 * 3_600_000L)))
+    @Test fun itinerary() = shot(tall = true) {
+        com.bluemob.app.ui.chat.ItineraryScreen(planned, me, { id -> people.firstOrNull { it.nodeId == id }?.name ?: "Someone" }, { null }, {}, {}, {}, now = now)
+    }
+    @Test fun tripGroupPlanned() = shot(tall = true) {
+        com.bluemob.app.ui.chat.TripGroupScreen(planned, me, roll, people, "bluemob:t:AkEE5BIbSMTHI5c", com.bluemob.app.ui.chat.TripActions(), teams = listOf(team1), now = now,
+            lastHeard = mapOf("d5f1" to ((now - 52 * 60_000L) to "at Rambara bridge")))
+    }
+    @Test fun nearbyTripAds() = shot(tall = true) {
+        NearbyScreen(NearbyState("Arjun", true, people, true, false, true, true, false), pad, {}, {}, {}, {}, {}, {}, {}, {},
+            tripAds = listOf(com.bluemob.app.nearby.TripAd("g-x", "Group 10", "b7e4", "Ravi", 14, 0, now)),
+            joinNotes = emptyMap())
+    }
 }

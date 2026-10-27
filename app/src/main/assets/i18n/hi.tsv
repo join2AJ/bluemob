@@ -2073,3 +2073,49 @@ Trip group · {} people	ट्रिप ग्रुप · {} लोग
 Their phone didn't answer the last roll call. They may be out of range, or the phone stopped BlueMob.	उनके फ़ोन ने पिछली हाज़िरी का जवाब नहीं दिया। हो सकता है वे दायरे से बाहर हों, या फ़ोन ने BlueMob बंद कर दिया हो।
 🏁 {} has ended	🏁 {} ख़त्म हो गई
 Close the trip group, or keep it open? If you do nothing, it closes by itself in a day.	ट्रिप ग्रुप बंद करें, या खुला रखें? अगर आप कुछ न करें, तो यह एक दिन में अपने-आप बंद हो जाएगा।
+Itinerary	यात्रा योजना
+Team itinerary	टीम की यात्रा योजना
+Add the plan: where you'll be and when. Mark the places everyone must pass as checkpoints.	योजना जोड़ें: आप कब और कहाँ होंगे। जिन जगहों से सबको गुज़रना है, उन्हें चेकपॉइंट बनाइए।
+You plan this trip. Everyone sees the plan; checkpoints show who has passed them.	यह ट्रिप आप प्लान करते हैं। सब योजना देखते हैं; चेकपॉइंट बताते हैं कि कौन वहाँ से गुज़र चुका है।
+Set by the team's captain.	टीम के कप्तान ने बनाई।
+Set by the group's admin.	ग्रुप के एडमिन ने बनाई।
+No plan yet.	अभी कोई योजना नहीं।
++ Add a stop	+ पड़ाव जोड़ें
+Save and send to everyone	सहेजें और सबको भेजें
+Phones check in by themselves within the circle around a checkpoint, when their location is on. Check-ins reach the group as soon as any phone can carry them.	लोकेशन चालू हो तो फ़ोन चेकपॉइंट के घेरे में पहुँचते ही अपने-आप चेक-इन करते हैं। चेक-इन ग्रुप तक तब पहुँचते हैं जब कोई भी फ़ोन उन्हें ले जा सके।
+Checkpoint · {} of {} reached	चेकपॉइंट · {2} में से {1} पहुँचे
+Checkpoint · {} of {} reached · {} m circle	चेकपॉइंट · {2} में से {1} पहुँचे · {3} मी. का घेरा
+✓ You checked in at {}	✓ आपने {} पर चेक-इन किया
+📍 I'm here	📍 मैं यहाँ हूँ
+New stop	नया पड़ाव
+Change the stop	पड़ाव बदलें
+What and where	क्या और कहाँ
+e.g. Base camp, lunch at the temple	जैसे बेस कैंप, मंदिर पर दोपहर का खाना
+Day {}	दिन {}
+Time (24 h)	समय (24 घंटे)
+Note (optional)	नोट (चाहें तो)
+Checkpoint	चेकपॉइंट
+Everyone should pass it; it shows who has	सबको यहाँ से गुज़रना है; यह दिखाता है कि कौन गुज़र चुका है
+📍 Use where I am	📍 मेरी जगह इस्तेमाल करें
+📍 Place set	📍 जगह तय
+No position yet. Turn on location (Compass tab), then try again.	अभी जगह पता नहीं। लोकेशन चालू करें (कम्पास टैब), फिर कोशिश करें।
+{} m	{} मी.
+Add the plan so everyone knows what's coming	योजना जोड़ें ताकि सबको पता रहे कि आगे क्या है
+{} of {} checkpoints passed by you	आप {2} में से {1} चेकपॉइंट से गुज़र चुके हैं
+Show to people nearby	आस-पास के लोगों को दिखाएँ
+They see it in Nearby and join by typing a passcode you tell them	वे इसे आस-पास में देखते हैं और आपका बताया पासकोड डालकर जुड़ते हैं
+Passcode	पासकोड
+New passcode	नया पासकोड
+Last heard {} · {}	आख़िरी ख़बर {} · {}
+in the chat	चैट में
+Trip groups nearby	आस-पास के ट्रिप ग्रुप
+Ask {} for the passcode and type it here.	{} से पासकोड पूछें और यहाँ डालें।
+Asked to join. You're in as soon as the admin's phone answers	जुड़ने को कहा। एडमिन का फ़ोन जवाब देते ही आप जुड़ जाएँगे
+{} people · run by {}	{} लोग · {} चला रहे हैं
+Wrong passcode. Ask the admin again.	ग़लत पासकोड। एडमिन से फिर पूछें।
+Too many wrong passcodes. Try again in an hour.	बहुत बार ग़लत पासकोड। एक घंटे बाद कोशिश करें।
+This group isn't taking passcodes right now. Ask the admin for its code.	यह ग्रुप अभी पासकोड नहीं ले रहा। एडमिन से उसका कोड माँगें।
+This group is closed or full.	यह ग्रुप बंद है या भर गया है।
+just now	अभी-अभी
+{} min ago	{} मिनट पहले
+{} h ago	{} घंटे पहले

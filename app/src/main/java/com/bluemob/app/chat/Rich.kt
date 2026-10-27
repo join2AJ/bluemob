@@ -38,6 +38,14 @@ data class Rich(
     val rollCall: Boolean = false,
     /** A trip group's settings as the sender knows them; only the group admin's count (see [ChatGroup.merge]). */
     val meta: TripMeta? = null,
+    /** A new itinerary ([ChatGroup.canPlan] only): its stops and when it was set. */
+    val itinerary: List<Stop>? = null, val itineraryAt: Long = 0,
+    /** "I reached this checkpoint" (a stop ID), at [checkInAt]. */
+    val checkIn: String? = null, val checkInAt: Long = 0,
+    /** Joining by passcode from a group shown nearby. */
+    val passcode: String? = null,
+    /** The admin says no to a join (wrong passcode, or the group is full or closed): why. */
+    val denied: String? = null,
 ) {
     fun encode(): String {
         val j = JSONObject()
@@ -54,11 +62,15 @@ data class Rich(
         if (join) j.put("jn", 1)
         if (rollCall) j.put("rc", 1)
         meta?.let { j.put("tm", it.toJson()) }
+        itinerary?.let { j.put("it", Stop.toJson(it)).put("ia", itineraryAt) }
+        checkIn?.let { j.put("ci", it).put("cia", checkInAt) }
+        passcode?.let { j.put("pc", it) }
+        denied?.let { j.put("dn", it) }
         env?.let { j.put("rm", it) }
         return MARK + j.toString()
     }
 
-    val isControl: Boolean get() = react != null || leave || env != null || join
+    val isControl: Boolean get() = react != null || leave || env != null || join || denied != null
 
     companion object {
         /** Invisible separator, then JSON. Plain messages never start with it. */
@@ -88,6 +100,10 @@ data class Rich(
                 env = j.optString("rm").takeIf { it.isNotBlank() && it.length <= 8_000 },
                 trip = j.optInt("tp") == 1, join = j.optInt("jn") == 1, rollCall = j.optInt("rc") == 1,
                 meta = j.optJSONObject("tm")?.let(TripMeta::fromJson),
+                itinerary = j.optJSONArray("it")?.let(Stop::fromJson), itineraryAt = j.optLong("ia"),
+                checkIn = j.optString("ci").takeIf { it.isNotBlank() && it.length <= 40 }, checkInAt = j.optLong("cia"),
+                passcode = if (j.has("pc")) j.optString("pc").take(12) else null,
+                denied = if (j.has("dn")) j.optString("dn").take(120) else null,
             )
         }
 
@@ -118,7 +134,15 @@ data class ChatGroup(
     val autoMin: Int = 0,
     /** This phone only: we already asked the admin whether to close it when the trip ended. */
     val askedToClose: Boolean = false,
+    /** The plan: stops in time order, some of them checkpoints. Set by the admin (a team's: by its captain). */
+    val itinerary: List<Stop> = emptyList(), val itineraryAt: Long = 0,
+    /** Who reached which checkpoint, and when: stop ID → (member → time). */
+    val checkins: Map<String, Map<String, Long>> = emptyMap(),
+    /** Admin's phone only: show this group to phones nearby, and the passcode they type to join. Never sent. */
+    val advertise: Boolean = false, val passcode: String = "",
 ) {
+    /** Who may set the itinerary: the admin, and a team's captain for the team. */
+    fun canPlan(id: String) = isOwner(id) || (isTeam && captain.isNotBlank() && captain == id) || (trip && owner.isBlank())
     val meta: TripMeta get() = TripMeta(owner, parent, captain, expiresAt, closedAt, autoMin)
     val isTeam: Boolean get() = parent.isNotBlank()
 
@@ -185,7 +209,9 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
             val m = LinkedHashMap<String, String>()
             o.optJSONObject("m")?.let { mo -> mo.keys().forEach { k -> m[k] = mo.optString(k) } }
             o.getString("id") to ChatGroup(o.getString("id"), o.optString("n"), m, o.optLong("at"), o.optBoolean("tr"),
-                o.optString("ow"), o.optString("pa"), o.optString("cp"), o.optLong("ex"), o.optLong("cl"), o.optInt("am"), o.optBoolean("ask"))
+                o.optString("ow"), o.optString("pa"), o.optString("cp"), o.optLong("ex"), o.optLong("cl"), o.optInt("am"), o.optBoolean("ask"),
+                o.optJSONArray("it")?.let(Stop::fromJson).orEmpty(), o.optLong("ia"), Stop.checkinsFromJson(o.optJSONObject("ci")),
+                o.optBoolean("ad"), o.optString("pc"))
         }
     }.getOrDefault(emptyMap())
 
@@ -193,7 +219,8 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
         if (prefs == null) return
         val a = JSONArray()
         _groups.value.values.forEach { g -> a.put(JSONObject().put("id", g.id).put("n", g.name).put("at", g.createdAt).put("m", JSONObject(g.members as Map<*, *>)).put("tr", g.trip)
-            .put("ow", g.owner).put("pa", g.parent).put("cp", g.captain).put("ex", g.expiresAt).put("cl", g.closedAt).put("am", g.autoMin).put("ask", g.askedToClose)) }
+            .put("ow", g.owner).put("pa", g.parent).put("cp", g.captain).put("ex", g.expiresAt).put("cl", g.closedAt).put("am", g.autoMin).put("ask", g.askedToClose)
+            .put("it", Stop.toJson(g.itinerary)).put("ia", g.itineraryAt).put("ci", Stop.checkinsToJson(g.checkins)).put("ad", g.advertise).put("pc", g.passcode)) }
         prefs.edit().putString(KEY, a.toString()).apply()
     }
 

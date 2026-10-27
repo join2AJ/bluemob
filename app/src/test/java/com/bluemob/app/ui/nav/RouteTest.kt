@@ -10,7 +10,7 @@ class RouteTest {
         Route.Article("help-sos"), Route.Quiz("q"), Route.GuidePacks, Route.Sos, Route.Signal, Route.SosContacts, Route.CheckIn, Route.Rescues, Route.Rescue("r1"),
         Route.Games, Route.Match("x"), Route.Game("ttt"), Route.Trips, Route.Trip("t1"), Route.Person("abc"), Route.Verify("abc"), Route.News, Route.Account, Route.EmergencyCard, Route.HelperSignals,
         Route.Connections, Route.AutoStart, Route.Power("battery"), Route.Audit, Route.Badges, Route.Activity, Route.Bridge, Route.Backup, Route.Storage,
-        Route.Diagnostics, Route.Report, Route.NewTrip, Route.JoinTrip, Route.NewTeam("g-1"), Route.FieldTest(), Route.FieldTest("g-1"), Route.Calls, Route.SosComing("s1"), Route.Call,
+        Route.Diagnostics, Route.Report, Route.NewTrip, Route.JoinTrip, Route.NewTeam("g-1"), Route.Itinerary("g-1"), Route.FieldTest(), Route.FieldTest("g-1"), Route.Calls, Route.SosComing("s1"), Route.Call,
     )
 
     @Test fun everyRouteSurvivesItsKey() = all.forEach { assertEquals(it, Route.parse(it.key)) }

@@ -14,10 +14,15 @@ object TripWatch {
         /** [ids] didn't answer roll call [rollId]. */
         data class Unreachable(val gid: String, val rollId: String, val ids: List<String>) : Act
         data class AskToClose(val gid: String) : Act
+        /** A captain's team roll call is done: sum it up in the team chat for the admin. */
+        data class Summary(val gid: String, val rollId: String) : Act
+        /** We're at checkpoint [stopId] (by location). */
+        data class CheckIn(val gid: String, val stopId: String) : Act
     }
 
     /** [alerted]: roll calls we already sounded an alert for. */
-    fun due(groups: Collection<ChatGroup>, rolls: Map<String, RollCall>, me: String, now: Long, alerted: Set<String>): List<Act> = buildList {
+    fun due(groups: Collection<ChatGroup>, rolls: Map<String, RollCall>, me: String, now: Long, alerted: Set<String>,
+        summarized: Set<String> = emptySet(), here: com.bluemob.app.contacts.GeoPoint? = null): List<Act> = buildList {
         groups.filter { it.trip && !it.isClosed(now) }.forEach { g ->
             val roll = rolls[g.id]
             if (g.canManage(me)) {
@@ -28,6 +33,14 @@ object TripWatch {
                 }
             }
             if (g.isOwner(me) && !g.isTeam && g.expiresAt in 1..now && !g.askedToClose) add(Act.AskToClose(g.id))
+            if (g.isTeam && g.captain == me && !g.isOwner(me) && roll != null && roll.messageId !in summarized && now - roll.at >= UNREACHABLE_AFTER_MS)
+                add(Act.Summary(g.id, roll.messageId))
+            // Checkpoints with a place: a fresh, accurate enough position inside the circle checks us in.
+            if (here != null && now - here.time < 5 * 60_000 && here.accuracyM <= 100) g.itinerary.filter { it.checkpoint && it.hasPlace }.forEach { s ->
+                if (g.checkins[s.id]?.containsKey(me) != true &&
+                    com.bluemob.app.util.Geo.distanceM(here, com.bluemob.app.contacts.GeoPoint(s.lat!!, s.lon!!, 0f, now)) <= s.radiusM)
+                    add(Act.CheckIn(g.id, s.id))
+            }
         }
     }
 }

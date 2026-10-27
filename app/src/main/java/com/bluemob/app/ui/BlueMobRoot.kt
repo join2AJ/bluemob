@@ -354,6 +354,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                                 vm.groups.collectAsStateWithLifecycle().value.values.filter { it.trip }.sortedByDescending { it.createdAt }.map { it to rolls[it.id] }
                             },
                             onTrip = { push(Route.Group(it)) }, onNewTrip = { push(Route.NewTrip) },
+                            tripAds = vm.tripsNearby.collectAsStateWithLifecycle().value.values.sortedByDescending { it.seenAt },
+                            joinNotes = vm.joinNotes.collectAsStateWithLifecycle().value, onJoinAd = vm::joinNearby,
                         )
                         Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push(Route.Rescues) else push(Route.Rescue(it)) }, onNewChat = { push(Route.NewChat) }, onNewTrip = { push(Route.NewTrip) }, onJoinTrip = { push(Route.JoinTrip) },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
