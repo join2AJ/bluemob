@@ -214,4 +214,7 @@ class PreviewShots {
         com.bluemob.app.ui.profile.ProfileScreen("Arjun", "🦅", "3f9a1c2b7d4e8a01", true, false, true, SignalMode.ALL, emptyList(), pad,
             {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, emergencyCard = true, remoteSignal = true, helperKinds = setOf("sound", "flash", "mic"), powerSos = true, fallDetect = true, onFallDetect = {})
     }
+
+    @Test fun emergencyCardScreen() = shot { com.bluemob.app.ui.profile.EmergencyCardScreen(true, {}, { "🆘 In an emergency: Arjun\n🩸 Blood group B+ · age 34\n📞 Papa: +91 98100 12345" }, {}) }
+    @Test fun helperSignalsScreen() = shot { com.bluemob.app.ui.profile.HelperSignalsScreen(true, {}, setOf("sound", "flash", "mic"), { _, _ -> }, {}) }
 }

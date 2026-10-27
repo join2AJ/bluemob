@@ -51,10 +51,13 @@ through Meera, who has internet.
   - progress in one line;
   - compact topics;
   - the download link moved to the bottom.
+- **Emergency card and Helpers can signal** are now rows with an arrow under You → Safety, like Connections &
+  power. Their options open on their own screens.
 - **Helpers can signal my phone:** sound, flash, screen light and microphone each have their own switch. With
   microphone on, a helper's voice call during your SOS answers by itself after 3 seconds.
 - **Emergency card:**
   - a high-priority silent notification, since some phones only put those on the lock screen;
+  - a preview of what the card shows;
   - a live check with a Fix button;
   - "Add to Android's emergency info", which every lock screen's Emergency button opens.
 - **Games:**
