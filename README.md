@@ -45,8 +45,10 @@ through Meera, who has internet.
   short impact assessment, a risk register with owners, and what's still open. Fixed in this version:
   - Before joining a trip group (code, QR or passcode), a notice says what the group sees: name, roll-call answers,
     checkpoints reached, last heard; never positions. Members see it in the group too.
-  - A closed trip group is deleted from phones 30 days after it closes (the date shows in the group). Field-test
-    results are erased 30 days after the test.
+  - When a trip ends (the admin ends it, or a day after its end date), tracking stops: roll calls, automatic checks,
+    check-ins and joining. The group and its chat stay, so people can keep in touch, until each person leaves. The
+    record of who reached which checkpoint is erased 30 days after the trip. Field-test results are erased 30 days after
+    the test.
   - Download my data now includes trip groups (your role, the plan, your check-ins) and the field test.
   - The privacy policy (English and Hindi) covers trip groups, join codes, showing a group nearby and the
     chat-background code, with how long each is kept.
@@ -89,8 +91,8 @@ through Meera, who has internet.
 - **Automatic roll call:** the admin (or a team's captain) picks Off, 5, 10, 15, 30 or 60 min. Their phone sends the
   roll call, and rings if a phone hasn't answered within 3 minutes.
 - **The trip ends:** the admin can set no end, 1–3 days or a week (when making the group or later). When it ends, the
-  admin is asked to close it or keep it open another day. Without an answer it closes by itself a day later. A closed
-  group can still be read, but no one can write in it.
+  admin is asked to end it or keep it going another day. Without an answer it ends by itself a day later. (Since 0.36
+  the group and its chat stay after the trip; only tracking stops.)
 - **Numbered groups:** the name suggestion counts up ("Group 1", "Group 10"…) for operators running regular batches.
 - **Join codes look random.** Share one as text, or show it as a QR code. Inside it:
   - **for BlueMob's admin only:** who made the group and when, who made this code and when, the phone and app

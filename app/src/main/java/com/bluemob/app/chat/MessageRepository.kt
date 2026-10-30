@@ -221,19 +221,21 @@ class MessageRepository(
         send(gid, note)
     }
 
-    /** Deletes a trip group that closed long ago from this phone: its chat, itinerary and check-ins. */
-    fun purgeTrip(gid: String) {
-        val g = groups?.get(gid)?.takeIf { it.trip } ?: return
-        groups.remove(gid)
-        scope.launch { dao.deleteChat(gid) }
-        record(AuditKind.APP, gid, "Trip group \"${g.name}\" deleted from this phone, 30 days after it closed")
+    /**
+     * A while after the trip ended, the record of who reached which checkpoint, and when, is erased from this phone.
+     * The group, its chat and its itinerary stay, so people can keep in touch.
+     */
+    fun forgetCheckIns(gid: String) {
+        val g = groups?.get(gid)?.takeIf { it.trip && it.checkins.isNotEmpty() } ?: return
+        groups.put(g.copy(checkins = emptyMap()))
+        record(AuditKind.APP, gid, "Check-ins of trip group \"${g.name}\" erased from this phone, 30 days after the trip ended")
     }
 
     /** This phone asked the admin whether to close [gid]; don't ask again (unless the end time changes). */
     fun markAskedToClose(gid: String) { groups?.get(gid)?.let { groups.put(it.copy(askedToClose = true)) } }
 
-    /** Closes a trip group now: no more messages or roll calls; it stays readable. */
-    fun closeTrip(gid: String) = updateTrip(gid, "🏁 ${me().second} closed the trip group") { it.copy(closedAt = System.currentTimeMillis()) }
+    /** Ends the trip now: roll calls, check-ins and joining stop; the group and its chat stay. */
+    fun closeTrip(gid: String) = updateTrip(gid, "🏁 ${me().second} ended the trip. The group stays, so we can keep in touch") { it.copy(closedAt = System.currentTimeMillis()) }
 
     /**
      * Starts a team in trip group [mainGid]: its own trip group with [captain] and [members] (and us, the admin), so

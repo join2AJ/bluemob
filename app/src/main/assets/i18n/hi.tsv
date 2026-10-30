@@ -2128,3 +2128,18 @@ Team · {} members	टीम · {} सदस्य
 Your name, whether your phone answers roll calls (and how), the checkpoints you reach and when, and when you were last heard from. Your position is never sent: a checkpoint check-in only says you reached it. The admin and captains see this; messages are end-to-end encrypted. You can leave any time, and a closed group is deleted from phones 30 days later.	आपका नाम, आपका फ़ोन हाज़िरी का जवाब देता है या नहीं (और कैसे), आप कौन से चेकपॉइंट कब पहुँचे, और आपकी आख़िरी ख़बर कब मिली। आपकी जगह कभी नहीं भेजी जाती: चेकपॉइंट चेक-इन केवल बताता है कि आप पहुँच गए। यह एडमिन और कप्तान देखते हैं; संदेश एंड-टू-एंड एन्क्रिप्टेड हैं। आप कभी भी छोड़ सकते हैं, और बंद ग्रुप 30 दिन बाद फ़ोन से मिट जाता है।
 The group will see your name, your roll call answers, the checkpoints you reach and when you were last heard from. Never your position.	ग्रुप आपका नाम, हाज़िरी के जवाब, आपके पहुँचे चेकपॉइंट और आपकी आख़िरी ख़बर देखेगा। आपकी जगह कभी नहीं।
 Closed {}. Deleted from this phone {}	{1} को बंद हुआ। इस फ़ोन से {2} को मिटेगा
+🏁 The trip ended {}. The group stays, so you can keep in touch.	🏁 ट्रिप {} को ख़त्म हुई। ग्रुप बना रहेगा, ताकि आप जुड़े रहें।
+The trip ended {}. The group stays, so you can keep in touch	ट्रिप {} को ख़त्म हुई। ग्रुप बना रहेगा, ताकि आप जुड़े रहें
+End the trip?	ट्रिप ख़त्म करें?
+End the trip	ट्रिप ख़त्म करें
+End now	अभी ख़त्म करें
+Roll calls, automatic checks and check-ins stop, and no one new can join. Teams end too. The group and its chat stay, so everyone can keep in touch.	हाज़िरी, अपने-आप जाँच और चेक-इन रुक जाएँगे, और कोई नया नहीं जुड़ पाएगा। टीमें भी ख़त्म होंगी। ग्रुप और उसकी चैट बनी रहेगी, ताकि सब जुड़े रहें।
+End it now, or keep the trip going another day. If you do nothing, it ends by itself {}. The group and its chat stay either way.	अभी ख़त्म करें, या ट्रिप एक दिन और चलने दें। अगर आप कुछ न करें, तो यह {} अपने-आप ख़त्म हो जाएगी। ग्रुप और उसकी चैट हर हाल में बनी रहेगी।
+You can leave any time. When the trip ends, tracking stops and check-ins are erased 30 days later; the group and its chat stay.	आप कभी भी छोड़ सकते हैं। ट्रिप ख़त्म होने पर ट्रैकिंग रुक जाती है और चेक-इन 30 दिन बाद मिटा दिए जाते हैं; ग्रुप और उसकी चैट बनी रहती है।
+Ends {}. Tracking stops a day later unless you keep it going; the chat stays.	{} को ख़त्म। ट्रैकिंग एक दिन बाद रुकेगी, जब तक आप इसे जारी न रखें; चैट बनी रहेगी।
+No end date: the trip goes on until you end it.	कोई अंतिम तारीख़ नहीं: ट्रिप तब तक चलेगी जब तक आप ख़त्म न करें।
+The trip goes on until you end it.	ट्रिप तब तक चलेगी जब तक आप ख़त्म न करें।
+Tracking stops a day after the end, unless you keep it going. The group and chat stay.	ख़त्म होने के एक दिन बाद ट्रैकिंग रुकेगी, जब तक आप जारी न रखें। ग्रुप और चैट बनी रहेगी।
+Trip ended · {} people	ट्रिप ख़त्म · {} लोग
+Tracking ends with the trip; the chat stays	ट्रैकिंग ट्रिप के साथ ख़त्म; चैट बनी रहती है
+End the trip, or keep it going? If you do nothing, it ends by itself in a day. The group and its chat stay.	ट्रिप ख़त्म करें, या जारी रखें? अगर आप कुछ न करें, तो यह एक दिन में अपने-आप ख़त्म हो जाएगी। ग्रुप और उसकी चैट बनी रहेगी।

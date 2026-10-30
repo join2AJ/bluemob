@@ -18,7 +18,7 @@ audit. Legal points are what we understand of the law; have a lawyer confirm the
 | # | Finding | Law or control | Fixed by |
 |---|---|---|---|
 | 1 | Trip groups (0.33–0.35) share roll-call answers, check-ins and "last heard" with the admin and captains, but members weren't told before joining | DPDP s.5 (notice before consent), GDPR Art. 13 | A "What the group sees" notice on the Join screen and in the passcode dialog, and in the group for members |
-| 2 | Closed trip groups and field-test results were kept on phones forever | DPDP s.8(7) (erase when the purpose is served), GDPR Art. 5(1)(e) | Closed trip groups are deleted 30 days after closing; field-test results 30 days after the test |
+| 2 | Trip check-ins and field-test results were kept on phones forever | DPDP s.8(7) (erase when the purpose is served), GDPR Art. 5(1)(e) | When a trip ends, tracking stops and check-ins are erased 30 days later; field-test results 30 days after the test. The group and its chat stay (a purpose people choose: keeping in touch), until each person leaves |
 | 3 | "Download my data" left out trip groups and field tests | DPDP s.11, GDPR Art. 15 and 20 | Export now has trip groups (role, plan, your check-ins) and the field-test summary |
 | 4 | The privacy policy didn't mention trip groups, join codes, showing a group nearby, or the chat-background code | DPDP s.5, GDPR Art. 13 | Policy updated in English and Hindi, with retention |
 | 5 | The 4-digit passcode was limited per phone only; many fake IDs could guess it | ISO 27001 8.5, NIST PR.AA | After 20 wrong passcodes in an hour from any phones, the group stops taking passcodes and tells the admin; turning it on again changes the passcode |
@@ -40,7 +40,8 @@ audit. Legal points are what we understand of the law; have a lawyer confirm the
 | **Health: blood group, allergies, conditions, sex** | Phone; inside an SOS to phones nearby and SOS contacts; on the lock-screen card only if turned on (off by default) | Emergency care | **Explicit consent** (GDPR Art. 9(2)(a)); vital interests in an emergency (Art. 9(2)(c)) | Until deleted |
 | Position | Phone; shared only while sharing is on, or in an SOS or rescue | Finding people | Consent; vital interests in an SOS | Trips until deleted by the user |
 | Messages, files, calls | Phones; relay holds sealed copies until delivered | Communication | Contract | Relay: 7 days at most |
-| Trip group: roll-call answers, check-ins (not positions), last heard | Phones of the group | Safety of a group trip | Consent (shown before joining) | Deleted 30 days after the group closes |
+| Trip group: roll-call answers, check-ins (not positions), last heard | Phones of the group | Safety of a group trip | Consent (shown before joining) | Tracking stops when the trip ends; check-ins erased 30 days later |
+| Trip group chat | Phones of the group | Keeping in touch | Consent (joining; anyone can leave) | Until each person leaves or deletes it |
 | Join code: who made the group and the code, when, phone model, app version | Inside the code, sealed to the BlueMob admin key | Investigating misuse | Legitimate interests (GDPR Art. 6(1)(f)); DPDP s.7 "legitimate uses" for safety is arguable: get legal advice | As long as the code exists; looked up only on a report |
 | Chat-background code (ID, hourly) | In screenshots | Tracing abusive screenshots | Legitimate interests; disclosed in the policy | Not stored |
 | Reports and error reports | Relay | Fixing problems | Consent (automatic reports can be turned off) | Newest 500 |
@@ -62,7 +63,7 @@ and any later changes with a lawyer.
 | Notice in clear language, in English and Indian languages (s.5; Rules: notice must stand alone and list purposes) | **Done:** policy in English and Hindi; consent at sign-up with a link; trip-group notice before joining (0.36) |
 | Consent: free, specific, withdrawable as easily as given (s.6) | **Done:** each optional thing has its own switch (location, background, error reports, emergency card, helper signals, fall detection, power-button SOS); leaving a trip group withdraws from it |
 | Purpose limitation and minimisation (s.6, s.8) | **Done:** number kept only as a fingerprint; positions never leave the phone for check-ins; health only in an SOS |
-| Erasure when the purpose is served (s.8(7); Rules: tell the person 48 h before erasing, for large platforms) | **Done:** relay messages 7 days; closed trip groups 30 days (the date is shown in the group); field tests 30 days. *Gap:* the 48-hour warning applies only to classes of large platforms; not needed now |
+| Erasure when the purpose is served (s.8(7); Rules: tell the person 48 h before erasing, for large platforms) | **Done:** relay messages 7 days; trip check-ins 30 days after the trip ends (the chat stays for keeping in touch, until people leave); field tests 30 days. *Gap:* the 48-hour warning applies only to classes of large platforms; not needed now |
 | Security safeguards, including logs kept a year (s.8(5); Rules) | **Done:** encryption at rest and end to end; admin log kept a year (0.36). *Gap:* relay request logs at the host (Render) aren't kept a year; turn on log export, or keep them on your own server |
 | Breach: tell the Board and each person without delay; detailed report to the Board within 72 hours (Rules) | **Done:** `docs/incident-response.md`, updated to the Rules |
 | Rights: access, correction, erasure, grievance, nominee (s.11–14) | **Done:** Download my data, correction in Account, delete account, grievance officer. *Gap:* nominating someone to act after death or incapacity (s.14): add a "nominee" contact in Account |
@@ -143,7 +144,7 @@ told. The incident procedure covers it.
 | Processing | Risk to people | Measures | Remaining risk |
 |---|---|---|---|
 | Health details in an SOS and on the lock screen | Strangers learn a condition | Optional; sent only in an SOS; lock-screen card off by default with a preview of what shows | Low, accepted for emergency care |
-| Trip groups: check-ins, last heard, roll calls | An admin monitors people too closely (for example an employer) | Notice before joining; no positions sent; leave any time; deleted 30 days after closing | Low |
+| Trip groups: check-ins, last heard, roll calls | An admin monitors people too closely (for example an employer) | Notice before joining; no positions sent; leave any time; tracking stops when the trip ends and check-ins are erased 30 days later | Low |
 | Join codes and screenshot codes identify people | Staff misuse | Sealed to one key on the server; every look-up logged for a year; used only on a report | Low, if the admin log is reviewed |
 | Showing a group nearby | Strangers learn a group's name and its admin's name | Admin turns it on; only phones connected straight to the admin's phone; passcode never sent; guessing limits | Low |
 
@@ -180,7 +181,7 @@ told. The incident procedure covers it.
 | Admin token leaked | 2 | 4 | **0.36:** TOTP second factor, sessions, admin log | Ops |
 | `ADMIN_SEAL_KEY` leaked: join codes readable | 2 | 3 | Only on Render; rotate with a new app version | Ops |
 | Passcode guessed by fake IDs | 2 | 3 | **0.36:** 5 tries a phone, 20 a group, then paused | Product |
-| Trip groups used to monitor people too closely | 2 | 3 | **0.36:** notice before joining; no positions; 30-day deletion | Product |
+| Trip groups used to monitor people too closely | 2 | 3 | **0.36:** notice before joining; no positions; tracking ends with the trip; check-ins erased after 30 days | Product |
 | Health data leak | 2 | 5 | On the phone; only in an SOS; encryption | Product |
 | Offline AI gives wrong first aid | 3 | 4 | Guide is the source; warnings; SOS and 112 always shown | Product |
 | Non-compliance (DPDP Rules from 2027) | 2 | 4 | Section 2 gaps, lawyer review | Founder |

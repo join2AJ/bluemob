@@ -58,13 +58,12 @@ class TripWatchTest {
         assertEquals("a", Stop.next(stops.sortedBy { it.at }, 3)!!.id)
     }
 
-    @Test fun closedGroupsAreDeleted30DaysLater() {
+    @Test fun checkInsAreErased30DaysAfterTheTripButTheGroupStays() {
         val now = 100 * 86_400_000L
-        val closed = g.copy(autoMin = 0, closedAt = now - TripMeta.KEEP_CLOSED_MS)
-        assertEquals(listOf(TripWatch.Act.Purge("g-1")), TripWatch.due(listOf(closed), emptyMap(), ravi, now, emptySet()))
-        assertTrue(TripWatch.due(listOf(closed.copy(closedAt = now - TripMeta.KEEP_CLOSED_MS + 60_000)), emptyMap(), ravi, now, emptySet()).isEmpty())
-        // An end date with nobody closing it: closes a day later, deleted 30 days after that.
-        val ended = g.copy(autoMin = 0, expiresAt = now - TripMeta.GRACE_MS - TripMeta.KEEP_CLOSED_MS)
-        assertEquals(listOf(TripWatch.Act.Purge("g-1")), TripWatch.due(listOf(ended), emptyMap(), ravi, now, emptySet()))
+        val ended = g.copy(autoMin = 0, closedAt = now - TripMeta.CHECKINS_KEPT_MS, checkins = mapOf("cp" to mapOf(ravi to 1L)))
+        assertEquals(listOf(TripWatch.Act.ForgetCheckIns("g-1")), TripWatch.due(listOf(ended), emptyMap(), ravi, now, emptySet()))
+        // Not yet, and nothing to do once they're gone.
+        assertTrue(TripWatch.due(listOf(ended.copy(closedAt = now - TripMeta.CHECKINS_KEPT_MS + 60_000)), emptyMap(), ravi, now, emptySet()).isEmpty())
+        assertTrue(TripWatch.due(listOf(ended.copy(checkins = emptyMap())), emptyMap(), ravi, now, emptySet()).isEmpty())
     }
 }

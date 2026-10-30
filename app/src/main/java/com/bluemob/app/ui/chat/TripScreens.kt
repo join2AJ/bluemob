@@ -80,7 +80,7 @@ fun TripVsGroup(modifier: Modifier = Modifier) {
             Column(Modifier.weight(1f)) {
                 Text("🧭 Trip group", style = MaterialTheme.typography.labelLarge)
                 listOf("Join by one QR code or shared code", "An admin, teams and captains", "Roll calls, automatic checks and an alert when a phone can't be reached",
-                    "Can end with the trip").forEach {
+                    "Tracking ends with the trip; the chat stays").forEach {
                     Text("• $it", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
                 }
             }
@@ -123,7 +123,7 @@ fun NewTripScreen(onBack: () -> Unit, onCreate: (String, Long) -> Unit, onJoin: 
             }
         }
         item {
-            Text(if (days == 0) "The group stays until you close it." else "It closes a day after the end, unless you keep it open.",
+            Text(if (days == 0) "The trip goes on until you end it." else "Tracking stops a day after the end, unless you keep it going. The group and chat stay.",
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         }
         item {
@@ -243,9 +243,9 @@ fun TripGroupScreen(
     )
     if (closing) androidx.compose.material3.AlertDialog(
         onDismissRequest = { closing = false },
-        title = { Text("Close the trip group?") },
-        text = { Text("Everyone can still read it, but no one can write, and roll calls stop. Teams close too.") },
-        confirmButton = { TextButton(onClick = { closing = false; a.onClose() }) { Text("Close it", color = Extra.rose) } },
+        title = { Text("End the trip?") },
+        text = { Text("Roll calls, automatic checks and check-ins stop, and no one new can join. Teams end too. The group and its chat stay, so everyone can keep in touch.") },
+        confirmButton = { TextButton(onClick = { closing = false; a.onClose() }) { Text("End the trip", color = Extra.rose) } },
         dismissButton = { TextButton(onClick = { closing = false }) { Text("Cancel") } },
     )
     if (adding && main != null) {
@@ -284,7 +284,7 @@ fun TripGroupScreen(
                 role?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.95f), modifier = Modifier.padding(top = 2.dp)) }
                 val total = g.members.size
                 Text(when {
-                    closedAt > 0 -> "Closed ${endFormat.format(java.util.Date(closedAt))}. Deleted from this phone ${endFormat.format(java.util.Date(closedAt + TripMeta.KEEP_CLOSED_MS))}"
+                    closedAt > 0 -> "The trip ended ${endFormat.format(java.util.Date(closedAt))}. The group stays, so you can keep in touch"
                     total == 0 -> "Only you so far. Show the code below to the others"
                     roll == null -> "${total + 1} people. Do a roll call to check every phone can be reached"
                     else -> "${roll.reached} of ${roll.members.size} reached · roll call ${ago(now - roll.at)}"
@@ -302,14 +302,14 @@ fun TripGroupScreen(
                 }
             }
         }
-        // The trip has ended: the admin decides (or it closes by itself a day later).
+        // The trip has ended: the admin decides (or tracking stops by itself a day later; the chat stays).
         if (owner && closedAt == 0L && g.expiresAt in 1..now) item {
             Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(MaterialTheme.shapes.large).background(Palette.Warning.copy(alpha = 0.16f)).padding(16.dp)) {
                 Text("🏁 The trip has ended", style = MaterialTheme.typography.titleMedium)
-                Text("Close the group now, or keep it open another day. If you do nothing, it closes by itself ${endFormat.format(java.util.Date(g.expiresAt + TripMeta.GRACE_MS))}.",
+                Text("End it now, or keep the trip going another day. If you do nothing, it ends by itself ${endFormat.format(java.util.Date(g.expiresAt + TripMeta.GRACE_MS))}. The group and its chat stay either way.",
                     style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = { closing = true }, Modifier.weight(1f)) { Text("Close now") }
+                    Button(onClick = { closing = true }, Modifier.weight(1f)) { Text("End now") }
                     OutlinedButton(onClick = a.onKeepOpen, Modifier.weight(1f)) { Text("Keep open 1 day") }
                 }
             }
@@ -399,8 +399,8 @@ fun TripGroupScreen(
                 }
             }
             item {
-                Text(if (g.expiresAt == 0L) "No end date: the group stays until you close it."
-                    else "Ends ${endFormat.format(java.util.Date(g.expiresAt))}. It closes a day later unless you keep it open.",
+                Text(if (g.expiresAt == 0L) "No end date: the trip goes on until you end it."
+                    else "Ends ${endFormat.format(java.util.Date(g.expiresAt))}. Tracking stops a day later unless you keep it going; the chat stays.",
                     style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp))
             }
         }
@@ -417,7 +417,7 @@ fun TripGroupScreen(
             if (!g.isTeam) item { Steps() }
         }
         if (owner && !g.isTeam && closedAt == 0L) item {
-            OutlinedButton(onClick = { closing = true }, Modifier.fillMaxWidth().padding(top = 20.dp)) { Text("Close the trip group") }
+            OutlinedButton(onClick = { closing = true }, Modifier.fillMaxWidth().padding(top = 20.dp)) { Text("End the trip") }
         }
         item {
             OutlinedButton(onClick = { leaving = true }, Modifier.fillMaxWidth().padding(top = 10.dp)) { Text(if (g.isTeam) "Leave the team" else "Leave the trip group", color = Extra.rose) }
@@ -582,7 +582,7 @@ fun TripPrivacyNote(modifier: Modifier = Modifier) {
         Text("🔒 What the group sees", style = MaterialTheme.typography.titleSmall)
         Text("Your name, whether your phone answers roll calls (and how), the checkpoints you reach and when, and when you were last heard from. " +
             "Your position is never sent: a checkpoint check-in only says you reached it. The admin and captains see this; messages are end-to-end encrypted. " +
-            "You can leave any time, and a closed group is deleted from phones 30 days later.",
+            "You can leave any time. When the trip ends, tracking stops and check-ins are erased 30 days later; the group and its chat stay.",
             style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
     }
 }

@@ -185,8 +185,8 @@ data class TripMeta(val owner: String = "", val parent: String = "", val captain
     companion object {
         /** After the end time, the group stays open this long unless the admin closes it or keeps it open. */
         const val GRACE_MS = 24 * 3_600_000L
-        /** A closed trip group (chat, itinerary, check-ins) is deleted from each phone this long after it closed. */
-        const val KEEP_CLOSED_MS = 30 * 24 * 3_600_000L
+        /** After a trip ends, its check-ins are kept this long, then erased; the group and its chat stay. */
+        const val CHECKINS_KEPT_MS = 30 * 24 * 3_600_000L
 
         private fun id(s: String) = s.takeIf { it.length in 1..16 && it.all { c -> c.isLetterOrDigit() } }.orEmpty()
         fun fromJson(j: JSONObject) = TripMeta(id(j.optString("o")), j.optString("p").takeIf { GroupStore.isGroup(it) && it.length <= 40 }.orEmpty(),

@@ -221,10 +221,11 @@ fun ChatScreen(
                 }
             }
             val closedAt = group?.closedTime(System.currentTimeMillis()) ?: 0L
-            if (closedAt > 0) Text("🏁 This trip group closed on ${java.text.SimpleDateFormat("d MMM, HH:mm", java.util.Locale.getDefault()).format(Date(closedAt))}. You can still read it.",
-                style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().background(Extra.sand).navigationBarsPadding().imePadding().padding(16.dp))
-            else Composer(draft, onDraft = { draft = it }, onSend = { val r = replying; if (r != null) onReply(draft, r) else onSend(draft); draft = ""; replying = null },
+            // The trip is over, but the group stays: everyone can keep in touch here.
+            if (closedAt > 0) Text("🏁 The trip ended ${java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(Date(closedAt))}. The group stays, so you can keep in touch.",
+                style = MaterialTheme.typography.bodySmall, color = Extra.ink2, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().background(Extra.sand).padding(horizontal = 16.dp, vertical = 8.dp))
+            Composer(draft, onDraft = { draft = it }, onSend = { val r = replying; if (r != null) onReply(draft, r) else onSend(draft); draft = ""; replying = null },
                 files = if (isBot || isGroup) null else files)
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 90.dp))

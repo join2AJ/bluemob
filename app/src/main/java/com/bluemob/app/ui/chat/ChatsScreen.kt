@@ -528,7 +528,7 @@ private fun GroupsList(
 
 /** "Trip group · 12 people", "Team · 5 people", "6 members", "Closed". */
 private fun groupLine(g: com.bluemob.app.chat.ChatGroup): String = when {
-    g.trip && g.isClosed(System.currentTimeMillis()) -> "Trip group · closed"
+    g.trip && g.isClosed(System.currentTimeMillis()) -> "Trip ended · ${g.members.size + 1} people"
     g.isTeam -> "Team · ${g.members.size + 1} people"
     g.trip -> "Trip group · ${g.members.size + 1} people"
     else -> "${g.members.size + 1} members"

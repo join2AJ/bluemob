@@ -315,12 +315,12 @@ class BlueMobApp : Application() {
                             messages.rollCalls.value[act.gid]?.let { r -> messages.postRollSummary(act.gid, r) { id -> contacts.contacts.value[id]?.name ?: g.members[id].orEmpty().ifBlank { "someone" } } }
                         }
                         is com.bluemob.app.chat.TripWatch.Act.CheckIn -> messages.checkIn(act.gid, act.stopId, auto = true)
-                        is com.bluemob.app.chat.TripWatch.Act.Purge -> messages.purgeTrip(act.gid)
+                        is com.bluemob.app.chat.TripWatch.Act.ForgetCheckIns -> messages.forgetCheckIns(act.gid)
                         is com.bluemob.app.chat.TripWatch.Act.AskToClose -> {
                             messages.markAskedToClose(act.gid)
                             val g = gs[act.gid] ?: return@forEach
                             notifier.tripAlert(act.gid, com.bluemob.app.i18n.Lang.tr("🏁 ${g.name} has ended"),
-                                com.bluemob.app.i18n.Lang.tr("Close the trip group, or keep it open? If you do nothing, it closes by itself in a day."))
+                                com.bluemob.app.i18n.Lang.tr("End the trip, or keep it going? If you do nothing, it ends by itself in a day. The group and its chat stay."))
                         }
                     }
                 }

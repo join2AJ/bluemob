@@ -273,6 +273,10 @@ class MessageRepositoryTest {
         p.a.closeTrip(gid)
         settle()
         assertTrue(p.groupsB.get(gid)!!.isClosed(System.currentTimeMillis()))
+        // The trip is over, but people can still chat in the group.
+        p.b.send(gid, "Thanks everyone, great trek!")
+        settle()
+        assertTrue(p.daoA.rows.value.any { !it.fromMe && it.peer == gid && it.text == "Thanks everyone, great trek!" })
     }
 
     @Test
