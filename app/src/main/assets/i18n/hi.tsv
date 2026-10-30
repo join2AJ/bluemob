@@ -2119,3 +2119,12 @@ This group is closed or full.	यह ग्रुप बंद है या भ
 just now	अभी-अभी
 {} min ago	{} मिनट पहले
 {} h ago	{} घंटे पहले
+1 member	1 सदस्य
+Group · 1 member	ग्रुप · 1 सदस्य
+Trip group · {} members	ट्रिप ग्रुप · {} सदस्य
+Trip group · 1 member	ट्रिप ग्रुप · 1 सदस्य
+Team · {} members	टीम · {} सदस्य
+🔒 What the group sees	🔒 ग्रुप क्या देखता है
+Your name, whether your phone answers roll calls (and how), the checkpoints you reach and when, and when you were last heard from. Your position is never sent: a checkpoint check-in only says you reached it. The admin and captains see this; messages are end-to-end encrypted. You can leave any time, and a closed group is deleted from phones 30 days later.	आपका नाम, आपका फ़ोन हाज़िरी का जवाब देता है या नहीं (और कैसे), आप कौन से चेकपॉइंट कब पहुँचे, और आपकी आख़िरी ख़बर कब मिली। आपकी जगह कभी नहीं भेजी जाती: चेकपॉइंट चेक-इन केवल बताता है कि आप पहुँच गए। यह एडमिन और कप्तान देखते हैं; संदेश एंड-टू-एंड एन्क्रिप्टेड हैं। आप कभी भी छोड़ सकते हैं, और बंद ग्रुप 30 दिन बाद फ़ोन से मिट जाता है।
+The group will see your name, your roll call answers, the checkpoints you reach and when you were last heard from. Never your position.	ग्रुप आपका नाम, हाज़िरी के जवाब, आपके पहुँचे चेकपॉइंट और आपकी आख़िरी ख़बर देखेगा। आपकी जगह कभी नहीं।
+Closed {}. Deleted from this phone {}	{1} को बंद हुआ। इस फ़ोन से {2} को मिटेगा

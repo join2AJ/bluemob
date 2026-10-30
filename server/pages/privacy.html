@@ -13,7 +13,7 @@ a{color:var(--pine)}
 </style></head><body><main>
 <p style="text-align:right"><a href="/privacy/hi">हिन्दी</a></p>
 <h1>BlueMob privacy policy</h1>
-<p>Last updated: 11 October 2026</p>
+<p>Last updated: 30 October 2026</p>
 <div class="card"><b>In short:</b> BlueMob works phone to phone. Your messages and calls are end-to-end encrypted: nobody else,
 including BlueMob, can read or hear them. Most of what you put in BlueMob stays encrypted on your phone. The BlueMob server only
 holds what's needed to deliver messages to people who aren't nearby, and you can delete it any time.</div>
@@ -41,6 +41,14 @@ secure hardware. We can't see it.</p>
 <tr><td>Cloud backups, if you turn them on</td><td>BlueMob server (newest 3)</td><td>Restoring on a new phone. Locked with your password; we can't open them</td></tr>
 <tr><td>Ratings you give people</td><td>BlueMob server and other phones</td><td>So others can see who can be trusted</td></tr>
 <tr><td>Problem reports you send, and automatic error reports</td><td>BlueMob team</td><td>Fixing problems. Only the error, phone model and BlueMob version, never messages, contacts or positions. Automatic reports can be turned off in Diagnostics</td></tr>
+<tr><td>In a trip group: your name, whether your phone answers roll calls (and how: directly, through other phones or the internet), the checkpoints you reach and when, and when you were last heard from</td>
+<td>The trip group's admin, its team captains and members</td><td>So the group knows everyone is safe. Your position is never sent: your phone checks checkpoints itself and only says you reached one. You see this before joining, and can leave any time</td></tr>
+<tr><td>A trip group's join code: who made the group and the code, when, the phone model and BlueMob version</td>
+<td>Only the BlueMob team, if someone reports a code. It's sealed so nobody else can read it</td><td>To look into misuse (for example a group used to harass people)</td></tr>
+<tr><td>A trip group's name, size and its admin's name, while the admin turns on "Show to people nearby"</td>
+<td>Phones connected straight to the admin's phone</td><td>So people nearby can join by typing the passcode the admin tells them. The passcode is never sent</td></tr>
+<tr><td>A faint pattern in the chat background that hides your BlueMob ID and changes every hour</td>
+<td>Anyone who sees a screenshot of your chat. Only the BlueMob team can read the pattern</td><td>To trace screenshots used to harass or defraud people, when someone reports them</td></tr>
 <tr><td>A push token</td><td>Google Firebase</td><td>So calls and messages can wake BlueMob when it's closed</td></tr>
 <tr><td>Your mobile number, at sign-up</td><td>Google Firebase Authentication</td><td>To send the verification code</td></tr>
 </table>
@@ -49,7 +57,9 @@ secure hardware. We can't see it.</p>
 
 <h2>How long we keep it</h2>
 <p>Messages and files waiting on the server: until delivered, 7 days at most. Backups: the newest 3. Reports: the newest 500.
-Your key, number fingerprint and email: until you delete your account.</p>
+Your key, number fingerprint and email: until you delete your account. On phones, a closed trip group (its chat, plan and
+check-ins) is deleted 30 days after it closes, and field-test results 30 days after the test. Each time BlueMob staff open an
+admin page or look up a screenshot or trip code, it's logged, and the log is kept for a year.</p>
 
 <h2>Your rights</h2>
 <p>You can see and change your details in the app (You → Account), turn off location sharing, background running and automatic error

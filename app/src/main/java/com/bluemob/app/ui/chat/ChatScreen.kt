@@ -120,7 +120,7 @@ fun ChatScreen(
     val isBot = nodeId == SkyBot.NODE_ID
     val isGroup = group != null
     val name = if (isBot) SkyBot.NAME else group?.name ?: person?.name ?: "Someone"
-    val emoji = if (isBot) SkyBot.AVATAR else if (isGroup) "👥" else person?.avatar
+    val emoji = if (isBot) SkyBot.AVATAR else if (isGroup) (if (group?.trip == true && !group.isTeam) "🧭" else "👥") else person?.avatar
     val presence = if (isBot || isGroup) null else person?.presence ?: Presence.OFFLINE
     var draft by rememberSaveable { mutableStateOf("") }
     var replying by remember { mutableStateOf<MessageEntity?>(null) }
@@ -155,7 +155,7 @@ fun ChatScreen(
                             }
                             Text(
                                 when {
-                                    group != null -> "${group.members.size + 1} members · " + (listOf("You") + group.members.values).joinToString(", ")
+                                    group != null -> DayLabel.people(group.members.size + 1) + " · " + (listOf("You") + group.members.values).joinToString(", ")
                                     typing -> "typing…"
                                     isBot && aiReady -> "🧠 AI on your phone · ask anything, offline"
                                     isBot -> "Lives on your phone · works offline"
@@ -185,14 +185,16 @@ fun ChatScreen(
             LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
                 item { if (group != null) GroupIntro(group) else Intro(isBot, nodeId, name, emoji, person, aiReady) }
                 if (isBot && onAiSetup != null) item(key = "ai") { AiCard(aiReady, onAiSetup) }
-                item {
-                    Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) { Tag("Today") }
-                }
                 itemsIndexed(messages, key = { _, m -> m.id }) { i, m ->
                     val prev = messages.getOrNull(i - 1)
                     val next = messages.getOrNull(i + 1)
-                    val withPrev = prev != null && prev.fromMe == m.fromMe && prev.sender == m.sender && m.createdAt - prev.createdAt < 120_000
-                    val withNext = next != null && next.fromMe == m.fromMe && next.sender == m.sender && next.createdAt - m.createdAt < 120_000
+                    // A day label above the first message of each day: "Today", "Yesterday", "Mon 26 Oct", "26 Oct 2025".
+                    val newDay = prev == null || !DayLabel.sameDay(prev.createdAt, m.createdAt)
+                    if (newDay) Box(Modifier.fillMaxWidth().padding(top = if (prev == null) 0.dp else 12.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
+                        Tag(DayLabel.of(m.createdAt, System.currentTimeMillis()))
+                    }
+                    val withPrev = !newDay && prev != null && prev.fromMe == m.fromMe && prev.sender == m.sender && m.createdAt - prev.createdAt < 120_000
+                    val withNext = next != null && DayLabel.sameDay(m.createdAt, next.createdAt) && next.fromMe == m.fromMe && next.sender == m.sender && next.createdAt - m.createdAt < 120_000
                     Bubble(m, isBot, withPrev, withNext, name, Modifier.animateItem(), onInfo, onAction, files, myId = myId,
                         showSender = isGroup && !m.fromMe && !withPrev,
                         onReply = if (isBot) null else ({ replying = m }), onReact = if (isBot) null else ({ e -> onReact(m, e) }),
@@ -270,9 +272,11 @@ private fun Intro(isBot: Boolean, nodeId: String, name: String, emoji: String?, 
 @Composable
 private fun GroupIntro(g: com.bluemob.app.chat.ChatGroup) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(80.dp).clip(CircleShape).background(Extra.skyTint), contentAlignment = Alignment.Center) { Text("👥", style = MaterialTheme.typography.headlineLarge) }
-        Text(g.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
-        Tag("Group · ${g.members.size + 1} members", Extra.skyTint, Extra.sky)
+        Box(Modifier.size(80.dp).clip(CircleShape).background(Extra.skyTint), contentAlignment = Alignment.Center) {
+            Text(if (g.trip && !g.isTeam) "🧭" else "👥", style = MaterialTheme.typography.headlineLarge)
+        }
+        com.bluemob.app.i18n.RawText(g.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+        Tag((if (g.isTeam) "Team · " else if (g.trip) "Trip group · " else "Group · ") + DayLabel.people(g.members.size + 1), Extra.skyTint, Extra.sky)
         Text("Each message goes to every member separately, end-to-end encrypted, over Bluetooth, Wi-Fi, other phones or the internet: whatever reaches them.",
             style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp))
     }
@@ -428,4 +432,26 @@ private fun AiCard(ready: Boolean, onClick: () -> Unit) {
         }
         Text(if (ready) "Manage" else "Get", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     }
+}
+
+/** Day labels between messages, and "1 member" / "5 members". */
+object DayLabel {
+    fun sameDay(a: Long, b: Long): Boolean {
+        val x = java.util.Calendar.getInstance().apply { timeInMillis = a }
+        val y = java.util.Calendar.getInstance().apply { timeInMillis = b }
+        return x.get(java.util.Calendar.YEAR) == y.get(java.util.Calendar.YEAR) && x.get(java.util.Calendar.DAY_OF_YEAR) == y.get(java.util.Calendar.DAY_OF_YEAR)
+    }
+
+    fun of(at: Long, now: Long): String = when {
+        sameDay(at, now) -> "Today"
+        sameDay(at, now - 86_400_000L) -> "Yesterday"
+        now - at < 6 * 86_400_000L && at < now -> SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(at))
+        sameYear(at, now) -> SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(Date(at))
+        else -> SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(at))
+    }
+
+    private fun sameYear(a: Long, b: Long) =
+        java.util.Calendar.getInstance().apply { timeInMillis = a }.get(java.util.Calendar.YEAR) == java.util.Calendar.getInstance().apply { timeInMillis = b }.get(java.util.Calendar.YEAR)
+
+    fun people(n: Int) = if (n == 1) "1 member" else "$n members"
 }

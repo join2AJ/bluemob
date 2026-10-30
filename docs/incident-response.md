@@ -25,7 +25,9 @@ Don't delete anything.
 
 | Situation | Do |
 |---|---|
-| Admin or reports token leaked | Change `ADMIN_TOKEN` / `REPORTS_TOKEN` on the server and redeploy |
+| Admin or reports token leaked | Change `ADMIN_TOKEN` / `REPORTS_TOKEN` on the server and redeploy (signed-in sessions end on restart). Check the Admin log for refused or unknown sign-ins |
+| Authenticator secret leaked | Make a new `ADMIN_TOTP_SECRET`, add it to the authenticator app again, redeploy |
+| `ADMIN_SEAL_KEY` leaked | Trip join codes made so far can be read by whoever has it. Make a new key pair, put the public half in the app (`TripCode.ADMIN_PUBLIC`), ship a new version, set the new private key on the server |
 | Firebase service account leaked | Delete the key in Google Cloud, create a new one, update `FCM_SERVICE_ACCOUNT` |
 | Server compromised | Take it offline (phones keep working phone to phone), rebuild from the repository on a clean machine, rotate every secret |
 | Play upload key lost or leaked | Ask Google Play support to reset the upload key (Play App Signing keeps the app key safe) |
@@ -42,9 +44,17 @@ Don't delete anything.
 
 ## 4. Notify
 
-- **India (DPDP Act 2023):** tell the Data Protection Board of India and each affected user without delay, in the
-  form the DPDP Rules set: what happened, when, likely impact, what we're doing, and what users should do. Check the
-  current Rules for the exact deadline and format.
+- **India (DPDP Act 2023 and DPDP Rules 2025):**
+  - Tell each affected user without delay, in plain words: what happened, when, the likely impact, what we're doing
+    about it, what they can do, and who to contact.
+  - Tell the Data Protection Board of India without delay, then send it a detailed report within 72 hours: facts,
+    cause, people affected, what we did, and the notices sent to users.
+  - Check the current Rules for the exact format before sending.
+- **India (CERT-In directions, 2022):** report cyber security incidents to CERT-In within 6 hours of noticing them
+  (incident@cert-in.org.in). Keep the relay's logs for 180 days for this.
+- **US users (FTC Health Breach Notification Rule):** if health details (blood group, allergies, conditions) of US
+  users are exposed, tell the people affected and the FTC (within 60 days; for 500 people or more, at the same time
+  as the people).
 - **EU users (GDPR):** tell the lead supervisory authority within 72 hours of becoming aware, and affected users
   without undue delay if the risk is high.
 - **Users:** a News from BlueMob item (urgent if action is needed), plus email to those who gave one.

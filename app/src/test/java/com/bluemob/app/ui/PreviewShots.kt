@@ -278,4 +278,13 @@ class PreviewShots {
             tripAds = listOf(com.bluemob.app.nearby.TripAd("g-x", "Group 10", "b7e4", "Ravi", 14, 0, now)),
             joinNotes = emptyMap())
     }
+
+    @Test fun chatAcrossDays() = shot {
+        val g = com.bluemob.app.chat.ChatGroup("g-trek", "Trek team", emptyMap(), now - 3 * 86_400_000L, trip = true, owner = me)
+        val msgs = listOf(
+            com.bluemob.app.data.MessageEntity("t1", "g-trek", true, "🧭 Ajay started the trip group \"Trek team\". Scan its QR code to join", now - 3 * 86_400_000L - 14 * 3_600_000L,
+                com.bluemob.app.data.MessageStatus.LOCAL, sender = me),
+            com.bluemob.app.data.MessageEntity("t2", "g-trek", true, "Hey", now - 60_000, com.bluemob.app.data.MessageStatus.LOCAL, sender = me))
+        com.bluemob.app.ui.chat.ChatScreen("g-trek", null, msgs, false, kotlinx.coroutines.flow.MutableSharedFlow(), "Ajay", me, {}, {}, { true }, {}, {}, {}, group = g)
+    }
 }

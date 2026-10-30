@@ -36,6 +36,28 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.36: chat dates, and a privacy and security audit
+
+- **Chat dates:** each day starts with its own label (Today, Yesterday, a weekday, or the date). Before, every chat showed
+  "Today" at the top, so older messages looked like today's. "1 member" instead of "1 members"; trip groups show 🧭.
+- **Audit:** `docs/compliance.md` is now an audit of the whole app against DPDP (with the 2025 Rules), GDPR, HIPAA (and
+  the FTC health breach rule), ISO 27001, ISO 22301, ISO 31000 and NIST CSF 2.0. It has a record of processing, a
+  short impact assessment, a risk register with owners, and what's still open. Fixed in this version:
+  - Before joining a trip group (code, QR or passcode), a notice says what the group sees: name, roll-call answers,
+    checkpoints reached, last heard; never positions. Members see it in the group too.
+  - A closed trip group is deleted from phones 30 days after it closes (the date shows in the group). Field-test
+    results are erased 30 days after the test.
+  - Download my data now includes trip groups (your role, the plan, your check-ins) and the field test.
+  - The privacy policy (English and Hindi) covers trip groups, join codes, showing a group nearby and the
+    chat-background code, with how long each is kept.
+  - Passcodes: after 20 wrong tries in an hour from any phones, a group stops taking passcodes and tells its admin.
+    Turning it on again gives a new passcode.
+  - Admin page: optional second factor. Set `ADMIN_TOTP_SECRET` (base32) on Render and add it to an authenticator
+    app; then sign-in needs the token and the 6-digit code, and gives an 8-hour session. Every sign-in and admin
+    action (allowed or refused) is logged for a year: Admin log tab.
+  - `docs/incident-response.md`: DPDP Rules (Board report within 72 hours), CERT-In (6 hours), FTC health breach rule,
+    and what to do if the seal key or authenticator secret leaks.
+
 ## Android 0.35: itinerary, checkpoints, and joining nearby with a passcode
 
 - **Itinerary:** the admin plans the main group and a captain plans their team: stops with a day, time, place

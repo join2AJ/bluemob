@@ -57,4 +57,14 @@ class TripWatchTest {
         assertEquals(stops.sortedBy { it.at }, Stop.fromJson(Stop.toJson(stops)))
         assertEquals("a", Stop.next(stops.sortedBy { it.at }, 3)!!.id)
     }
+
+    @Test fun closedGroupsAreDeleted30DaysLater() {
+        val now = 100 * 86_400_000L
+        val closed = g.copy(autoMin = 0, closedAt = now - TripMeta.KEEP_CLOSED_MS)
+        assertEquals(listOf(TripWatch.Act.Purge("g-1")), TripWatch.due(listOf(closed), emptyMap(), ravi, now, emptySet()))
+        assertTrue(TripWatch.due(listOf(closed.copy(closedAt = now - TripMeta.KEEP_CLOSED_MS + 60_000)), emptyMap(), ravi, now, emptySet()).isEmpty())
+        // An end date with nobody closing it: closes a day later, deleted 30 days after that.
+        val ended = g.copy(autoMin = 0, expiresAt = now - TripMeta.GRACE_MS - TripMeta.KEEP_CLOSED_MS)
+        assertEquals(listOf(TripWatch.Act.Purge("g-1")), TripWatch.due(listOf(ended), emptyMap(), ravi, now, emptySet()))
+    }
 }

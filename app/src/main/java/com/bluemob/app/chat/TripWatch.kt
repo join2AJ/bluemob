@@ -16,6 +16,8 @@ object TripWatch {
         data class AskToClose(val gid: String) : Act
         /** A captain's team roll call is done: sum it up in the team chat for the admin. */
         data class Summary(val gid: String, val rollId: String) : Act
+        /** Closed long enough ago: delete it from this phone (storage limitation). */
+        data class Purge(val gid: String) : Act
         /** We're at checkpoint [stopId] (by location). */
         data class CheckIn(val gid: String, val stopId: String) : Act
     }
@@ -23,6 +25,7 @@ object TripWatch {
     /** [alerted]: roll calls we already sounded an alert for. */
     fun due(groups: Collection<ChatGroup>, rolls: Map<String, RollCall>, me: String, now: Long, alerted: Set<String>,
         summarized: Set<String> = emptySet(), here: com.bluemob.app.contacts.GeoPoint? = null): List<Act> = buildList {
+        groups.filter { it.trip }.forEach { g -> g.closedTime(now).takeIf { it > 0 && now - it >= TripMeta.KEEP_CLOSED_MS }?.let { add(Act.Purge(g.id)) } }
         groups.filter { it.trip && !it.isClosed(now) }.forEach { g ->
             val roll = rolls[g.id]
             if (g.canManage(me)) {

@@ -280,7 +280,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val joinNotes get() = repo.joinNotes
     fun setShowNearby(id: String, on: Boolean) {
         val g = blueMob.groups.get(id) ?: return
-        blueMob.groups.put(g.copy(advertise = on, passcode = g.passcode.ifBlank { newPasscode() }))
+        // Turning it on again after a pause (too many wrong tries) always gives a new passcode.
+        blueMob.groups.put(g.copy(advertise = on, passcode = if (on && !g.advertise && g.passcode.isNotBlank()) newPasscode() else g.passcode.ifBlank { newPasscode() }))
         if (on) blueMob.tripAds.announce()
     }
     fun changePasscode(id: String) { blueMob.groups.get(id)?.let { blueMob.groups.put(it.copy(passcode = newPasscode())) } }

@@ -1,121 +1,217 @@
-# BlueMob and security, continuity and privacy frameworks
+# BlueMob compliance audit: DPDP, GDPR, HIPAA, ISO 27001, ISO 22301, ISO 31000, NIST CSF
 
-This maps what BlueMob already does to the frameworks people ask about, lists the gaps, and suggests the order to
-close them. It is a working document, not a certification: certification (ISO 27001, ISO 22301) needs an
-organisation with an implemented management system and an external audit.
+Last reviewed: 30 October 2026 (app 0.36, relay with admin sign-in and admin log).
 
-**Two different questions:**
+This is a self-assessment of the app and its relay, written so a lawyer or an auditor can check it quickly. It is not a
+certificate: ISO 27001 and ISO 22301 certification need an organisation running a management system and an external
+audit. Legal points are what we understand of the law; have a lawyer confirm them before relying on them.
 
-1. **Is BlueMob, the service, run securely and lawfully?** Covered by ISO 27001, NIST CSF, DPDP and GDPR.
-2. **Can BlueMob help *other* organisations meet their own obligations?** Mainly ISO 22301 (business continuity) and
-   ISO 31000 (risk). This is a sales point for trek operators, schools, NGOs, construction sites, mines and companies.
-
-**About CompTIA Security+, CISA and CISM:** these are certifications for *people*, not frameworks for products.
-- Security+ is general security practice.
-- CISA (ISACA) is about auditing.
-- CISM (ISACA) is about security management.
-
-They help whoever runs BlueMob's security, audits it, or sells it to companies. CISA and CISM map to ISACA's COBIT,
-which overlaps with ISO 27001's management clauses.
+**Two questions:**
+1. Is BlueMob, the service, run securely and lawfully? (DPDP, GDPR, HIPAA, ISO 27001, NIST CSF)
+2. Can BlueMob help *other* organisations meet their duties? (ISO 22301, ISO 31000; a sales point for trek operators,
+   schools, NGOs and companies)
 
 ---
 
-## 1. ISO/IEC 27001:2022 (information security)
+## 0. What this audit found and fixed in 0.36
 
-| Annex A control | What BlueMob does today | Gap |
-|---|---|---|
-| 5.1 Policies | Privacy policy (`/privacy`) | Written information security policy, acceptable use, scope of the management system |
-| 5.7 Threat intelligence | — | Follow Android, Node and dependency advisories |
-| 5.9 Asset inventory | Code, relay, keys, Firebase, Render, Play Console listed in `docs/play-store.md` | One asset register with owners |
-| 5.15–5.18 Access control | Admin endpoints need `ADMIN_TOKEN` / `REPORTS_TOKEN`; device actions are signed by the phone's key | Per-person admin accounts, MFA and audit of admin actions (comes with the admin web app) |
-| 5.19–5.23 Suppliers and cloud | Render (hosting), Google Firebase (push, SMS), Hugging Face (offline AI models, verified by SHA-256) | Supplier list with data-processing terms; choose an Indian region for hosting |
-| 5.24–5.28 Incident management | Automatic error reports, problem reports with categories, `ALERT_WEBHOOK` alerts the team, tamper-evident audit trail on each phone | Written incident response plan; breach-notification steps (see DPDP/GDPR) |
-| 5.29–5.30 Continuity | Phones keep working with no server (mesh); cloud backups; relay can run anywhere (Docker) | Second relay with automatic failover; backup of relay data |
-| 5.34 Privacy and PII | Data minimisation: number stored only as a fingerprint; health data only inside an SOS; E2E encryption | Records of processing; data protection impact assessment for health data |
-| 6.3 Awareness | In-app guides, safety notes | Staff training once there is a team |
-| 8.5 Authentication | Phone OTP (Firebase), optional PIN and biometric lock, signed requests with device keys | — |
-| 8.7 Malware | Android sandbox; no code downloaded at runtime (AI models are data, hash-checked) | — |
-| 8.8 Vulnerabilities | Dependencies pinned | Automated dependency scanning (Dependabot / OSV) and a yearly penetration test |
-| 8.12 Data leakage | Server never sees message content, numbers or positions outside an SOS | — |
-| 8.13 Backup | Encrypted user backups (password-locked), newest 3 kept | Back up the relay's own data (`DATA_DIR`) |
-| 8.15–8.17 Logging and monitoring | On-device tamper-evident audit trail with hash chain; relay health check | Central server logs with retention; uptime monitoring and alerts |
-| 8.20–8.22 Network security | HTTPS to the relay; signed and encrypted packets on the mesh | Rate limits exist; add a firewall and DDoS protection (e.g. Cloudflare) in front of the relay |
-| 8.24 Cryptography | AES-GCM on device with Android Keystore; ECDH + AES for messages and calls; ECDSA signatures | Key rotation and a written crypto policy |
-| 8.25–8.29 Secure development | Unit tests, screenshot tests, lint on every build | CI on every push, code review, security tests for the relay |
-| 8.32 Change management | Versioned releases, git history | Release checklist, staged roll-outs in Play |
-
-## 2. ISO 22301:2019 (business continuity)
-
-**BlueMob as a continuity tool for organisations** (worth building on):
-
-| ISO 22301 need | BlueMob feature |
-|---|---|
-| Communication when networks fail (8.4.3) | Mesh messaging and calls over Bluetooth/Wi-Fi, no SIM or internet needed |
-| Warning and communication (8.4.3) | News from BlueMob (mass notification); a per-organisation version can come with the admin web app |
-| Roll call / accounting for people | "Check on everyone" (I'm OK / I need help, with battery levels) |
-| Incident response | SOS with position, rescue groups with live positions, helper signals |
-| Exercises and testing (8.5) | SOS preview mode; Check on everyone as a drill |
-| Records (7.5) | Tamper-evident audit trail, exportable trips (CSV/GPX) |
-
-**For BlueMob the service:**
-- **Gaps:**
-  - Business impact analysis.
-  - Recovery targets: for example RTO 1 hour and RPO 24 hours for the relay.
-  - A continuity plan: relay failover and restoring from backup.
-  - A yearly exercise.
-- **Already true:** losing the relay doesn't stop SOS or mesh messaging between nearby phones.
-
-## 3. ISO 31000:2018 (risk management)
-
-A first risk register (likelihood and impact from 1 to 5):
-
-| Risk | L | I | Treatment |
+| # | Finding | Law or control | Fixed by |
 |---|---|---|---|
-| SOS not received because nobody is nearby and there's no internet | 3 | 5 | Clear disclaimer; message re-sent to every phone that comes into range; SOS contacts over the internet |
-| Relay down (single server) | 3 | 3 | Second relay and failover in the app; monitoring |
-| Fake SOS or abuse | 3 | 3 | Ratings, block and report, signed identities |
-| Leak of health data | 2 | 5 | Kept on the phone; sent only inside an SOS; DPIA |
-| Lost Play upload key | 2 | 4 | Play App Signing; two offline copies |
-| Firebase SMS cost spike or fraud | 2 | 3 | Firebase quota limits and abuse protection |
-| Phone makers killing background apps | 4 | 3 | Background switch, battery prompt, Firebase push |
-| Offline AI gives wrong first-aid advice | 3 | 4 | Guide used as the source; "can be wrong" note; SOS and 112 always shown |
-| Legal: DPDP non-compliance | 2 | 4 | Items in section 5 |
+| 1 | Trip groups (0.33–0.35) share roll-call answers, check-ins and "last heard" with the admin and captains, but members weren't told before joining | DPDP s.5 (notice before consent), GDPR Art. 13 | A "What the group sees" notice on the Join screen and in the passcode dialog, and in the group for members |
+| 2 | Closed trip groups and field-test results were kept on phones forever | DPDP s.8(7) (erase when the purpose is served), GDPR Art. 5(1)(e) | Closed trip groups are deleted 30 days after closing; field-test results 30 days after the test |
+| 3 | "Download my data" left out trip groups and field tests | DPDP s.11, GDPR Art. 15 and 20 | Export now has trip groups (role, plan, your check-ins) and the field-test summary |
+| 4 | The privacy policy didn't mention trip groups, join codes, showing a group nearby, or the chat-background code | DPDP s.5, GDPR Art. 13 | Policy updated in English and Hindi, with retention |
+| 5 | The 4-digit passcode was limited per phone only; many fake IDs could guess it | ISO 27001 8.5, NIST PR.AA | After 20 wrong passcodes in an hour from any phones, the group stops taking passcodes and tells the admin; turning it on again changes the passcode |
+| 6 | One shared admin password, no second factor | ISO 27001 5.17, 8.5; NIST PR.AA | Optional TOTP code (`ADMIN_TOTP_SECRET`) and 8-hour sessions; with it set, the password alone opens nothing |
+| 7 | No record of what admins looked at (screenshot and trip-code look-ups identify people) | DPDP Rules (logs kept a year), GDPR Art. 5(2) and 30, ISO 27001 8.15 | Admin log: every sign-in and admin action, allowed or refused, kept a year; "Admin log" tab |
+| 8 | Chat showed "Today" above every message, whatever its date (a reported bug) | Integrity of records (ISO 27001 8.15) | Day labels: Today, Yesterday, weekday, or date |
 
-Review it every quarter and after any incident.
+**Still open (yours to decide or do):** sections 7 and 8.
 
-## 4. NIST Cybersecurity Framework 2.0
+---
 
-| Function | Today | Next |
-|---|---|---|
-| **Govern** | Privacy policy, Play checklist, this document | Named security owner, policies, supplier list |
-| **Identify** | Assets and data flows (privacy policy table), risk register above | Asset register, DPIA |
-| **Protect** | E2E encryption, on-device encryption, signed requests, PIN/biometric, block and report, data minimisation | CI security checks, MFA for admins, key rotation |
-| **Detect** | Automatic error reports, webhook alerts, audit trail, relay rate limits | Server monitoring and uptime alerts, anomaly alerts on reports |
-| **Respond** | Report categories, admin news to all users, account deletion | Incident response plan, breach-notification templates |
-| **Recover** | User backups, mesh keeps working without the relay | Relay backups and failover, tested restore |
+## 1. Personal data BlueMob handles (record of processing, GDPR Art. 30)
 
-## 5. India DPDP Act 2023 and EU GDPR
+| Data | Where | Why (purpose) | Lawful basis (GDPR / DPDP) | Kept |
+|---|---|---|---|---|
+| Name, emoji, BlueMob ID, public key | Phone; nearby phones; relay (key, ID) | Talking, delivery, encryption | Contract / consent at sign-up | Until account deleted |
+| Mobile number | Phone; relay has only a scrambled fingerprint; Firebase at sign-up | Verify the person; find SOS contacts by number | Contract / consent | Until deleted |
+| Date of birth, age | Phone | Age check (children's rules) | Legal obligation / consent | Until deleted |
+| **Health: blood group, allergies, conditions, sex** | Phone; inside an SOS to phones nearby and SOS contacts; on the lock-screen card only if turned on (off by default) | Emergency care | **Explicit consent** (GDPR Art. 9(2)(a)); vital interests in an emergency (Art. 9(2)(c)) | Until deleted |
+| Position | Phone; shared only while sharing is on, or in an SOS or rescue | Finding people | Consent; vital interests in an SOS | Trips until deleted by the user |
+| Messages, files, calls | Phones; relay holds sealed copies until delivered | Communication | Contract | Relay: 7 days at most |
+| Trip group: roll-call answers, check-ins (not positions), last heard | Phones of the group | Safety of a group trip | Consent (shown before joining) | Deleted 30 days after the group closes |
+| Join code: who made the group and the code, when, phone model, app version | Inside the code, sealed to the BlueMob admin key | Investigating misuse | Legitimate interests (GDPR Art. 6(1)(f)); DPDP s.7 "legitimate uses" for safety is arguable: get legal advice | As long as the code exists; looked up only on a report |
+| Chat-background code (ID, hourly) | In screenshots | Tracing abusive screenshots | Legitimate interests; disclosed in the policy | Not stored |
+| Reports and error reports | Relay | Fixing problems | Consent (automatic reports can be turned off) | Newest 500 |
+| Admin log (sign-ins, look-ups, IP) | Relay | Accountability, detecting misuse | Legal obligation / legitimate interests | 1 year |
+| Push token | Firebase | Waking the app | Contract | Until deleted |
+
+**Processors:** Google Firebase (authentication, push), Render (hosting, Singapore), Hugging Face (download of the
+offline AI model; nothing personal is sent).
+
+---
+
+## 2. India: DPDP Act 2023 and DPDP Rules 2025
+
+The Rules were notified in November 2025. Most duties apply 18 months later (around May 2027). Check the final Rules
+and any later changes with a lawyer.
 
 | Requirement | Status |
 |---|---|
-| Notice and consent | **Done (0.26):** sign-up asks for agreement to the privacy policy (linked), recorded with the time; existing users are asked once. Health details optional; location, background running and error reports can each be turned off |
-| Purpose limitation and minimisation | Number fingerprint only; health data only in an SOS; location sharing off by default |
-| Right to erasure | **Done:** delete account in the app and on the web |
-| Right to access and correction | **Done (0.26):** Account → Download my data (one JSON file); correction in Account |
-| Grievance officer (DPDP) / contact (GDPR) | **Done (0.26):** `GRIEVANCE_OFFICER` and `CONTACT_EMAIL` on `/privacy`, with response times (7 days to reply, 30 to resolve) |
-| Children (DPDP: under 18 needs verifiable parental consent) | **Done (0.26):** under 13 can't sign up; 13–17 need a parent or guardian to agree; without a date of birth, the user confirms they're 18+ |
-| Breach notification (DPDP: Board and users; GDPR: 72 hours) | **Done (0.26):** `docs/incident-response.md` with steps and templates; News from BlueMob tells users |
-| Data location | `render.yaml` puts the relay in Singapore. DPDP allows transfers except to countries the government restricts; moving to an Indian region or your own server in India is simpler |
-| Health data (GDPR special category) | Explicit, optional, and only shared inside an SOS: matches "vital interests" and consent |
-| Processors (Firebase, Render, Hugging Face) | *Gap:* data processing terms on file |
+| Notice in clear language, in English and Indian languages (s.5; Rules: notice must stand alone and list purposes) | **Done:** policy in English and Hindi; consent at sign-up with a link; trip-group notice before joining (0.36) |
+| Consent: free, specific, withdrawable as easily as given (s.6) | **Done:** each optional thing has its own switch (location, background, error reports, emergency card, helper signals, fall detection, power-button SOS); leaving a trip group withdraws from it |
+| Purpose limitation and minimisation (s.6, s.8) | **Done:** number kept only as a fingerprint; positions never leave the phone for check-ins; health only in an SOS |
+| Erasure when the purpose is served (s.8(7); Rules: tell the person 48 h before erasing, for large platforms) | **Done:** relay messages 7 days; closed trip groups 30 days (the date is shown in the group); field tests 30 days. *Gap:* the 48-hour warning applies only to classes of large platforms; not needed now |
+| Security safeguards, including logs kept a year (s.8(5); Rules) | **Done:** encryption at rest and end to end; admin log kept a year (0.36). *Gap:* relay request logs at the host (Render) aren't kept a year; turn on log export, or keep them on your own server |
+| Breach: tell the Board and each person without delay; detailed report to the Board within 72 hours (Rules) | **Done:** `docs/incident-response.md`, updated to the Rules |
+| Rights: access, correction, erasure, grievance, nominee (s.11–14) | **Done:** Download my data, correction in Account, delete account, grievance officer. *Gap:* nominating someone to act after death or incapacity (s.14): add a "nominee" contact in Account |
+| Children: verifiable consent of a parent for under-18s (s.9; Rules) | **Partly:** under 13 blocked; 13–17 need a parent's agreement in the app. *Gap:* the Rules expect verifiable consent (for example a parent who is a known adult, or a DigiLocker token). Decide before marketing to schools |
+| Grievance officer, published contact | **Done** once `GRIEVANCE_OFFICER` and `CONTACT_EMAIL` are set on Render |
+| Significant Data Fiduciary duties (DPO in India, audits, DPIA) | Not now: applies only if the government notifies BlueMob as one |
+| Data outside India (s.16) | Allowed except to restricted countries. Relay in Singapore; moving to an Indian region is simpler for customers |
 
-## 6. Suggested order
+---
 
-1. **Before Play launch:** done in 0.26 (consent with the policy link, age check, Download my data, grievance officer,
-   incident and breach procedure). Fill in `GRIEVANCE_OFFICER` and `CONTACT_EMAIL` on the server.
-2. **First month:** relay monitoring; relay backups; second relay with failover; CI with dependency scanning.
-3. **Admin web app:** the first version is live at `/admin` (overview, reports with status and notes, news). Next:
-   per-admin accounts with MFA; admin audit log; per-organisation news and roll call. That
-   makes BlueMob an ISO 22301 tool for customers.
-4. **When there's a team or a big customer:** ISO 27001 management system (policies, risk process, internal audit),
-   then external certification.
+## 3. EU: GDPR (only if you offer BlueMob to people in the EU)
+
+| Article | Status |
+|---|---|
+| Art. 5 principles, Art. 25 privacy by design | **Done:** end-to-end encryption, data on the phone, defaults off, retention limits |
+| Art. 6 and 9 lawful basis, explicit consent for health | **Done:** see section 1. Health details are optional; the lock-screen card is off by default |
+| Art. 12–22 rights | **Done:** access and portability (JSON export), correction, erasure, objection by turning features off |
+| Art. 28 processors | *Gap:* keep signed data processing terms from Google (Firebase) and Render |
+| Art. 30 record of processing | **Done:** section 1 of this document |
+| Art. 32 security | **Done:** see ISO 27001 below |
+| Art. 33–34 breach (72 h to the authority) | **Done:** incident procedure |
+| Art. 35 impact assessment (health data; tracking in groups) | **Done (short form):** section 6 |
+| Art. 27 EU representative | *Gap, only if you target the EU:* appoint one |
+| Art. 44–49 transfers | *Gap, only for the EU:* Singapore has no adequacy decision; use standard contractual clauses with Render, or host in the EU |
+
+---
+
+## 4. US: HIPAA (and the FTC Health Breach Notification Rule)
+
+**HIPAA doesn't apply to BlueMob today.** It covers health plans, clearing houses and healthcare providers that bill
+electronically ("covered entities"), and their "business associates". BlueMob is a consumer app that people choose to
+use; it doesn't handle health information for a provider or an insurer.
+
+**When it would apply:** if a hospital, ambulance service or clinic used BlueMob to send patient information on
+its behalf, BlueMob would become a business associate. It would then need a Business Associate Agreement and the
+full HIPAA Security Rule. **Don't offer BlueMob to healthcare providers for patient data until that is in place.**
+
+**What does apply in the US:** the FTC Health Breach Notification Rule covers non-HIPAA apps that hold health
+information, such as blood group and conditions. After a breach of that data, the FTC and the affected people must be
+told. The incident procedure covers it.
+
+**HIPAA Security Rule safeguards already met in practice**, useful if a provider ever asks:
+
+| Safeguard | BlueMob |
+|---|---|
+| Access control, unique user IDs | Key-based IDs; PIN and biometric lock |
+| Audit controls | Tamper-evident audit trail on each phone; admin log on the relay |
+| Integrity | Signed packets; hash-chained audit trail |
+| Authentication | Phone OTP, device keys; admin: password plus TOTP code |
+| Transmission security | End-to-end AES-GCM; HTTPS to the relay |
+| Encryption at rest | Android Keystore-backed AES-GCM |
+
+---
+
+## 5. ISO/IEC 27001:2022 (Annex A)
+
+| Control | Today | Gap |
+|---|---|---|
+| 5.1 Policies | Privacy policy; this document | A one-page information security policy and acceptable use |
+| 5.9 Asset inventory | Code, relay, keys, Firebase, Render, Play Console | One register with owners (include `ADMIN_SEAL_KEY`, `ADMIN_TOTP_SECRET`, Play upload key) |
+| 5.15–5.18 Access control | **0.36:** admin sign-in with TOTP and 8-hour sessions; every admin action logged | Separate accounts per admin (today one token); review the admin log monthly |
+| 5.19–5.23 Suppliers | Firebase, Render, Hugging Face | Signed data processing terms on file |
+| 5.24–5.28 Incidents | Incident procedure; alerts to `ALERT_WEBHOOK`; audit trails | One tabletop exercise a year |
+| 5.29–5.30 Continuity | Mesh works without the relay; user backups | Relay data backup (`DATA_DIR`), second relay |
+| 5.34 Privacy | Sections 1–3 | — |
+| 8.5 Authentication | OTP, device keys, PIN/biometric, admin TOTP, passcode limits (0.36) | — |
+| 8.8 Vulnerabilities | Pinned dependencies; tests | Dependency scanning in CI (OSV or Dependabot); yearly penetration test |
+| 8.10 Deletion | Account deletion; retention (0.36) | — |
+| 8.12 Data leakage | Server never sees content; screenshot code; sealed join codes | — |
+| 8.15–8.16 Logging, monitoring | Audit trail on phones; admin log (0.36) | Uptime monitoring and alerts for the relay |
+| 8.24 Cryptography | AES-GCM, ECDH P-256, ECDSA, HKDF; sealed codes to an admin public key | Written key policy: where `ADMIN_SEAL_KEY` lives, who can see it, how to rotate it (see README 0.34) |
+| 8.25–8.29 Secure development | Unit, screenshot and server tests; lint | CI on every push |
+
+---
+
+## 6. Impact assessment, short form (GDPR Art. 35, ISO 27001 5.34)
+
+| Processing | Risk to people | Measures | Remaining risk |
+|---|---|---|---|
+| Health details in an SOS and on the lock screen | Strangers learn a condition | Optional; sent only in an SOS; lock-screen card off by default with a preview of what shows | Low, accepted for emergency care |
+| Trip groups: check-ins, last heard, roll calls | An admin monitors people too closely (for example an employer) | Notice before joining; no positions sent; leave any time; deleted 30 days after closing | Low |
+| Join codes and screenshot codes identify people | Staff misuse | Sealed to one key on the server; every look-up logged for a year; used only on a report | Low, if the admin log is reviewed |
+| Showing a group nearby | Strangers learn a group's name and its admin's name | Admin turns it on; only phones connected straight to the admin's phone; passcode never sent; guessing limits | Low |
+
+---
+
+## 7. ISO 22301:2019 (business continuity)
+
+**BlueMob as a continuity tool for customers:**
+
+| ISO 22301 need | BlueMob |
+|---|---|
+| Communication when networks fail (8.4.3) | Mesh messages and calls; trip groups |
+| Accounting for people | Roll calls (manual and automatic), check-ins, "last heard", alerts when a phone can't be reached |
+| Plans people can see | Itinerary with checkpoints |
+| Exercises (8.5) | Field test; SOS preview; Check on everyone |
+| Records (7.5) | Audit trail; trip exports; field-test data |
+
+**For BlueMob the service. Gaps:**
+- Business impact analysis. Suggested targets: relay RTO 1 hour, RPO 24 hours.
+- Relay backups and a second relay.
+- A yearly restore test.
+
+**Already true:** losing the relay doesn't stop SOS, mesh messages, roll calls or check-ins between phones in reach.
+
+---
+
+## 8. ISO 31000:2018 (risk register, likelihood and impact from 1 to 5)
+
+| Risk | L | I | Treatment | Owner |
+|---|---|---|---|---|
+| SOS not received (nobody near, no internet) | 3 | 5 | Disclaimer; re-sent to every phone in range; SOS contacts; LoRa plan (`docs/lora.md`) | Product |
+| Phone makers stop BlueMob in the background | 4 | 3 | Battery-saver guidance; field test measures it | Product |
+| Relay down | 3 | 3 | Mesh keeps working; add a second relay and monitoring | Ops |
+| Admin token leaked | 2 | 4 | **0.36:** TOTP second factor, sessions, admin log | Ops |
+| `ADMIN_SEAL_KEY` leaked: join codes readable | 2 | 3 | Only on Render; rotate with a new app version | Ops |
+| Passcode guessed by fake IDs | 2 | 3 | **0.36:** 5 tries a phone, 20 a group, then paused | Product |
+| Trip groups used to monitor people too closely | 2 | 3 | **0.36:** notice before joining; no positions; 30-day deletion | Product |
+| Health data leak | 2 | 5 | On the phone; only in an SOS; encryption | Product |
+| Offline AI gives wrong first aid | 3 | 4 | Guide is the source; warnings; SOS and 112 always shown | Product |
+| Non-compliance (DPDP Rules from 2027) | 2 | 4 | Section 2 gaps, lawyer review | Founder |
+
+Review it every quarter and after any incident.
+
+---
+
+## 9. NIST Cybersecurity Framework 2.0
+
+| Function | Today | Next |
+|---|---|---|
+| **Govern** | This document, privacy policy (EN/HI), risk register with owners | Security policy page; named security owner; supplier terms |
+| **Identify** | Record of processing (section 1), impact assessment (section 6), asset list | Asset register with owners |
+| **Protect** | E2E and at-rest encryption, signed packets, admin TOTP, passcode limits, retention, minimisation | CI with dependency scanning; separate admin accounts |
+| **Detect** | Error reports, webhook alerts, audit trails, admin log, refused admin sign-ins logged | Relay uptime and anomaly alerts |
+| **Respond** | Incident procedure (DPDP Rules, GDPR, FTC), News to all users, account deletion | A yearly tabletop exercise |
+| **Recover** | User backups; mesh without the relay | Relay backups and a tested restore |
+
+---
+
+## 10. What to do next, in order
+
+1. **Now:**
+   - Set `GRIEVANCE_OFFICER`, `CONTACT_EMAIL`, `ADMIN_SEAL_KEY` and `ADMIN_TOTP_SECRET` on Render.
+   - Post a News item: the privacy policy changed (trip groups, join codes, screenshot code). The policy promises this.
+2. **Before Play launch:**
+   - Signed data processing terms with Google and Render.
+   - Relay backups.
+   - Dependency scanning in CI.
+3. **Before selling to schools:** verifiable parental consent (DPDP Rules), then a lawyer's review.
+4. **Before EU users:** an EU representative, and standard contractual clauses or EU hosting.
+5. **Never without a BAA:** healthcare providers sending patient data.
+6. **With a team or a large customer:** an ISO 27001 management system, then external certification.

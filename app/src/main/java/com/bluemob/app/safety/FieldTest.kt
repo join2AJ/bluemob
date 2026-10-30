@@ -70,6 +70,14 @@ class FieldTest(private val file: File, private val now: () -> Long = System::cu
         write(JSONObject().put("k", "got").put("id", parent).put("to", member).put("hops", if (viaInternet) 0 else hops).put("ms", ms))
     }
 
+    /** A finished test's results are erased 30 days after it stopped (storage limitation). */
+    @Synchronized
+    fun purgeIfOld(now: Long) {
+        if (_session.value != null) return
+        val stop = events().lastOrNull { it.kind == "stop" }?.at ?: return
+        if (now - stop >= KEEP_MS) { file.delete(); probes.clear(); _changed.value++ }
+    }
+
     fun events(): List<Event> = runCatching {
         file.readLines().mapNotNull { line -> runCatching { JSONObject(line) }.getOrNull()?.let { Event(it.optLong("t"), it.optString("k"), it) } }
     }.getOrDefault(emptyList())
@@ -93,6 +101,10 @@ class FieldTest(private val file: File, private val now: () -> Long = System::cu
     }
 
     data class Event(val at: Long, val kind: String, val j: JSONObject)
+
+    companion object {
+        const val KEEP_MS = 30 * 24 * 3_600_000L
+    }
 
     /** What a test found. */
     data class Report(

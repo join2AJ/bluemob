@@ -60,4 +60,13 @@ class FieldTestTest {
         t.battery(50, true); minutes(30); t.battery(90, true); minutes(30); t.battery(88, false); minutes(60); t.battery(84, false)
         assertEquals(4.0, t.report().batteryPerHour!!, 0.01)
     }
+
+    @Test fun resultsAreErased30DaysAfterTheTest() {
+        val t = test()
+        t.start(null, 5, "phone"); t.stop()
+        t.purgeIfOld(clock + FieldTest.KEEP_MS - 1)
+        assertTrue(t.events().isNotEmpty())
+        t.purgeIfOld(clock + FieldTest.KEEP_MS)
+        assertTrue(t.events().isEmpty())
+    }
 }

@@ -417,6 +417,37 @@ function sealTripCode(adminPublicHex, adminPart, appPart = {}) {
   return "bluemob:t:" + Buffer.concat([Buffer.from([2, eph.length]), eph, len, a, gcm(appKey, appPart)]).toString("base64url");
 }
 
+// ---- Admin sign-in: a second factor (TOTP, as in Google Authenticator) and a log of what admins do ----
+const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+function base32(s) {
+  let bits = 0, val = 0; const out = [];
+  for (const c of String(s).toUpperCase().replace(/[^A-Z2-7]/g, "")) { val = (val << 5) | B32.indexOf(c); bits += 5; if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; } }
+  return Buffer.from(out);
+}
+/** The 6-digit code for [secret] (base32) at time [t] (ms), RFC 6238 with 30-second steps. */
+function totp(secret, t = Date.now()) {
+  const msg = Buffer.alloc(8); msg.writeBigUInt64BE(BigInt(Math.floor(t / 30e3)));
+  const h = crypto.createHmac("sha1", base32(secret)).update(msg).digest();
+  const o = h[h.length - 1] & 15;
+  return String(((h.readUInt32BE(o) & 0x7fffffff) % 1e6)).padStart(6, "0");
+}
+/** True if [code] is right now, or one step either side (clocks drift). */
+function totpOk(secret, code, t = Date.now()) {
+  const c = String(code || "").replace(/\s/g, "");
+  return /^\d{6}$/.test(c) && [-1, 0, 1].some((d) => totp(secret, t + d * 30e3) === c);
+}
+/** Who did what in the admin pages: kept a year (DPDP Rules keep such logs a year), newest 5000 lines. */
+class AdminLog {
+  constructor(file) { this.file = file; this.lines = []; if (file && fs.existsSync(file)) this.lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean).slice(-5000); }
+  add(entry) {
+    const line = JSON.stringify({ at: Date.now(), ...entry });
+    const yearAgo = Date.now() - 366 * 86400e3;
+    this.lines = [...this.lines, line].filter((l) => { try { return JSON.parse(l).at >= yearAgo; } catch { return false; } }).slice(-5000);
+    if (this.file) try { fs.writeFileSync(this.file, this.lines.join("\n") + "\n"); } catch {}
+  }
+  recent(n = 200) { return this.lines.slice(-n).reverse().map((l) => JSON.parse(l)); }
+}
+
 function alertTeam(url, text) {
   if (!url || !/^https:\/\//.test(url)) return;
   try {
@@ -470,13 +501,22 @@ class Reports {
 
 function createServer(store, guides = loadGuides(), blobs = new Blobs(null), backups = new Backups(null), reports = new Reports(null),
   { news = new Announcements(null), adminToken = reports.token, alertUrl = "", contactEmail = "the contact address on BlueMob's Play Store page",
-    officer = "", liveOnline = () => 0, startedAt = Date.now(), sealKey = "" } = {}) {
+    officer = "", liveOnline = () => 0, startedAt = Date.now(), sealKey = "", totpSecret = "", adminLog = new AdminLog(null) } = {}) {
   // The team: the admin token (or the older reports token), compared in constant time.
-  const isAdmin = (tok) => [adminToken, reports.token].some((want) => {
+  const tokenOk = (tok) => [adminToken, reports.token].some((want) => {
     if (!want || typeof tok !== "string") return false;
     const a = Buffer.from(tok), b = Buffer.from(want);
     return a.length === b.length && crypto.timingSafeEqual(a, b);
   });
+  // Signing in (token, and the 6-digit code when ADMIN_TOTP_SECRET is set) gives an 8-hour session. With a second
+  // factor set, the token alone no longer opens anything.
+  const sessions = new Map();
+  const sessionOk = (tok) => { const exp = typeof tok === "string" && sessions.get(tok); if (exp && exp > Date.now()) return true; if (exp) sessions.delete(tok); return false; };
+  const isAdmin = (tok, what = "admin", ip = "") => {
+    const ok = sessionOk(tok) || (!totpSecret && tokenOk(tok));
+    adminLog.add({ what, ok, ip: String(ip).slice(0, 64) });
+    return ok;
+  };
   const hits = new Map(); // device or IP -> {hour, n}
   const lookups = new Map(); // device|day -> phone lookups
   const limited = (who) => {
@@ -511,7 +551,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
     }
     const rp = url.pathname.match(/^\/v1\/reports(?:\/([^/]+)\/([0-9]))?$/);
     if (reports.dir && rp && req.method === "GET") {
-      if (!isAdmin(url.searchParams.get("token") || req.headers["x-admin-token"])) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      if (!isAdmin(url.searchParams.get("token") || req.headers["x-admin-token"], rp[1] ? "report photo " + rp[1] : "reports", ip)) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
       if (rp[1]) {
         const img = reports.photo(rp[1], rp[2]);
         if (!img) return send(res, 404, { error: "not found" });
@@ -544,7 +584,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         .replaceAll("{{OFFICER}}", officer ? officer + ", " : ""));
     }
     if (req.method === "GET" && url.pathname === "/v1/admin/watermark") {
-      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"), "screenshot lookup", ip)) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
       const at = Number(url.searchParams.get("at")) || Date.parse(url.searchParams.get("at") || "") || Date.now();
       // From the chat's dots (80 characters of 0 and 1, big dot = 1), or a typed code.
       const bits = String(url.searchParams.get("bits") || "");
@@ -552,13 +592,32 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
       return send(res, 200, { matches: watermarkLookup(code, at) });
     }
     if (req.method === "GET" && url.pathname === "/v1/admin/tripcode") {
-      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"), "trip code lookup", ip)) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
       if (!sealKey) return send(res, 503, { error: "ADMIN_SEAL_KEY isn't set on the server" });
       const found = openTripCode(String(url.searchParams.get("code") || "").slice(0, 4000), sealKey);
       return found ? send(res, 200, found) : send(res, 404, { error: "not a trip group code, or made for another key" });
     }
+    if (req.method === "POST" && url.pathname === "/v1/admin/login") {
+      if (limited("admin:" + ip)) return send(res, 429, { error: "slow down" });
+      const chunks = []; let size = 0;
+      req.on("data", (c) => { size += c.length; if (size < 4096) chunks.push(c); });
+      req.on("end", () => {
+        let b = {}; try { b = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch {}
+        const ok = tokenOk(b.token) && (!totpSecret || totpOk(totpSecret, b.otp));
+        adminLog.add({ what: "sign in", ok, ip: String(ip).slice(0, 64) });
+        if (!ok) return send(res, 401, { error: totpSecret ? "token or code" : "token", otp: !!totpSecret });
+        const session = crypto.randomBytes(24).toString("base64url");
+        sessions.set(session, Date.now() + 8 * 3600e3);
+        return send(res, 200, { session, otp: !!totpSecret, expires: Date.now() + 8 * 3600e3 });
+      });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/v1/admin/audit") {
+      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"), "admin log", ip)) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      return send(res, 200, { entries: adminLog.recent(300) });
+    }
     if (req.method === "GET" && url.pathname === "/v1/admin/stats") {
-      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"))) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"), "overview", ip)) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
       const all = reports.dir ? reports.all() : [];
       const day = (t) => new Date(t).toISOString().slice(0, 10);
       const perDay = {};
@@ -575,7 +634,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
       // A phone asking for its own messages signs "bluemob-news|at" with its key; without that, only news for everyone.
       const id = url.searchParams.get("id") || "", at = Number(url.searchParams.get("at")), pk = store.keys.get(id);
       const me = pk && Math.abs(Date.now() - at) < 10 * 60e3 && signer(pk, "bluemob-news|" + at, url.searchParams.get("sig") || "") === id ? id : null;
-      if (url.searchParams.get("all") === "1" && isAdmin(req.headers["x-admin-token"])) return send(res, 200, { items: news.items });
+      if (url.searchParams.get("all") === "1" && isAdmin(req.headers["x-admin-token"], "news list", ip)) return send(res, 200, { items: news.items });
       return send(res, 200, { items: news.since(Number(url.searchParams.get("since")) || 0, me) });
     }
     if (req.method === "GET" && url.pathname === "/v1/guides") {
@@ -689,11 +748,11 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
         return send(res, 200, { ok: true });
       }
       if (url.pathname === "/v1/reports/status") {
-        if (!isAdmin(body.token)) { limited("admin:" + ip); return send(res, 401, { error: "token" }); }
+        if (!isAdmin(body.token, "report status " + String(body.id || "").slice(0, 40), ip)) { limited("admin:" + ip); return send(res, 401, { error: "token" }); }
         return send(res, reports.dir && reports.setStatus(String(body.id || ""), String(body.status || ""), body.note || "") ? 200 : 400, { ok: true });
       }
       if (url.pathname === "/v1/announce") {
-        if (!isAdmin(body.token)) { limited("admin:" + ip); return send(res, 401, { error: "token" }); }
+        if (!isAdmin(body.token, body.remove ? "news removed" : "news sent", ip)) { limited("admin:" + ip); return send(res, 401, { error: "token" }); }
         if (body.remove) { news.remove(String(body.remove)); return send(res, 200, { ok: true }); }
         if (!String(body.title || "").trim() || !String(body.text || "").trim()) return send(res, 400, { error: "title and text" });
         return send(res, 200, { ok: true, item: news.add(body) });
@@ -729,7 +788,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
   });
 }
 
-module.exports = { openTripCode, sealTripCode, wmDecode, wmFromBits, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
+module.exports = { totp, totpOk, AdminLog, openTripCode, sealTripCode, wmDecode, wmFromBits, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);
@@ -746,7 +805,8 @@ if (require.main === module) {
   const server = createServer(store, loadGuides(), blobs, backups, reports,
     { news, adminToken: process.env.ADMIN_TOKEN || process.env.REPORTS_TOKEN || "", alertUrl: process.env.ALERT_WEBHOOK || "",
       contactEmail: process.env.CONTACT_EMAIL || undefined, officer: process.env.GRIEVANCE_OFFICER || "", liveOnline: () => liveCount(),
-      sealKey: (process.env.ADMIN_SEAL_KEY || "").trim() });
+      sealKey: (process.env.ADMIN_SEAL_KEY || "").trim(), totpSecret: (process.env.ADMIN_TOTP_SECRET || "").trim(),
+      adminLog: new AdminLog(path.join(dataDir, "admin-log.jsonl")) });
   let liveCount = () => 0;
   const { createPusher, loadAccount } = require("./push");
   const pusher = createPusher(loadAccount());

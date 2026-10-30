@@ -84,6 +84,16 @@ class AccountViewModel(app: Application) : AndroidViewModel(app) {
             org.json.JSONObject().put("with", c.name).put("bluemobId", c.peer).put("video", c.video).put("outgoing", c.outgoing).put("outcome", c.outcome).put("time", t(c.startedAt)).put("seconds", c.durationS)
         }))
         j.put("trips", org.json.JSONArray(blueMob.trail.allTrips.value.map { tr -> org.json.JSONObject().put("name", tr.name).put("start", t(tr.startedAt)).put("end", tr.endedAt?.let { t(it) } ?: "").put("metres", tr.distanceM.toInt()) }))
+        // Trip groups: your role, the plan, the checkpoints you reached; and field-test results kept on this phone.
+        j.put("tripGroups", org.json.JSONArray(blueMob.groups.groups.value.values.filter { it.trip }.map { g ->
+            val me = identity.nodeId
+            org.json.JSONObject().put("name", g.name).put("id", g.id).put("role", when { g.owner == me -> "admin"; g.captain == me -> "captain"; else -> "member" })
+                .put("team", g.isTeam).put("members", g.members.size + 1).put("created", t(g.createdAt))
+                .put("ends", if (g.expiresAt > 0) t(g.expiresAt) else "").put("closed", g.closedTime(System.currentTimeMillis()).takeIf { it > 0 }?.let { t(it) } ?: "")
+                .put("itinerary", org.json.JSONArray(g.itinerary.map { st -> org.json.JSONObject().put("time", t(st.at)).put("stop", st.title).put("note", st.note).put("checkpoint", st.checkpoint) }))
+                .put("yourCheckIns", org.json.JSONArray(g.checkins.mapNotNull { (stop, who) -> who[me]?.let { at -> org.json.JSONObject().put("stop", g.itinerary.firstOrNull { it.id == stop }?.title ?: stop).put("time", t(at)) } }))
+        }))
+        j.put("fieldTest", blueMob.fieldTest.report().takeIf { it.minutes > 0 }?.summary() ?: "")
         j.put("guidesRead", org.json.JSONObject(com.bluemob.app.guide.GuidePacks.read.value.mapValues { t(it.value) }))
         j.put("auditTrail", org.json.JSONArray(blueMob.audit.entries.first().asReversed().map { a -> org.json.JSONObject().put("time", t(a.time)).put("kind", a.kind).put("text", a.text) }))
         val dir = java.io.File(getApplication<android.app.Application>().cacheDir, "open").apply { mkdirs() }

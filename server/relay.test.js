@@ -376,3 +376,28 @@ test("trip group codes: only the admin's key opens who made the group and when",
   assert.equal((await get("nope", "t0k")).status, 404);
   server.close();
 });
+
+test("admin sign-in: a 6-digit code as a second factor, 8-hour sessions, and every admin action logged", async () => {
+  const { totp, totpOk, AdminLog, createServer, Store } = require("./relay");
+  // RFC 6238 test secret "12345678901234567890" (SHA-1): 94287082 at 59 s, 07081804 at 1111111109 s (last 6 digits).
+  const secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+  assert.equal(totp(secret, 59e3), "287082");
+  assert.equal(totp(secret, 1111111109e3), "081804");
+  assert.ok(totpOk(secret, "287082", 59e3 + 25e3)); // one step of clock drift is fine
+  assert.ok(!totpOk(secret, "287082", 59e3 + 120e3));
+  const log = new AdminLog(null);
+  const server = createServer(new Store(), undefined, undefined, undefined, undefined, { adminToken: "t0k", totpSecret: secret, adminLog: log }).listen(0);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const login = (body) => fetch(base + "/v1/admin/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  // With a second factor set, the token alone opens nothing, and a wrong code is refused.
+  assert.equal((await fetch(base + "/v1/admin/stats", { headers: { "x-admin-token": "t0k" } })).status, 403);
+  assert.equal((await login({ token: "t0k", otp: "000000" })).status, 401);
+  const ok = await login({ token: "t0k", otp: totp(secret) });
+  assert.equal(ok.status, 200);
+  const { session } = await ok.json();
+  assert.equal((await fetch(base + "/v1/admin/stats", { headers: { "x-admin-token": session } })).status, 200);
+  const audit = await (await fetch(base + "/v1/admin/audit", { headers: { "x-admin-token": session } })).json();
+  const whats = audit.entries.map((e) => `${e.what}:${e.ok}`);
+  assert.ok(whats.includes("sign in:true") && whats.includes("sign in:false") && whats.includes("overview:true") && whats.includes("overview:false"));
+  server.close();
+});

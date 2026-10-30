@@ -184,6 +184,7 @@ fun JoinTripScreen(onBack: () -> Unit, onScanned: (String) -> String?, askCamera
                 }
             }
         }
+        item { TripPrivacyNote(Modifier.padding(top = 16.dp)) }
         item { GroupLabel("Or paste a shared code") }
         item {
             OutlinedTextField(pasted, { pasted = it.take(4000) }, placeholder = { Text("bluemob:t:…") }, minLines = 2, maxLines = 4, modifier = Modifier.fillMaxWidth())
@@ -283,7 +284,7 @@ fun TripGroupScreen(
                 role?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.95f), modifier = Modifier.padding(top = 2.dp)) }
                 val total = g.members.size
                 Text(when {
-                    closedAt > 0 -> "Closed ${endFormat.format(java.util.Date(closedAt))}. You can still read it"
+                    closedAt > 0 -> "Closed ${endFormat.format(java.util.Date(closedAt))}. Deleted from this phone ${endFormat.format(java.util.Date(closedAt + TripMeta.KEEP_CLOSED_MS))}"
                     total == 0 -> "Only you so far. Show the code below to the others"
                     roll == null -> "${total + 1} people. Do a roll call to check every phone can be reached"
                     else -> "${roll.reached} of ${roll.members.size} reached · roll call ${ago(now - roll.at)}"
@@ -361,6 +362,7 @@ fun TripGroupScreen(
                 else "A roll call goes to everyone. Each ✓ shows the phone was reached, and how: straight to it, through other phones, or over the internet.",
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 10.dp, start = 4.dp, end = 4.dp))
         }
+        if (!owner) item { TripPrivacyNote(Modifier.padding(top = 12.dp)) }
         if (!g.isTeam && (teams.isNotEmpty() || (owner && closedAt == 0L))) {
             item { GroupLabel("Teams · ${teams.size}") }
             item {
@@ -541,6 +543,8 @@ fun NearbyTripGroups(ads: List<com.bluemob.app.nearby.TripAd>, notes: Map<String
             text = {
                 Column {
                     Text("Ask ${ad.ownerName.ifBlank { "the admin" }} for the passcode and type it here.", style = MaterialTheme.typography.bodyMedium)
+                    Text("The group will see your name, your roll call answers, the checkpoints you reach and when you were last heard from. Never your position.",
+                        style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
                     OutlinedTextField(code, { code = it.filter(Char::isLetterOrDigit).take(12) }, label = { Text("Passcode") }, singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                         modifier = Modifier.padding(top = 10.dp))
@@ -566,5 +570,19 @@ fun NearbyTripGroups(ads: List<com.bluemob.app.nearby.TripAd>, notes: Map<String
                 }
             }
         }
+    }
+}
+
+/**
+ * What a trip group shares about its members, shown before joining (DPDP notice, GDPR transparency) and in the group.
+ */
+@Composable
+fun TripPrivacyNote(modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(Extra.sand).padding(14.dp)) {
+        Text("🔒 What the group sees", style = MaterialTheme.typography.titleSmall)
+        Text("Your name, whether your phone answers roll calls (and how), the checkpoints you reach and when, and when you were last heard from. " +
+            "Your position is never sent: a checkpoint check-in only says you reached it. The admin and captains see this; messages are end-to-end encrypted. " +
+            "You can leave any time, and a closed group is deleted from phones 30 days later.",
+            style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
     }
 }

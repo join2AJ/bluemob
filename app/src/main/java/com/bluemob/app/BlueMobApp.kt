@@ -298,6 +298,7 @@ class BlueMobApp : Application() {
             while (true) {
                 kotlinx.coroutines.delay(60_000)
                 val now = System.currentTimeMillis()
+                fieldTest.purgeIfOld(now)
                 val gs = groups.groups.value
                 com.bluemob.app.chat.TripWatch.due(gs.values, messages.rollCalls.value, identity.nodeId, now, alerted, summarized, location.location.value).forEach { act ->
                     when (act) {
@@ -314,6 +315,7 @@ class BlueMobApp : Application() {
                             messages.rollCalls.value[act.gid]?.let { r -> messages.postRollSummary(act.gid, r) { id -> contacts.contacts.value[id]?.name ?: g.members[id].orEmpty().ifBlank { "someone" } } }
                         }
                         is com.bluemob.app.chat.TripWatch.Act.CheckIn -> messages.checkIn(act.gid, act.stopId, auto = true)
+                        is com.bluemob.app.chat.TripWatch.Act.Purge -> messages.purgeTrip(act.gid)
                         is com.bluemob.app.chat.TripWatch.Act.AskToClose -> {
                             messages.markAskedToClose(act.gid)
                             val g = gs[act.gid] ?: return@forEach

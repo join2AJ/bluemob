@@ -30,14 +30,16 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
 </style></head><body>
 <div id="login" class="card">
   <h1 style="font-size:22px;margin:0 0 6px">BlueMob admin</h1>
-  <p class="muted">Enter the admin token (ADMIN_TOKEN on the server). It stays in this browser tab only.</p>
+  <p class="muted">Enter the admin token (ADMIN_TOKEN on the server), and the 6-digit code from your authenticator app if the
+    server has ADMIN_TOTP_SECRET. You stay signed in for 8 hours, in this browser tab only.</p>
   <input id="tok" type="password" placeholder="Admin token" autocomplete="off">
+  <p></p><input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code (if asked)" autocomplete="one-time-code">
   <p id="loginErr" class="err"></p>
   <button class="btn" id="go">Open</button>
 </div>
 <div id="app" class="hidden">
 <header><b>BlueMob admin</b>
-  <nav><button data-tab="overview" class="on">Overview</button><button data-tab="reports">Reports</button><button data-tab="news">News</button><button data-tab="lookup">Screenshot lookup</button><button data-tab="trip">Trip code</button></nav>
+  <nav><button data-tab="overview" class="on">Overview</button><button data-tab="reports">Reports</button><button data-tab="news">News</button><button data-tab="lookup">Screenshot lookup</button><button data-tab="trip">Trip code</button><button data-tab="log">Admin log</button></nav>
   <button class="ghost btn" id="out">Sign out</button>
 </header>
 <main>
@@ -89,6 +91,13 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
       <div id="tOut"></div>
     </div>
   </section>
+  <section id="log" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0">What admins did</h2>
+      <p class="muted">Every sign-in and admin action, kept for a year. Look-ups of screenshots and trip codes show here too.</p>
+      <div id="logList"></div>
+    </div>
+  </section>
 </main></div>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -105,12 +114,23 @@ async function start() {
   try { await loadOverview(); $("login").classList.add("hidden"); $("app").classList.remove("hidden"); loadReports(); loadNews(); }
   catch (e) { $("loginErr").textContent = e.message === "token" ? "That token isn't right." : "Couldn't reach the server."; sessionStorage.removeItem("bm-admin"); }
 }
-$("go").onclick = () => { token = $("tok").value.trim(); sessionStorage.setItem("bm-admin", token); start(); };
+$("go").onclick = async () => {
+  $("loginErr").textContent = "";
+  try {
+    const r = await fetch("/v1/admin/login", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: $("tok").value.trim(), otp: $("otp").value.trim() }) });
+    const j = await r.json();
+    if (!r.ok) { $("loginErr").textContent = r.status === 429 ? "Too many tries. Wait a while." : j.otp ? "The token or the 6-digit code isn't right." : "That token isn't right."; return; }
+    token = j.session; sessionStorage.setItem("bm-admin", token); start();
+  } catch { $("loginErr").textContent = "Couldn't reach the server."; }
+};
+$("otp").onkeydown = (e) => { if (e.key === "Enter") $("go").click(); };
 $("tok").onkeydown = (e) => { if (e.key === "Enter") $("go").click(); };
 $("out").onclick = () => { sessionStorage.removeItem("bm-admin"); location.reload(); };
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
   document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
-  ["overview", "reports", "news", "lookup", "trip"].forEach((t) => $(t).classList.toggle("hidden", t !== b.dataset.tab));
+  if (b.dataset.tab === "log") loadLog();
+  ["overview", "reports", "news", "lookup", "trip", "log"].forEach((t) => $(t).classList.toggle("hidden", t !== b.dataset.tab));
 });
 
 const wBits = Array(80).fill(0);
@@ -148,6 +168,14 @@ $("tGo").onclick = async () => {
       row("Trip ends", j.expiresAt ? when(j.expiresAt) : "no end set");
   } catch (e) { $("tMsg").textContent = e.message === "token" ? "Sign in again." : "Couldn't reach the server."; }
 };
+
+async function loadLog() {
+  try {
+    const r = await api("/v1/admin/audit");
+    $("logList").innerHTML = r.entries.map((e) => `<p style="margin:6px 0"><span class="muted">${esc(when(e.at))}</span> · <b>${esc(e.what)}</b> ·
+      ${e.ok ? "allowed" : '<span class="err">refused</span>'} <span class="muted">· ${esc(e.ip)}</span></p>`).join("") || "<p class='muted'>Nothing yet.</p>";
+  } catch (e) { $("logList").textContent = e.message === "token" ? "Sign in again." : "Couldn't reach the server."; }
+}
 
 async function loadOverview() {
   const s = await api("/v1/admin/stats");

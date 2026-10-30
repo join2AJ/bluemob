@@ -221,6 +221,14 @@ class MessageRepository(
         send(gid, note)
     }
 
+    /** Deletes a trip group that closed long ago from this phone: its chat, itinerary and check-ins. */
+    fun purgeTrip(gid: String) {
+        val g = groups?.get(gid)?.takeIf { it.trip } ?: return
+        groups.remove(gid)
+        scope.launch { dao.deleteChat(gid) }
+        record(AuditKind.APP, gid, "Trip group \"${g.name}\" deleted from this phone, 30 days after it closed")
+    }
+
     /** This phone asked the admin whether to close [gid]; don't ask again (unless the end time changes). */
     fun markAskedToClose(gid: String) { groups?.get(gid)?.let { groups.put(it.copy(askedToClose = true)) } }
 
@@ -294,6 +302,15 @@ class MessageRepository(
             dao.insert(carrier(owner, wire, "", System.currentTimeMillis()))
             deliverAll()
         }
+    }
+
+    /** Wrong passcodes for one group, from any phones: after 20 in an hour, the group stops taking passcodes. */
+    private val groupWrong = HashMap<String, MutableList<Long>>()
+    private fun groupTries(gid: String, now: Long, count: Boolean): Boolean {
+        val l = groupWrong.getOrPut(gid) { mutableListOf() }
+        l.removeAll { now - it > 3_600_000 }
+        if (count) l += now
+        return l.size < 20
     }
 
     /** Wrong passcodes: at most 5 tries an hour from one phone. */
@@ -478,8 +495,16 @@ class MessageRepository(
                 val why = when {
                     !known.isOwner(myId) -> return
                     !tryPasscode(e.fromNodeId, now) -> "Too many wrong passcodes. Try again in an hour."
+                    !groupTries(gid, now, count = false) -> "This group isn't taking passcodes right now. Ask the admin for its code."
                     !known.advertise || known.passcode.isBlank() -> "This group isn't taking passcodes right now. Ask the admin for its code."
-                    rich.passcode != known.passcode -> "Wrong passcode. Ask the admin again."
+                    rich.passcode != known.passcode -> "Wrong passcode. Ask the admin again.".also {
+                        // Many wrong tries for one group (from any phones): stop taking passcodes, and tell the admin.
+                        if (!groupTries(gid, now, count = true)) {
+                            groups.put(known.copy(advertise = false))
+                            dao.insert(MessageEntity(id = newId(), peer = gid, fromMe = true, createdAt = now, status = MessageStatus.LOCAL, sender = myId,
+                                text = "🔒 Joining by passcode is paused: too many wrong passcodes in an hour. Turn \"Show to people nearby\" on again; it gets a new passcode."))
+                        }
+                    }
                     else -> null
                 }
                 if (why != null || known.isClosed(now) || known.members.size >= Rich.MAX_MEMBERS - 1) {
