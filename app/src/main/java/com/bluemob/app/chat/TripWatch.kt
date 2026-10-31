@@ -8,6 +8,10 @@ package com.bluemob.app.chat
 object TripWatch {
     /** A phone that hasn't answered a roll call this long counts as unreachable. */
     const val UNREACHABLE_AFTER_MS = 3 * 60_000L
+    /** A checkpoint is overdue this long after its planned time (and stops being checked 12 hours later). */
+    const val OVERDUE_MS = 30 * 60_000L
+    /** Buddies out of touch this long: each is told; after twice as long, the group (and so its admin) is told. */
+    const val BUDDY_APART_MS = 20 * 60_000L
 
     sealed interface Act {
         data class RollCall(val gid: String) : Act
@@ -18,13 +22,23 @@ object TripWatch {
         data class Summary(val gid: String, val rollId: String) : Act
         /** The trip ended long enough ago: erase its check-ins from this phone (the group and chat stay). */
         data class ForgetCheckIns(val gid: String) : Act
+        /** [ids] haven't checked in at checkpoint [stopId], [OVERDUE_MS] after its planned time. Key: once per stop. */
+        data class Overdue(val gid: String, val stopId: String, val ids: List<String>) : Act {
+            val key get() = "overdue:$gid:$stopId"
+        }
+        /** Our buddy hasn't been in touch for [minutes]; [tellGroup] once it's been long enough to tell the admin. */
+        data class BuddyApart(val gid: String, val buddy: String, val minutes: Long, val since: Long, val tellGroup: Boolean) : Act {
+            val key get() = "buddy:$gid:$buddy:$since:${if (tellGroup) "group" else "me"}"
+        }
         /** We're at checkpoint [stopId] (by location). */
         data class CheckIn(val gid: String, val stopId: String) : Act
     }
 
     /** [alerted]: roll calls we already sounded an alert for. */
     fun due(groups: Collection<ChatGroup>, rolls: Map<String, RollCall>, me: String, now: Long, alerted: Set<String>,
-        summarized: Set<String> = emptySet(), here: com.bluemob.app.contacts.GeoPoint? = null): List<Act> = buildList {
+        summarized: Set<String> = emptySet(), here: com.bluemob.app.contacts.GeoPoint? = null,
+        /** When we were last in touch with someone (nearby, a message, online); 0 if never. */
+        lastContact: (String) -> Long = { 0L }): List<Act> = buildList {
         groups.filter { it.trip && it.checkins.isNotEmpty() }.forEach { g ->
             g.closedTime(now).takeIf { it > 0 && now - it >= TripMeta.CHECKINS_KEPT_MS }?.let { add(Act.ForgetCheckIns(g.id)) }
         }
@@ -38,6 +52,21 @@ object TripWatch {
                 }
             }
             if (g.isOwner(me) && !g.isTeam && g.expiresAt in 1..now && !g.askedToClose) add(Act.AskToClose(g.id))
+            // Overdue at a checkpoint: for the admin or captain, once per checkpoint, up to 12 hours after it was due.
+            if (g.canManage(me)) g.itinerary.filter { it.checkpoint && now - it.at in OVERDUE_MS..(12 * 3_600_000L) }.forEach { s ->
+                val missing = g.members.keys.filter { g.checkins[s.id]?.containsKey(it) != true }
+                val act = Act.Overdue(g.id, s.id, missing)
+                if (missing.isNotEmpty() && act.key !in alerted) add(act)
+            }
+            // My buddy: out of touch for a while (we must have been in touch since the trip began).
+            g.buddies[me]?.takeIf { it in g.members }?.let { buddy ->
+                val last = lastContact(buddy)
+                if (last >= g.createdAt && now - last >= BUDDY_APART_MS) {
+                    val tell = now - last >= 2 * BUDDY_APART_MS
+                    val act = Act.BuddyApart(g.id, buddy, (now - last) / 60_000, last, tell)
+                    if (act.key !in alerted) add(act)
+                }
+            }
             if (g.isTeam && g.captain == me && !g.isOwner(me) && roll != null && roll.messageId !in summarized && now - roll.at >= UNREACHABLE_AFTER_MS)
                 add(Act.Summary(g.id, roll.messageId))
             // Checkpoints with a place: a fresh, accurate enough position inside the circle checks us in.

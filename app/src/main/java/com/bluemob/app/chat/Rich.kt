@@ -46,6 +46,12 @@ data class Rich(
     val passcode: String? = null,
     /** The admin says no to a join (wrong passcode, or the group is full or closed): why. */
     val denied: String? = null,
+    /** New buddy pairs ([ChatGroup.canPlan] only), and when they were set. */
+    val buddies: Map<String, String>? = null, val buddiesAt: Long = 0,
+    /** This group message is an announcement to acknowledge. */
+    val announce: Boolean = false,
+    /** "Got it" to announcement [ack] (sent to whoever announced it). */
+    val ack: String? = null,
 ) {
     fun encode(): String {
         val j = JSONObject()
@@ -66,11 +72,14 @@ data class Rich(
         checkIn?.let { j.put("ci", it).put("cia", checkInAt) }
         passcode?.let { j.put("pc", it) }
         denied?.let { j.put("dn", it) }
+        buddies?.let { b -> j.put("bd", JSONObject(b as Map<*, *>)).put("ba", buddiesAt) }
+        if (announce) j.put("an", 1)
+        ack?.let { j.put("ak", it) }
         env?.let { j.put("rm", it) }
         return MARK + j.toString()
     }
 
-    val isControl: Boolean get() = react != null || leave || env != null || join || denied != null
+    val isControl: Boolean get() = react != null || leave || env != null || join || denied != null || ack != null
 
     companion object {
         /** Invisible separator, then JSON. Plain messages never start with it. */
@@ -104,6 +113,8 @@ data class Rich(
                 checkIn = j.optString("ci").takeIf { it.isNotBlank() && it.length <= 40 }, checkInAt = j.optLong("cia"),
                 passcode = if (j.has("pc")) j.optString("pc").take(12) else null,
                 denied = if (j.has("dn")) j.optString("dn").take(120) else null,
+                buddies = j.optJSONObject("bd")?.let { o -> o.keys().asSequence().take(MAX_MEMBERS).associateWith { o.optString(it) }.filter { (a, b) -> a.length <= 16 && b.length <= 16 && b.isNotBlank() } },
+                buddiesAt = j.optLong("ba"), announce = j.optInt("an") == 1, ack = j.optString("ak").takeIf { it.isNotBlank() && it.length <= 40 },
             )
         }
 
@@ -140,6 +151,10 @@ data class ChatGroup(
     val checkins: Map<String, Map<String, Long>> = emptyMap(),
     /** Admin's phone only: show this group to phones nearby, and the passcode they type to join. Never sent. */
     val advertise: Boolean = false, val passcode: String = "",
+    /** Buddy pairs: each member → their buddy (both ways). Set by whoever plans the group. */
+    val buddies: Map<String, String> = emptyMap(), val buddiesAt: Long = 0,
+    /** Announcements from the admin or a captain, newest last, and who said "Got it" to each (announcer's phone). */
+    val announcements: List<Announcement> = emptyList(), val acks: Map<String, Map<String, Long>> = emptyMap(),
 ) {
     /** Who may set the itinerary: the admin, and a team's captain for the team. */
     fun canPlan(id: String) = isOwner(id) || (isTeam && captain.isNotBlank() && captain == id) || (trip && owner.isBlank())
@@ -213,7 +228,9 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
             o.getString("id") to ChatGroup(o.getString("id"), o.optString("n"), m, o.optLong("at"), o.optBoolean("tr"),
                 o.optString("ow"), o.optString("pa"), o.optString("cp"), o.optLong("ex"), o.optLong("cl"), o.optInt("am"), o.optBoolean("ask"),
                 o.optJSONArray("it")?.let(Stop::fromJson).orEmpty(), o.optLong("ia"), Stop.checkinsFromJson(o.optJSONObject("ci")),
-                o.optBoolean("ad"), o.optString("pc"))
+                o.optBoolean("ad"), o.optString("pc"),
+                o.optJSONObject("bd")?.let { b -> b.keys().asSequence().associateWith { b.optString(it) } }.orEmpty(), o.optLong("ba"),
+                o.optJSONArray("an")?.let(Announcement::fromJson).orEmpty(), Stop.checkinsFromJson(o.optJSONObject("ak")))
         }
     }.getOrDefault(emptyMap())
 
@@ -222,7 +239,8 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
         val a = JSONArray()
         _groups.value.values.forEach { g -> a.put(JSONObject().put("id", g.id).put("n", g.name).put("at", g.createdAt).put("m", JSONObject(g.members as Map<*, *>)).put("tr", g.trip)
             .put("ow", g.owner).put("pa", g.parent).put("cp", g.captain).put("ex", g.expiresAt).put("cl", g.closedAt).put("am", g.autoMin).put("ask", g.askedToClose)
-            .put("it", Stop.toJson(g.itinerary)).put("ia", g.itineraryAt).put("ci", Stop.checkinsToJson(g.checkins)).put("ad", g.advertise).put("pc", g.passcode)) }
+            .put("it", Stop.toJson(g.itinerary)).put("ia", g.itineraryAt).put("ci", Stop.checkinsToJson(g.checkins)).put("ad", g.advertise).put("pc", g.passcode)
+            .put("bd", JSONObject(g.buddies as Map<*, *>)).put("ba", g.buddiesAt).put("an", Announcement.toJson(g.announcements)).put("ak", Stop.checkinsToJson(g.acks))) }
         prefs.edit().putString(KEY, a.toString()).apply()
     }
 
@@ -230,5 +248,16 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
         const val PREFIX = "g-"
         private const val KEY = "groups"
         fun isGroup(peer: String) = peer.startsWith(PREFIX)
+    }
+}
+
+/** An announcement in a trip group, to be acknowledged ("Got it"). */
+data class Announcement(val id: String, val text: String, val at: Long, val by: String) {
+    companion object {
+        const val KEEP = 20
+        fun toJson(l: List<Announcement>) = JSONArray().apply { l.forEach { put(JSONObject().put("i", it.id).put("t", it.text).put("a", it.at).put("b", it.by)) } }
+        fun fromJson(a: JSONArray) = (0 until a.length()).mapNotNull { i ->
+            a.optJSONObject(i)?.let { o -> Announcement(o.optString("i"), o.optString("t").take(1000), o.optLong("a"), o.optString("b")) }?.takeIf { it.id.isNotBlank() }
+        }.takeLast(KEEP)
     }
 }

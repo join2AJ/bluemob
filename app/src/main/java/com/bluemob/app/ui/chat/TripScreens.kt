@@ -205,6 +205,7 @@ class TripActions(
     val onKeepOpen: () -> Unit = {}, val onClose: () -> Unit = {}, val onNewTeam: () -> Unit = {}, val onOpenGroup: (String) -> Unit = {},
     val onAdd: (Map<String, String>) -> Unit = {},
     val onItinerary: () -> Unit = {}, val onShowNearby: (Boolean) -> Unit = {}, val onNewPasscode: () -> Unit = {},
+    val onAnnounce: (String) -> Unit = {}, val onAck: (String) -> Unit = {}, val onBuddies: () -> Unit = {},
 )
 
 /**
@@ -229,11 +230,30 @@ fun TripGroupScreen(
     val closedAt = g.closedTime(now)
     val owner = g.isOwner(myId)
     val manage = g.canManage(myId) && closedAt == 0L
-    val nameOf = { id: String -> people.firstOrNull { it.nodeId == id }?.name ?: g.members[id].orEmpty().ifBlank { main?.members?.get(id).orEmpty().ifBlank { "Someone" } } }
+    val nameOf = { id: String -> if (id == myId) "You" else people.firstOrNull { it.nodeId == id }?.name ?: g.members[id].orEmpty().ifBlank { main?.members?.get(id).orEmpty().ifBlank { "Someone" } } }
     var showCode by rememberSaveable { mutableStateOf(g.members.isEmpty()) }
     var leaving by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
+    var announcing by remember { mutableStateOf(false) }
+    // People, the plan, and settings (for the admin or captain) or more (for everyone else).
+    var tab by rememberSaveable { mutableStateOf(0) }
+    if (announcing) {
+        var text by remember { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { announcing = false },
+            title = { Text("📣 Announce to everyone") },
+            text = {
+                Column {
+                    Text("Everyone gets it with a \"Got it\" button, and you see who has.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    OutlinedTextField(text, { text = it.take(1000) }, placeholder = { Text("e.g. Bus leaves at 6:00. Bring rain jackets") }, minLines = 3,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
+            },
+            confirmButton = { TextButton(onClick = { a.onAnnounce(text); announcing = false }, enabled = text.isNotBlank()) { Text("Send") } },
+            dismissButton = { TextButton(onClick = { announcing = false }) { Text("Cancel") } },
+        )
+    }
     if (leaving) androidx.compose.material3.AlertDialog(
         onDismissRequest = { leaving = false },
         title = { Text("Leave the trip group?") },
@@ -291,13 +311,16 @@ fun TripGroupScreen(
                 }, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.padding(top = 4.dp))
                 if (g.autoMin > 0 && closedAt == 0L) Text("⏱ Automatic roll call every ${g.autoMin} min", style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.85f), modifier = Modifier.padding(top = 2.dp))
-                Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowRow(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (manage) Surface(onClick = a.onRollCall, enabled = total > 0, shape = RoundedCornerShape(50), color = Color.White) {
-                        Text("📋 Roll call", style = MaterialTheme.typography.labelLarge, color = Palette.BrandBlue, modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp))
+                        Text("📋 Roll call", style = MaterialTheme.typography.labelLarge, color = Palette.BrandBlue, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
+                    }
+                    if (manage) Surface(onClick = { announcing = true }, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
+                        Text("📣 Announce", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
                     }
                     Surface(onClick = a.onOpenChat, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
                         Text(if (g.isTeam) "💬 Team chat" else "💬 Group chat", style = MaterialTheme.typography.labelLarge, color = Color.White,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp))
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
                     }
                 }
             }
@@ -314,7 +337,13 @@ fun TripGroupScreen(
                 }
             }
         }
+        g.announcements.lastOrNull()?.let { ann -> item { AnnouncementCard(g, ann, myId, nameOf, now, a.onAck) } }
+        item {
+            com.bluemob.app.ui.components.Segmented(listOf("People", "Plan", if (manage || owner) "Settings" else "More"), tab, Modifier.padding(top = 14.dp)) { tab = it }
+        }
+        if (tab == 1) {
         if (g.itinerary.isNotEmpty() || g.canPlan(myId)) item { ItineraryCard(g, myId, now, a.onItinerary) }
+        if (g.buddies.isNotEmpty() || (g.canPlan(myId) && closedAt == 0L)) item { BuddyCard(g, myId, nameOf, a.onBuddies) }
         if (invite != null && closedAt == 0L) {
             item { GroupLabel("Join code") }
             item {
@@ -344,14 +373,17 @@ fun TripGroupScreen(
                 }
             }
         }
+        if (!g.isTeam && closedAt == 0L) item { Steps() }
+        }
+        if (tab == 0) {
         item { GroupLabel("People · ${g.members.size + 1}") }
         item {
             Group {
-                MemberRow("You", null, myId, null, null, roleOf(g, myId, teams), self = true, divider = false) {}
+                MemberRow("You", null, myId, null, null, roleOf(g, myId, teams), self = true, divider = false, buddy = g.buddies[myId]?.let(nameOf)) {}
                 g.members.entries.sortedBy { (id, _) -> rank(roll?.members?.get(id)) }.forEach { (id, name) ->
                     val p = people.firstOrNull { it.nodeId == id }
                     MemberRow(p?.name ?: name.ifBlank { "Someone" }, p?.avatar, id, p, roll?.members?.get(id), roleOf(g, id, teams), divider = true,
-                        heard = lastHeard[id]?.let { (at, how) -> "Last heard ${ago(now - at)} · $how" }) { a.onPerson(id) }
+                        heard = lastHeard[id]?.let { (at, how) -> "Last heard ${ago(now - at)} · $how" }, buddy = g.buddies[id]?.let(nameOf)) { a.onPerson(id) }
                 }
                 if (manage && g.isTeam && main != null) SettingRow(null, Palette.BrandBlue, "+ Add people from ${main.name}", null, divider = true, onClick = { adding = true })
             }
@@ -362,7 +394,6 @@ fun TripGroupScreen(
                 else "A roll call goes to everyone. Each ✓ shows the phone was reached, and how: straight to it, through other phones, or over the internet.",
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 10.dp, start = 4.dp, end = 4.dp))
         }
-        if (!owner) item { TripPrivacyNote(Modifier.padding(top = 12.dp)) }
         if (!g.isTeam && (teams.isNotEmpty() || (owner && closedAt == 0L))) {
             item { GroupLabel("Teams · ${teams.size}") }
             item {
@@ -376,6 +407,8 @@ fun TripGroupScreen(
                 }
             }
         }
+        }
+        if (tab == 2) {
         if (manage) {
             item { GroupLabel("Automatic roll call") }
             item {
@@ -414,13 +447,110 @@ fun TripGroupScreen(
                     }
                 }
             }
-            if (!g.isTeam) item { Steps() }
         }
+        if (!owner) item { TripPrivacyNote(Modifier.padding(top = 12.dp)) }
         if (owner && !g.isTeam && closedAt == 0L) item {
             OutlinedButton(onClick = { closing = true }, Modifier.fillMaxWidth().padding(top = 20.dp)) { Text("End the trip") }
         }
         item {
             OutlinedButton(onClick = { leaving = true }, Modifier.fillMaxWidth().padding(top = 10.dp)) { Text(if (g.isTeam) "Leave the team" else "Leave the trip group", color = Extra.rose) }
+        }
+        }
+    }
+}
+
+/** The latest announcement: "Got it" for everyone; for whoever sent it, who has and who hasn't. */
+@Composable
+private fun AnnouncementCard(g: ChatGroup, ann: com.bluemob.app.chat.Announcement, myId: String, nameOf: (String) -> String, now: Long, onAck: (String) -> Unit) {
+    val acked = g.acks[ann.id].orEmpty()
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(MaterialTheme.shapes.large).background(Palette.BrandBlue.copy(alpha = 0.14f)).padding(14.dp)) {
+        Text("📣 ${if (ann.by == myId) "You" else nameOf(ann.by)} · ${ago(now - ann.at)}", style = MaterialTheme.typography.labelMedium, color = Palette.BrandBlue)
+        RawText(ann.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 4.dp))
+        if (ann.by == myId) {
+            val everyone = g.members.keys
+            val got = everyone.count { it in acked }
+            Text("👍 $got of ${everyone.size} got it" + if (got < everyone.size) " · tap to see who hasn't" else "", style = MaterialTheme.typography.bodySmall,
+                color = if (got == everyone.size) Palette.Success else Extra.ink2, modifier = Modifier.padding(top = 6.dp).clickable { open = !open })
+            if (open) RawText(everyone.filter { it !in acked }.joinToString { nameOf(it) }, style = MaterialTheme.typography.bodySmall, color = Extra.rose)
+        } else if (myId in acked) Text("✓ You said got it", style = MaterialTheme.typography.bodySmall, color = Palette.Success, modifier = Modifier.padding(top = 6.dp))
+        else Chip("👍 Got it", true) { onAck(ann.id) }
+    }
+}
+
+/** Buddy pairs on the Plan tab: your buddy, how many pairs, and setting them up. */
+@Composable
+private fun BuddyCard(g: ChatGroup, myId: String, nameOf: (String) -> String, onOpen: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).clickable(onClick = onOpen).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("🤝", style = MaterialTheme.typography.titleLarge)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text("Buddy pairs", style = MaterialTheme.typography.titleMedium)
+                Text(when {
+                    g.buddies[myId] != null -> "Your buddy: ${nameOf(g.buddies.getValue(myId))} · ${g.buddies.size / 2} pairs"
+                    g.buddies.isEmpty() -> "Pair people up: each phone tells its owner if their buddy drifts away"
+                    else -> "${g.buddies.size / 2} pairs"
+                }, style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+            }
+            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+/** Set buddy pairs: tap two people to pair them, or pair everyone in order. Whoever plans the group. */
+@Composable
+fun BuddiesScreen(g: ChatGroup, myId: String, myName: String, nameOf: (String) -> String, onSave: (List<Pair<String, String>>) -> Unit, onBack: () -> Unit) {
+    val everyone = remember(g.members) { listOf(myId) + g.members.keys }
+    val canPlan = g.canPlan(myId) && !g.isClosed(System.currentTimeMillis())
+    var pairs by remember(g.buddiesAt) { mutableStateOf(g.buddies.entries.filter { it.key < it.value }.map { it.key to it.value }) }
+    var picking by remember { mutableStateOf<String?>(null) }
+    val paired = pairs.flatMap { listOf(it.first, it.second) }.toSet()
+    val name = { id: String -> if (id == myId) "$myName (you)" else nameOf(id) }
+    SubScreen("Buddy pairs", onBack) {
+        item {
+            Text(if (canPlan) "Tap one person, then their buddy. Each phone tells its owner if their buddy's phone hasn't been near for 20 minutes, and tells the group after 40."
+                else "Set by the group's admin. Your phone tells you if your buddy's phone hasn't been near for 20 minutes.",
+                style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(vertical = 12.dp))
+        }
+        if (pairs.isNotEmpty()) {
+            item { GroupLabel("Pairs · ${pairs.size}") }
+            item {
+                Group {
+                    pairs.forEachIndexed { i, (x, y) ->
+                        if (i > 0) androidx.compose.material3.HorizontalDivider(color = Extra.line)
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RawText("${name(x)}  🤝  ${name(y)}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            if (canPlan) TextButton(onClick = { pairs = pairs - (x to y) }) { Text("Remove") }
+                        }
+                    }
+                }
+            }
+        }
+        if (canPlan) {
+            val left = everyone.filter { it !in paired }
+            if (left.isNotEmpty()) {
+                item { GroupLabel(if (picking == null) "Not paired · ${left.size}" else "Pick ${name(picking!!)}'s buddy") }
+                item {
+                    Group {
+                        left.forEachIndexed { i, id ->
+                            if (i > 0) androidx.compose.material3.HorizontalDivider(color = Extra.line)
+                            Row(Modifier.fillMaxWidth().background(if (picking == id) Palette.BrandBlue.copy(alpha = 0.14f) else Color.Transparent).clickable {
+                                val p = picking
+                                picking = when { p == null -> id; p == id -> null; else -> { pairs = pairs + (p to id); null } }
+                            }.padding(horizontal = 14.dp, vertical = 12.dp)) { RawText(name(id), style = MaterialTheme.typography.bodyLarge) }
+                        }
+                    }
+                }
+                item {
+                    OutlinedButton(onClick = { pairs = pairs + left.chunked(2).filter { it.size == 2 }.map { it[0] to it[1] }; picking = null },
+                        enabled = left.size >= 2, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Pair the rest in order") }
+                }
+                if (left.size % 2 == 1 && left.size > 1) item {
+                    Text("One person will be left without a buddy: add them to a pair's team, or pair them with you.", style = MaterialTheme.typography.bodySmall,
+                        color = Extra.ink3, modifier = Modifier.padding(top = 6.dp, start = 4.dp))
+                }
+            }
+            item { Button(onClick = { onSave(pairs) }, Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Save and send to everyone") } }
         }
     }
 }
@@ -488,7 +618,7 @@ private fun ago(ms: Long): String = when {
 
 @Composable
 private fun MemberRow(name: String, avatar: String?, id: String, p: Person?, reach: Reach?, role: String? = null, self: Boolean = false, divider: Boolean,
-    heard: String? = null, onClick: () -> Unit) {
+    heard: String? = null, buddy: String? = null, onClick: () -> Unit) {
     Column {
         if (divider) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 66.dp), color = Extra.line)
         Row(Modifier.fillMaxWidth().then(if (self) Modifier else Modifier.clickable(onClick = onClick))
@@ -503,6 +633,7 @@ private fun MemberRow(name: String, avatar: String?, id: String, p: Person?, rea
                 Text(if (self) "This phone" else reachText(reach), style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
                 // Not reached now: when we last heard from them tells the admin where to look (a team on its own path).
                 if (!self && heard != null && (reach == null || reach == Reach.Waiting)) Text(heard, style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
+                buddy?.let { RawText("🤝 $it", style = MaterialTheme.typography.bodySmall, color = Extra.ink3) }
             }
             if (!self) ReachDot(reach)
         }

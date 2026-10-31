@@ -36,6 +36,20 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.37: trip tabs, trip mode, overdue alerts, buddy pairs, announcements
+
+- **Trip group screen in tabs:** People, Plan, and Settings (admin or captain) or More (everyone else). The heading
+  card, the latest announcement and "the trip has ended" stay above the tabs.
+- **Trip mode on Nearby:** during a trip, the top card shows the last roll call, the next stop, any overdue
+  checkpoints and your buddy, with Roll call (admin or captain), Chat and SOS buttons.
+- **Overdue at a checkpoint:** 30 minutes after a checkpoint's planned time, the admin's or captain's phone rings if
+  people haven't checked in, naming them. Once per checkpoint, up to 12 hours after it was due.
+- **Buddy pairs:** the admin (or a team's captain) pairs people up (tap two people, or pair the rest in order). If a
+  buddy's phone hasn't been near for 20 minutes, your phone tells you; after 40 minutes it tells the group, so the
+  admin knows. Everyone sees their buddy in the people list and on the trip card.
+- **Announcements with "Got it":** the admin or a captain taps 📣 Announce. Everyone gets it in the chat and at the
+  top of the trip screen with a "👍 Got it" button. The sender sees "10 of 12 got it", and who hasn't.
+
 ## Android 0.36: chat dates, and a privacy and security audit
 
 - **Chat dates:** each day starts with its own label (Today, Yesterday, a weekday, or the date). Before, every chat showed

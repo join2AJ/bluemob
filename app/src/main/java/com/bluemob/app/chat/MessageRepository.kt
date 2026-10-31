@@ -278,6 +278,48 @@ class MessageRepository(
         }
     }
 
+    /** Sets buddy pairs (each pair both ways) and sends them to everyone. Whoever plans the group (admin; captain for a team). */
+    fun setBuddies(gid: String, pairs: List<Pair<String, String>>) {
+        val store = groups ?: return
+        val g = store.get(gid)?.takeIf { it.trip && it.canPlan(me().first) } ?: return
+        val now = System.currentTimeMillis()
+        val map = pairs.flatMap { (a, b) -> listOf(a to b, b to a) }.toMap()
+        store.put(g.copy(buddies = map, buddiesAt = now))
+        scope.launch {
+            sendToGroup(gid, if (pairs.isEmpty()) "🤝 Buddy pairs cleared" else "🤝 Buddy pairs set: ${pairs.size}. Stay with your buddy; your phone tells you if you drift apart", "", now) {
+                it.copy(buddies = map, buddiesAt = now)
+            }
+        }
+    }
+
+    /** An announcement everyone is asked to acknowledge ("Got it"); the admin or a captain. */
+    fun announce(gid: String, text: String) {
+        val g = groups?.get(gid)?.takeIf { it.trip && it.canManage(me().first) } ?: return
+        val clean = text.trim().take(1000).ifBlank { return }
+        scope.launch {
+            val now = System.currentTimeMillis()
+            val (id, _) = sendToGroup(gid, "📣 $clean", "", now) { it.copy(announce = true) } ?: return@launch
+            groups.get(gid)?.let { cur -> groups.put(cur.copy(announcements = (cur.announcements + Announcement(id, clean, now, me().first)).takeLast(Announcement.KEEP))) }
+            record(AuditKind.MESSAGE, gid, "Announcement $id to ${g.name}: \"${clean.take(80)}\"")
+        }
+    }
+
+    /** "Got it" to an announcement: kept here, and told to whoever announced it. */
+    fun ack(gid: String, annId: String) {
+        val store = groups ?: return
+        val g = store.get(gid) ?: return
+        val ann = g.announcements.firstOrNull { it.id == annId } ?: return
+        val (myId, _) = me()
+        if (g.acks[annId]?.containsKey(myId) == true) return
+        val now = System.currentTimeMillis()
+        store.put(g.copy(acks = g.acks + (annId to (g.acks[annId].orEmpty() + (myId to now)))))
+        if (ann.by == myId) return
+        scope.launch {
+            dao.insert(carrier(ann.by, Rich(group = gid, groupName = g.name, ack = annId).encode(), "", now))
+            deliverAll()
+        }
+    }
+
     /** "I reached this checkpoint": saved here, and told to the group (it gets there when the group is in reach). */
     fun checkIn(gid: String, stopId: String, auto: Boolean = false) {
         val store = groups ?: return
@@ -523,6 +565,11 @@ class MessageRepository(
             sendToGroup(gid, if (isNew) "👋 $name joined the trip group" else "👋 $name is back in the trip group", "", now, extra = withPlan)
             return
         }
+        if (gid != null && groups != null && rich.ack != null) {
+            groups.get(gid)?.let { g -> if (g.announcements.any { it.id == rich.ack && it.by == myId })
+                groups.put(g.copy(acks = g.acks + (rich.ack to (g.acks[rich.ack].orEmpty() + (e.fromNodeId to now))))) }
+            return
+        }
         if (gid != null && groups != null && rich.denied != null) {
             _joinNotes.update { it + (gid to rich.denied) }
             return
@@ -545,6 +592,13 @@ class MessageRepository(
             var changed = g
             // A newer itinerary, from whoever plans this group.
             rich.itinerary?.let { plan -> if (g.canPlan(e.fromNodeId) && rich.itineraryAt > g.itineraryAt) changed = changed.copy(itinerary = plan, itineraryAt = rich.itineraryAt) }
+            rich.buddies?.let { b -> if (g.canPlan(e.fromNodeId) && rich.buddiesAt > g.buddiesAt) changed = changed.copy(buddies = b, buddiesAt = rich.buddiesAt) }
+            // An announcement from the admin or a captain: kept, so "Got it" can be tapped and counted.
+            if (rich.announce && g.canManage(e.fromNodeId)) {
+                val id = rich.groupMsgId ?: e.messageId
+                if (changed.announcements.none { it.id == id })
+                    changed = changed.copy(announcements = (changed.announcements + Announcement(id, rich.text.removePrefix("📣 ").trim(), e.sentAt, e.fromNodeId)).takeLast(Announcement.KEEP))
+            }
             // A member reached a checkpoint (the time is theirs, but never in the future).
             rich.checkIn?.let { stop ->
                 val at = rich.checkInAt.takeIf { it in 1..(now + 5 * 60_000) } ?: now
@@ -577,7 +631,8 @@ class MessageRepository(
             sender = if (gid != null) e.fromNodeId else "", senderName = senderName,
             replyTo = rich.replyId?.let { Rich.replyField(it, rich.replyName, rich.replyText) } ?: "",
             parent = if (gid != null) e.messageId else "",
-            actions = if (gid != null && rich.rollCall) "✅ I'm OK|trip-ok:$gid\n🆘 I need help|sos" else "",
+            actions = if (gid != null && rich.rollCall) "✅ I'm OK|trip-ok:$gid\n🆘 I need help|sos"
+                else if (gid != null && rich.announce) "👍 Got it|ack:$gid:${rich.groupMsgId ?: e.messageId}" else "",
         ))
     }
 

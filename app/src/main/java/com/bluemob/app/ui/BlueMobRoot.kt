@@ -318,6 +318,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             target == "power" -> actions.openBatterySaver()
             target == "games" -> if (com.bluemob.app.Features.GAMES) push(Route.Games)
             target.startsWith("trip-ok:") -> vm.send(target.removePrefix("trip-ok:"), "✅ I'm OK")
+            target.startsWith("ack:") -> target.removePrefix("ack:").split(":", limit = 2).takeIf { it.size == 2 }?.let { (g, a) -> vm.ackAnnouncement(g, a) }
             target.startsWith("guide:") -> push(Route.Article(target.removePrefix("guide:")))
             target.startsWith("tab:") -> goTab(when (target.removePrefix("tab:")) {
                 "nearby" -> Tab.NEARBY; "chats" -> Tab.CHATS; "compass" -> Tab.COMPASS; "guide" -> Tab.GUIDE; else -> Tab.YOU
@@ -356,6 +357,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             onTrip = { push(Route.Group(it)) }, onNewTrip = { push(Route.NewTrip) },
                             tripAds = vm.tripsNearby.collectAsStateWithLifecycle().value.values.sortedByDescending { it.seenAt },
                             joinNotes = vm.joinNotes.collectAsStateWithLifecycle().value, onJoinAd = vm::joinNearby,
+                            myId = vm.nodeId, onTripRollCall = { vm.rollCall(it) }, onTripChat = { push(Route.Chat(it)) }, onSos = { push(Route.Sos) },
                         )
                         Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push(Route.Rescues) else push(Route.Rescue(it)) }, onNewChat = { push(Route.NewChat) }, onNewTrip = { push(Route.NewTrip) }, onJoinTrip = { push(Route.JoinTrip) },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,

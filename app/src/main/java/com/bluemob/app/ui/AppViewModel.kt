@@ -273,6 +273,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun addToTrip(id: String, people: Map<String, String>) = repo.addToTrip(id, people)
     fun setItinerary(id: String, stops: List<com.bluemob.app.chat.Stop>) = repo.setItinerary(id, stops)
     fun checkIn(id: String, stop: String) = repo.checkIn(id, stop)
+    fun setBuddies(id: String, pairs: List<Pair<String, String>>) = repo.setBuddies(id, pairs)
+    fun announce(id: String, text: String) = repo.announce(id, text)
+    fun ackAnnouncement(id: String, ann: String) = repo.ack(id, ann)
     /** Where this phone is, for a checkpoint's place ("use where I am"). */
     fun here() = blueMob.location.location.value ?: blueMob.location.lastKnown()
     // Showing a trip group to phones nearby, with a passcode (kept on this phone only).

@@ -269,9 +269,22 @@ class PreviewShots {
     @Test fun itinerary() = shot(tall = true) {
         com.bluemob.app.ui.chat.ItineraryScreen(planned, me, { id -> people.firstOrNull { it.nodeId == id }?.name ?: "Someone" }, { null }, {}, {}, {}, now = now)
     }
+    private val busy = planned.copy(buddies = mapOf(me to "a1c2", "a1c2" to me, "b7e4" to "c3d9", "c3d9" to "b7e4"),
+        announcements = listOf(com.bluemob.app.chat.Announcement("an1", "Bus leaves at 6:00. Bring rain jackets", now - 20 * 60_000L, me)),
+        acks = mapOf("an1" to mapOf("a1c2" to now, "b7e4" to now)))
     @Test fun tripGroupPlanned() = shot(tall = true) {
-        com.bluemob.app.ui.chat.TripGroupScreen(planned, me, roll, people, "bluemob:t:AkEE5BIbSMTHI5c", com.bluemob.app.ui.chat.TripActions(), teams = listOf(team1), now = now,
+        com.bluemob.app.ui.chat.TripGroupScreen(busy, me, roll, people, "bluemob:t:AkEE5BIbSMTHI5c", com.bluemob.app.ui.chat.TripActions(), teams = listOf(team1), now = now,
             lastHeard = mapOf("d5f1" to ((now - 52 * 60_000L) to "at Rambara bridge")))
+    }
+    @Test fun tripMemberView() = shot(tall = true) {
+        com.bluemob.app.ui.chat.TripGroupScreen(busy.copy(members = busy.members - "a1c2" + (me to "Arjun")), "a1c2", roll, people, null, com.bluemob.app.ui.chat.TripActions(), now = now)
+    }
+    @Test fun buddies() = shot(tall = true) {
+        com.bluemob.app.ui.chat.BuddiesScreen(busy, me, "Arjun", { id -> people.firstOrNull { it.nodeId == id }?.name ?: "Someone" }, {}, {})
+    }
+    @Test fun nearbyTripMode() = shot(tall = true) {
+        NearbyScreen(NearbyState("Arjun", true, people, true, false, true, true, false), pad, {}, {}, {}, {}, {}, {}, {}, {},
+            trips = listOf(busy to roll), myId = me)
     }
     @Test fun nearbyTripAds() = shot(tall = true) {
         NearbyScreen(NearbyState("Arjun", true, people, true, false, true, true, false), pad, {}, {}, {}, {}, {}, {}, {}, {},

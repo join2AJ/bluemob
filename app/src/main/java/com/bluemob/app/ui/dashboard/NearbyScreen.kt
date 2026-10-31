@@ -115,6 +115,10 @@ fun NearbyScreen(
     tripAds: List<com.bluemob.app.nearby.TripAd> = emptyList(),
     joinNotes: Map<String, String> = emptyMap(),
     onJoinAd: (com.bluemob.app.nearby.TripAd, String) -> Unit = { _, _ -> },
+    myId: String = "",
+    onTripRollCall: (String) -> Unit = {},
+    onTripChat: (String) -> Unit = {},
+    onSos: () -> Unit = {},
 ) {
     val list = state.people
     var filter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(NearbyFilter.ALL) }
@@ -209,7 +213,7 @@ fun NearbyScreen(
         }
 
         // Trip groups: the way a whole group gets the mesh before setting off.
-        item { TripCard(trips, onTrip, onNewTrip) }
+        item { TripCard(trips, onTrip, onNewTrip, myId, onTripRollCall, onTripChat, onSos) }
         if (tripAds.isNotEmpty()) item { com.bluemob.app.ui.chat.NearbyTripGroups(tripAds, joinNotes, onJoinAd) }
 
         // "Check on everyone": one tap asks every phone nearby "Are you OK?".
@@ -376,7 +380,42 @@ fun powerNote(saver: Boolean, keeps: Boolean): String = when {
 }
 
 @Composable
-private fun TripCard(trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemob.app.chat.RollCall?>>, onTrip: (String) -> Unit, onNewTrip: () -> Unit) {
+private fun TripCard(trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemob.app.chat.RollCall?>>, onTrip: (String) -> Unit, onNewTrip: () -> Unit,
+    myId: String = "", onRollCall: (String) -> Unit = {}, onChat: (String) -> Unit = {}, onSos: () -> Unit = {}) {
+    val now = System.currentTimeMillis()
+    // Trip mode: a trip going on now gets the whole card: next stop, last roll call, and the buttons that matter on the way.
+    val active = trips.firstOrNull { !it.first.isClosed(now) && !it.first.isTeam }
+    if (active != null) {
+        val (g, roll) = active
+        val next = com.bluemob.app.chat.Stop.next(g.itinerary, now)?.takeIf { it.at >= now }
+        val overdue = g.itinerary.count { s -> s.checkpoint && now - s.at in com.bluemob.app.chat.TripWatch.OVERDUE_MS..(12 * 3_600_000L) && g.members.keys.any { g.checkins[s.id]?.containsKey(it) != true } }
+        com.bluemob.app.ui.components.HeroCard(com.bluemob.app.ui.theme.Gradients.brand(), Modifier.padding(top = 16.dp).clip(MaterialTheme.shapes.large).clickable { onTrip(g.id) }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("🧭", fontSize = 22.sp)
+                com.bluemob.app.i18n.RawText(g.name, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 1, modifier = Modifier.weight(1f).padding(start = 10.dp))
+                Text("On a trip", style = MaterialTheme.typography.labelSmall, color = Color.White,
+                    modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.2f)).padding(horizontal = 8.dp, vertical = 3.dp))
+            }
+            Text(if (roll == null) "${g.members.size + 1} people · no roll call yet" else "Last roll call: ${roll.reached} of ${roll.members.size} reached",
+                style = MaterialTheme.typography.bodyMedium, color = Color.White, modifier = Modifier.padding(top = 8.dp))
+            next?.let { com.bluemob.app.i18n.RawText("➡ ${it.title} · ${java.text.SimpleDateFormat("EEE HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.at))}",
+                style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f)) }
+            if (overdue > 0) Text("⏰ $overdue checkpoint${if (overdue == 1) "" else "s"} with people not checked in", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFFE08A))
+            g.buddies[myId]?.let { b -> com.bluemob.app.i18n.RawText("🤝 ${g.members[b].orEmpty().ifBlank { "Your buddy" }}", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f)) }
+            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (g.canManage(myId)) Surface(onClick = { onRollCall(g.id) }, shape = androidx.compose.foundation.shape.RoundedCornerShape(50), color = Color.White) {
+                    Text("📋 Roll call", style = MaterialTheme.typography.labelLarge, color = com.bluemob.app.ui.theme.Palette.BrandBlue, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                }
+                Surface(onClick = { onChat(g.id) }, shape = androidx.compose.foundation.shape.RoundedCornerShape(50), color = Color.White.copy(alpha = 0.2f)) {
+                    Text("💬 Chat", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                }
+                Surface(onClick = onSos, shape = androidx.compose.foundation.shape.RoundedCornerShape(50), color = com.bluemob.app.ui.theme.Palette.DangerDeep) {
+                    Text("🆘 SOS", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                }
+            }
+        }
+        return
+    }
     val first = trips.firstOrNull()
     com.bluemob.app.ui.components.HeroCard(com.bluemob.app.ui.theme.Gradients.brand(), Modifier.padding(top = 16.dp)
         .clip(MaterialTheme.shapes.large).clickable { if (first == null) onNewTrip() else onTrip(first.first.id) }) {
@@ -388,16 +427,12 @@ private fun TripCard(trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemo
                     Text("Make a trip group before you set off: everyone scans one code, and all your phones can reach each other",
                         style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.88f))
                 } else {
-                    val (g, roll) = first
-                    com.bluemob.app.i18n.RawText(g.name, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 1)
-                    Text(if (roll == null) "${g.members.size + 1} people · tap for a roll call" else "${roll.reached} of ${roll.members.size} reached in the last roll call",
-                        style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.88f))
+                    com.bluemob.app.i18n.RawText(first.first.name, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 1)
+                    Text("Trip ended · start a new trip group any time", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.88f))
                 }
             }
-            Text(if (first == null) "Start" else "Open", style = MaterialTheme.typography.labelLarge, color = com.bluemob.app.ui.theme.Palette.BrandBlue,
-                modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Color.White).padding(horizontal = 14.dp, vertical = 7.dp))
+            Text(if (first == null) "Start" else "New", style = MaterialTheme.typography.labelLarge, color = com.bluemob.app.ui.theme.Palette.BrandBlue,
+                modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Color.White).clickable(onClick = onNewTrip).padding(horizontal = 14.dp, vertical = 7.dp))
         }
-        if (trips.size > 1) Text("+ ${trips.size - 1} more trip group${if (trips.size > 2) "s" else ""}", style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.8f), modifier = Modifier.padding(top = 8.dp))
     }
 }

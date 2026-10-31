@@ -2143,3 +2143,33 @@ Tracking stops a day after the end, unless you keep it going. The group and chat
 Trip ended · {} people	ट्रिप ख़त्म · {} लोग
 Tracking ends with the trip; the chat stays	ट्रैकिंग ट्रिप के साथ ख़त्म; चैट बनी रहती है
 End the trip, or keep it going? If you do nothing, it ends by itself in a day. The group and its chat stay.	ट्रिप ख़त्म करें, या जारी रखें? अगर आप कुछ न करें, तो यह एक दिन में अपने-आप ख़त्म हो जाएगी। ग्रुप और उसकी चैट बनी रहेगी।
+📣 Announce	📣 घोषणा
+📣 Announce to everyone	📣 सबके लिए घोषणा
+Everyone gets it with a "Got it" button, and you see who has.	सबको यह "समझ गया" बटन के साथ मिलेगी, और आप देखेंगे किसने दबाया।
+e.g. Bus leaves at 6:00. Bring rain jackets	जैसे बस 6:00 बजे निकलेगी। रेनकोट साथ लाएँ
+👍 Got it	👍 समझ गया
+✓ You said got it	✓ आपने कहा समझ गया
+👍 {} of {} got it	👍 {2} में से {1} ने समझा
+👍 {} of {} got it · tap to see who hasn't	👍 {2} में से {1} ने समझा · किसने नहीं, देखने के लिए टैप करें
+Buddy pairs	बडी जोड़ियाँ
+Your buddy: {} · {} pairs	आपका बडी: {} · {} जोड़ियाँ
+Pair people up: each phone tells its owner if their buddy drifts away	लोगों की जोड़ी बनाएँ: बडी दूर जाए तो हर फ़ोन अपने मालिक को बताता है
+{} pairs	{} जोड़ियाँ
+Tap one person, then their buddy. Each phone tells its owner if their buddy's phone hasn't been near for 20 minutes, and tells the group after 40.	एक व्यक्ति पर टैप करें, फिर उनके बडी पर। अगर बडी का फ़ोन 20 मिनट तक पास न आए तो हर फ़ोन अपने मालिक को बताता है, और 40 मिनट बाद ग्रुप को।
+Set by the group's admin. Your phone tells you if your buddy's phone hasn't been near for 20 minutes.	ग्रुप के एडमिन ने तय किया। अगर आपके बडी का फ़ोन 20 मिनट तक पास न आए तो आपका फ़ोन बताएगा।
+Pairs · {}	जोड़ियाँ · {}
+Not paired · {}	बिना जोड़ी · {}
+Pick {}'s buddy	{} का बडी चुनें
+Pair the rest in order	बाकी को क्रम से जोड़ें
+One person will be left without a buddy: add them to a pair's team, or pair them with you.	एक व्यक्ति बिना बडी रह जाएगा: उन्हें किसी जोड़ी के साथ रखें, या अपने साथ जोड़ें।
+On a trip	ट्रिप पर
+{} people · no roll call yet	{} लोग · अभी कोई हाज़िरी नहीं
+Last roll call: {} of {} reached	पिछली हाज़िरी: {2} में से {1} तक पहुँचे
+⏰ {} checkpoint with people not checked in	⏰ {} चेकपॉइंट पर लोग चेक-इन नहीं हुए
+⏰ {} checkpoints with people not checked in	⏰ {} चेकपॉइंट पर लोग चेक-इन नहीं हुए
+💬 Chat	💬 चैट
+Trip ended · start a new trip group any time	ट्रिप ख़त्म · कभी भी नया ट्रिप ग्रुप शुरू करें
+⏰ {} not at {} yet	⏰ {} लोग अभी {} नहीं पहुँचे
+{} haven't checked in. It was due {}.	{} ने चेक-इन नहीं किया। समय {} था।
+🤝 Lost touch with {}	🤝 {} से संपर्क टूटा
+Your buddy's phone hasn't been near yours for {} min. Wait, call out, or tell the group.	आपके बडी का फ़ोन {} मिनट से आपके पास नहीं आया। रुकें, आवाज़ दें, या ग्रुप को बताएँ।

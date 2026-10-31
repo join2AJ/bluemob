@@ -80,7 +80,8 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
                         onAutoMin = { vm.setAutoRollCall(g.id, it) }, onEnd = { vm.setTripEnd(g.id, it) }, onKeepOpen = { vm.keepTripOpen(g.id) },
                         onClose = { vm.closeTrip(g.id); all.values.filter { it.parent == g.id }.forEach { t -> vm.closeTrip(t.id) } },
                         onNewTeam = { s.push(Route.NewTeam(g.id)) }, onOpenGroup = { s.push(Route.Group(it)) }, onAdd = { vm.addToTrip(g.id, it) },
-                        onItinerary = { s.push(Route.Itinerary(g.id)) }, onShowNearby = { vm.setShowNearby(g.id, it) }, onNewPasscode = { vm.changePasscode(g.id) }),
+                        onItinerary = { s.push(Route.Itinerary(g.id)) }, onAnnounce = { vm.announce(g.id, it) }, onAck = { vm.ackAnnouncement(g.id, it) },
+                        onBuddies = { s.push(Route.Buddies(g.id)) }, onShowNearby = { vm.setShowNearby(g.id, it) }, onNewPasscode = { vm.changePasscode(g.id) }),
                     teams = all.values.filter { it.parent == g.id }.sortedBy { it.createdAt }, main = all[g.parent], now = now,
                     lastHeard = remember(conversations, g, all) { lastHeard(g, all.values.filter { it.parent == g.id || it.id == g.parent }, conversations) })
             }
@@ -102,6 +103,13 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
             onStart = { id, n -> vm.startChatById(id, n); s.nav.replace(Route.Chat(id)) },
             onOpen = { s.nav.replace(Route.Chat(it)) }, onShareId = s.actions.shareId)
         Route.SkyAi -> SkyAiScreen(vm, s::pop)
+        is Route.Buddies -> {
+            val g = vm.groups.collectAsStateWithLifecycle().value[route.group]
+            if (g == null) LaunchedEffect(Unit) { s.pop() }
+            else BuddiesScreen(g, vm.nodeId, vm.name.collectAsStateWithLifecycle().value,
+                nameOf = { id -> people.firstOrNull { it.nodeId == id }?.name ?: g.members[id].orEmpty().ifBlank { "Someone" } },
+                onSave = { vm.setBuddies(g.id, it); s.pop() }, onBack = s::pop)
+        }
         is Route.Itinerary -> {
             val g = vm.groups.collectAsStateWithLifecycle().value[route.group]
             if (g == null) LaunchedEffect(Unit) { s.pop() }

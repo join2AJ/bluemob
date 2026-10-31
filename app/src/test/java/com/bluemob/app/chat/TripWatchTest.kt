@@ -66,4 +66,26 @@ class TripWatchTest {
         assertTrue(TripWatch.due(listOf(ended.copy(closedAt = now - TripMeta.CHECKINS_KEPT_MS + 60_000)), emptyMap(), ravi, now, emptySet()).isEmpty())
         assertTrue(TripWatch.due(listOf(ended.copy(checkins = emptyMap())), emptyMap(), ravi, now, emptySet()).isEmpty())
     }
+
+    @Test fun overdueAtACheckpointOncePerStop() {
+        val cp = Stop("cp", now - 40 * 60_000, "Bridge", checkpoint = true)
+        val trip = g.copy(autoMin = 0, itinerary = listOf(cp))
+        val due = TripWatch.due(listOf(trip), emptyMap(), me, now, emptySet())
+        assertEquals(listOf(TripWatch.Act.Overdue("g-1", "cp", listOf(ravi))), due)
+        assertTrue(TripWatch.due(listOf(trip), emptyMap(), me, now, setOf((due.single() as TripWatch.Act.Overdue).key)).isEmpty())
+        // Checked in, too early, or not the admin: nothing.
+        assertTrue(TripWatch.due(listOf(trip.copy(checkins = mapOf("cp" to mapOf(ravi to 1L)))), emptyMap(), me, now, emptySet()).isEmpty())
+        assertTrue(TripWatch.due(listOf(trip.copy(itinerary = listOf(cp.copy(at = now - 10 * 60_000)))), emptyMap(), me, now, emptySet()).isEmpty())
+        assertTrue(TripWatch.due(listOf(trip), emptyMap(), ravi, now, emptySet()).none { it is TripWatch.Act.Overdue })
+    }
+
+    @Test fun buddiesDriftingApart() {
+        val trip = g.copy(autoMin = 0, buddies = mapOf(me to ravi, ravi to me))
+        val apart = { minutes: Long -> TripWatch.due(listOf(trip), emptyMap(), me, now, emptySet(), lastContact = { now - minutes * 60_000 }) }
+        assertTrue(apart(5).isEmpty())
+        assertEquals(false, (apart(25).single() as TripWatch.Act.BuddyApart).tellGroup)
+        assertEquals(true, (apart(45).single() as TripWatch.Act.BuddyApart).tellGroup)
+        // Never in touch since the trip began: no alarm.
+        assertTrue(TripWatch.due(listOf(trip.copy(createdAt = now)), emptyMap(), me, now, emptySet(), lastContact = { now - 30 * 60_000 }).isEmpty())
+    }
 }

@@ -300,7 +300,10 @@ class BlueMobApp : Application() {
                 val now = System.currentTimeMillis()
                 fieldTest.purgeIfOld(now)
                 val gs = groups.groups.value
-                com.bluemob.app.chat.TripWatch.due(gs.values, messages.rollCalls.value, identity.nodeId, now, alerted, summarized, location.location.value).forEach { act ->
+                // In touch with someone: connected now, or last met or online.
+                val connected = mesh.peers.value.values.filter { it.state == com.bluemob.app.mesh.PeerState.CONNECTED }.map { it.nodeId }.toSet()
+                val lastContact = { id: String -> if (id in connected) now else contacts.contacts.value[id]?.let { maxOf(it.lastSeen, it.lastOnline) } ?: 0L }
+                com.bluemob.app.chat.TripWatch.due(gs.values, messages.rollCalls.value, identity.nodeId, now, alerted, summarized, location.location.value, lastContact).forEach { act ->
                     when (act) {
                         is com.bluemob.app.chat.TripWatch.Act.RollCall -> messages.rollCall(act.gid) { id, n -> fieldTest.probe(id, n) }
                         is com.bluemob.app.chat.TripWatch.Act.Unreachable -> {
@@ -316,6 +319,22 @@ class BlueMobApp : Application() {
                         }
                         is com.bluemob.app.chat.TripWatch.Act.CheckIn -> messages.checkIn(act.gid, act.stopId, auto = true)
                         is com.bluemob.app.chat.TripWatch.Act.ForgetCheckIns -> messages.forgetCheckIns(act.gid)
+                        is com.bluemob.app.chat.TripWatch.Act.Overdue -> {
+                            alerted += act.key
+                            val g = gs[act.gid] ?: return@forEach
+                            val stop = g.itinerary.firstOrNull { it.id == act.stopId } ?: return@forEach
+                            val names = act.ids.map { id -> contacts.contacts.value[id]?.name ?: g.members[id].orEmpty().ifBlank { "Someone" } }
+                            notifier.tripAlert(act.gid, com.bluemob.app.i18n.Lang.tr("⏰ ${names.size} not at ${stop.title} yet"),
+                                com.bluemob.app.i18n.Lang.tr("${names.joinToString()} haven't checked in. It was due ${java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(stop.at))}."))
+                        }
+                        is com.bluemob.app.chat.TripWatch.Act.BuddyApart -> {
+                            alerted += act.key
+                            val g = gs[act.gid] ?: return@forEach
+                            val name = contacts.contacts.value[act.buddy]?.name ?: g.members[act.buddy].orEmpty().ifBlank { "your buddy" }
+                            if (act.tellGroup) messages.send(act.gid, "⚠️ I've lost touch with my buddy $name for ${act.minutes} min")
+                            else notifier.tripAlert(act.gid, com.bluemob.app.i18n.Lang.tr("🤝 Lost touch with $name"),
+                                com.bluemob.app.i18n.Lang.tr("Your buddy's phone hasn't been near yours for ${act.minutes} min. Wait, call out, or tell the group."))
+                        }
                         is com.bluemob.app.chat.TripWatch.Act.AskToClose -> {
                             messages.markAskedToClose(act.gid)
                             val g = gs[act.gid] ?: return@forEach

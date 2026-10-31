@@ -311,6 +311,33 @@ class MessageRepositoryTest {
     }
 
     @Test
+    fun announcementsGotItAndBuddyPairs() = runTest {
+        val p = Phones(this)
+        p.radio.connected = true
+        val gid = p.a.createTrip("Group 4")!!
+        p.b.joinTrip(p.a.tripInvite(gid)!!)
+        settle()
+        // The admin announces; B sees it with "Got it", taps it, and A counts it.
+        p.a.announce(gid, "Bus leaves at 6:00")
+        settle()
+        val ann = p.groupsB.get(gid)!!.announcements.single()
+        assertEquals("Bus leaves at 6:00", ann.text)
+        assertTrue(p.daoB.rows.value.single { !it.fromMe && it.text == "📣 Bus leaves at 6:00" }.actions.contains("ack:$gid:${ann.id}"))
+        p.b.ack(gid, ann.id)
+        settle()
+        assertTrue(p.groupsA.get(gid)!!.acks[ann.id]!!.containsKey("B"))
+        // A member can't announce.
+        p.b.announce(gid, "Free food!")
+        settle()
+        assertEquals(1, p.groupsA.get(gid)!!.announcements.size)
+        // Buddy pairs from the admin reach B, both ways.
+        p.a.setBuddies(gid, listOf("A" to "B"))
+        settle()
+        assertEquals("A", p.groupsB.get(gid)!!.buddies["B"])
+        assertEquals("B", p.groupsB.get(gid)!!.buddies["A"])
+    }
+
+    @Test
     fun tripCodesOnlyParseWhenWellFormed() {
         val code = TripInvite("g-abc123", "0123456789abcdef", "Family at the mela 🎪").encode()
         assertEquals(TripInvite("g-abc123", "0123456789abcdef", "Family at the mela 🎪"), TripInvite.parse(code))
