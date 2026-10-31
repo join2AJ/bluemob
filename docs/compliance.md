@@ -145,6 +145,7 @@ told. The incident procedure covers it.
 |---|---|---|---|
 | Health details in an SOS and on the lock screen | Strangers learn a condition | Optional; sent only in an SOS; lock-screen card off by default with a preview of what shows | Low, accepted for emergency care |
 | Trip groups: check-ins, last heard, roll calls | An admin monitors people too closely (for example an employer) | Notice before joining; no positions sent; leave any time; tracking stops when the trip ends and check-ins are erased 30 days later | Low |
+| Trip groups: health cards and altitude checks (0.38) | Sensitive health data seen by more people than needed, or kept after the trip | Off by default; each person switches it on; goes phone to phone only to the admin and their own captain (never the relay); taken back at any time; erased from their phones when the trip ends (`ForgetCare`); never in the trip report PDF | Low |
 | Join codes and screenshot codes identify people | Staff misuse | Sealed to one key on the server; every look-up logged for a year; used only on a report | Low, if the admin log is reviewed |
 | Showing a group nearby | Strangers learn a group's name and its admin's name | Admin turns it on; only phones connected straight to the admin's phone; passcode never sent; guessing limits | Low |
 

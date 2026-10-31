@@ -36,6 +36,23 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38: trip care — altitude, health cards, headcount, report, album
+
+- **Daily altitude check (Health tab):** the Lake Louise score (headache, stomach, tiredness, dizziness, 0–3 each)
+  plus the danger signs of HACE/HAPE. You see your level and what to do (fine / mild / moderate / severe: go down).
+  It goes only to the trip admin and your captain. The admin can switch on "Ask everyone every morning": a reminder at
+  7:00 each day, and the admin's phone alerts on anyone moderate or worse, with the advice.
+- **Health card for the trip admin (opt-in):** blood group, allergies, conditions and who to call, sent phone to phone
+  to the admin and your captain only. Take it back any time; it's erased from their phones when the trip ends, and it
+  is never in the report.
+- **Headcount:** at the bus or camp, tick who's here. Phones nearby (Bluetooth/Wi-Fi) are ticked for you; a roll call
+  is one tap away. Saving tells the group "33 of 35 here. Missing: …" and keeps the headcount for the report.
+- **Trip report (PDF):** trip, people and teams, plan with who checked in at each checkpoint, headcounts, the last roll
+  call, announcements and altitude checks. Shared through any app. No health cards.
+- **Trip photos:** every photo and video from the group chat and its team chats in one album, with who sent it; add
+  photos straight from the album.
+- Privacy policy (English and Hindi) and the compliance risk table updated.
+
 ## Android 0.37.3: WhatsApp-style chat tools, satellite view, knots
 
 - **Pick several messages:** long-press one, then tap others. Star, copy, forward or delete them together.

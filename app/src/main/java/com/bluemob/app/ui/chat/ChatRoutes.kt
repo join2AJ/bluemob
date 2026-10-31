@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.chat
 
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
     val vm = s.vm
     val people by vm.people.collectAsStateWithLifecycle()
     val conversations by vm.conversations.collectAsStateWithLifecycle()
+    val reportScope = androidx.compose.runtime.rememberCoroutineScope()
     when (route) {
         is Route.Chat -> {
             val id = route.id
@@ -85,12 +87,48 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
                         onClose = { vm.closeTrip(g.id); all.values.filter { it.parent == g.id }.forEach { t -> vm.closeTrip(t.id) } },
                         onNewTeam = { s.push(Route.NewTeam(g.id)) }, onOpenGroup = { s.push(Route.Group(it)) }, onAdd = { vm.addToTrip(g.id, it) },
                         onItinerary = { s.push(Route.Itinerary(g.id)) }, onAnnounce = { vm.announce(g.id, it) }, onAck = { vm.ackAnnouncement(g.id, it) },
-                        onBuddies = { s.push(Route.Buddies(g.id)) }, onShowNearby = { vm.setShowNearby(g.id, it) }, onNewPasscode = { vm.changePasscode(g.id) }),
+                        onBuddies = { s.push(Route.Buddies(g.id)) }, onShowNearby = { vm.setShowNearby(g.id, it) }, onNewPasscode = { vm.changePasscode(g.id) },
+                        onAltitude = { s.push(Route.Altitude(g.id)) }, onAmsDaily = { vm.setAmsDaily(g.id, it) }, onShareHealth = { vm.shareHealth(g.id, it) },
+                        onHeadcount = { s.push(Route.Headcount(g.id)) }, onPhotos = { s.push(Route.TripPhotos(g.id)) },
+                        onReport = {
+                            reportScope.launch {
+                                vm.tripReport(g.id) { id -> if (id == vm.nodeId) "You" else people.firstOrNull { it.nodeId == id }?.name ?: tripName(all, g, id) }
+                                    ?.let { s.actions.shareFile(it, "application/pdf") } ?: vm.say("Couldn't make the report")
+                            }
+                        }),
                     teams = all.values.filter { it.parent == g.id }.sortedBy { it.createdAt }, main = all[g.parent], now = now,
-                    lastHeard = remember(conversations, g, all) { lastHeard(g, all.values.filter { it.parent == g.id || it.id == g.parent }, conversations) })
+                    lastHeard = remember(conversations, g, all) { lastHeard(g, all.values.filter { it.parent == g.id || it.id == g.parent }, conversations) },
+                    myCard = remember(g.shareHealth) { vm.emergencyCardText() },
+                    photoCount = remember(conversations, all) { tripPhotos(g, all, conversations).size })
             }
             else GroupInfoScreen(g, people, s::pop, onAdd = { vm.addToGroup(g.id, it) },
                 onLeave = { vm.leaveGroup(g.id); s.nav.clear() }, onPerson = { s.push(Route.Person(it)) })
+        }
+        is Route.Altitude -> {
+            val g = vm.groups.collectAsStateWithLifecycle().value[route.id]
+            if (g == null) LaunchedEffect(Unit) { s.pop() }
+            else AltitudeCheckScreen(g.name, vm.altitude.collectAsStateWithLifecycle().value,
+                doneToday = g.myAmsAt > 0 && com.bluemob.app.chat.TripWatch.localDay(g.myAmsAt) == com.bluemob.app.chat.TripWatch.localDay(System.currentTimeMillis()),
+                onBack = s::pop) { a, alt -> vm.sendAltitudeCheck(g.id, a, alt) }
+        }
+        is Route.Headcount -> {
+            val all by vm.groups.collectAsStateWithLifecycle()
+            val g = all[route.id]
+            if (g == null) LaunchedEffect(Unit) { s.pop() }
+            else {
+                val nameOf = { id: String -> if (id == vm.nodeId) "You" else people.firstOrNull { it.nodeId == id }?.name ?: tripName(all, g, id) }
+                HeadcountScreen(g, vm.nodeId, nameOf, people.filter { it.presence == com.bluemob.app.ui.Presence.ONLINE }.map { it.nodeId }.toSet(),
+                    onBack = s::pop, onRollCall = { vm.rollCall(g.id) }) { here, missing -> vm.saveHeadcount(g.id, here, missing) { id -> if (id == vm.nodeId) vm.name.value else nameOf(id) } }
+            }
+        }
+        is Route.TripPhotos -> {
+            val all by vm.groups.collectAsStateWithLifecycle()
+            val g = all[route.id]
+            if (g == null) LaunchedEffect(Unit) { s.pop() }
+            else TripPhotosScreen(g.name, tripPhotos(g, all, conversations), { vm.thumbnail(it) },
+                nameOf = { m -> if (m.fromMe) "You" else m.senderName.ifBlank { tripName(all, g, m.sender) } }, onBack = s::pop,
+                onOpen = { m -> if (com.bluemob.app.files.Attachment.fromJson(m.att)?.kind == com.bluemob.app.files.AttKind.IMAGE) s.push(Route.Photo(m.id)) else s.chatFiles(m.peer).onOpen(m) },
+                onAdd = { s.actions.pickFile("photo") { uri -> vm.sendFile(g.id, uri) } })
         }
         Route.Starred -> {
             val starred by vm.starred.collectAsStateWithLifecycle()
@@ -181,3 +219,13 @@ private fun lastHeard(g: com.bluemob.app.chat.ChatGroup, linked: List<com.bluemo
     }
     return out
 }
+
+/** A member's name as the trip group (or its teams) knows it. */
+private fun tripName(all: Map<String, com.bluemob.app.chat.ChatGroup>, g: com.bluemob.app.chat.ChatGroup, id: String): String =
+    (listOf(g) + all.values.filter { it.parent == g.id || it.id == g.parent }).firstNotNullOfOrNull { it.members[id]?.ifBlank { null } } ?: "Someone"
+
+/** Photos and videos shared in a trip group and its teams. */
+private fun tripPhotos(g: com.bluemob.app.chat.ChatGroup, all: Map<String, com.bluemob.app.chat.ChatGroup>, conversations: Map<String, List<com.bluemob.app.data.MessageEntity>>) =
+    (listOf(g.id) + all.values.filter { it.parent == g.id }.map { it.id }).flatMap { conversations[it].orEmpty() }.filter { m ->
+        com.bluemob.app.files.Attachment.fromJson(m.att)?.kind.let { it == com.bluemob.app.files.AttKind.IMAGE || it == com.bluemob.app.files.AttKind.VIDEO }
+    }

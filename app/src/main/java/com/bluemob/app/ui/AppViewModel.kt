@@ -259,6 +259,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return com.bluemob.app.chat.TripCode.encode(inv, com.bluemob.app.chat.TripCode.Origin(g.owner.ifBlank { nodeId }, g.createdAt, nodeId, System.currentTimeMillis(),
             "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}", com.bluemob.app.BuildConfig.VERSION_NAME))
     }
+    // ---- 0.38: trip care ----
+    fun setAmsDaily(id: String, on: Boolean) = repo.updateTrip(id, if (on) "⛰ Daily altitude check is on: everyone gets a reminder at 7:00" else "⛰ Daily altitude check is off") { it.copy(amsDaily = on) }
+    fun shareHealth(id: String, on: Boolean) = repo.shareHealth(id, if (on) emergencyCardText() else null)
+    fun sendAltitudeCheck(id: String, a: com.bluemob.app.chat.AltitudeCheck.Answers, altM: Int) {
+        repo.sendAltitudeCheck(id, a, altM)
+        toast("Sent to your trip admin")
+    }
+    fun saveHeadcount(id: String, here: List<String>, missing: List<String>, nameOf: (String) -> String) = repo.saveHeadcount(id, here, missing, nameOf)
+
+    /** The trip report as a PDF in the shareable folder (no health cards). */
+    suspend fun tripReport(id: String, nameOf: (String) -> String): java.io.File? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val all = groups.value
+        val g = all[id] ?: return@withContext null
+        val now = System.currentTimeMillis()
+        val sections = com.bluemob.app.chat.TripReport.build(g, all.values.filter { it.parent == id }, rollCalls.value[id], nodeId, nameOf, now)
+        val safe = g.name.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').ifBlank { "trip" }
+        runCatching {
+            com.bluemob.app.util.TripReportPdf.write(java.io.File(blueMob.cacheDir, "open/BlueMob-$safe-report.pdf"), g.name,
+                "Trip report · " + java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(now)), sections)
+        }.getOrNull()
+    }
+
     fun setAutoRollCall(id: String, min: Int) = repo.updateTrip(id, if (min == 0) "⏱ Automatic roll call is off" else "⏱ Automatic roll call every $min min") { it.copy(autoMin = min) }
     fun setTripEnd(id: String, at: Long) = repo.updateTrip(id, if (at == 0L) "📅 The trip has no end date" else
         "📅 The trip ends ${java.text.SimpleDateFormat("EEE d MMM, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(at))}. The group closes a day later unless the admin keeps it open") {

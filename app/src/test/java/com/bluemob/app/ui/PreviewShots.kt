@@ -350,4 +350,26 @@ class PreviewShots {
     }
 
     @Test fun filesEmptyIcons() = shot { ChatsScreen(people, emptyMap(), emptySet(), pad, emptyList(), startTab = ChatsTab.FILES) {} }
+
+    @Test fun tripHealthAdmin() = shot(tall = true) {
+        val g = adminTrip.copy(amsDaily = true, myAmsAt = now - 3_600_000L,
+            amsChecks = mapOf("a1c2" to com.bluemob.app.chat.AmsCheck(7, 2, false, now - 40 * 60_000L, 3_650), "b7e4" to com.bluemob.app.chat.AmsCheck(1, 0, false, now - 90 * 60_000L, 3_640),
+                me to com.bluemob.app.chat.AmsCheck(3, 1, false, now - 3_600_000L, 3_650)),
+            health = mapOf("a1c2" to "Asha · Blood group B+\nAllergies: penicillin\nCall: Papa +91 98100 12345"), shareHealth = true)
+        com.bluemob.app.ui.chat.TripGroupScreen(g, me, roll, people, null, com.bluemob.app.ui.chat.TripActions(), teams = listOf(team1, team2), now = now,
+            myCard = "Arjun · Blood group O+\nAllergies: none\nCall: Didi +91 98200 67890", startTab = 2)
+    }
+
+    @Test fun altitudeCheck() = shot(tall = true) {
+        com.bluemob.app.ui.chat.AltitudeCheckScreen("Kedarkantha trek", 3_652.0, false, {}) { _, _ -> }
+    }
+
+    @Test fun headcount() = shot(tall = true) {
+        com.bluemob.app.ui.chat.HeadcountScreen(adminTrip, me, { id -> if (id == me) "You" else people.firstOrNull { it.nodeId == id }?.name ?: "Someone" },
+            setOf("a1c2", "b7e4"), {}, {}) { _, _ -> }
+    }
+
+    @Test fun tripPlanExtras() = shot(tall = true) {
+        com.bluemob.app.ui.chat.TripGroupScreen(adminTrip, me, roll, people, null, com.bluemob.app.ui.chat.TripActions(), now = now, photoCount = 24, startTab = 1)
+    }
 }

@@ -208,6 +208,8 @@ class TripActions(
     val onAdd: (Map<String, String>) -> Unit = {},
     val onItinerary: () -> Unit = {}, val onShowNearby: (Boolean) -> Unit = {}, val onNewPasscode: () -> Unit = {},
     val onAnnounce: (String) -> Unit = {}, val onAck: (String) -> Unit = {}, val onBuddies: () -> Unit = {},
+    val onAltitude: () -> Unit = {}, val onAmsDaily: (Boolean) -> Unit = {}, val onShareHealth: (Boolean) -> Unit = {},
+    val onHeadcount: () -> Unit = {}, val onPhotos: () -> Unit = {}, val onReport: () -> Unit = {},
 )
 
 /**
@@ -228,6 +230,11 @@ fun TripGroupScreen(
     now: Long = System.currentTimeMillis(),
     /** When we last heard from each member (a message, a check-in, a roll call answer), and how. */
     lastHeard: Map<String, Pair<Long, String>> = emptyMap(),
+    /** My health card as it would be shared, and how many photos the trip has. */
+    myCard: String = "",
+    photoCount: Int = 0,
+    /** Previews only: which tab shows first. */
+    startTab: Int = 0,
 ) {
     val closedAt = g.closedTime(now)
     val owner = g.isOwner(myId)
@@ -239,7 +246,7 @@ fun TripGroupScreen(
     var adding by remember { mutableStateOf(false) }
     var announcing by remember { mutableStateOf(false) }
     // People, the plan, and settings (for the admin or captain) or more (for everyone else).
-    var tab by rememberSaveable { mutableStateOf(0) }
+    var tab by rememberSaveable { mutableStateOf(startTab) }
     if (announcing) {
         var text by remember { mutableStateOf("") }
         androidx.compose.material3.AlertDialog(
@@ -317,6 +324,9 @@ fun TripGroupScreen(
                     if (manage) Surface(onClick = a.onRollCall, enabled = total > 0, shape = RoundedCornerShape(50), color = Color.White) {
                         Text("📋 Roll call", style = MaterialTheme.typography.labelLarge, color = Palette.BrandBlue, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
                     }
+                    if (manage) Surface(onClick = a.onHeadcount, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
+                        Text("🚌 Headcount", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
+                    }
                     if (manage) Surface(onClick = { announcing = true }, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
                         Text("📣 Announce", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
                     }
@@ -341,7 +351,7 @@ fun TripGroupScreen(
         }
         g.announcements.lastOrNull()?.let { ann -> item { AnnouncementCard(g, ann, myId, nameOf, now, a.onAck) } }
         item {
-            com.bluemob.app.ui.components.Segmented(listOf("People", "Plan", if (manage || owner) "Settings" else "More"), tab, Modifier.padding(top = 14.dp)) { tab = it }
+            com.bluemob.app.ui.components.Segmented(listOf("People", "Plan", "Health", if (manage || owner) "Settings" else "More"), tab, Modifier.padding(top = 14.dp)) { tab = it }
         }
         if (tab == 1) {
         if (g.itinerary.isNotEmpty() || g.canPlan(myId)) item { ItineraryCard(g, myId, now, a.onItinerary) }
@@ -375,8 +385,10 @@ fun TripGroupScreen(
                 }
             }
         }
+        tripExtras(g, myId, photoCount, a)
         if (!g.isTeam && closedAt == 0L) item { Steps() }
         }
+        if (tab == 2) tripHealthTab(g, myId, now, nameOf, myCard, a)
         if (tab == 0) {
         item { GroupLabel("People · ${g.members.size + 1}") }
         item {
@@ -410,7 +422,7 @@ fun TripGroupScreen(
             }
         }
         }
-        if (tab == 2) {
+        if (tab == 3) {
         if (manage) {
             item { GroupLabel("Automatic roll call") }
             item {

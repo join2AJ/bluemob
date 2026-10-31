@@ -52,6 +52,10 @@ data class Rich(
     val announce: Boolean = false,
     /** "Got it" to announcement [ack] (sent to whoever announced it). */
     val ack: String? = null,
+    /** My health card for the trip admin and my captain only ("" takes it back). Erased from their phone when the trip ends. */
+    val health: String? = null,
+    /** My daily altitude check, for the trip admin and my captain. */
+    val ams: AmsCheck? = null,
 ) {
     fun encode(): String {
         val j = JSONObject()
@@ -75,11 +79,13 @@ data class Rich(
         buddies?.let { b -> j.put("bd", JSONObject(b as Map<*, *>)).put("ba", buddiesAt) }
         if (announce) j.put("an", 1)
         ack?.let { j.put("ak", it) }
+        health?.let { j.put("hc", it) }
+        ams?.let { j.put("as", it.encode()) }
         env?.let { j.put("rm", it) }
         return MARK + j.toString()
     }
 
-    val isControl: Boolean get() = react != null || leave || env != null || join || denied != null || ack != null
+    val isControl: Boolean get() = react != null || leave || env != null || join || denied != null || ack != null || health != null || ams != null
 
     companion object {
         /** Invisible separator, then JSON. Plain messages never start with it. */
@@ -115,6 +121,7 @@ data class Rich(
                 denied = if (j.has("dn")) j.optString("dn").take(120) else null,
                 buddies = j.optJSONObject("bd")?.let { o -> o.keys().asSequence().take(MAX_MEMBERS).associateWith { o.optString(it) }.filter { (a, b) -> a.length <= 16 && b.length <= 16 && b.isNotBlank() } },
                 buddiesAt = j.optLong("ba"), announce = j.optInt("an") == 1, ack = j.optString("ak").takeIf { it.isNotBlank() && it.length <= 40 },
+                health = if (j.has("hc")) j.optString("hc").take(1_500) else null, ams = j.optString("as").takeIf { it.isNotBlank() }?.let(AmsCheck::decode),
             )
         }
 
@@ -155,10 +162,18 @@ data class ChatGroup(
     val buddies: Map<String, String> = emptyMap(), val buddiesAt: Long = 0,
     /** Announcements from the admin or a captain, newest last, and who said "Got it" to each (announcer's phone). */
     val announcements: List<Announcement> = emptyList(), val acks: Map<String, Map<String, Long>> = emptyMap(),
+    /** The admin asks everyone for a daily altitude check (travels with the settings). */
+    val amsDaily: Boolean = false,
+    /** Admin's or captain's phone: each member's latest altitude check, and health cards they chose to share. Erased when the trip ends. */
+    val amsChecks: Map<String, AmsCheck> = emptyMap(), val health: Map<String, String> = emptyMap(),
+    /** This phone: when I last did the altitude check, and whether I share my health card. */
+    val myAmsAt: Long = 0, val shareHealth: Boolean = false,
+    /** Headcounts taken on this phone. */
+    val headcounts: List<Headcount> = emptyList(),
 ) {
     /** Who may set the itinerary: the admin, and a team's captain for the team. */
     fun canPlan(id: String) = isOwner(id) || (isTeam && captain.isNotBlank() && captain == id) || (trip && owner.isBlank())
-    val meta: TripMeta get() = TripMeta(owner, parent, captain, expiresAt, closedAt, autoMin)
+    val meta: TripMeta get() = TripMeta(owner, parent, captain, expiresAt, closedAt, autoMin, amsDaily)
     val isTeam: Boolean get() = parent.isNotBlank()
 
     /** Closed: by the admin, or by itself a day after the trip ended without the admin keeping it open. */
@@ -181,13 +196,14 @@ data class ChatGroup(
         val members = members + others.mapValues { (id, n) -> n.ifBlank { members[id].orEmpty() } }
         if (!trusted || m == null) return copy(members = members, trip = true)
         return copy(name = name.ifBlank { this.name }, members = members, trip = true, owner = owner.ifBlank { m.owner },
-            parent = m.parent, captain = m.captain, expiresAt = m.expiresAt, closedAt = maxOf(closedAt, m.closedAt), autoMin = m.autoMin,
+            parent = m.parent, captain = m.captain, expiresAt = m.expiresAt, closedAt = maxOf(closedAt, m.closedAt), autoMin = m.autoMin, amsDaily = m.amsDaily,
             askedToClose = askedToClose && m.expiresAt == expiresAt)
     }
 }
 
 /** A trip group's settings, as they travel inside its messages. */
-data class TripMeta(val owner: String = "", val parent: String = "", val captain: String = "", val expiresAt: Long = 0, val closedAt: Long = 0, val autoMin: Int = 0) {
+data class TripMeta(val owner: String = "", val parent: String = "", val captain: String = "", val expiresAt: Long = 0, val closedAt: Long = 0, val autoMin: Int = 0,
+    val amsDaily: Boolean = false) {
     fun toJson(): JSONObject = JSONObject().apply {
         if (owner.isNotBlank()) put("o", owner)
         if (parent.isNotBlank()) put("p", parent)
@@ -195,6 +211,7 @@ data class TripMeta(val owner: String = "", val parent: String = "", val captain
         if (expiresAt > 0) put("x", expiresAt)
         if (closedAt > 0) put("cl", closedAt)
         if (autoMin > 0) put("a", autoMin)
+        if (amsDaily) put("ac", 1)
     }
 
     companion object {
@@ -205,7 +222,7 @@ data class TripMeta(val owner: String = "", val parent: String = "", val captain
 
         private fun id(s: String) = s.takeIf { it.length in 1..16 && it.all { c -> c.isLetterOrDigit() } }.orEmpty()
         fun fromJson(j: JSONObject) = TripMeta(id(j.optString("o")), j.optString("p").takeIf { GroupStore.isGroup(it) && it.length <= 40 }.orEmpty(),
-            id(j.optString("c")), j.optLong("x").coerceAtLeast(0), j.optLong("cl").coerceAtLeast(0), j.optInt("a").coerceIn(0, 24 * 60))
+            id(j.optString("c")), j.optLong("x").coerceAtLeast(0), j.optLong("cl").coerceAtLeast(0), j.optInt("a").coerceIn(0, 24 * 60), j.optInt("ac") == 1)
     }
 }
 
@@ -230,7 +247,10 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
                 o.optJSONArray("it")?.let(Stop::fromJson).orEmpty(), o.optLong("ia"), Stop.checkinsFromJson(o.optJSONObject("ci")),
                 o.optBoolean("ad"), o.optString("pc"),
                 o.optJSONObject("bd")?.let { b -> b.keys().asSequence().associateWith { b.optString(it) } }.orEmpty(), o.optLong("ba"),
-                o.optJSONArray("an")?.let(Announcement::fromJson).orEmpty(), Stop.checkinsFromJson(o.optJSONObject("ak")))
+                o.optJSONArray("an")?.let(Announcement::fromJson).orEmpty(), Stop.checkinsFromJson(o.optJSONObject("ak")),
+                amsDaily = o.optBoolean("ac"), amsChecks = AmsCheck.mapFromJson(o.optJSONObject("as")),
+                health = o.optJSONObject("hc")?.let { h -> h.keys().asSequence().associateWith { h.optString(it) } }.orEmpty(),
+                myAmsAt = o.optLong("ma"), shareHealth = o.optBoolean("sh"), headcounts = Headcount.fromJson(o.optJSONArray("hd")))
         }
     }.getOrDefault(emptyMap())
 
@@ -240,7 +260,9 @@ class GroupStore(private val prefs: android.content.SharedPreferences?) {
         _groups.value.values.forEach { g -> a.put(JSONObject().put("id", g.id).put("n", g.name).put("at", g.createdAt).put("m", JSONObject(g.members as Map<*, *>)).put("tr", g.trip)
             .put("ow", g.owner).put("pa", g.parent).put("cp", g.captain).put("ex", g.expiresAt).put("cl", g.closedAt).put("am", g.autoMin).put("ask", g.askedToClose)
             .put("it", Stop.toJson(g.itinerary)).put("ia", g.itineraryAt).put("ci", Stop.checkinsToJson(g.checkins)).put("ad", g.advertise).put("pc", g.passcode)
-            .put("bd", JSONObject(g.buddies as Map<*, *>)).put("ba", g.buddiesAt).put("an", Announcement.toJson(g.announcements)).put("ak", Stop.checkinsToJson(g.acks))) }
+            .put("bd", JSONObject(g.buddies as Map<*, *>)).put("ba", g.buddiesAt).put("an", Announcement.toJson(g.announcements)).put("ak", Stop.checkinsToJson(g.acks))
+            .put("ac", g.amsDaily).put("as", AmsCheck.mapToJson(g.amsChecks)).put("hc", JSONObject(g.health as Map<*, *>)).put("ma", g.myAmsAt).put("sh", g.shareHealth)
+            .put("hd", Headcount.toJson(g.headcounts))) }
         prefs.edit().putString(KEY, a.toString()).apply()
     }
 

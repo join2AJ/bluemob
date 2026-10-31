@@ -320,6 +320,20 @@ class BlueMobApp : Application() {
                         }
                         is com.bluemob.app.chat.TripWatch.Act.CheckIn -> messages.checkIn(act.gid, act.stopId, auto = true)
                         is com.bluemob.app.chat.TripWatch.Act.ForgetCheckIns -> messages.forgetCheckIns(act.gid)
+                        is com.bluemob.app.chat.TripWatch.Act.ForgetCare -> messages.forgetCare(act.gid)
+                        is com.bluemob.app.chat.TripWatch.Act.AltitudeDue -> {
+                            alerted += act.key
+                            val g = gs[act.gid] ?: return@forEach
+                            notifier.tripAlert(act.gid, com.bluemob.app.i18n.Lang.tr("⛰ Daily altitude check · ${g.name}"),
+                                com.bluemob.app.i18n.Lang.tr("Four quick questions about how you feel. It goes to your trip admin only."))
+                        }
+                        is com.bluemob.app.chat.TripWatch.Act.AltitudeAlert -> {
+                            alerted += act.key
+                            val g = gs[act.gid] ?: return@forEach
+                            val name = contacts.contacts.value[act.member]?.name ?: g.members[act.member].orEmpty().ifBlank { "Someone" }
+                            notifier.tripAlert(act.gid, com.bluemob.app.i18n.Lang.tr("⛰ $name: ${act.check.level.label}"),
+                                com.bluemob.app.i18n.Lang.tr(act.check.level.advice))
+                        }
                         is com.bluemob.app.chat.TripWatch.Act.Overdue -> {
                             alerted += act.key
                             val g = gs[act.gid] ?: return@forEach

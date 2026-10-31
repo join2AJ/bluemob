@@ -1,5 +1,6 @@
 package com.bluemob.app.i18n
 
+import androidx.compose.material.icons.rounded.Landscape
 import androidx.compose.material.icons.rounded.TwoWheeler
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.WbTwilight
@@ -99,7 +100,7 @@ object EmojiIcons {
             "🔋" to Icons.Rounded.BatteryChargingFull, "🗺" to Icons.Rounded.Map, "✅" to Icons.Rounded.CheckCircle, "❌" to Icons.Rounded.Cancel,
             "⏰" to Icons.Rounded.Alarm, "⏱" to Icons.Rounded.Timer, "🕒" to Icons.Rounded.Schedule, "📌" to Icons.Rounded.PushPin,
             "📤" to Icons.Rounded.Share, "🔊" to Icons.AutoMirrored.Rounded.VolumeUp, "🌐" to Icons.Rounded.Language, "🆘" to Icons.Rounded.Sos,
-            "⭐" to Icons.Rounded.Star, "⏸" to Icons.Rounded.Pause, "🏍" to Icons.Rounded.TwoWheeler, "📱" to Icons.Rounded.Smartphone, "🚨" to Icons.Rounded.NotificationImportant, "📄" to Icons.Rounded.Description, "🎬" to Icons.Rounded.Movie, "🚶" to Icons.AutoMirrored.Rounded.DirectionsWalk, "🏃" to Icons.AutoMirrored.Rounded.DirectionsRun, "🚲" to Icons.AutoMirrored.Rounded.DirectionsBike, "🚴" to Icons.AutoMirrored.Rounded.DirectionsBike, "🚗" to Icons.Rounded.DirectionsCar, "🚌" to Icons.Rounded.DirectionsBus, "🚆" to Icons.Rounded.Train, "🏠" to Icons.Rounded.Home, "⏳" to Icons.Rounded.HourglassTop, "🔥" to Icons.Rounded.LocalFireDepartment, "💧" to Icons.Rounded.WaterDrop, "📶" to Icons.Rounded.SignalCellularAlt, "👤" to Icons.Rounded.Person, "🧑" to Icons.Rounded.Person, "✉" to Icons.Rounded.Mail, "🔕" to Icons.Rounded.NotificationsOff, "📵" to Icons.Rounded.PhonelinkErase, "🛰" to Icons.Rounded.Satellite, "🌙" to Icons.Rounded.DarkMode, "☀" to Icons.Rounded.LightMode, "🌅" to Icons.Rounded.WbTwilight,
+            "⭐" to Icons.Rounded.Star, "⛰" to Icons.Rounded.Landscape, "⏸" to Icons.Rounded.Pause, "🏍" to Icons.Rounded.TwoWheeler, "📱" to Icons.Rounded.Smartphone, "🚨" to Icons.Rounded.NotificationImportant, "📄" to Icons.Rounded.Description, "🎬" to Icons.Rounded.Movie, "🚶" to Icons.AutoMirrored.Rounded.DirectionsWalk, "🏃" to Icons.AutoMirrored.Rounded.DirectionsRun, "🚲" to Icons.AutoMirrored.Rounded.DirectionsBike, "🚴" to Icons.AutoMirrored.Rounded.DirectionsBike, "🚗" to Icons.Rounded.DirectionsCar, "🚌" to Icons.Rounded.DirectionsBus, "🚆" to Icons.Rounded.Train, "🏠" to Icons.Rounded.Home, "⏳" to Icons.Rounded.HourglassTop, "🔥" to Icons.Rounded.LocalFireDepartment, "💧" to Icons.Rounded.WaterDrop, "📶" to Icons.Rounded.SignalCellularAlt, "👤" to Icons.Rounded.Person, "🧑" to Icons.Rounded.Person, "✉" to Icons.Rounded.Mail, "🔕" to Icons.Rounded.NotificationsOff, "📵" to Icons.Rounded.PhonelinkErase, "🛰" to Icons.Rounded.Satellite, "🌙" to Icons.Rounded.DarkMode, "☀" to Icons.Rounded.LightMode, "🌅" to Icons.Rounded.WbTwilight,
         )
     }
 

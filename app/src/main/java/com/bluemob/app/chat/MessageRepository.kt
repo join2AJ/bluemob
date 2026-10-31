@@ -320,6 +320,63 @@ class MessageRepository(
         }
     }
 
+    /** Who looks after me in [g]: its admin and captain, and the captains of its teams I'm in. Health and altitude checks go only to them. */
+    private fun carers(g: ChatGroup, myId: String): Set<String> {
+        val teams = groups?.groups?.value?.values.orEmpty().filter { it.parent == g.id && it.trip }
+        return (setOf(g.owner, g.captain) + teams.map { it.captain }).filter { it.isNotBlank() && it != myId }.toSet()
+    }
+
+    /** Shares my health card ([card]) with the trip admin and my captain, or takes it back (null). */
+    fun shareHealth(gid: String, card: String?) {
+        val store = groups ?: return
+        val g = store.get(gid)?.takeIf { it.trip } ?: return
+        val (myId, _) = me()
+        store.put(g.copy(shareHealth = card != null))
+        val to = carers(g, myId)
+        if (to.isEmpty()) return
+        scope.launch {
+            val now = System.currentTimeMillis()
+            val wire = Rich(group = gid, groupName = g.name, health = card?.take(1_500) ?: "").encode()
+            to.forEach { dao.insert(carrier(it, wire, "", now)) }
+            record(AuditKind.APP, gid, if (card != null) "Health card shared with the trip admin of \"${g.name}\"" else "Health card taken back from the trip admin of \"${g.name}\"")
+            deliverAll()
+        }
+    }
+
+    /** My daily altitude check: kept here (so it isn't asked again today) and sent to the admin and my captain only. */
+    fun sendAltitudeCheck(gid: String, a: AltitudeCheck.Answers, altM: Int) {
+        val store = groups ?: return
+        val g = store.get(gid)?.takeIf { it.trip } ?: return
+        val (myId, _) = me()
+        val now = System.currentTimeMillis()
+        val check = AmsCheck(a.score, a.headache, a.danger, now, altM)
+        store.put(g.copy(myAmsAt = now, amsChecks = if (g.canManage(myId)) g.amsChecks + (myId to check) else g.amsChecks))
+        val to = carers(g, myId)
+        if (to.isEmpty()) return
+        scope.launch {
+            val wire = Rich(group = gid, groupName = g.name, ams = check).encode()
+            to.forEach { dao.insert(carrier(it, wire, "", now)) }
+            deliverAll()
+        }
+    }
+
+    /** The trip ended: health cards and altitude checks others shared are erased from this phone. */
+    fun forgetCare(gid: String) {
+        val g = groups?.get(gid)?.takeIf { it.health.isNotEmpty() || it.amsChecks.isNotEmpty() } ?: return
+        groups.put(g.copy(health = emptyMap(), amsChecks = emptyMap()))
+        record(AuditKind.APP, gid, "Health cards and altitude checks of trip group \"${g.name}\" erased from this phone: the trip ended")
+    }
+
+    /** A headcount: kept here, and told to the group so everyone knows who's missing. */
+    fun saveHeadcount(gid: String, here: List<String>, missing: List<String>, nameOf: (String) -> String) {
+        val store = groups ?: return
+        val g = store.get(gid)?.takeIf { it.trip } ?: return
+        val now = System.currentTimeMillis()
+        store.put(g.copy(headcounts = (g.headcounts + Headcount(now, here, missing)).takeLast(Headcount.KEEP)))
+        val total = here.size + missing.size
+        send(gid, if (missing.isEmpty()) "🚌 Headcount: all $total here" else "🚌 Headcount: ${here.size} of $total here. Missing: ${missing.joinToString { nameOf(it) }}")
+    }
+
     /** "I reached this checkpoint": saved here, and told to the group (it gets there when the group is in reach). */
     fun checkIn(gid: String, stopId: String, auto: Boolean = false) {
         val store = groups ?: return
@@ -575,6 +632,16 @@ class MessageRepository(
         if (gid != null && groups != null && rich.ack != null) {
             groups.get(gid)?.let { g -> if (g.announcements.any { it.id == rich.ack && it.by == myId })
                 groups.put(g.copy(acks = g.acks + (rich.ack to (g.acks[rich.ack].orEmpty() + (e.fromNodeId to now))))) }
+            return
+        }
+        if (gid != null && groups != null && (rich.health != null || rich.ams != null)) {
+            // Health cards and altitude checks: only the admin's and captains' phones keep them, only while the trip runs.
+            groups.get(gid)?.takeIf { it.trip && it.canManage(myId) && !it.isClosed(now) && (e.fromNodeId in it.members || it.owner == e.fromNodeId) }?.let { g ->
+                var n = g
+                rich.health?.let { h -> n = n.copy(health = if (h.isBlank()) n.health - e.fromNodeId else n.health + (e.fromNodeId to h)) }
+                rich.ams?.let { c -> n = n.copy(amsChecks = n.amsChecks + (e.fromNodeId to c.copy(at = minOf(c.at, now)))) }
+                groups.put(n)
+            }
             return
         }
         if (gid != null && groups != null && rich.denied != null) {

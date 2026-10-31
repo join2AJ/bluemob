@@ -32,7 +32,17 @@ object TripWatch {
         }
         /** We're at checkpoint [stopId] (by location). */
         data class CheckIn(val gid: String, val stopId: String) : Act
+        /** Time for today's altitude check (the admin turned it on). Key: once a day. */
+        data class AltitudeDue(val gid: String, val day: Long) : Act { val key get() = "ams:$gid:$day" }
+        /** A member's altitude check says moderate or worse: tell the admin or captain once. */
+        data class AltitudeAlert(val gid: String, val member: String, val check: AmsCheck) : Act { val key get() = "amsalert:$gid:$member:${check.at}" }
+        /** The trip ended: erase the health cards and altitude checks others shared with this phone. */
+        data class ForgetCare(val gid: String) : Act
     }
+
+    /** The day number and hour of [t] on this phone's clock. */
+    fun localDay(t: Long): Long { val off = java.util.TimeZone.getDefault().getOffset(t); return Math.floorDiv(t + off, 86_400_000L) }
+    fun localHour(t: Long): Int { val off = java.util.TimeZone.getDefault().getOffset(t); return (Math.floorMod(t + off, 86_400_000L) / 3_600_000L).toInt() }
 
     /** [alerted]: roll calls we already sounded an alert for. */
     fun due(groups: Collection<ChatGroup>, rolls: Map<String, RollCall>, me: String, now: Long, alerted: Set<String>,
@@ -42,8 +52,20 @@ object TripWatch {
         groups.filter { it.trip && it.checkins.isNotEmpty() }.forEach { g ->
             g.closedTime(now).takeIf { it > 0 && now - it >= TripMeta.CHECKINS_KEPT_MS }?.let { add(Act.ForgetCheckIns(g.id)) }
         }
+        groups.filter { it.trip && it.isClosed(now) && (it.health.isNotEmpty() || it.amsChecks.isNotEmpty()) }.forEach { add(Act.ForgetCare(it.id)) }
         groups.filter { it.trip && !it.isClosed(now) }.forEach { g ->
             val roll = rolls[g.id]
+            // The daily altitude check, from 7 in the morning, once a day.
+            if (g.amsDaily && localHour(now) >= 7 && localDay(g.myAmsAt) != localDay(now)) {
+                val act = Act.AltitudeDue(g.id, localDay(now))
+                if (act.key !in alerted) add(act)
+            }
+            if (g.canManage(me)) g.amsChecks.forEach { (id, c) ->
+                if (id != me && c.level >= AltitudeCheck.Level.MODERATE && now - c.at < 12 * 3_600_000L) {
+                    val act = Act.AltitudeAlert(g.id, id, c)
+                    if (act.key !in alerted) add(act)
+                }
+            }
             if (g.canManage(me)) {
                 if (g.autoMin > 0 && g.members.isNotEmpty() && now - (roll?.at ?: 0) >= g.autoMin * 60_000L) add(Act.RollCall(g.id))
                 if (roll != null && roll.messageId !in alerted && now - roll.at >= UNREACHABLE_AFTER_MS) {
