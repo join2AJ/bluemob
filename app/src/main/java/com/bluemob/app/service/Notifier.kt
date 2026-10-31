@@ -26,6 +26,8 @@ class Notifier(private val context: Context) {
 
     /** Do not disturb: messages and other notes arrive silently. SOS alerts and rescue groups always sound. */
     var quiet: () -> Boolean = { false }
+    /** Full silence: every notification goes out silently, whatever its kind (see AppSettings.fullSilence). */
+    var silent: () -> Boolean = { false }
     private fun ch(normal: String) = if (quiet()) CH_QUIET else normal
 
     init {
@@ -202,7 +204,10 @@ class Notifier(private val context: Context) {
     private fun post(id: Int, n: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
-        runCatching { manager.notify(id, n) }
+        // Full silence: anything that would sound is moved to the quiet channel (the ongoing one and the card are silent anyway).
+        val out = if (silent() && n.channelId != CH_MESH && n.channelId != CH_CARD && n.channelId != CH_QUIET)
+            runCatching { Notification.Builder.recoverBuilder(context, n).setChannelId(CH_QUIET).build() }.getOrDefault(n) else n
+        runCatching { manager.notify(id, out) }
     }
 
     /**

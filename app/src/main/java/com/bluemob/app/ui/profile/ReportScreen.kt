@@ -14,6 +14,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material.icons.rounded.Sos
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.drawBehind
@@ -94,22 +104,25 @@ fun ReportScreen(
         }
         item { Step(1, "What's it about?", done = category != null) }
         item {
-            // Three tiles a row: big emoji, short name.
+            // Three tiles a row: an icon in a soft circle of its colour, and a short name. Hidden features aren't offered.
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ReportTopics.ALL.chunked(3).forEach { row ->
+                ReportTopics.ALL.filter { com.bluemob.app.Features.GAMES || !it.first.endsWith("Games") }.chunked(3).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         row.forEach { (c, _) ->
                             val on = category == c
+                            val (icon, tint) = topicLook(c.substringAfter(' '))
                             Column(
-                                Modifier.weight(1f).height(84.dp).clip(RoundedCornerShape(22.dp))
-                                    .background(if (on) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surface)
-                                    .border(if (on) 2.dp else 1.dp, if (on) MaterialTheme.colorScheme.primary else Extra.line, RoundedCornerShape(22.dp))
+                                Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(18.dp))
+                                    .background(if (on) tint.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surface)
+                                    .border(if (on) 2.dp else 1.dp, if (on) tint else Extra.line, RoundedCornerShape(18.dp))
                                     .clickable { if (category != c) { category = c; sub = null } }.padding(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                             ) {
-                                Text(c.substringBefore(' '), style = MaterialTheme.typography.titleLarge)
+                                Box(Modifier.size(38.dp).clip(CircleShape).background(tint.copy(alpha = if (on) 0.32f else 0.16f)), contentAlignment = Alignment.Center) {
+                                    Icon(icon, null, Modifier.size(20.dp), tint = tint)
+                                }
                                 Text(c.substringAfter(' '), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2,
-                                    color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 4.dp))
+                                    color = if (on) tint else MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 6.dp))
                             }
                         }
                         repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
@@ -118,6 +131,8 @@ fun ReportScreen(
             }
         }
         val subs = ReportTopics.ALL.firstOrNull { it.first == category }?.second
+        // Steps are numbered as shown: "What exactly?" appears once a topic is picked.
+        val n = if (subs != null) 1 else 0
         if (subs != null) {
             item { Step(2, "What exactly?", done = sub != null) }
             item {
@@ -126,13 +141,13 @@ fun ReportScreen(
                 }
             }
         }
-        item { Step(3, "What happened?", done = text.isNotBlank()) }
+        item { Step(2 + n, "What happened?", done = text.isNotBlank()) }
         item {
             OutlinedTextField(text, { text = it.take(4000) }, minLines = 4, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                 placeholder = { Text("What did you do, what happened, and what did you expect? When was it?") },
                 supportingText = { Text("${text.length} / 4000", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End) })
         }
-        item { Step(4, "Screenshots or photos", done = photos.isNotEmpty(), optional = true) }
+        item { Step(3 + n, "Screenshots or photos", done = photos.isNotEmpty(), optional = true) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 photos.forEachIndexed { i, p ->
@@ -217,4 +232,18 @@ private fun Step(n: Int, title: String, done: Boolean, optional: Boolean = false
 private fun Modifier.dashedBorder(color: androidx.compose.ui.graphics.Color) = drawBehind {
     drawRoundRect(color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx(),
         pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f, 10f))), cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx()))
+}
+
+/** Each topic's icon and colour. */
+private fun topicLook(name: String): Pair<androidx.compose.ui.graphics.vector.ImageVector, androidx.compose.ui.graphics.Color> = when (name) {
+    "Messages & chats" -> Icons.Rounded.ChatBubbleOutline to com.bluemob.app.ui.theme.Palette.BrandBlue
+    "Calls" -> Icons.Rounded.Call to com.bluemob.app.ui.theme.Palette.BrandGreen
+    "SOS & rescue" -> Icons.Rounded.Sos to com.bluemob.app.ui.theme.Palette.Danger
+    "Nearby & connection" -> Icons.Rounded.Hub to com.bluemob.app.ui.theme.Palette.Violet
+    "Compass & map" -> Icons.Rounded.Explore to com.bluemob.app.ui.theme.Palette.Sunset
+    "Guides & Sky" -> Icons.Rounded.MenuBook to com.bluemob.app.ui.theme.Palette.Gold
+    "Trip groups" -> Icons.Rounded.Groups to com.bluemob.app.ui.theme.Palette.BrandGreen
+    "Games" -> Icons.Rounded.SportsEsports to com.bluemob.app.ui.theme.Palette.Violet
+    "Account & backup" -> Icons.Rounded.Person to com.bluemob.app.ui.theme.Palette.BrandBlue
+    else -> Icons.Rounded.PhoneAndroid to com.bluemob.app.ui.theme.Palette.Warning
 }

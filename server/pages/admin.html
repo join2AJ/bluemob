@@ -80,6 +80,16 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}butto
       <span id="wMsg" class="muted"></span>
       <div id="wOut"></div>
     </div>
+    <div class="card" style="margin-top:14px">
+      <h2 style="margin-top:0">Whose rescue screenshot is this?</h2>
+      <p class="muted">Rescue screens have <b style="color:#F2994A">orange</b> dots. Find a small ring: the 16 × 9 dots to its lower right are
+        one block. Tap the dots that are big (row by row) and say roughly when it was taken. You get whose phone took it and whose rescue it was.</p>
+      <div id="rGrid" style="display:grid;grid-template-columns:repeat(16,22px);gap:5px;margin:12px 0"></div>
+      <input id="rAt" type="datetime-local">
+      <p></p><button class="btn" id="rGo">Look up</button> <button class="btn" id="rClear" style="background:transparent;color:var(--ink2)">Clear dots</button>
+      <span id="rMsg" class="muted"></span>
+      <div id="rOut"></div>
+    </div>
   </section>
   <section id="trip" class="hidden">
     <div class="card">
@@ -176,6 +186,26 @@ async function loadLog() {
       ${e.ok ? "allowed" : '<span class="err">refused</span>'} <span class="muted">· ${esc(e.ip)}</span></p>`).join("") || "<p class='muted'>Nothing yet.</p>";
   } catch (e) { $("logList").textContent = e.message === "token" ? "Sign in again." : "Couldn't reach the server."; }
 }
+
+const rBits = Array(144).fill(0);
+function drawRGrid() {
+  $("rGrid").innerHTML = rBits.map((b, i) => `<button data-i="${i}" title="row ${Math.floor(i / 16) + 1}, dot ${i % 16 + 1}" style="width:22px;height:22px;border-radius:50%;border:1px solid #F2994A;padding:0;background:${b ? "#F2994A" : "transparent"};cursor:pointer"></button>`).join("");
+  $("rGrid").querySelectorAll("button").forEach((el) => el.onclick = () => { rBits[+el.dataset.i] ^= 1; drawRGrid(); });
+}
+drawRGrid();
+$("rClear").onclick = () => { rBits.fill(0); drawRGrid(); $("rOut").innerHTML = ""; };
+$("rGo").onclick = async () => {
+  const at = $("rAt").value ? new Date($("rAt").value).getTime() : Date.now();
+  $("rMsg").textContent = "Looking…";
+  try {
+    const r = await api(`/v1/admin/rescuemark?bits=${rBits.join("")}&at=${at}`);
+    $("rMsg").textContent = "";
+    const fmt = (id) => "BM " + id.toUpperCase().match(/.{4}/g).join(" ");
+    $("rOut").innerHTML = r.matches.length === 0 ? `<p>No match. Check each row of dots and the time.</p>`
+      : r.matches.map((m) => `<p>Taken on the phone of <b>${esc(fmt(m.viewer))}</b>, in the rescue of <b>${esc(fmt(m.victim))}</b>
+        <span class="muted">· the hour starting ${esc(when(m.hour))}</span></p>`).join("");
+  } catch (e) { $("rMsg").textContent = e.message === "token" ? "Sign in again." : "Couldn't reach the server."; }
+};
 
 async function loadOverview() {
   const s = await api("/v1/admin/stats");

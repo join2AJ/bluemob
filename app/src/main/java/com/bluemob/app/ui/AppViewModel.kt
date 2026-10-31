@@ -328,6 +328,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val autoErrorReports = settings.autoErrorReports
     fun setAutoErrorReports(on: Boolean) = settings.setAutoErrorReports(on)
     val dndUntil = settings.dndUntil
+    val fullSilence = settings.fullSilence
+    fun setFullSilence(on: Boolean) { settings.setFullSilence(on); toast(if (on) "Full silence on: BlueMob makes no sound" else "Full silence off") }
     fun setDndUntil(until: Long) { settings.setDndUntil(until); if (until > System.currentTimeMillis()) toast("Do not disturb on " + com.bluemob.app.ui.profile.dndText(until)) }
     val dndAllowSosContacts = settings.dndAllowSosContacts
     fun setDndAllowSosContacts(on: Boolean) = settings.setDndAllowSosContacts(on)

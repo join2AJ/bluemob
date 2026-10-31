@@ -176,6 +176,7 @@ class BlueMobApp : Application() {
         settings = AppSettings(this)
         com.bluemob.app.i18n.Lang.init(this, settings.language.value)
         notifier.quiet = { settings.dndOn() }
+        notifier.silent = { settings.fullSilence.value }
         signals = SignalController(this)
         heading = HeadingSensor(this)
         radios = Radios(this)
@@ -508,8 +509,8 @@ class BlueMobApp : Application() {
     }
 
     /** Do not disturb is on, and this caller isn't one of our SOS contacts allowed through. */
-    fun dndBlocksCall(peer: String?): Boolean = settings.dndOn() &&
-        !(settings.dndAllowSosContacts.value && peer != null && settings.sosContacts.value.any { it.nodeId == peer })
+    fun dndBlocksCall(peer: String?): Boolean = settings.fullSilence.value || (settings.dndOn() &&
+        !(settings.dndAllowSosContacts.value && peer != null && settings.sosContacts.value.any { it.nodeId == peer }))
 
     /** What Sky can see on this phone right now. */
     private fun skyFacts(): SkyFacts {

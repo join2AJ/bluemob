@@ -61,7 +61,7 @@ fun AutoStartScreen(
                 // Android 14+ can stop apps opening over the lock screen: SOS alarms and calls need it.
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val fullScreenOk = android.os.Build.VERSION.SDK_INT < 34 ||
-                    context.getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent()
+                    runCatching { context.getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent() }.getOrDefault(true)
                 if (!fullScreenOk) Row(Modifier.fillMaxWidth().clickable {
                     runCatching {
                         context.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
@@ -116,20 +116,18 @@ fun AutoStartScreen(
         }
         item { GroupLabel("Bluetooth") }
         item {
-            Text("The mesh needs Bluetooth. If it's off when the mesh starts:", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(bottom = 8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("Ask me", bluetooth != RadioPolicy.ALLOW) { onBluetooth(RadioPolicy.ASK) }
-                Chip("Turn it on without asking", bluetooth == RadioPolicy.ALLOW) { onBluetooth(RadioPolicy.ALLOW) }
-            }
+            ChoiceGroup("The mesh needs Bluetooth. If it's off when the mesh starts:", listOf(
+                Triple("Ask me", "BlueMob asks before turning it on", bluetooth != RadioPolicy.ALLOW) to { onBluetooth(RadioPolicy.ASK) },
+                Triple("Turn it on without asking", "Best for trips: the mesh starts straight away", bluetooth == RadioPolicy.ALLOW) to { onBluetooth(RadioPolicy.ALLOW) },
+            ))
         }
         item { GroupLabel("Wi-Fi") }
         item {
-            Text("Wi-Fi makes links with people nearby much faster (no network or internet needed). If it's off:", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(bottom = 8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("Ask me", wifi == RadioPolicy.ASK) { onWifi(RadioPolicy.ASK) }
-                Chip("Use it", wifi == RadioPolicy.ALLOW) { onWifi(RadioPolicy.ALLOW) }
-                Chip("Bluetooth only", wifi == RadioPolicy.NEVER) { onWifi(RadioPolicy.NEVER) }
-            }
+            ChoiceGroup("Wi-Fi makes links with people nearby much faster (no network or internet needed). If it's off:", listOf(
+                Triple("Ask me", "BlueMob asks before using it", wifi == RadioPolicy.ASK) to { onWifi(RadioPolicy.ASK) },
+                Triple("Use it", "Faster links, a little more battery", wifi == RadioPolicy.ALLOW) to { onWifi(RadioPolicy.ALLOW) },
+                Triple("Bluetooth only", "Slower, saves the most battery", wifi == RadioPolicy.NEVER) to { onWifi(RadioPolicy.NEVER) },
+            ))
         }
         item {
             Text("Why this matters: Android's Nearby service, which the mesh runs on, switches Bluetooth (and Wi-Fi, if allowed) on while the mesh is running. " +
@@ -172,4 +170,23 @@ fun MeshAskDialog(ask: AppViewModel.MeshAsk, onAnswer: (turnOn: Boolean, remembe
         confirmButton = { TextButton(onClick = { onAnswer(true, remember) }) { Text(if (bt) "Turn on Bluetooth" else "Turn on Wi-Fi") } },
         dismissButton = { TextButton(onClick = { onAnswer(false, remember) }) { Text(if (bt) "Not now" else "Bluetooth only") } },
     )
+}
+
+/** A boxed group of choices, one picked: a line saying what it's for, then one row per choice with a radio button. */
+@Composable
+private fun ChoiceGroup(intro: String, options: List<Pair<Triple<String, String, Boolean>, () -> Unit>>) {
+    Group {
+        Text(intro, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp))
+        options.forEach { (o, pick) ->
+            val (title, body, on) = o
+            androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 16.dp), color = Extra.line)
+            Row(Modifier.fillMaxWidth().clickable(onClick = pick).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.RadioButton(on, null)
+                Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(title, style = MaterialTheme.typography.bodyLarge)
+                    Text(body, style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                }
+            }
+        }
+    }
 }

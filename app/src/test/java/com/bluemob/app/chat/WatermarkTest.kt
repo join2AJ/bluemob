@@ -33,4 +33,15 @@ class WatermarkTest {
         assertEquals(80, bits.size)
         (0 until 10).forEach { b -> assertEquals(bytes[b].toInt() and 0xff, (0 until 8).fold(0) { acc, i -> (acc shl 1) or (if (bits[b * 8 + i]) 1 else 0) }) }
     }
+
+    @Test fun rescuePatternHidesWhoseScreenAndWhoseRescue() {
+        val at = 1_790_000_000_000L
+        val bits = RescueMark.bits("3f9a1c2b7d4e8a01", "5742990ae65f20fe", at)
+        assertEquals(144, bits.size)
+        assertEquals("3f9a1c2b7d4e8a01" to "5742990ae65f20fe", RescueMark.decode(bits, at / Watermark.HOUR))
+        assertEquals(null, RescueMark.decode(bits, at / Watermark.HOUR + 1))
+        val flipped = bits.copyOf().also { it[3] = !it[3] }
+        assertEquals(null, RescueMark.decode(flipped, at / Watermark.HOUR))
+        java.io.File("build").mkdirs(); java.io.File("build/rescuemark-bits.txt").writeText(bits.joinToString("") { if (it) "1" else "0" })
+    }
 }

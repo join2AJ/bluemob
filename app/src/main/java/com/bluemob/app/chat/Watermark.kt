@@ -60,3 +60,40 @@ object Watermark {
         return out.toByteArray()
     }
 }
+
+/**
+ * The pattern hidden in a rescue screen's background (warm orange dots, so it's told apart from a chat's): it hides both
+ * the BlueMob ID of the phone it's shown on and the ID of the person the rescue is for, changing every hour. From a
+ * reported screenshot the team gets whose phone took it and whose rescue it was (with the time, which rescue).
+ *
+ * 18 bytes: (viewer ID + person-in-need ID) XOR-ed with an hourly key stream, plus a 2-byte check; shown as 144 dots in
+ * blocks of 16 × 9. Like [Watermark], a deterrent, not a secret.
+ */
+object RescueMark {
+    private val KEY = "bluemob-rescue-mark-v1".toByteArray()
+    const val COLS = 16
+    const val ROWS = 9
+
+    private fun mac(text: String) = javax.crypto.Mac.getInstance("HmacSHA256").run { init(javax.crypto.spec.SecretKeySpec(KEY, "HmacSHA256")); doFinal(text.toByteArray()) }
+    private fun raw(id: String) = id.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+
+    fun bytes(viewer: String, victim: String, at: Long): ByteArray {
+        val hour = at / Watermark.HOUR
+        val ids = raw(viewer) + raw(victim)
+        val stream = mac("stream|$hour")
+        return ByteArray(16) { (ids[it].toInt() xor stream[it].toInt()).toByte() } + mac("check|$viewer|$victim|$hour").copyOf(2)
+    }
+
+    fun bits(viewer: String, victim: String, at: Long): BooleanArray =
+        bytes(viewer, victim, at).let { b -> BooleanArray(COLS * ROWS) { i -> (b[i / 8].toInt() shr (7 - i % 8)) and 1 == 1 } }
+
+    /** (viewer, person in need) hidden in [bits] if made in [hour], or null. */
+    fun decode(bits: BooleanArray, hour: Long): Pair<String, String>? {
+        if (bits.size != COLS * ROWS) return null
+        val b = ByteArray(18) { i -> (0 until 8).fold(0) { acc, k -> (acc shl 1) or (if (bits[i * 8 + k]) 1 else 0) }.toByte() }
+        val stream = mac("stream|$hour")
+        val ids = ByteArray(16) { (b[it].toInt() xor stream[it].toInt()).toByte() }.joinToString("") { "%02x".format(it) }
+        val viewer = ids.take(16); val victim = ids.drop(16)
+        return (viewer to victim).takeIf { mac("check|$viewer|$victim|$hour").copyOf(2).contentEquals(b.copyOfRange(16, 18)) }
+    }
+}

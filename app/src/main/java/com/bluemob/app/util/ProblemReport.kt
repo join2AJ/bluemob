@@ -33,6 +33,7 @@ object ReportTopics {
         "📡 Nearby & connection" to listOf("Can't find people", "Keeps disconnecting", "Internet / relay", "Battery drain"),
         "🧭 Compass & map" to listOf("Wrong direction", "GPS / position", "Trail & trips", "Sun & daylight"),
         "📖 Guides & Sky" to listOf("Wrong information", "Sky's answer", "Guide packs", "Read aloud"),
+        "👥 Trip groups" to listOf("Joining", "Roll calls & alerts", "Itinerary & checkpoints", "Buddies & announcements", "Teams"),
         "🎮 Games" to listOf("Game rules", "Playing with someone", "Survival quiz"),
         "👤 Account & backup" to listOf("Sign-up / code", "Backup & restore", "PIN & lock", "Profile & ratings"),
         "📱 The app" to listOf("Crashed", "Slow", "Looks wrong", "Idea or suggestion", "Something else"),

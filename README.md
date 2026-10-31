@@ -36,6 +36,25 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.37.1: your screenshot feedback
+
+- **Rescue screens have their own dot pattern**, in warm orange so they're told apart from chats. It hides both whose
+  phone shows it and whose rescue it is, changing every hour. Admin page → Screenshot lookup → "Whose rescue
+  screenshot is this?" (16 × 9 dots).
+- **Bluetooth and Wi-Fi settings in boxes:** each choice is a row with a radio button and a line on what it means.
+- **Full silence:** a second do-not-disturb under the first. It silences every BlueMob sound, even SOS alarms from
+  people nearby, trip alerts and calls. Your own SOS still goes out. Turning it on asks a small sum; turning it off
+  doesn't.
+- **Tabs remember where you were:** come back from Storage & data (or any screen) and the You tab, like every other
+  tab, is still scrolled where you left it.
+- **Under your name:** a Trust tile (rating and how many) and a This week tile (your activity), instead of the old
+  text lines. Picture, name and ID use proper icons.
+- **Report a problem:** topics with icons in coloured circles; steps numbered as shown (no more 1, 3, 4); a Trip
+  groups topic; Games hidden while games are.
+- **Replies and the message menu:** the quoted message has an accent bar and the writer's name; the "Replying to"
+  card above the box has a reply icon and a proper close button; long-press shows reactions in a pill, then Reply,
+  Copy and Message info with icons.
+
 ## Android 0.37: trip tabs, trip mode, overdue alerts, buddy pairs, announcements
 
 - **Trip group screen in tabs:** People, Plan, and Settings (admin or captain) or More (everyone else). The heading

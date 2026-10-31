@@ -448,6 +448,27 @@ class AdminLog {
   recent(n = 200) { return this.lines.slice(-n).reverse().map((l) => JSON.parse(l)); }
 }
 
+// ---- Rescue screenshot pattern (see app chat/Watermark.kt RescueMark): whose phone, and whose rescue ----
+const RM_KEY = Buffer.from("bluemob-rescue-mark-v1");
+const rmMac = (text) => crypto.createHmac("sha256", RM_KEY).update(text).digest();
+/** 144 dots (big = 1) at [hour] → {viewer, victim}, or null. */
+function rescueDecode(bits, hour) {
+  if (!/^[01]{144}$/.test(bits)) return null;
+  const b = Buffer.alloc(18);
+  for (let i = 0; i < 18; i++) b[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
+  const stream = rmMac(`stream|${hour}`);
+  const ids = Buffer.from(b.subarray(0, 16).map((x, i) => x ^ stream[i])).toString("hex");
+  const viewer = ids.slice(0, 16), victim = ids.slice(16);
+  const check = rmMac(`check|${viewer}|${victim}|${hour}`).subarray(0, 2);
+  return check[0] === b[16] && check[1] === b[17] ? { viewer, victim } : null;
+}
+/** Every match from 2 days before [at] to 2 hours after. */
+function rescueLookup(bits, at) {
+  const h0 = Math.floor(at / 3600e3), found = [];
+  for (let h = h0 - 48; h <= h0 + 2; h++) { const r = rescueDecode(bits, h); if (r) found.push({ ...r, hour: new Date(h * 3600e3).toISOString() }); }
+  return found;
+}
+
 function alertTeam(url, text) {
   if (!url || !/^https:\/\//.test(url)) return;
   try {
@@ -590,6 +611,11 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
       const bits = String(url.searchParams.get("bits") || "");
       const code = /^[01]{80}$/.test(bits) ? wmFromBits(bits) : String(url.searchParams.get("code") || "");
       return send(res, 200, { matches: watermarkLookup(code, at) });
+    }
+    if (req.method === "GET" && url.pathname === "/v1/admin/rescuemark") {
+      if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"), "rescue screenshot lookup", ip)) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
+      const at = Number(url.searchParams.get("at")) || Date.now();
+      return send(res, 200, { matches: rescueLookup(String(url.searchParams.get("bits") || ""), at) });
     }
     if (req.method === "GET" && url.pathname === "/v1/admin/tripcode") {
       if (!isAdmin(req.headers["x-admin-token"] || url.searchParams.get("token"), "trip code lookup", ip)) { limited("admin:" + ip); return send(res, 403, { error: "no" }); }
@@ -788,7 +814,7 @@ function createServer(store, guides = loadGuides(), blobs = new Blobs(null), bac
   });
 }
 
-module.exports = { totp, totpOk, AdminLog, openTripCode, sealTripCode, wmDecode, wmFromBits, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
+module.exports = { rescueDecode, rescueLookup, totp, totpOk, AdminLog, openTripCode, sealTripCode, wmDecode, wmFromBits, watermarkLookup, createServer, Store, Blobs, Backups, Reports, Announcements, openEnvelope, idFor, loadGuides };
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 8080);

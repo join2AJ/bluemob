@@ -118,7 +118,10 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
     LaunchedEffect(room.chat.size) { if (room.chat.isNotEmpty()) list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1) }
     val guideId = remember(room.note) { SkyBot.guideIdFor(room.note) }
 
-    Column(Modifier.fillMaxSize().background(Extra.sand).imePadding()) {
+    Box(Modifier.fillMaxSize().background(Extra.sand)) {
+    // The warm dotted background hides who's looking and whose rescue it is (see RescueMark).
+    com.bluemob.app.ui.chat.RescueWallpaper(myId, room.victimId, Modifier.matchParentSize())
+    Column(Modifier.fillMaxSize().imePadding()) {
         // Top bar.
         Column(Modifier.background(MaterialTheme.colorScheme.surface).statusBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -212,6 +215,7 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
                 }
             }
         }
+    }
     }
 }
 

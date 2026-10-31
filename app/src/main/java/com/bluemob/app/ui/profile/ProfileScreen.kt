@@ -1,5 +1,11 @@
 package com.bluemob.app.ui.profile
 
+import com.bluemob.app.ui.theme.Palette
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +42,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.DoNotDisturbOn
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -141,6 +148,9 @@ fun ProfileScreen(
     /** Do not disturb: until when (0 = off), and whether SOS contacts' calls still ring. */
     dndUntil: Long = 0L,
     onDndUntil: (Long) -> Unit = {},
+    /** Full silence: every BlueMob sound off, even SOS alarms; turning it on asks a sum. */
+    fullSilence: Boolean = false,
+    onFullSilence: (Boolean) -> Unit = {},
     dndSosCalls: Boolean = true,
     onDndSosCalls: (Boolean) -> Unit = {},
     /** News from the BlueMob team: how many are unread, and opening the list. */
@@ -148,6 +158,8 @@ fun ProfileScreen(
     onNews: () -> Unit = {},
 ) {
     var dndPicker by remember { mutableStateOf(false) }
+    var silenceAsk by remember { mutableStateOf(false) }
+    if (silenceAsk) SilenceDialog(onConfirm = { onFullSilence(true); silenceAsk = false }) { silenceAsk = false }
     if (dndPicker) DndDialog(dndSosCalls, onDndSosCalls, { onDndUntil(it); dndPicker = false }) { dndPicker = false }
     var draft by remember(name) { mutableStateOf(name) }
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
@@ -183,37 +195,34 @@ fun ProfileScreen(
                 Box(contentAlignment = Alignment.BottomEnd) {
                     Box(Modifier.size(88.dp).rotate(-4f).clip(RoundedCornerShape(30.dp)).background(Gradients.horizon()).clickable { editing = "avatar" },
                         contentAlignment = Alignment.Center) { Text(avatar, fontSize = 44.sp) }
-                    Text("✎", fontSize = 13.sp, modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surface).padding(horizontal = 7.dp, vertical = 3.dp))
+                    Box(Modifier.size(28.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.Edit, "Change picture", Modifier.size(15.dp), tint = Extra.ink2)
+                    }
                 }
                 Row(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(12.dp)).clickable { draft = name; editing = "name" }.padding(horizontal = 8.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text(name, style = MaterialTheme.typography.headlineSmall)
-                    Text("  ✎", style = MaterialTheme.typography.bodyMedium, color = Extra.ink3)
+                    com.bluemob.app.i18n.RawText(name, style = MaterialTheme.typography.headlineSmall)
+                    Icon(Icons.Outlined.Edit, "Change name", Modifier.padding(start = 6.dp).size(16.dp), tint = Extra.ink3)
                 }
-                Text(
-                    "BM · ${formatId(nodeId)}" + if (copied) "  ✓ copied" else "  ⧉",
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    color = Extra.ink2,
-                    modifier = Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface)
-                        .clickable { clipboard.setText(AnnotatedString("BM-$nodeId")); copied = true }.padding(horizontal = 12.dp, vertical = 8.dp),
-                )
-                // Your rating, right under your name: tap it to see each category and what people said.
-                Row(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(50)).clickable(onClick = onMyRating).padding(horizontal = 12.dp, vertical = 6.dp),
+                Row(Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface)
+                    .clickable { clipboard.setText(AnnotatedString("BM-$nodeId")); copied = true }.padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    com.bluemob.app.ui.components.QuarterStars(myStars, 18.dp)
-                    Text(
-                        if (myRatingCount == 0) "  New · no ratings yet" else "  %.2f · %d %s".format(com.bluemob.app.trust.Trust.quarter(myStars), myRatingCount, if (myRatingCount == 1) "person" else "people"),
-                        style = MaterialTheme.typography.bodyMedium, color = Extra.ink2,
-                    )
-                    Text("  ›", color = Extra.ink3)
+                    com.bluemob.app.i18n.RawText("BM · ${formatId(nodeId)}", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = Extra.ink2)
+                    Icon(if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy, if (copied) "Copied" else "Copy ID", Modifier.padding(start = 8.dp).size(15.dp),
+                        tint = if (copied) MaterialTheme.colorScheme.primary else Extra.ink3)
                 }
                 // Level, rank and medals: what you've done that makes you (and others) safer.
                 game?.takeIf { com.bluemob.app.Features.BADGES }?.let { LevelPill(it, Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).clickable(onClick = onBadges)) }
-                // Your activity at a glance: opens the dashboard with graphs.
-                Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).clickable(onClick = onActivity)
-                    .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("📊  " + activitySummary.ifBlank { "Your activity" }, style = MaterialTheme.typography.bodyMedium)
-                    Text("  ›", color = Extra.ink3)
+                // Your rating and your week, as two tiles: tap one for the details.
+                Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    StatTile(Modifier.weight(1f), Icons.Filled.Star, Palette.Gold, "Trust",
+                        if (myRatingCount == 0) "New" else "%.1f".format(com.bluemob.app.trust.Trust.quarter(myStars)),
+                        if (myRatingCount == 0) "No ratings yet" else "$myRatingCount ${if (myRatingCount == 1) "rating" else "ratings"}", onMyRating) {
+                        if (myRatingCount > 0) com.bluemob.app.ui.components.QuarterStars(myStars, 12.dp)
+                    }
+                    val week = activitySummary.removePrefix("This week: ").split(" · ").filter { it.isNotBlank() }
+                    StatTile(Modifier.weight(1f), Icons.Outlined.Insights, Palette.BrandBlue, "This week",
+                        week.firstOrNull() ?: "–", week.drop(1).joinToString(" · ").ifBlank { "Your activity" }, onActivity)
                 }
             }
         }
@@ -244,6 +253,12 @@ fun ProfileScreen(
                     if (on) "On ${dndText(dndUntil)} · SOS and rescue alerts still come through" + (if (dndSosCalls) ", and calls from your SOS contacts" else "")
                     else "Off · messages and calls make sound as usual",
                     onClick = { dndPicker = true }) { androidx.compose.material3.Switch(on, { if (it) dndPicker = true else onDndUntil(0L) }) }
+                SettingRow(Icons.Outlined.NotificationsOff, Extra.rose, "Full silence",
+                    if (fullSilence) "On · every BlueMob sound is off, even SOS alarms and trip alerts. Your own SOS still works"
+                    else "Off · turn on to silence BlueMob completely",
+                    divider = true, onClick = { if (fullSilence) onFullSilence(false) else silenceAsk = true }) {
+                    androidx.compose.material3.Switch(fullSilence, { if (it) silenceAsk = true else onFullSilence(false) })
+                }
             }
         }
 
@@ -353,4 +368,50 @@ private fun DndDialog(sosCalls: Boolean, onSosCalls: (Boolean) -> Unit, onPick: 
         confirmButton = {},
         dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/**
+ * Turning on full silence: it also mutes SOS alarms from people nearby, so a simple sum makes sure it's on purpose.
+ * Turning it off never asks.
+ */
+@Composable
+private fun SilenceDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val (x, y) = remember { (2..9).random() to (2..9).random() }
+    var answer by remember { mutableStateOf("") }
+    var wrong by remember { mutableStateOf(false) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Full silence?") },
+        text = {
+            Column {
+                Text("Every BlueMob sound stops: messages, calls, trip alerts, and SOS alarms from people nearby. Your own SOS still goes out. To turn it on, answer:",
+                    style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
+                com.bluemob.app.i18n.RawText("$x + $y = ?", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 12.dp))
+                androidx.compose.material3.OutlinedTextField(answer, { answer = it.filter(Char::isDigit).take(3); wrong = false }, singleLine = true, isError = wrong,
+                    label = { Text("Answer") }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    modifier = Modifier.padding(top = 8.dp))
+                if (wrong) Text("Not quite. Try again.", style = MaterialTheme.typography.bodySmall, color = Extra.rose)
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { if (answer.toIntOrNull() == x + y) onConfirm() else wrong = true }, enabled = answer.isNotBlank()) { Text("Turn on") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** A small tile under your name: icon, label, a big value and a line under it. */
+@Composable
+private fun StatTile(modifier: Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: androidx.compose.ui.graphics.Color, label: String, value: String, sub: String,
+    onClick: () -> Unit, extra: @Composable () -> Unit = {}) {
+    Column(modifier.clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).clickable(onClick = onClick).padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(26.dp).clip(CircleShape).background(tint.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, Modifier.size(15.dp), tint = tint)
+            }
+            Text(label, style = MaterialTheme.typography.labelMedium, color = Extra.ink3, modifier = Modifier.padding(start = 8.dp).weight(1f))
+            Icon(Icons.Outlined.ChevronRight, null, Modifier.size(16.dp), tint = Extra.ink3)
+        }
+        com.bluemob.app.i18n.RawText(value, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp), maxLines = 1)
+        extra()
+        Text(sub, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1)
+    }
 }

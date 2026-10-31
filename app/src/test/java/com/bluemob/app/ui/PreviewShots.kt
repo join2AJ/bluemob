@@ -300,4 +300,22 @@ class PreviewShots {
             com.bluemob.app.data.MessageEntity("t2", "g-trek", true, "Hey", now - 60_000, com.bluemob.app.data.MessageStatus.LOCAL, sender = me))
         com.bluemob.app.ui.chat.ChatScreen("g-trek", null, msgs, false, kotlinx.coroutines.flow.MutableSharedFlow(), "Ajay", me, {}, {}, { true }, {}, {}, {}, group = g)
     }
+
+    @Test fun connectionsBoxed() = shot(tall = true) {
+        com.bluemob.app.ui.system.AutoStartScreen(false, com.bluemob.app.settings.RadioPolicy.ASK, com.bluemob.app.settings.RadioPolicy.ALLOW, false, true, {}, {}, {}, {}, {}, {})
+    }
+    @Test fun reportModern() = shot(tall = true) { com.bluemob.app.ui.profile.ReportScreen({}, {}, { _, _, _, _, _ -> null }) }
+    @Test fun rescueWithPattern() = shot(tall = true) {
+        val room = ScreenshotTest().rescueRoom(false)
+        com.bluemob.app.ui.rescue.RescueScreen(room.copy(victimId = "5742990ae65f20fe"), "3f9a1c2b7d4e8a01", null, kotlinx.coroutines.flow.flowOf(0f), com.bluemob.app.ui.rescue.RescueActions())
+    }
+    @Test fun chatReply() = shot {
+        val msgs = listOf(
+            com.bluemob.app.data.MessageEntity("r1", "b7e4", false, "Ohhhhhh", now - 120_000, com.bluemob.app.data.MessageStatus.READ),
+            com.bluemob.app.data.MessageEntity("r2", "b7e4", true, "What are you doing?", now - 60_000, com.bluemob.app.data.MessageStatus.READ,
+                replyTo = com.bluemob.app.chat.Rich.replyField("r0", "Ravi", "Take rest, we start early tomorrow")),
+            com.bluemob.app.data.MessageEntity("r3", "b7e4", false, "Plan ka success hone ka wait", now - 30_000, com.bluemob.app.data.MessageStatus.READ,
+                replyTo = com.bluemob.app.chat.Rich.replyField("r2", "You", "What are you doing?")))
+        com.bluemob.app.ui.chat.ChatScreen("b7e4", people[1], msgs, false, kotlinx.coroutines.flow.MutableSharedFlow(), "Arjun", me, {}, {}, { true }, {}, {}, {})
+    }
 }

@@ -83,7 +83,15 @@ class AppSettings(context: Context) {
     /** Do not disturb until this time (0 = off, Long.MAX_VALUE = until turned off). SOS and rescue alerts always come through. */
     val dndUntil: StateFlow<Long> = _dndUntil.asStateFlow()
     fun setDndUntil(until: Long) { _dndUntil.value = until; prefs.edit().putLong("dnd_until", until).apply() }
-    fun dndOn(now: Long = System.currentTimeMillis()) = _dndUntil.value > now
+    fun dndOn(now: Long = System.currentTimeMillis()) = _dndUntil.value > now || _fullSilence.value
+
+    private val _fullSilence = MutableStateFlow(prefs.getBoolean("full_silence", false))
+    /**
+     * Full silence: every BlueMob sound stops, even SOS alarms from people nearby, rescue and trip alerts, and calls
+     * (they arrive silently). Your own SOS still goes out. Turning it on asks a small sum, so it isn't done by mistake.
+     */
+    val fullSilence: StateFlow<Boolean> = _fullSilence.asStateFlow()
+    fun setFullSilence(on: Boolean) { _fullSilence.value = on; prefs.edit().putBoolean("full_silence", on).apply() }
 
     private val _dndSosCalls = MutableStateFlow(prefs.getBoolean("dnd_sos_calls", true))
     /** During do not disturb, calls from our SOS contacts still ring. */

@@ -401,3 +401,13 @@ test("admin sign-in: a 6-digit code as a second factor, 8-hour sessions, and eve
   assert.ok(whats.includes("sign in:true") && whats.includes("sign in:false") && whats.includes("overview:true") && whats.includes("overview:false"));
   server.close();
 });
+
+test("rescue screenshot pattern: the admin lookup finds whose phone and whose rescue", () => {
+  const { rescueDecode, rescueLookup } = require("./relay");
+  const at = 1790000000000, hour = Math.floor(at / 3600e3);
+  // Same bits as the app's RescueMark.bits("3f9a1c2b7d4e8a01", "5742990ae65f20fe", at) (WatermarkTest).
+  const bits = "010001010010001010010010001100000011000101100111111010010000001011110001101101101100110000001000110001100101111111010000101101101100111011111111";
+  assert.deepEqual(rescueDecode(bits, hour), { viewer: "3f9a1c2b7d4e8a01", victim: "5742990ae65f20fe" });
+  assert.equal(rescueDecode(bits.replace(/^0/, "1"), hour), null);
+  assert.deepEqual(rescueLookup(bits, at + 3 * 3600e3).map((m) => m.victim), ["5742990ae65f20fe"]);
+});

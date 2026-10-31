@@ -329,6 +329,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
     val shell = Shell(vm, system, actions, nav, scope, hereFix, headings, sosReached, ::chatFiles, onSkyAction, turnOnForSos, toggleLocation,
         showOnCompass = { compassTarget = it; goTab(Tab.COMPASS) })
 
+    // Each tab keeps its scroll position (and other saved state) while you're on a screen opened from it.
+    val tabStates = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     Box(Modifier.fillMaxSize()) {
         AnimatedContent(top, transitionSpec = {
             if (targetState != null && (initialState == null || stack.size > 0)) slideInHorizontally { it / 3 } + fadeIn() togetherWith fadeOut()
@@ -336,7 +338,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
         }, label = "screen") { route ->
             when {
                 route == null -> Tabs(tab, vm.unreadCount(conversations), onTab = { tab = it }, onSos = { push(Route.Sos) }) { padding ->
-                    when (tab) {
+                    tabStates.SaveableStateProvider("tab-" + tab.name) { when (tab) {
                         Tab.NEARBY -> NearbyScreen(
                             NearbyState(name, running, people, system.permissionsGranted, system.locationServicesOff, sharing, myFix != null, online, radios,
                                 vm.otherVersions.collectAsStateWithLifecycle().value.values.map { it.name },
@@ -403,6 +405,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             helperKinds = vm.helperKinds.collectAsStateWithLifecycle().value, onHelperKind = vm::setHelperKind,
                             onEmergencyCardOpen = { push(Route.EmergencyCard) }, onHelperSignalsOpen = { push(Route.HelperSignals) },
                             dndUntil = vm.dndUntil.collectAsStateWithLifecycle().value, onDndUntil = vm::setDndUntil,
+                            fullSilence = vm.fullSilence.collectAsStateWithLifecycle().value, onFullSilence = vm::setFullSilence,
                             dndSosCalls = vm.dndAllowSosContacts.collectAsStateWithLifecycle().value, onDndSosCalls = vm::setDndAllowSosContacts,
                             newsUnread = vm.news.items.collectAsStateWithLifecycle().value.count { it.at > vm.news.seenAt.collectAsStateWithLifecycle().value },
                             onNews = { push(Route.News) },
@@ -420,7 +423,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             background = vm.background.collectAsStateWithLifecycle().value, onBackground = vm::setBackground,
                             onStorage = { push(Route.Storage) }, onDiagnostics = { push(Route.Diagnostics) },
                         )
-                    }
+                    } }
                 }
                 route is Route.ChatArea -> ChatRoutes(route, shell)
                 route is Route.GuideArea -> GuideRoutes(route, shell)

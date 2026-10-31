@@ -32,6 +32,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.automirrored.rounded.Reply
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -211,13 +217,16 @@ fun ChatScreen(
                 }
             }
             replying?.let { r ->
-                Row(Modifier.fillMaxWidth().background(Extra.sand).padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.width(3.dp).size(3.dp, 34.dp).background(MaterialTheme.colorScheme.primary))
-                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                        Text("Replying to " + if (r.fromMe) "yourself" else r.senderName.ifBlank { name }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        Text(r.text, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1)
+                // What you're replying to: a card above the message box, with the accent bar and its first words.
+                Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 6.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
+                    .height(androidx.compose.foundation.layout.IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.width(4.dp).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
+                    Icon(Icons.AutoMirrored.Rounded.Reply, null, Modifier.padding(start = 12.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f).padding(start = 10.dp, top = 8.dp, bottom = 8.dp)) {
+                        Text("Replying to " + if (r.fromMe) "yourself" else r.senderName.ifBlank { name }, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        com.bluemob.app.i18n.RawText(r.text, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1)
                     }
-                    androidx.compose.material3.TextButton(onClick = { replying = null }) { Text("✕") }
+                    IconButton(onClick = { replying = null }) { Icon(Icons.Rounded.Close, "Cancel reply", tint = Extra.ink3) }
                 }
             }
             val closedAt = group?.closedTime(System.currentTimeMillis()) ?: 0L
@@ -314,10 +323,14 @@ private fun Bubble(
             val onColor = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
             Column {
                 com.bluemob.app.chat.Rich.replyParts(m.replyTo)?.let { (_, who, quote) ->
-                    Row(Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(8.dp)).background(onColor.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 5.dp)) {
-                        Column {
-                            Text(who.ifBlank { "Reply" }, style = MaterialTheme.typography.labelMedium, color = onColor.copy(alpha = 0.85f))
-                            com.bluemob.app.i18n.RawText(quote, style = MaterialTheme.typography.bodySmall, color = onColor.copy(alpha = 0.75f), maxLines = 2)
+                    // The quoted message: an accent bar, who wrote it, and its first words, on a slightly darker panel.
+                    val accent = if (mine) onColor else Extra.sky
+                    Row(Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(10.dp)).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = if (mine) 0.12f else 0.18f))
+                        .height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                        Box(Modifier.width(3.dp).fillMaxHeight().background(accent))
+                        Column(Modifier.padding(start = 9.dp, end = 10.dp, top = 6.dp, bottom = 6.dp)) {
+                            com.bluemob.app.i18n.RawText(who.ifBlank { "Message" }, style = MaterialTheme.typography.labelLarge, color = accent, maxLines = 1)
+                            com.bluemob.app.i18n.RawText(quote, style = MaterialTheme.typography.bodySmall, color = onColor.copy(alpha = 0.8f), maxLines = 2)
                         }
                     }
                 }
@@ -327,17 +340,23 @@ private fun Bubble(
                 else com.bluemob.app.i18n.RawText(m.text, style = MaterialTheme.typography.bodyLarge, color = onColor)
             }
         }
-        androidx.compose.material3.DropdownMenu(menu, { menu = false }) {
-            if (onReact != null) Row(Modifier.padding(horizontal = 8.dp)) {
+        // Long-press: reactions in a pill on top, then the actions with their icons.
+        androidx.compose.material3.DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(20.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shadowElevation = 8.dp) {
+            if (onReact != null) Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).padding(4.dp)) {
                 com.bluemob.app.chat.Rich.QUICK_REACTIONS.forEach { e ->
                     val chosen = reactions[myId] == e
-                    Text(e, style = MaterialTheme.typography.titleLarge, modifier = Modifier.clip(CircleShape).background(if (chosen) Extra.pineTint else androidx.compose.ui.graphics.Color.Transparent)
-                        .clickable { menu = false; onReact(if (chosen) "" else e) }.padding(6.dp))
+                    Text(e, style = MaterialTheme.typography.titleLarge, modifier = Modifier.clip(CircleShape)
+                        .background(if (chosen) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else androidx.compose.ui.graphics.Color.Transparent)
+                        .clickable { menu = false; onReact(if (chosen) "" else e) }.padding(7.dp))
                 }
             }
-            onReply?.let { androidx.compose.material3.DropdownMenuItem(text = { Text("↩  Reply") }, onClick = { menu = false; it() }) }
-            if (m.text.isNotBlank()) androidx.compose.material3.DropdownMenuItem(text = { Text("⧉  Copy") }, onClick = { menu = false; onCopy() })
-            if (tappable) androidx.compose.material3.DropdownMenuItem(text = { Text("ⓘ  Message info") }, onClick = { menu = false; onInfo(m.id) })
+            onReply?.let { androidx.compose.material3.DropdownMenuItem(text = { Text("Reply") }, onClick = { menu = false; it() },
+                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Reply, null) }) }
+            if (m.text.isNotBlank()) androidx.compose.material3.DropdownMenuItem(text = { Text("Copy") }, onClick = { menu = false; onCopy() },
+                leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) })
+            if (tappable) androidx.compose.material3.DropdownMenuItem(text = { Text("Message info") }, onClick = { menu = false; onInfo(m.id) },
+                leadingIcon = { Icon(Icons.Rounded.Info, null) })
         }
         }
         if (reactions.isNotEmpty()) {
