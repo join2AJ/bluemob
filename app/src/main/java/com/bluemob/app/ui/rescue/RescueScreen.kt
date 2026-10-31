@@ -256,10 +256,8 @@ private fun TargetCard(room: RescueRoom, me: GeoPoint?, heading: Float, guideId:
                 }
             }
             target?.let {
-                Column(Modifier.padding(top = 12.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.skyTint).padding(12.dp)) {
-                    Text(if (it.gps) "WHERE THEY ARE · GPS" else "WHERE THEY ARE · ESTIMATE", style = MaterialTheme.typography.labelSmall, color = Extra.sky)
-                    Text(it.describe(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))
-                }
+                com.bluemob.app.ui.components.PlaceCard(if (it.gps) "WHERE THEY ARE · GPS" else "WHERE THEY ARE · ESTIMATE", it.describe(),
+                    it.lat, it.lon, it.uncertaintyM, Modifier.padding(top = 12.dp))
             }
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (target != null) Button(onClick = actions.onNavigate) { Text("Navigate") }

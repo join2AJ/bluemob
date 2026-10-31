@@ -80,7 +80,7 @@ object GuidePacks {
         _installed.value = packs.map { it.first }.sortedBy { it.title }
         installedAt = packs.associate { (info, _) -> info.id to p.getLong("packAt:${info.id}", 0L) }
         // Guides read before the list of names existed: look each one up by name.
-        (p as? com.bluemob.app.crypto.SecurePrefs)?.adopt((GuideContent.articles + installedArticles).map { "read:${it.id}" })
+        (p as? com.bluemob.app.crypto.SecurePrefs)?.adopt((GuideContent.articles + GuideKnots.articles + installedArticles).map { "read:${it.id}" })
         _read.value = p.all.keys.filter { it.startsWith("read:") }.associate { it.removePrefix("read:") to p.getLong(it, 0L) }
     }
 

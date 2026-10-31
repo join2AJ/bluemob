@@ -440,8 +440,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         toast(if (on) "Blocked. Their messages and calls won't reach you. Their SOS still will." else "Unblocked")
     }
 
+    val starred = settings.starredMessages
+    fun setStarred(ids: List<String>, on: Boolean) { settings.setStarred(ids, on); toast(if (on) "Starred" else "Unstarred") }
+
+    /** Sends copies of [msgs] to each chat or group in [to]: text as text, files sealed again for them. */
+    fun forward(msgs: List<com.bluemob.app.data.MessageEntity>, to: List<String>) = viewModelScope.launch {
+        for (t in to) for (m in msgs.sortedBy { it.createdAt }) {
+            if (m.att.isNotEmpty()) files.reseal(m)?.let { (a, f) -> repo.sendAttachment(t, a, f.path) }
+            else if (m.text.isNotBlank()) repo.send(t, m.text)
+        }
+        toast(if (to.size == 1) "Forwarded" else "Forwarded to ${to.size} chats")
+    }
+
     fun deleteMessage(m: com.bluemob.app.data.MessageEntity) = viewModelScope.launch {
         repo.deleteForMe(m.id)?.let { runCatching { java.io.File(it).delete() } }
+        settings.setStarred(listOf(m.id), false)
     }
 
     fun deleteChat(peer: String) = viewModelScope.launch {

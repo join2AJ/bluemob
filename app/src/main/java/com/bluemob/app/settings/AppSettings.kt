@@ -116,6 +116,14 @@ class AppSettings(context: Context) {
         prefs.edit().putStringSet("pinned_chats", _pinned.value).apply()
     }
 
+    private val _starred = MutableStateFlow(prefs.getStringSet("starred_messages", emptySet())!!.toSet())
+    /** Messages starred to find again (their IDs). */
+    val starredMessages: StateFlow<Set<String>> = _starred.asStateFlow()
+    fun setStarred(ids: Collection<String>, on: Boolean) {
+        _starred.value = if (on) _starred.value + ids else _starred.value - ids.toSet()
+        prefs.edit().putStringSet("starred_messages", _starred.value).apply()
+    }
+
     private val _callsSeenAt = MutableStateFlow(prefs.getLong("calls_seen_at", 0L))
     /** When the call list was last looked at: missed calls after this get the red badge. */
     val callsSeenAt: StateFlow<Long> = _callsSeenAt.asStateFlow()

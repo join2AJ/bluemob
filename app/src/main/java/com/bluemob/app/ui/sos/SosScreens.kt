@@ -1,5 +1,8 @@
 package com.bluemob.app.ui.sos
 
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Sos
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.FlashlightOn
 import android.app.Activity
 import android.view.WindowManager
@@ -228,14 +231,25 @@ fun SosHubScreen(
                 }
             }
         }
+        item { GroupLabel("Default signal") }
+        item {
+            Text("What starts when you open the SOS signal. You can switch while it runs.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2,
+                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
+        }
+        items(SignalMode.entries) { m ->
+            val (icon, tint) = when (m) {
+                SignalMode.SCREEN -> Icons.Rounded.LightMode to com.bluemob.app.ui.theme.Palette.Gold
+                SignalMode.TORCH -> Icons.Rounded.FlashlightOn to Extra.ember
+                SignalMode.SOUND -> Icons.AutoMirrored.Rounded.VolumeUp to Extra.sky
+                SignalMode.ALL -> Icons.Rounded.Sos to Extra.rose
+            }
+            com.bluemob.app.ui.components.ChoiceCard(icon, tint, m.label, m.tip, m == state.defaultSignal,
+                tag = if (m == SignalMode.ALL) "Recommended" else null, modifier = Modifier.padding(bottom = 8.dp)) { onDefaultSignal(m) }
+        }
         item { GroupLabel("More") }
         item {
             Group {
                 SettingRow(Icons.Outlined.FlashlightOn, Extra.rose, "SOS signal", "Screen, flashlight, sound or all · ··· ––– ···", onClick = onSignal) { Chevron() }
-                SettingRow(Icons.Outlined.Bolt, Extra.ember, "Default signal", "Used when you open the SOS signal", divider = true)
-                LazyRow(Modifier.padding(start = 62.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(SignalMode.entries) { m -> Chip("${m.emoji} ${m.label}", m == state.defaultSignal) { onDefaultSignal(m) } }
-                }
                 SettingRow(Icons.Outlined.Contacts, Extra.sky, "SOS contacts",
                     if (state.contacts.isEmpty()) "None yet. Add a number" else state.contacts.joinToString(", ") { it.name }, divider = true, onClick = onContacts) { Chevron() }
                 SettingRow(Icons.AutoMirrored.Outlined.MenuBook, MaterialTheme.colorScheme.primary, "If you receive an SOS", "How to help someone safely", divider = true, onClick = onHowToHelp) { Chevron() }
@@ -493,11 +507,10 @@ fun SosAlert(
                     modifier = Modifier.padding(top = 16.dp).clip(MaterialTheme.shapes.medium).background(Extra.sand).padding(16.dp))
             }
             sos.pos?.let { pos ->
-                Column(Modifier.padding(top = 14.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Extra.skyTint).padding(14.dp)) {
-                    Text(if (pos.gps) "WHERE THEY ARE · GPS" else "WHERE THEY ARE · ESTIMATE", style = MaterialTheme.typography.labelSmall, color = Extra.sky)
-                    Text(pos.describe(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
-                }
-            }
+                com.bluemob.app.ui.components.PlaceCard(if (pos.gps) "WHERE THEY ARE · GPS" else "WHERE THEY ARE · ESTIMATE", pos.describe(),
+                    pos.lat, pos.lon, pos.uncertaintyM, Modifier.padding(top = 14.dp))
+            } ?: if (sos.lat != null && sos.lon != null) com.bluemob.app.ui.components.PlaceCard("WHERE THEY ARE",
+                Geo.formatLatLon(sos.lat, sos.lon), sos.lat, sos.lon, null, Modifier.padding(top = 14.dp)) else Unit
             trust?.let { t ->
                 Row(Modifier.padding(top = 10.dp).clip(MaterialTheme.shapes.small).clickable(onClick = onProfile).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     com.bluemob.app.ui.components.StarRow(t.stars, 16.dp)

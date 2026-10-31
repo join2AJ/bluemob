@@ -54,7 +54,11 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
                 onPing = { vm.ping(id) }, onInfo = { s.push(Route.Info(it)) }, onPerson = { if (id != SkyBot.NODE_ID) s.push(Route.Person(id)) }, onAction = s.onSkyAction,
                 files = s.chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
                 group = vm.groups.collectAsStateWithLifecycle().value[id],
-                onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onDelete = { vm.deleteMessage(it) }, onGroupInfo = { s.push(Route.Group(id)) },
+                onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onDelete = { vm.deleteMessage(it) },
+                starred = vm.starred.collectAsStateWithLifecycle().value, onStar = vm::setStarred,
+                forwardTargets = people.filter { it.nodeId != SkyBot.NODE_ID }.map { it.nodeId to it.name } +
+                    vm.groups.collectAsStateWithLifecycle().value.values.map { it.id to it.name },
+                onForward = { msgs, to -> vm.forward(msgs, to) }, onGroupInfo = { s.push(Route.Group(id)) },
                 verified = vm.isVerified(id, vm.verified.collectAsStateWithLifecycle().value),
                 aiReady = vm.aiStatus.collectAsStateWithLifecycle().value.ready, onAiSetup = if (id == SkyBot.NODE_ID) ({ s.push(Route.SkyAi) }) else null,
                 onCall = { video ->
@@ -87,6 +91,13 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
             }
             else GroupInfoScreen(g, people, s::pop, onAdd = { vm.addToGroup(g.id, it) },
                 onLeave = { vm.leaveGroup(g.id); s.nav.clear() }, onPerson = { s.push(Route.Person(it)) })
+        }
+        Route.Starred -> {
+            val starred by vm.starred.collectAsStateWithLifecycle()
+            val groups by vm.groups.collectAsStateWithLifecycle()
+            StarredScreen(conversations.values.flatten().filter { it.id in starred },
+                chatName = { id -> groups[id]?.name ?: people.firstOrNull { it.nodeId == id }?.name ?: if (id == SkyBot.NODE_ID) SkyBot.NAME else "Someone" },
+                onBack = s::pop, onOpen = { s.push(Route.Chat(it)) }, onUnstar = { vm.setStarred(listOf(it), false) })
         }
         is Route.Media -> MediaScreen(people.firstOrNull { it.nodeId == route.peer }?.name ?: "them", conversations[route.peer].orEmpty(), s.chatFiles(route.peer), s::pop)
         is Route.Photo -> {

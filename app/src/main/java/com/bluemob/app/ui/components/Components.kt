@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.components
 
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -159,6 +160,47 @@ fun IconBadge(icon: ImageVector, tint: Color, modifier: Modifier = Modifier, siz
 fun IconTile(icon: ImageVector, tile: Color) {
     Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(tile), contentAlignment = Alignment.Center) {
         Icon(icon, null, tint = Color.White, modifier = Modifier.size(19.dp))
+    }
+}
+
+/** One choice of several, as its own card: icon, title, a line under it, an optional tag, and a radio. */
+@Composable
+fun ChoiceCard(icon: ImageVector, tint: Color, title: String, body: String, selected: Boolean, tag: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val accent = MaterialTheme.colorScheme.primary
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .background(if (selected) accent.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface)
+            .border(if (selected) 1.5.dp else 1.dp, if (selected) accent else Extra.line, RoundedCornerShape(16.dp))
+            .clickable(role = Role.RadioButton, onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconBadge(icon, tint, size = 40.dp)
+        Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                if (tag != null) Text(tag.uppercase(), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Palette.BrandGreen,
+                    modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(50)).background(Palette.BrandGreen.copy(alpha = 0.14f)).padding(horizontal = 7.dp, vertical = 2.dp))
+            }
+            Text(body, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 2.dp))
+        }
+        androidx.compose.material3.RadioButton(selected, onClick = null)
+    }
+}
+
+/** An on/off setting as its own card: icon, title, a line under it, and a switch. */
+@Composable
+fun SwitchCard(icon: ImageVector, tint: Color, title: String, body: String, on: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface).border(1.dp, Extra.line, RoundedCornerShape(16.dp))
+            .toggleable(on, role = Role.Switch, onValueChange = onChange).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconBadge(icon, tint, size = 40.dp)
+        Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(body, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 2.dp))
+        }
+        androidx.compose.material3.Switch(on, onCheckedChange = null)
     }
 }
 

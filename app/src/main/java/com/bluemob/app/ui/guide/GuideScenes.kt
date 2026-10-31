@@ -21,7 +21,7 @@ import kotlin.math.sin
 object GuideScenes {
     /** Milliseconds per loop: slower for scenes that teach a sequence. */
     fun duration(id: String): Int = when (id) {
-        "north", "find-bluemob", "knots-reef", "knots-bowline", "knots-clove", "knots-taut", "firecraft-teepee", "shelters-debris" -> 7_000
+        "north", "find-bluemob", "knots-reef", "knots-bowline", "knots-clove", "knots-taut", "knots-figure8", "knots-sheetbend", "knots-doublefish", "knots-halfhitch", "knots-trucker", "knots-butterfly", "knots-prusik", "knots-lashing", "knots-which", "firecraft-teepee", "shelters-debris" -> 7_000
         else -> 2_800
     }
 
@@ -106,6 +106,9 @@ object GuideScenes {
     /** A rope drawn along [points], only the first [part] of it (0..1): knots "tie themselves". */
     private fun DrawScope.rope(points: List<Offset>, part: Float, color: Color = Warm, width: Float = 10f) {
         if (points.size < 2) return
+        // The finished knot, faint, so its shape shows while the rope ties itself over it.
+        val ghost = Path().apply { moveTo(points[0].x, points[0].y); points.drop(1).forEach { lineTo(it.x, it.y) } }
+        drawPath(ghost, color.copy(alpha = 0.22f), style = Stroke(width, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
         val segs = points.zipWithNext()
         val lens = segs.map { (a, b) -> (b - a).getDistance() }
         var left = lens.sum() * part
@@ -279,6 +282,15 @@ object GuideScenes {
         "knots-reef" to { t -> rope(listOf(at(0.05f, 0.5f), at(0.4f, 0.5f), at(0.5f, 0.35f), at(0.6f, 0.5f), at(0.5f, 0.65f), at(0.42f, 0.5f), at(0.58f, 0.5f), at(0.95f, 0.5f)), ping(t, 0f, 0.8f)); rope(listOf(at(0.95f, 0.55f), at(0.62f, 0.55f), at(0.5f, 0.42f), at(0.38f, 0.55f), at(0.05f, 0.55f)), ping(t, 0.2f, 0.9f), W, 8f) },
         "knots-bowline" to { t -> rope(listOf(at(0.5f, 0.05f), at(0.5f, 0.35f), at(0.38f, 0.45f), at(0.5f, 0.55f), at(0.62f, 0.45f), at(0.5f, 0.35f), at(0.3f, 0.75f), at(0.5f, 0.92f), at(0.7f, 0.75f), at(0.55f, 0.45f), at(0.45f, 0.3f), at(0.55f, 0.25f)), ping(t, 0f, 0.85f)) },
         "knots-clove" to { t -> drawRect(Color(0xFF8A5A33), at(0.46f, 0.02f), Size(size.width * 0.08f, size.height * 0.96f)); rope(listOf(at(0.1f, 0.3f), at(0.44f, 0.3f), at(0.56f, 0.38f), at(0.44f, 0.46f), at(0.56f, 0.54f), at(0.44f, 0.62f), at(0.56f, 0.62f), at(0.9f, 0.62f)), ping(t, 0f, 0.85f)) },
+        "knots-figure8" to { t -> rope(listOf(at(0.5f, 0.95f), at(0.5f, 0.6f), at(0.36f, 0.48f), at(0.5f, 0.32f), at(0.64f, 0.2f), at(0.5f, 0.08f), at(0.36f, 0.2f), at(0.5f, 0.32f), at(0.64f, 0.48f), at(0.52f, 0.6f), at(0.56f, 0.95f)), ping(t, 0f, 0.6f)); rope(listOf(at(0.56f, 0.95f), at(0.55f, 0.6f), at(0.67f, 0.47f), at(0.53f, 0.32f), at(0.4f, 0.2f), at(0.53f, 0.11f), at(0.67f, 0.2f), at(0.53f, 0.33f)), ping(t, 0.5f, 0.95f), W, 7f) },
+        "knots-sheetbend" to { t -> rope(listOf(at(0.95f, 0.4f), at(0.4f, 0.4f), at(0.3f, 0.5f), at(0.4f, 0.6f), at(0.95f, 0.6f)), ping(t, 0f, 0.4f), Warm, 14f); rope(listOf(at(0.05f, 0.5f), at(0.36f, 0.52f), at(0.45f, 0.72f), at(0.55f, 0.5f), at(0.45f, 0.3f), at(0.38f, 0.46f), at(0.6f, 0.47f)), ping(t, 0.35f, 0.95f), W, 7f) },
+        "knots-doublefish" to { t -> rope(listOf(at(0.05f, 0.45f), at(0.95f, 0.45f)), ping(t, 0f, 0.25f)); rope(listOf(at(0.95f, 0.55f), at(0.05f, 0.55f)), ping(t, 0.1f, 0.35f), W, 8f); listOf(0.3f, 0.36f, 0.64f, 0.7f).forEachIndexed { i, x -> if (t > 0.4f + i * 0.12f) drawLine(if (i < 2) W else Warm, at(x, 0.36f), at(x + 0.04f, 0.64f), 8f) } },
+        "knots-halfhitch" to { t -> drawCircle(Soft, size.minDimension * 0.08f, at(0.2f, 0.5f), style = Stroke(8f)); rope(listOf(at(0.95f, 0.5f), at(0.27f, 0.5f), at(0.13f, 0.45f), at(0.2f, 0.4f), at(0.4f, 0.55f), at(0.45f, 0.4f), at(0.5f, 0.6f), at(0.55f, 0.4f), at(0.6f, 0.6f), at(0.66f, 0.42f)), ping(t, 0f, 0.9f)) },
+        "knots-trucker" to { t -> drawCircle(Soft, 16f, at(0.08f, 0.5f)); drawCircle(Soft, 16f, at(0.92f, 0.5f)); rope(listOf(at(0.08f, 0.5f), at(0.5f, 0.5f), at(0.55f, 0.38f), at(0.6f, 0.5f), at(0.92f, 0.5f), at(0.92f, 0.62f), at(0.58f, 0.6f), at(0.55f, 0.42f), at(0.5f, 0.75f)), ping(t, 0f, 0.8f)); if (t > 0.8f) drawLine(W, at(0.5f, 0.82f), at(0.4f, 0.92f), 5f) },
+        "knots-butterfly" to { t -> rope(listOf(at(0.05f, 0.7f), at(0.4f, 0.65f), at(0.55f, 0.5f), at(0.42f, 0.25f), at(0.5f, 0.1f), at(0.58f, 0.25f), at(0.45f, 0.5f), at(0.6f, 0.65f), at(0.95f, 0.7f)), ping(t, 0f, 0.9f)) },
+        "knots-prusik" to { t -> drawLine(Warm, at(0.5f, 0.02f), at(0.5f, 0.98f), 14f); listOf(0.35f, 0.42f, 0.49f).forEachIndexed { i, y -> if (t > i * 0.2f) drawLine(W, at(0.42f, y), at(0.58f, y + 0.05f), 7f) }; rope(listOf(at(0.55f, 0.55f), at(0.7f, 0.75f), at(0.6f, 0.9f), at(0.5f, 0.75f)), ping(t, 0.6f, 0.95f), W, 6f) },
+        "knots-lashing" to { t -> drawRect(Color(0xFF8A5A33), at(0.46f, 0.05f), Size(size.width * 0.08f, size.height * 0.9f)); drawRect(Color(0xFF8A5A33), at(0.1f, 0.42f), Size(size.width * 0.8f, size.height * 0.12f)); rope(listOf(at(0.44f, 0.6f), at(0.56f, 0.38f), at(0.44f, 0.38f), at(0.56f, 0.6f), at(0.44f, 0.6f), at(0.56f, 0.38f), at(0.44f, 0.38f), at(0.56f, 0.6f)), ping(t, 0f, 0.85f), W, 6f) },
+        "knots-which" to { t -> listOf(0.2f, 0.4f, 0.6f, 0.8f).forEachIndexed { i, x -> rope(listOf(at(x, 0.15f), at(x, 0.45f), at(x - 0.06f, 0.55f), at(x, 0.65f), at(x + 0.06f, 0.55f), at(x, 0.45f), at(x, 0.85f)), ping(t, i * 0.15f, 0.5f + i * 0.15f), if (i % 2 == 0) Warm else W, 7f) } },
         "knots-taut" to { t -> drawCircle(Soft, 14f, at(0.08f, 0.5f)); drawLine(W, at(0.08f, 0.5f), at(0.8f, 0.3f), 3f); rope(listOf(at(0.92f, 0.85f), at(0.8f, 0.3f), at(0.7f, 0.42f), at(0.78f, 0.48f), at(0.68f, 0.52f), at(0.76f, 0.58f), at(0.66f, 0.62f), at(0.74f, 0.7f), at(0.92f, 0.7f)), ping(t, 0f, 0.85f)) },
         // Pack: fire craft
         "firecraft-teepee" to { t -> ground(); drawCircle(Color(0xFFC9B48A), 18f, at(0.5f, 0.8f)); for (i in 0 until 6) if (t > i * 0.1f) { val a = -60f + i * 24f; rotate(a, at(0.5f, 0.85f)) { drawLine(Color(0xFFB98A57), at(0.5f, 0.85f), at(0.5f, 0.35f), 8f, StrokeCap.Round) } }; if (t > 0.7f) flame(at(0.5f, 0.84f), size.height * 0.4f * ping(t, 0.7f, 1f), t) },

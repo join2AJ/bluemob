@@ -339,6 +339,13 @@ class FileShare(
     }
 
     /** Decrypts into the temporary folder (emptied on every start), for opening in another app or playing. */
+    /** A file from one chat, sealed again with a new key to send to another chat (forwarding). */
+    suspend fun reseal(m: MessageEntity): Pair<Attachment, File>? {
+        val att = Attachment.fromJson(m.att) ?: return null
+        val data = bytes(m) ?: return null
+        return withContext(Dispatchers.IO) { seal(data, att.name, att.mime, att.kind, att.durationMs) }
+    }
+
     suspend fun openCopy(m: MessageEntity): File? {
         val att = Attachment.fromJson(m.att) ?: return null
         val data = bytes(m) ?: return null

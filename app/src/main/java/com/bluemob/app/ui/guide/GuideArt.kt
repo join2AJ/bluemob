@@ -59,6 +59,7 @@ fun GuideArt(category: GuideCategory, modifier: Modifier = Modifier, animate: Bo
                 GuideCategory.WEATHER -> storm(t)
                 GuideCategory.DISASTERS -> quake(t)
                 GuideCategory.BASICS -> leaf(t)
+                GuideCategory.KNOTS -> leaf(t)
             }
         }
     }

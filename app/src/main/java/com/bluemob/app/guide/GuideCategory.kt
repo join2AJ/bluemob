@@ -23,4 +23,5 @@ enum class GuideCategory(val label: String, val color: Color, val icon: ImageVec
     WEATHER("Weather", Color(0xFF3D8FD9), Icons.Outlined.Bolt),
     DISASTERS("Disasters", Color(0xFF8A5A44), Icons.Outlined.WarningAmber),
     BASICS("Basics", Color(0xFF3A4A44), Icons.Outlined.Spa),
+    KNOTS("Knots & ropes", Color(0xFF9A6B3F), com.bluemob.app.ui.components.BlueMobIcons.Knot),
 }

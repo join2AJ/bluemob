@@ -392,6 +392,6 @@ object GuideContent {
     )
 
     /** Built-in guides plus the packs downloaded on this phone. */
-    fun all(): List<Article> = articles + GuideExtra.articles + GuidePacks.installedArticles
+    fun all(): List<Article> = (articles + GuideExtra.articles + GuideKnots.articles + GuidePacks.installedArticles).distinctBy { it.id }
     fun byId(id: String): Article? = all().firstOrNull { it.id == id }
 }

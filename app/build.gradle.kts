@@ -30,8 +30,8 @@ android {
         // Optional: `-PonlyAbi=arm64-v8a` builds for one phone type only (a smaller APK to share for testing).
         (project.findProperty("onlyAbi") as String?)?.let { ndk { abiFilters += it } }
         targetSdk = 35
-        versionCode = 50
-        versionName = "0.37.2"
+        versionCode = 51
+        versionName = "0.37.3"
     }
 
     signingConfigs {

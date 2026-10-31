@@ -17,6 +17,7 @@ sealed interface Route {
     data class Photo(val messageId: String) : ChatArea { override val key get() = "photo:$messageId" }
     data class Info(val messageId: String) : ChatArea { override val key get() = "info:$messageId" }
     data object NewChat : ChatArea { override val key = "newchat" }
+    data object Starred : ChatArea { override val key = "starred" }
     data object NewGroup : ChatArea { override val key = "newgroup" }
     data object SkyAi : ChatArea { override val key = "skyai" }
     /** Start a trip group (its own screen is [Group], which shows trip groups their own way). */
@@ -94,7 +95,7 @@ sealed interface Route {
             "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "autostart" to ::Power, "sos-coming" to ::SosComing, "field-test" to ::FieldTest, "new-team" to ::NewTeam, "itinerary" to ::Itinerary, "buddies" to ::Buddies,
         )
         private val plain: Map<String, Route> by lazy {
-            listOf(NewChat, NewGroup, SkyAi, NewTrip, JoinTrip, FieldTest(), GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, EmergencyCard, HelperSignals, Connections,
+            listOf(NewChat, Starred, NewGroup, SkyAi, NewTrip, JoinTrip, FieldTest(), GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, EmergencyCard, HelperSignals, Connections,
                 AutoStart, Audit, Badges, Activity, Bridge, Backup, Storage, Diagnostics, Report, Calls, Call).associateBy { it.key }
         }
 

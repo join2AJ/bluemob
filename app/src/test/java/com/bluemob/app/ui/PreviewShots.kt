@@ -337,4 +337,17 @@ class PreviewShots {
         com.bluemob.app.ui.profile.PersonScreen("b7e4", "Ravi", null,
             com.bluemob.app.trust.TrustScore(4.4, 12, 3, 0, 0, 1, emptyList(), cats, raters = 7), false, emptyList(), null, {}, {}, { _, _, _ -> })
     }
+
+    @Test fun starredMessages() = shot(tall = true) {
+        val msgs = listOf(
+            com.bluemob.app.data.MessageEntity("t1", "g-trek", false, "Meet at the bridge, 6:30 am. Passcode 4417", now - 3_600_000, com.bluemob.app.data.MessageStatus.READ, senderName = "Ravi"),
+            com.bluemob.app.data.MessageEntity("t2", "a1c2", true, "Camp 2 is past the second stream, left side", now - 86_400_000, com.bluemob.app.data.MessageStatus.READ))
+        com.bluemob.app.ui.chat.StarredScreen(msgs, { if (it == "g-trek") "Kedarkantha trek" else "Asha" }, {}, {}, {})
+    }
+
+    @Test fun knotsGuide() = shot(tall = true) {
+        com.bluemob.app.ui.guide.ArticleScreen(com.bluemob.app.guide.GuideContent.byId("knots-figure8")!!, false, {}, {}, {})
+    }
+
+    @Test fun filesEmptyIcons() = shot { ChatsScreen(people, emptyMap(), emptySet(), pad, emptyList(), startTab = ChatsTab.FILES) {} }
 }

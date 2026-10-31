@@ -68,6 +68,8 @@ class ChatFiles(
     val onPlay: (MessageEntity) -> Unit = {},
     /** "photo", "video" or "doc". */
     val onAttach: (String) -> Unit = {},
+    /** Where I am now, to preview before sharing it. */
+    val here: () -> com.bluemob.app.contacts.GeoPoint? = { null },
     val onRecordStart: () -> Unit = {},
     /** True: send the recording. False: throw it away. */
     val onRecordStop: (Boolean) -> Unit = {},

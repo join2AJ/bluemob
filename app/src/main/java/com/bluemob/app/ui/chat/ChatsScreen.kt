@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.material.icons.rounded.StarOutline
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Hiking
 import androidx.compose.material.icons.rounded.AddComment
@@ -84,6 +85,8 @@ fun ChatsScreen(
     rescues: List<com.bluemob.app.rescue.RescueRoom> = emptyList(),
     onOpenRescue: (String) -> Unit = {},
     onNewChat: () -> Unit = {},
+    /** Starred messages from every chat. */
+    onStarred: (() -> Unit)? = null,
     calls: List<com.bluemob.app.data.CallLogEntry> = emptyList(),
     onCallBack: (String, String, Boolean) -> Unit = { _, _, _ -> },
     onClearCalls: () -> Unit = {},
@@ -165,6 +168,8 @@ fun ChatsScreen(
                     BasicTextField(query, { query = it }, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), modifier = Modifier.fillMaxWidth())
                 }
+                if (onStarred != null) Icon(androidx.compose.material.icons.Icons.Rounded.StarOutline, "Starred messages", tint = Extra.ink2,
+                    modifier = Modifier.padding(start = 8.dp).size(22.dp).clip(CircleShape).clickable(onClick = onStarred))
             }
         }
         // A rescue happening now always shows first.

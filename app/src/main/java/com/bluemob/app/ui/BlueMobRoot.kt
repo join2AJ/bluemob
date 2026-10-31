@@ -295,6 +295,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                 else -> actions.pickFile(kind) { uri -> vm.sendFile(peer, uri) }
             }
         },
+        here = { hereFix ?: vm.here() },
         onRecordStart = { if (!vm.startVoiceNote()) actions.requestCallPermissions(false) {} },
         onRecordStop = { send -> vm.stopVoiceNote(peer, send) },
         onMedia = { push(Route.Media(peer)) },
@@ -371,7 +372,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             joinNotes = vm.joinNotes.collectAsStateWithLifecycle().value, onJoinAd = vm::joinNearby,
                             myId = vm.nodeId, onTripRollCall = { vm.rollCall(it) }, onTripChat = { push(Route.Chat(it)) }, onSos = { push(Route.Sos) },
                         )
-                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push(Route.Rescues) else push(Route.Rescue(it)) }, onNewChat = { push(Route.NewChat) }, onNewTrip = { push(Route.NewTrip) }, onJoinTrip = { push(Route.JoinTrip) },
+                        Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push(Route.Rescues) else push(Route.Rescue(it)) }, onNewChat = { push(Route.NewChat) }, onStarred = { push(Route.Starred) }, onNewTrip = { push(Route.NewTrip) }, onJoinTrip = { push(Route.JoinTrip) },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
                             onCallBack = { id, n, video -> actions.requestCallPermissions(video) { vm.startCall(id, n, video) } },
                             onClearCalls = { vm.clearCallLog() }, onDeleteCall = { vm.deleteCall(it) }, onDeleteChat = { vm.deleteChat(it) },

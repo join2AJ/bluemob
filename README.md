@@ -36,6 +36,25 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.37.3: WhatsApp-style chat tools, satellite view, knots
+
+- **Pick several messages:** long-press one, then tap others. Star, copy, forward or delete them together.
+- **Forward:** send messages (and photos or files, sealed again for each chat) to one or more chats and groups.
+- **Swipe right on a message to reply.** Replies to a photo or video show a small picture of it.
+- **Starred messages:** a star button by the Chats search opens every starred message; tap one to jump to its chat.
+- **Location preview:** before your position goes in a chat, you see it on the map and tap Send.
+- **Satellite view of an SOS:** where someone is shows on a satellite picture with their accuracy circle, plus buttons
+  to open it in Google Maps (pin) or Google satellite. Pictures need internet (Esri, kept 7 days); the text position
+  still works offline. Also in the rescue screen. The privacy policy lists it.
+- **Icons, not emoji, in the app's own text:** "Tap 📎 in a chat" now draws a real paperclip icon, in the text colour,
+  everywhere (one central change; reactions, avatars and people's messages keep their emoji).
+- **SOS settings as cards:** the default signal is a list of cards with icons and a Recommended tag; helper signals are
+  switch cards.
+- **Knots & ropes, built in (offline):** a new Guide section with 13 guides: which knot when, reef, bowline,
+  figure-eight loop, sheet bend, double fisherman's, clove hitch, two half hitches, taut-line, trucker's hitch,
+  alpine butterfly, prusik and square lashing, each with its own animation (the finished knot shows faintly while
+  the rope ties itself).
+
 ## Android 0.37.2: modern chat actions, ratings and icons
 
 - **Attach panel like WhatsApp:** the paperclip opens a panel of round icons: Gallery, Video, Document,

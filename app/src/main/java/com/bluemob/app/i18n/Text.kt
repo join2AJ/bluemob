@@ -5,6 +5,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -37,8 +38,17 @@ fun Text(
     minLines: Int = 1,
     onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     style: TextStyle = LocalTextStyle.current,
-) = M3Text(Lang.tr(text), modifier, color, fontSize, fontStyle, fontWeight, fontFamily, letterSpacing, textDecoration, textAlign, lineHeight,
-    overflow, softWrap, maxLines, minLines, onTextLayout, style)
+) {
+    val t = Lang.tr(text)
+    if (!EmojiIcons.applies(t)) M3Text(t, modifier, color, fontSize, fontStyle, fontWeight, fontFamily, letterSpacing, textDecoration, textAlign, lineHeight,
+        overflow, softWrap, maxLines, minLines, onTextLayout, style)
+    else {
+        val tint = color.takeOrElse { style.color.takeOrElse { androidx.compose.material3.LocalContentColor.current } }
+        val (a, inline) = EmojiIcons.build(t, tint)
+        M3Text(a, modifier, color, fontSize, fontStyle, fontWeight, fontFamily, letterSpacing, textDecoration, textAlign, lineHeight,
+            overflow, softWrap, maxLines, minLines, inline, onTextLayout ?: {}, style)
+    }
+}
 
 @Composable
 fun Text(

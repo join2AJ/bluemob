@@ -10,6 +10,20 @@ import androidx.compose.ui.unit.dp
 
 /** BlueMob's own icons, where the stock ones look dated. Drawn in black; [androidx.compose.material3.Icon] tints them. */
 object BlueMobIcons {
+    /** Knots & ropes: a rope tied in an overhand knot, its two ends hanging down. */
+    val Knot: ImageVector by lazy {
+        ImageVector.Builder("BlueMobKnot", 24.dp, 24.dp, 24f, 24f).apply {
+            val line = SolidColor(Color.Black)
+            path(stroke = line, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                moveTo(3f, 21f); curveTo(6.5f, 17.5f, 7.5f, 9f, 11.5f, 6f)
+                curveTo(15f, 3.5f, 19.5f, 6f, 17.5f, 10f); curveTo(16f, 13f, 11f, 12.5f, 10.4f, 9.6f)
+            }
+            path(stroke = line, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                moveTo(9.4f, 13.3f); curveTo(12f, 15f, 14f, 15.5f, 15.3f, 17.5f); lineTo(17.5f, 21f)
+            }
+        }.build()
+    }
+
     /** Games: a playing die in front of a tilted card, with a sparkle. */
     val Games: ImageVector by lazy {
         ImageVector.Builder("BlueMobGames", 24.dp, 24.dp, 24f, 24f).apply {

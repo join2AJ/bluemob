@@ -84,11 +84,11 @@ fun HelperSignalsScreen(on: Boolean, onChange: (Boolean) -> Unit, kinds: Set<Str
         if (on) {
             item { GroupLabel("What they can use") }
             item {
-                Group {
-                    ToggleRow(androidx.compose.material.icons.Icons.AutoMirrored.Rounded.VolumeUp, Extra.sky, "Sound", "A loud whistle sound, even on silent", "sound" in kinds) { onKind("sound", it) }
-                    ToggleRow(androidx.compose.material.icons.Icons.Rounded.FlashlightOn, Extra.ember, "Flash", "The camera light blinks", "flash" in kinds, divider = true) { onKind("flash", it) }
-                    ToggleRow(androidx.compose.material.icons.Icons.Rounded.LightMode, Palette.Gold, "Screen light", "The screen lights up bright white", "screen" in kinds, divider = true) { onKind("screen", it) }
-                    ToggleRow(androidx.compose.material.icons.Icons.Rounded.Mic, Extra.rose, "Microphone", "A helper's call answers by itself after 3 seconds, so they can hear you", "mic" in kinds, divider = true) { onKind("mic", it) }
+                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    com.bluemob.app.ui.components.SwitchCard(androidx.compose.material.icons.Icons.AutoMirrored.Rounded.VolumeUp, Extra.sky, "Sound", "A loud whistle sound, even on silent", "sound" in kinds) { onKind("sound", it) }
+                    com.bluemob.app.ui.components.SwitchCard(androidx.compose.material.icons.Icons.Rounded.FlashlightOn, Extra.ember, "Flash", "The camera light blinks", "flash" in kinds) { onKind("flash", it) }
+                    com.bluemob.app.ui.components.SwitchCard(androidx.compose.material.icons.Icons.Rounded.LightMode, Palette.Gold, "Screen light", "The screen lights up bright white", "screen" in kinds) { onKind("screen", it) }
+                    com.bluemob.app.ui.components.SwitchCard(androidx.compose.material.icons.Icons.Rounded.Mic, Extra.rose, "Microphone", "A helper's call answers by itself after 3 seconds, so they can hear you", "mic" in kinds) { onKind("mic", it) }
                 }
             }
             if ("mic" in kinds) item {
