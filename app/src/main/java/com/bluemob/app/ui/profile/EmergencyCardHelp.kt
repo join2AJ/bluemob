@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.rounded.MedicalInformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.TextButton
@@ -63,7 +64,7 @@ fun EmergencyCardHelp(cardText: () -> String, modifier: Modifier = Modifier) {
         // A second way that every lock screen has: Android's own emergency information.
         Row(Modifier.fillMaxWidth().clickable { note = addToAndroidEmergencyInfo(context, cardText()) }.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Text("🩺", modifier = Modifier.padding(end = 10.dp))
+            com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.MedicalInformation, com.bluemob.app.ui.theme.Palette.Danger, Modifier.padding(end = 10.dp), size = 34.dp)
             Column(Modifier.weight(1f)) {
                 Text("Also add to Android's emergency info", style = MaterialTheme.typography.labelLarge)
                 Text("Opens from the Emergency button on any lock screen", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)

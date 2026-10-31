@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -79,7 +80,7 @@ fun GroupInfoScreen(group: ChatGroup, people: List<Person>, onBack: () -> Unit, 
         item {
             Group {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("🙂", style = MaterialTheme.typography.titleLarge); Text("You", Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyLarge)
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Person, MaterialTheme.colorScheme.primary); Text("You", Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyLarge)
                 }
                 group.members.forEach { (id, n) ->
                     val p = people.firstOrNull { it.nodeId == id }

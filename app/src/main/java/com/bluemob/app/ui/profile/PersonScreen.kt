@@ -1,5 +1,16 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.rotate
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.VolunteerActivism
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -103,12 +114,21 @@ fun PersonScreen(
                 Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 8.dp))
                 Text("BM " + formatId(nodeId), style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace), color = Extra.ink3)
                 if (!isMe) VerifyPill(verified, onVerify)
-                com.bluemob.app.ui.components.QuarterStars(score.stars, 30.dp, Modifier.padding(top = 12.dp))
-                Text(if (score.raters == 0 && score.fakeSos == 0) "New · no ratings yet" else "%.2f out of 5 · %d %s rated".format(score.quarters, score.raters, if (score.raters == 1) "person" else "people"),
-                    style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
+                // The score: one card with the big number, the stars and how many rated.
+                Row(Modifier.padding(top = 16.dp).fillMaxWidth().clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    val new = score.raters == 0 && score.fakeSos == 0
+                    com.bluemob.app.i18n.RawText(if (new) "–" else "%.1f".format(score.quarters), style = MaterialTheme.typography.displayMedium,
+                        color = com.bluemob.app.ui.theme.Palette.Gold)
+                    Column(Modifier.padding(start = 16.dp).weight(1f)) {
+                        com.bluemob.app.ui.components.QuarterStars(score.stars, 20.dp)
+                        Text(if (new) "New · no ratings yet" else "out of 5 · ${score.raters} ${if (score.raters == 1) "person" else "people"} rated",
+                            style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
                 FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (score.thanks > 0) Tag("👏 ${score.thanks} thanked them", Extra.pineTint, MaterialTheme.colorScheme.primary)
-                    if (score.genuineSos > 0) Tag("✅ ${score.genuineSos} confirmed a real SOS", Extra.pineTint, MaterialTheme.colorScheme.primary)
+                    if (score.thanks > 0) Tag("${score.thanks} thanked them", Extra.pineTint, MaterialTheme.colorScheme.primary)
+                    if (score.genuineSos > 0) Tag("${score.genuineSos} confirmed a real SOS", Extra.pineTint, MaterialTheme.colorScheme.primary)
                     if (score.badLanguage > 0) Tag("🚩 ${score.badLanguage} language flag${if (score.badLanguage == 1) "" else "s"}", Extra.emberTint, Extra.ember)
                     if (score.fakeSos > 0) Tag("⚠ ${score.fakeSos} fake SOS report${if (score.fakeSos == 1) "" else "s"}", Extra.emberTint, Extra.rose)
                 }
@@ -119,13 +139,27 @@ fun PersonScreen(
         item {
             Group {
                 com.bluemob.app.trust.RatingCategory.entries.forEachIndexed { i, c ->
-                    if (i > 0) HorizontalDivider(Modifier.padding(start = 14.dp), color = Extra.line)
+                    if (i > 0) HorizontalDivider(Modifier.padding(start = 62.dp), color = Extra.line)
                     val cs = score.categories[c]
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(c.emoji, fontSize = 20.sp)
-                        Text(c.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(start = 10.dp))
-                        com.bluemob.app.ui.components.QuarterStars(cs?.stars ?: com.bluemob.app.trust.Trust.START, 16.dp)
-                        Text(if ((cs?.count ?: 0) == 0) " new" else " %.2f".format(com.bluemob.app.trust.Trust.quarter(cs!!.stars)), style = MaterialTheme.typography.labelMedium, color = Extra.ink2, modifier = Modifier.width(44.dp))
+                    val rated = (cs?.count ?: 0) > 0
+                    val value = cs?.stars ?: com.bluemob.app.trust.Trust.START
+                    val (icon, tint) = categoryLook(c)
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(34.dp).clip(androidx.compose.foundation.shape.CircleShape).background(tint.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+                            Icon(icon, null, Modifier.size(18.dp), tint = tint)
+                        }
+                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(c.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                                com.bluemob.app.i18n.RawText(if (rated) "%.1f".format(com.bluemob.app.trust.Trust.quarter(value)) else "–", style = MaterialTheme.typography.titleSmall,
+                                    color = if (rated) MaterialTheme.colorScheme.onSurface else Extra.ink3)
+                            }
+                            // How full the category is, out of 5 (faint until someone has rated it).
+                            Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Extra.sand)) {
+                                Box(Modifier.fillMaxWidth((value / 5f).toFloat().coerceIn(0f, 1f)).height(6.dp).clip(RoundedCornerShape(3.dp))
+                                    .background(if (rated) tint else tint.copy(alpha = 0.3f)))
+                            }
+                        }
                     }
                 }
             }
@@ -142,7 +176,11 @@ fun PersonScreen(
                                 java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(waitUntil)) + ".", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
                             else -> {
                                 com.bluemob.app.trust.RatingCategory.entries.forEach { c ->
-                                    Text("${c.emoji} ${c.label}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
+                                    Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        val (ci, ct) = categoryLook(c)
+                                        androidx.compose.material3.Icon(ci, null, tint = ct, modifier = Modifier.size(18.dp))
+                                        Text(c.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 6.dp))
+                                    }
                                     Text(c.question, style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
                                     com.bluemob.app.ui.components.StarPicker(picks[c] ?: 0) { v -> picks = picks + (c to v) }
                                 }
@@ -231,17 +269,22 @@ fun PersonScreen(
                             Text(r.raterName, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                             Text(TimeText.ago(r.at), style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
                         }
-                        Text("${r.category.emoji} ${r.category.label} · ${r.stars}★", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text("${r.category.label} · ${r.stars}★", style = MaterialTheme.typography.labelMedium, color = categoryLook(r.category).second)
                         Text("“${r.remark}”", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
             }
         }
         item {
-            Surface(shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.padding(top = 16.dp).fillMaxWidth()) {
+            var how by rememberSaveable { mutableStateOf(false) }
+            Surface(onClick = { how = !how }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.padding(top = 16.dp).fillMaxWidth()) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("How stars work", style = MaterialTheme.typography.titleSmall)
-                    Text("People rate 5 things, 1 to 5 stars each: helpful, quick to respond, reliable, clear communication, respectful. " +
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(androidx.compose.material.icons.Icons.Outlined.Info, null, Modifier.size(18.dp), tint = Extra.ink3)
+                        Text("How stars work", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 8.dp).weight(1f))
+                        Icon(androidx.compose.material.icons.Icons.Outlined.ExpandMore, null, Modifier.size(20.dp).rotate(if (how) 180f else 0f), tint = Extra.ink3)
+                    }
+                    if (how) Text("People rate 5 things, 1 to 5 stars each: helpful, quick to respond, reliable, clear communication, respectful. " +
                         "Each starts at 4 stars, so one or two ratings can't swing it much; the overall is their average. Only people who met, " +
                         "chatted or shared a rescue can rate, once every 30 days. People met in person count fully, others half, and ratings older " +
                         "than 6 months count half. Each fake-SOS report takes ½ star off the overall. Every rating is signed by the phone that gave it, so it can't be faked or changed.",
@@ -326,4 +369,13 @@ fun VerifyPill(verified: Boolean, onVerify: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically) {
         Text(if (verified) "✓ Verified in person" else "🔒 Verify with a QR code", style = MaterialTheme.typography.labelLarge, color = fg)
     }
+}
+
+/** Each rating category's icon and colour. */
+private fun categoryLook(c: com.bluemob.app.trust.RatingCategory): Pair<androidx.compose.ui.graphics.vector.ImageVector, androidx.compose.ui.graphics.Color> = when (c) {
+    com.bluemob.app.trust.RatingCategory.HELPFUL -> androidx.compose.material.icons.Icons.Rounded.VolunteerActivism to com.bluemob.app.ui.theme.Palette.BrandGreen
+    com.bluemob.app.trust.RatingCategory.QUICK -> androidx.compose.material.icons.Icons.Rounded.Bolt to com.bluemob.app.ui.theme.Palette.Gold
+    com.bluemob.app.trust.RatingCategory.RELIABLE -> androidx.compose.material.icons.Icons.Rounded.VerifiedUser to com.bluemob.app.ui.theme.Palette.BrandBlue
+    com.bluemob.app.trust.RatingCategory.CLEAR -> androidx.compose.material.icons.Icons.Rounded.Forum to com.bluemob.app.ui.theme.Palette.Violet
+    com.bluemob.app.trust.RatingCategory.RESPECTFUL -> androidx.compose.material.icons.Icons.Rounded.Favorite to com.bluemob.app.ui.theme.Palette.Sunset
 }

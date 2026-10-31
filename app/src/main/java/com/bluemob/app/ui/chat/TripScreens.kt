@@ -1,5 +1,7 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.material.icons.rounded.Hiking
+import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -483,7 +485,7 @@ private fun AnnouncementCard(g: ChatGroup, ann: com.bluemob.app.chat.Announcemen
 private fun BuddyCard(g: ChatGroup, myId: String, nameOf: (String) -> String, onOpen: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).clickable(onClick = onOpen).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🤝", style = MaterialTheme.typography.titleLarge)
+            com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Handshake, Palette.Violet)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text("Buddy pairs", style = MaterialTheme.typography.titleMedium)
                 Text(when {
@@ -692,7 +694,7 @@ fun NearbyTripGroups(ads: List<com.bluemob.app.nearby.TripAd>, notes: Map<String
                 val note = notes[ad.groupId] ?: if (ad.groupId in asked) "Asked to join. You're in as soon as the admin's phone answers" else null
                 if (i > 0) androidx.compose.material3.HorizontalDivider(color = Extra.line)
                 Row(Modifier.fillMaxWidth().clickable { joining = ad }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("🧭", style = MaterialTheme.typography.titleLarge)
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Hiking, Palette.BrandBlue)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         RawText(ad.name, style = MaterialTheme.typography.titleMedium)
                         Text(note ?: "${ad.people} people · run by ${ad.ownerName.ifBlank { "someone nearby" }}", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)

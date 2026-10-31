@@ -1,5 +1,11 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.outlined.Timeline
+import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material.icons.outlined.ReportGmailerrorred
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -149,17 +155,17 @@ fun DiagnosticsScreen(
         }
         item {
             Group {
-                SettingRow(Icons.Outlined.Terminal, Extra.rose, "Report a problem", reportNote ?: "Tell the BlueMob team what went wrong, with screenshots", onClick = { onOpenReport?.invoke() ?: run { reporting = true } }) { chevron() }
-                SettingRow(Icons.Outlined.Tune, com.bluemob.app.ui.theme.Palette.Violet, "Field test", "Check with your group, before a trip, how well BlueMob works on your phones",
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.BugReport, Extra.rose, "Report a problem", reportNote ?: "Tell the BlueMob team what went wrong, with screenshots", onClick = { onOpenReport?.invoke() ?: run { reporting = true } }) { chevron() }
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.Science, com.bluemob.app.ui.theme.Palette.Violet, "Field test", "Check with your group, before a trip, how well BlueMob works on your phones",
                     divider = true, onClick = onFieldTest) { chevron() }
             }
         }
         item { GroupLabel("Show") }
         item {
             Group {
-                SettingRow(Icons.Outlined.Tune, MaterialTheme.colorScheme.primary, "Technical details in chats",
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.Code, MaterialTheme.colorScheme.primary, "Technical details in chats",
                     "Link speed check and how each message travelled") { Switch(techDetails, onTechDetails) }
-                SettingRow(Icons.Outlined.Terminal, Extra.rose, "Send error reports automatically",
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.ReportGmailerrorred, Extra.rose, "Send error reports automatically",
                     "When BlueMob runs into an error, the team gets the error and phone model to fix it. Never your messages, contacts or position",
                     divider = true) { Switch(autoReports, onAutoReports) }
             }
@@ -181,10 +187,10 @@ fun DiagnosticsScreen(
             Group {
                 if (lastError != null) {
                     var copied by remember { mutableStateOf(false) }
-                    SettingRow(Icons.Outlined.Terminal, Extra.rose, "Last background error", if (copied) "Copied ✓ Send it to the BlueMob team" else lastError.lines().getOrNull(3)?.take(80) ?: "Tap to copy",
+                    SettingRow(androidx.compose.material.icons.Icons.Outlined.ErrorOutline, Extra.rose, "Last background error", if (copied) "Copied ✓ Send it to the BlueMob team" else lastError.lines().getOrNull(3)?.take(80) ?: "Tap to copy",
                         onClick = { clipboard.setText(AnnotatedString(lastError)); copied = true })
                 }
-                SettingRow(Icons.Outlined.Terminal, Color(0xFF3A4A44), "Mesh activity log", "What the mesh is doing, step by step", divider = lastError != null, onClick = { showLog = !showLog }) {
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.Timeline, Color(0xFF3A4A44), "Mesh activity log", "What the mesh is doing, step by step", divider = lastError != null, onClick = { showLog = !showLog }) {
                     Icon(Icons.Outlined.ChevronRight, null, tint = Extra.ink3, modifier = Modifier.rotate(if (showLog) 90f else 0f))
                 }
                 if (showLog) Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {

@@ -146,6 +146,22 @@ fun Group(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> 
     )
 }
 
+/** A Material icon on a soft circle of its own colour (or white on a dark/gradient card). */
+@Composable
+fun IconBadge(icon: ImageVector, tint: Color, modifier: Modifier = Modifier, size: Dp = 38.dp, onDark: Boolean = false) {
+    Box(modifier.size(size).clip(CircleShape).background(if (onDark) Color.White.copy(alpha = 0.2f) else tint.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
+        Icon(icon, null, tint = if (onDark) Color.White else tint, modifier = Modifier.size(size * 0.55f))
+    }
+}
+
+/** The coloured square with a white icon that settings rows start with. */
+@Composable
+fun IconTile(icon: ImageVector, tile: Color) {
+    Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(tile), contentAlignment = Alignment.Center) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(19.dp))
+    }
+}
+
 /** One row in a [Group]: coloured icon tile, title, subtitle, and whatever goes on the right. */
 @Composable
 fun SettingRow(
@@ -166,9 +182,7 @@ fun SettingRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {
-                Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(tile), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(19.dp))
-                }
+                IconTile(icon, tile)
                 Spacer(Modifier.width(14.dp))
             }
             Column(Modifier.weight(1f)) {

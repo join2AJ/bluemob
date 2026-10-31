@@ -47,6 +47,7 @@ class MessageRepositoryTest {
         override suspend fun update(message: MessageEntity) { rows.value = rows.value.map { if (it.id == message.id) message else it } }
         override suspend fun clear() { rows.value = emptyList() }
         override suspend fun deleteChat(peer: String) { rows.value = rows.value.filter { it.peer != peer } }
+        override suspend fun deleteOne(id: String) { rows.value = rows.value.filter { it.id != id } }
         override suspend fun all() = rows.value
         override suspend fun filesToSend(peer: String) = rows.value.filter { it.peer == peer && it.fromMe && it.att.isNotEmpty() && it.attState != 3 }
         override suspend fun pendingFiles() = rows.value.filter { it.fromMe && it.att.isNotEmpty() && it.attState != 3 }
@@ -122,6 +123,19 @@ class MessageRepositoryTest {
         settle()
         assertEquals("Back at camp tonight?", p.receivedByB().single().text)
         assertEquals(MessageStatus.DELIVERED, p.sentByA().single().status)
+    }
+
+    @Test
+    fun deleteForMeRemovesOnlyMyCopy() = runTest {
+        val p = Phones(this)
+        p.radio.connected = true
+        p.a.send("B", "Delete me")
+        p.a.send("B", "Keep me")
+        settle()
+        val gone = p.sentByA().first { it.text == "Delete me" }
+        p.a.deleteForMe(gone.id)
+        assertEquals(listOf("Keep me"), p.sentByA().map { it.text })
+        assertEquals("B keeps both", 2, p.receivedByB().size)
     }
 
     @Test

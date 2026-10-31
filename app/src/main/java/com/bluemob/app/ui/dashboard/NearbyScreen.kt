@@ -1,5 +1,7 @@
 package com.bluemob.app.ui.dashboard
 
+import androidx.compose.material.icons.rounded.Hiking
+import androidx.compose.material.icons.rounded.Forest
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -249,7 +251,7 @@ fun NearbyScreen(
             else if (list.isEmpty()) {
                 Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, Extra.line)) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("🏕️", fontSize = 34.sp)
+                        com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Forest, Extra.ink2, size = 56.dp)
                         Text("Quiet out here", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 6.dp))
                         Text(if (state.running) "People appear as they open BlueMob near you." else "Switch the mesh on to look for people nearby.",
                             style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
@@ -391,7 +393,7 @@ private fun TripCard(trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemo
         val overdue = g.itinerary.count { s -> s.checkpoint && now - s.at in com.bluemob.app.chat.TripWatch.OVERDUE_MS..(12 * 3_600_000L) && g.members.keys.any { g.checkins[s.id]?.containsKey(it) != true } }
         com.bluemob.app.ui.components.HeroCard(com.bluemob.app.ui.theme.Gradients.brand(), Modifier.padding(top = 16.dp).clip(MaterialTheme.shapes.large).clickable { onTrip(g.id) }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("🧭", fontSize = 22.sp)
+                com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Hiking, Color.White, onDark = true)
                 com.bluemob.app.i18n.RawText(g.name, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 1, modifier = Modifier.weight(1f).padding(start = 10.dp))
                 Text("On a trip", style = MaterialTheme.typography.labelSmall, color = Color.White,
                     modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.2f)).padding(horizontal = 8.dp, vertical = 3.dp))
@@ -420,7 +422,7 @@ private fun TripCard(trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemo
     com.bluemob.app.ui.components.HeroCard(com.bluemob.app.ui.theme.Gradients.brand(), Modifier.padding(top = 16.dp)
         .clip(MaterialTheme.shapes.large).clickable { if (first == null) onNewTrip() else onTrip(first.first.id) }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🧭", fontSize = 26.sp)
+            com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Hiking, Color.White, size = 44.dp, onDark = true)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 if (first == null) {
                     Text("Going somewhere together?", style = MaterialTheme.typography.titleMedium, color = Color.White)

@@ -36,6 +36,23 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.37.2: modern chat actions, ratings and icons
+
+- **Attach panel like WhatsApp:** the paperclip opens a panel of round icons: Gallery, Video, Document,
+  Location (sends your position with a map link) and My contact (your name and BlueMob ID). Back closes it.
+- **Long-press a message:** the header becomes an action bar (close, count, Reply, Copy, Info, Delete), the
+  message is highlighted, and the reactions sit in a pill above it. Tap another message to pick it instead.
+- **Delete for me:** removes the message (and its file) from this phone only, after a confirm. Anyone who
+  already got it keeps their copy.
+- **Ratings:** a big score card, then one row per category with a tinted icon, the score and a bar; the
+  "Rate" form uses the same icons. "How stars work" folds away.
+- **Your activity:** Safety & learning is one compact card with the number after each label
+  ("Messages 4"); Time in BlueMob is one stacked bar with a legend; Insights is a short list.
+- **Icons everywhere:** emoji used as icons are now Material icons on tinted circles or tiles: Calls list
+  (call direction and call-back buttons), Chats (new chat, pinned, trip group), Nearby, Compass, Trip
+  groups, Itinerary, News, Report, Rescues, the fingerprint unlock, the SOS flashlight, helper signals,
+  and each SOS setting now has its own icon instead of the same warning sign.
+
 ## Android 0.37.1: your screenshot feedback
 
 - **Rescue screens have their own dot pattern**, in warm orange so they're told apart from chats. It hides both whose

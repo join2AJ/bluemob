@@ -145,6 +145,9 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE peer = :peer")
     suspend fun deleteChat(peer: String)
 
+    @Query("DELETE FROM messages WHERE id = :id")
+    suspend fun deleteOne(id: String)
+
     /** Our attachments that haven't reached [peer] yet. */
     @Query("SELECT * FROM messages WHERE peer = :peer AND fromMe = 1 AND att != '' AND attState != 3")
     suspend fun filesToSend(peer: String): List<MessageEntity>

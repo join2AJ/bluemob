@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.material.icons.rounded.Image
 import android.graphics.Bitmap
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -97,7 +98,7 @@ fun AttachmentContent(m: MessageEntity, att: Attachment, name: String, files: Ch
                     .clip(RoundedCornerShape(16.dp)).background(Color.Black.copy(alpha = 0.12f)).clickable(enabled = ready) { files.onOpen(m) },
                     contentAlignment = Alignment.Center) {
                     thumb?.let { Image(it.asImageBitmap(), att.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-                        ?: Text("📷", fontSize = 36.sp)
+                        ?: androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Image, null, tint = Extra.ink3, modifier = Modifier.size(36.dp))
                 }
             }
             AttKind.AUDIO -> {
@@ -244,7 +245,7 @@ fun androidx.compose.foundation.lazy.LazyListScope.fileBrowser(
             Box(Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(Extra.sand), contentAlignment = Alignment.Center) {
                 if (a.kind == AttKind.IMAGE) {
                     val thumb = rememberLoaded(m.attPath, m.attState) { files.thumbnail(m) }
-                    thumb?.let { Image(it.asImageBitmap(), a.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: Text("📷", fontSize = 22.sp)
+                    thumb?.let { Image(it.asImageBitmap(), a.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } ?: androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Image, null, tint = Extra.ink3, modifier = Modifier.size(22.dp))
                 } else Text(when (a.kind) { AttKind.AUDIO -> "🎤"; AttKind.VIDEO -> "🎬"; else -> docEmoji(a.name) }, fontSize = 22.sp)
             }
             Column(Modifier.padding(start = 12.dp).weight(1f)) {

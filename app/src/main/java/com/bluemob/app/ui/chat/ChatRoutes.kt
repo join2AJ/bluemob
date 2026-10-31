@@ -54,7 +54,7 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
                 onPing = { vm.ping(id) }, onInfo = { s.push(Route.Info(it)) }, onPerson = { if (id != SkyBot.NODE_ID) s.push(Route.Person(id)) }, onAction = s.onSkyAction,
                 files = s.chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
                 group = vm.groups.collectAsStateWithLifecycle().value[id],
-                onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onGroupInfo = { s.push(Route.Group(id)) },
+                onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onDelete = { vm.deleteMessage(it) }, onGroupInfo = { s.push(Route.Group(id)) },
                 verified = vm.isVerified(id, vm.verified.collectAsStateWithLifecycle().value),
                 aiReady = vm.aiStatus.collectAsStateWithLifecycle().value.ready, onAiSetup = if (id == SkyBot.NODE_ID) ({ s.push(Route.SkyAi) }) else null,
                 onCall = { video ->

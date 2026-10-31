@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -221,7 +222,7 @@ fun ItineraryCard(g: ChatGroup, myId: String, now: Long, onOpen: () -> Unit) {
     val cps = g.itinerary.filter { it.checkpoint }
     Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).clickable(onClick = onOpen).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🗺", style = MaterialTheme.typography.titleLarge)
+            com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Map, com.bluemob.app.ui.theme.Palette.BrandGreen)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(if (g.isTeam) "Team itinerary" else "Itinerary", style = MaterialTheme.typography.titleMedium)
                 if (g.itinerary.isEmpty()) Text(if (g.canPlan(myId)) "Add the plan so everyone knows what's coming" else "No plan yet",

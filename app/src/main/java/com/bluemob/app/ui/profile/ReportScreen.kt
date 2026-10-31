@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.rounded.CheckCircle
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -91,7 +92,7 @@ fun ReportScreen(
         if (sent) {
             item {
                 Column(Modifier.fillMaxWidth().padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("✅", style = MaterialTheme.typography.displayMedium)
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.CheckCircle, com.bluemob.app.ui.theme.Palette.BrandGreen, size = 80.dp)
                     Text("Thanks! Your report reached the BlueMob team.", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
                     Button(onClick = onBack, modifier = Modifier.padding(top = 20.dp)) { Text("Done") }
                 }

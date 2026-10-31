@@ -284,7 +284,17 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
             else scope.launch { vm.openCopy(m)?.let { actions.openFile(it, att?.mime ?: "*/*") } }
         },
         onPlay = vm::playVoice,
-        onAttach = { kind -> actions.pickFile(kind) { uri -> vm.sendFile(peer, uri) } },
+        onAttach = { kind ->
+            when (kind) {
+                // Position as a message: works offline, and anyone can type the numbers into a map.
+                "location" -> (hereFix ?: vm.here())?.let { f ->
+                    vm.send(peer, "📍 My position: %.5f, %.5f (±%d m)".format(java.util.Locale.US, f.lat, f.lon, f.accuracyM.toInt()) +
+                        "\nhttps://maps.google.com/?q=%.5f,%.5f".format(java.util.Locale.US, f.lat, f.lon))
+                } ?: vm.say("Your position isn't known yet. Turn on location (Compass tab), then try again.")
+                "contact" -> vm.send(peer, "👤 ${vm.name.value} · BlueMob ID BM ${com.bluemob.app.util.formatId(vm.nodeId)}")
+                else -> actions.pickFile(kind) { uri -> vm.sendFile(peer, uri) }
+            }
+        },
         onRecordStart = { if (!vm.startVoiceNote()) actions.requestCallPermissions(false) {} },
         onRecordStop = { send -> vm.stopVoiceNote(peer, send) },
         onMedia = { push(Route.Media(peer)) },

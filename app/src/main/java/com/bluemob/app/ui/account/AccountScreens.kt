@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.account
 
+import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -202,7 +203,7 @@ fun AccountSetup(
                     CreatePin(onPin = { onPin(it); step = if (canUseBiometric) 1 else 2 })
                 }
                 1 -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("👆", fontSize = 56.sp)
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Fingerprint, MaterialTheme.colorScheme.primary, size = 88.dp)
                     Text("Unlock with fingerprint or face?", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
                     Text("Faster than your PIN. Your PIN still works, and is needed to see your recovery code.",
                         style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
@@ -263,7 +264,7 @@ fun LockScreen(
                         is PinResult.Wait -> { waitLeft = r.seconds; error = "Too many wrong PINs. Try again in ${r.seconds}s." }
                     }
                 },
-                extraKey = if (biometric) ({ TextButton(onClick = onBiometric) { Text("👆", fontSize = 26.sp) } }) else null,
+                extraKey = if (biometric) ({ androidx.compose.material3.IconButton(onClick = onBiometric) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Fingerprint, "Fingerprint or face", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp)) } }) else null,
             )
             Spacer(Modifier.height(24.dp))
             Box(

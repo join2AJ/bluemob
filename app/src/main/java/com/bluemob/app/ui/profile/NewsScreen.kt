@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -31,7 +32,7 @@ fun NewsScreen(items: List<NewsItem>, seenAt: Long, onBack: () -> Unit, onSeen: 
     SubScreen("News from BlueMob", onBack) {
         if (items.isEmpty()) item {
             Column(Modifier.fillMaxWidth().padding(top = 48.dp)) {
-                Text("📣", style = MaterialTheme.typography.displaySmall)
+                com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Campaign, Extra.sky, size = 64.dp)
                 Text("No news yet", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
                 Text("Alerts, updates and safety tips from the BlueMob team show up here, and as a notification.",
                     style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))

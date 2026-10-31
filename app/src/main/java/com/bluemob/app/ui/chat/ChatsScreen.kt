@@ -1,5 +1,14 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.Hiking
+import androidx.compose.material.icons.rounded.AddComment
+import androidx.compose.material.icons.automirrored.rounded.CallReceived
+import androidx.compose.material.icons.automirrored.rounded.CallMade
+import androidx.compose.material.icons.automirrored.rounded.CallMissed
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -166,7 +175,7 @@ fun ChatsScreen(
         if (query.isBlank()) item {
             Row(Modifier.padding(start = Space.lg, end = Space.lg, top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.pineTint)
                 .clickable(onClick = onNewChat).padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("✉️", fontSize = 20.sp)
+                com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.AddComment, MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Text("New chat", style = MaterialTheme.typography.titleSmall)
                     Text("Message anyone by BlueMob ID, even far away", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
@@ -244,7 +253,7 @@ private fun ChatRow(e: Entry, messages: List<MessageEntity>, typing: Boolean, on
                 Text(e.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (e.sharesName) Text(shortId(e.id), style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
                 if (e.isBot) Tag("On this phone", Extra.skyTint, Extra.sky)
-                if (e.pinned) Text("📌", style = MaterialTheme.typography.labelSmall)
+                if (e.pinned) androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.PushPin, "Pinned", tint = Extra.ink3, modifier = Modifier.size(14.dp))
             }
             Text(
                 when {
@@ -335,7 +344,8 @@ private fun CallsList(calls: List<com.bluemob.app.data.CallLogEntry>, people: Li
         if (calls.isNotEmpty()) item {
             Column(Modifier.padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterBar(query, { query = it }, "Search by name",
-                    listOf(FilterMenu(if (period == Period.ANY) "📅" else period.label, Period.entries.map { it.label to (it == period) }) { period = Period.entries[it] }),
+                    listOf(FilterMenu(if (period == Period.ANY) "Any time" else period.label, Period.entries.map { it.label to (it == period) },
+                        icon = if (period == Period.ANY) androidx.compose.material.icons.Icons.Rounded.CalendarMonth else null) { period = Period.entries[it] }),
                     Modifier.padding(horizontal = Space.lg))
                 LazyRow(contentPadding = PaddingValues(horizontal = Space.lg), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(CallKind.entries.toList()) { k ->
@@ -371,14 +381,16 @@ private fun CallsList(calls: List<com.bluemob.app.data.CallLogEntry>, people: Li
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             Text(name + if (count > 1) "  ($count)" else "", style = MaterialTheme.typography.titleMedium, color = if (missed) Extra.rose else MaterialTheme.colorScheme.onSurface, maxLines = 1)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(if (c.outgoing) "↗" else "↙", color = if (missed) Extra.rose else if (c.outcome == "ANSWERED") MaterialTheme.colorScheme.primary else Extra.ink3, fontWeight = FontWeight.Bold)
+                                androidx.compose.material3.Icon(if (missed) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.CallMissed else if (c.outgoing) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.CallMade
+                                    else androidx.compose.material.icons.Icons.AutoMirrored.Rounded.CallReceived, null, Modifier.size(15.dp),
+                                    tint = if (missed) Extra.rose else if (c.outcome == "ANSWERED") MaterialTheme.colorScheme.primary else Extra.ink3)
                                 Text(" " + outcomeWords(c) + " · " + callTime(c.startedAt), style = MaterialTheme.typography.bodySmall,
                                     color = if (missed) Extra.rose else Extra.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         // Call back either way: the same kind is the big tap, the other is this small one.
-                        Text(if (c.video) "📞" else "🎥", fontSize = 18.sp, modifier = Modifier.clip(CircleShape).clickable { onCallBack(c.peer, name, !c.video) }.padding(8.dp))
-                        Text(if (c.video) "🎥" else "📞", fontSize = 22.sp, modifier = Modifier.clip(CircleShape).clickable { onCallBack(c.peer, name, c.video) }.padding(8.dp))
+                        CallBackButton(video = !c.video, big = false) { onCallBack(c.peer, name, !c.video) }
+                        CallBackButton(video = c.video, big = true) { onCallBack(c.peer, name, c.video) }
                     }
                     androidx.compose.material3.DropdownMenu(menuFor == c.id, { menuFor = null }) {
                         androidx.compose.material3.DropdownMenuItem(text = { Text("Voice call") }, onClick = { menuFor = null; onCallBack(c.peer, name, false) })
@@ -495,7 +507,7 @@ private fun GroupsList(
             var why by rememberSaveable { mutableStateOf(false) }
             Column(Modifier.padding(start = Space.lg, end = Space.lg, top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.pineTint).padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("🧭", fontSize = 22.sp)
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Hiking, com.bluemob.app.ui.theme.Palette.BrandBlue)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text("Trip group", style = MaterialTheme.typography.titleSmall)
                         Text("For treks, yatras and melas: join by one code, roll calls, teams with captains", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
@@ -532,4 +544,15 @@ private fun groupLine(g: com.bluemob.app.chat.ChatGroup): String = when {
     g.isTeam -> "Team · ${g.members.size + 1} people"
     g.trip -> "Trip group · ${g.members.size + 1} people"
     else -> "${g.members.size + 1} members"
+}
+
+/** Call back: a phone or camera icon in a soft circle (the same kind as the last call is the bigger one). */
+@Composable
+private fun CallBackButton(video: Boolean, big: Boolean, onClick: () -> Unit) {
+    val tint = MaterialTheme.colorScheme.primary
+    Box(Modifier.padding(start = 6.dp).size(if (big) 40.dp else 34.dp).clip(CircleShape).background(tint.copy(alpha = if (big) 0.16f else 0.08f)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center) {
+        androidx.compose.material3.Icon(if (video) androidx.compose.material.icons.Icons.Rounded.Videocam else androidx.compose.material.icons.Icons.Rounded.Call,
+            if (video) "Video call" else "Voice call", Modifier.size(if (big) 20.dp else 17.dp), tint = tint)
+    }
 }

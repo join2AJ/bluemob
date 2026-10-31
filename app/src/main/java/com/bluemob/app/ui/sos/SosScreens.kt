@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.sos
 
+import androidx.compose.material.icons.rounded.FlashlightOn
 import android.app.Activity
 import android.view.WindowManager
 import androidx.compose.animation.core.RepeatMode
@@ -428,7 +429,7 @@ fun SosSignalScreen(start: SignalMode, defaultMode: SignalMode, signals: SignalC
         }
         Spacer(Modifier.height(40.dp))
         if (torch) {
-            Text("🔦", fontSize = 48.sp, modifier = Modifier.alpha(if (lit) 1f else 0.35f))
+            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.FlashlightOn, null, tint = fg, modifier = Modifier.size(48.dp).alpha(if (lit) 1f else 0.35f))
             Text(if (signals.hasTorch) "Flashlight" else "This phone has no flashlight", color = fg, style = MaterialTheme.typography.labelMedium)
         }
         Spacer(Modifier.height(30.dp))
@@ -551,7 +552,7 @@ fun HelperFlash(until: Long, onStop: () -> Unit) {
     }
     Box(Modifier.fillMaxSize().background(if (lit) Color.White else com.bluemob.app.ui.theme.Palette.Danger).clickable(onClick = onStop), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("🔦", style = MaterialTheme.typography.displayLarge)
+            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.FlashlightOn, null, tint = if (lit) Color.Black else Color.White, modifier = Modifier.size(72.dp))
             Text("Help is near", style = MaterialTheme.typography.headlineMedium, color = if (lit) Color.Black else Color.White)
             Text("Someone coming to help is looking for this light. Hold the phone up. Tap to stop.",
                 style = MaterialTheme.typography.bodyLarge, color = if (lit) Color.Black else Color.White, textAlign = TextAlign.Center, modifier = Modifier.padding(24.dp))

@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.compass
 
+import androidx.compose.material.icons.rounded.ShareLocation
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.height
@@ -214,7 +215,7 @@ fun CompassScreen(
         if (myLocation != null) item {
             Surface(onClick = { onShareLocation(myLocation) }, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("📤", fontSize = 22.sp)
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.ShareLocation, Extra.sky)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text("Share my location", style = MaterialTheme.typography.titleMedium)
                         Text(Geo.formatLatLon(myLocation.lat, myLocation.lon) + " · ±${myLocation.accuracyM.roundToInt()} m", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)

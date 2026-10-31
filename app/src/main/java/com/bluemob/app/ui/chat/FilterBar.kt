@@ -1,5 +1,7 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +35,7 @@ import com.bluemob.app.i18n.Text
 import com.bluemob.app.ui.theme.Extra
 
 /** One menu in a filter bar: its current label, and the options. */
-class FilterMenu(val label: String, val options: List<Pair<String, Boolean>>, val onPick: (Int) -> Unit)
+class FilterMenu(val label: String, val options: List<Pair<String, Boolean>>, val icon: androidx.compose.ui.graphics.vector.ImageVector? = null, val onPick: (Int) -> Unit)
 
 /** A compact search pill plus dropdowns, on one line: used above the calls and files lists. */
 @Composable
@@ -52,12 +54,16 @@ fun FilterBar(query: String, onQuery: (String) -> Unit, hint: String, menus: Lis
         menus.forEach { m ->
             var open by remember { mutableStateOf(false) }
             Box {
-                Text(m.label + " ▾", style = MaterialTheme.typography.labelLarge, maxLines = 1,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Extra.sand).clickable { open = true }.padding(horizontal = 12.dp, vertical = 9.dp))
-                DropdownMenu(open, { open = false }) {
+                Row(Modifier.clip(RoundedCornerShape(50)).background(Extra.sand).clickable { open = true }.padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    if (m.icon != null) Icon(m.icon, m.label, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
+                    else Text(m.label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    Icon(androidx.compose.material.icons.Icons.Rounded.ExpandMore, null, Modifier.size(18.dp), tint = Extra.ink3)
+                }
+                DropdownMenu(open, { open = false }, shape = RoundedCornerShape(16.dp)) {
                     m.options.forEachIndexed { i, (label, on) ->
-                        DropdownMenuItem(text = { Text((if (on) "✓  " else "     ") + label, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal) },
-                            onClick = { open = false; m.onPick(i) })
+                        DropdownMenuItem(text = { Text(label, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal) }, onClick = { open = false; m.onPick(i) },
+                            leadingIcon = { if (on) Icon(androidx.compose.material.icons.Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) else Spacer(Modifier.size(24.dp)) })
                     }
                 }
             }

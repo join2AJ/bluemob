@@ -1,5 +1,11 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.FlashlightOn
+import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,11 +33,12 @@ import com.bluemob.app.ui.theme.Palette
 
 /** A row with a title, a line under it, and a switch; the whole row toggles. */
 @Composable
-private fun ToggleRow(emoji: String, title: String, body: String, on: Boolean, divider: Boolean = false, onChange: (Boolean) -> Unit) {
-    if (divider) HorizontalDivider(Modifier.padding(start = 56.dp), color = Extra.line)
+private fun ToggleRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tile: androidx.compose.ui.graphics.Color, title: String, body: String, on: Boolean, divider: Boolean = false, onChange: (Boolean) -> Unit) {
+    if (divider) HorizontalDivider(Modifier.padding(start = 64.dp), color = Extra.line)
     Row(Modifier.fillMaxWidth().toggleable(on, role = Role.Switch, onValueChange = onChange).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(emoji, modifier = Modifier.padding(end = 14.dp))
+        com.bluemob.app.ui.components.IconTile(icon, tile)
+        androidx.compose.foundation.layout.Spacer(Modifier.padding(end = 14.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(body, style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
@@ -48,7 +55,7 @@ fun EmergencyCardScreen(on: Boolean, onChange: (Boolean) -> Unit, cardText: () -
             Text("Whoever finds you (or a medic) can see your blood group and who to call, without unlocking your phone.",
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(vertical = 12.dp))
         }
-        item { Group { ToggleRow("🪪", "Show on the lock screen", if (on) "On" else "Off", on, onChange = onChange) } }
+        item { Group { ToggleRow(androidx.compose.material.icons.Icons.Rounded.Badge, Extra.rose, "Show on the lock screen", if (on) "On" else "Off", on, onChange = onChange) } }
         // What it looks like on the lock screen.
         item { GroupLabel("What it shows") }
         item {
@@ -73,15 +80,15 @@ fun HelperSignalsScreen(on: Boolean, onChange: (Boolean) -> Unit, kinds: Set<Str
             Text("During your SOS, people coming to help can make your phone easy to find. Only people in your rescue group can, and only while your SOS is on.",
                 style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(vertical = 12.dp))
         }
-        item { Group { ToggleRow("📣", "Allow helpers to signal", if (on) "On" else "Off: helpers can't make your phone sound or flash", on, onChange = onChange) } }
+        item { Group { ToggleRow(androidx.compose.material.icons.Icons.Rounded.Campaign, Extra.ember, "Allow helpers to signal", if (on) "On" else "Off: helpers can't make your phone sound or flash", on, onChange = onChange) } }
         if (on) {
             item { GroupLabel("What they can use") }
             item {
                 Group {
-                    ToggleRow("🔊", "Sound", "A loud whistle sound, even on silent", "sound" in kinds) { onKind("sound", it) }
-                    ToggleRow("🔦", "Flash", "The camera light blinks", "flash" in kinds, divider = true) { onKind("flash", it) }
-                    ToggleRow("💡", "Screen light", "The screen lights up bright white", "screen" in kinds, divider = true) { onKind("screen", it) }
-                    ToggleRow("🎤", "Microphone", "A helper's call answers by itself after 3 seconds, so they can hear you", "mic" in kinds, divider = true) { onKind("mic", it) }
+                    ToggleRow(androidx.compose.material.icons.Icons.AutoMirrored.Rounded.VolumeUp, Extra.sky, "Sound", "A loud whistle sound, even on silent", "sound" in kinds) { onKind("sound", it) }
+                    ToggleRow(androidx.compose.material.icons.Icons.Rounded.FlashlightOn, Extra.ember, "Flash", "The camera light blinks", "flash" in kinds, divider = true) { onKind("flash", it) }
+                    ToggleRow(androidx.compose.material.icons.Icons.Rounded.LightMode, Palette.Gold, "Screen light", "The screen lights up bright white", "screen" in kinds, divider = true) { onKind("screen", it) }
+                    ToggleRow(androidx.compose.material.icons.Icons.Rounded.Mic, Extra.rose, "Microphone", "A helper's call answers by itself after 3 seconds, so they can hear you", "mic" in kinds, divider = true) { onKind("mic", it) }
                 }
             }
             if ("mic" in kinds) item {

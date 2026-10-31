@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.chat
 
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
@@ -32,6 +33,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material.icons.rounded.Info
@@ -122,8 +130,16 @@ fun ChatScreen(
     onAiSetup: (() -> Unit)? = null,
     /** Checked in person with a QR code: a tick by their name. */
     verified: Boolean = false,
+    /** Deletes a message from this phone only. */
+    onDelete: (MessageEntity) -> Unit = {},
+    /** Previews only: a message picked as if long-pressed. */
+    startSelected: String? = null,
 ) {
     val isBot = nodeId == SkyBot.NODE_ID
+    // Long-press picks a message: the header turns into its actions, and its reactions show above it.
+    var selected by remember { mutableStateOf(startSelected?.let { id -> messages.firstOrNull { it.id == id } }) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = selected != null) { selected = null }
     val isGroup = group != null
     val name = if (isBot) SkyBot.NAME else group?.name ?: person?.name ?: "Someone"
     val emoji = if (isBot) SkyBot.AVATAR else if (isGroup) (if (group?.trip == true && !group.isTeam) "🧭" else "👥") else person?.avatar
@@ -145,9 +161,29 @@ fun ChatScreen(
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         ChatWallpaper(myId, MaterialTheme.colorScheme.onBackground, Modifier.matchParentSize())
         Column(Modifier.fillMaxSize().imePadding()) {
-            // Header
+            // Header (or, with a message picked, what you can do with it)
             Column(Modifier.background(MaterialTheme.colorScheme.surface).statusBarsPadding()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                selected?.let { sel ->
+                    val clipboardBar = LocalClipboardManager.current
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { selected = null }) { Icon(Icons.Rounded.Close, "Done") }
+                        Text("1", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 8.dp))
+                        if (!isBot) IconButton(onClick = { replying = sel; selected = null }) { Icon(Icons.AutoMirrored.Rounded.Reply, "Reply") }
+                        if (sel.text.isNotBlank()) IconButton(onClick = { clipboardBar.setText(androidx.compose.ui.text.AnnotatedString(sel.text)); selected = null }) {
+                            Icon(Icons.Rounded.ContentCopy, "Copy")
+                        }
+                        if (sel.fromMe && sel.status != MessageStatus.LOCAL) IconButton(onClick = { onInfo(sel.id); selected = null }) { Icon(Icons.Rounded.Info, "Message info") }
+                        IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Rounded.DeleteOutline, "Delete") }
+                    }
+                    if (confirmDelete) androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { confirmDelete = false },
+                        title = { Text("Delete this message?") },
+                        text = { Text("It's deleted from this phone only. Anyone who already got it keeps their copy.") },
+                        confirmButton = { androidx.compose.material3.TextButton(onClick = { onDelete(sel); confirmDelete = false; selected = null }) { Text("Delete", color = Extra.rose) } },
+                        dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+                    )
+                }
+                if (selected == null) Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                     Row(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable(enabled = !isBot, onClick = if (isGroup) onGroupInfo else onPerson).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Avatar(emoji, name, nodeId, 38.dp, presence, sos = person?.sos == true)
@@ -203,8 +239,9 @@ fun ChatScreen(
                     val withNext = next != null && DayLabel.sameDay(m.createdAt, next.createdAt) && next.fromMe == m.fromMe && next.sender == m.sender && next.createdAt - m.createdAt < 120_000
                     Bubble(m, isBot, withPrev, withNext, name, Modifier.animateItem(), onInfo, onAction, files, myId = myId,
                         showSender = isGroup && !m.fromMe && !withPrev,
-                        onReply = if (isBot) null else ({ replying = m }), onReact = if (isBot) null else ({ e -> onReact(m, e) }),
-                        onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(m.text)) })
+                        onReply = if (isBot) null else ({ replying = m }), onReact = if (isBot) null else ({ e -> onReact(m, e); selected = null }),
+                        onCopy = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(m.text)) },
+                        selected = selected?.id == m.id, selecting = selected != null, onSelect = { selected = if (selected?.id == m.id) null else m })
                 }
                 if (typing) item(key = "typing") {
                     Box(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp)).background(Extra.bubbleThem).padding(horizontal = 16.dp, vertical = 14.dp)) { TypingDots() }
@@ -299,9 +336,9 @@ private fun Bubble(
     onInfo: (String) -> Unit, onAction: (String) -> Unit, files: ChatFiles = ChatFiles(),
     myId: String = "", showSender: Boolean = false,
     onReply: (() -> Unit)? = null, onReact: ((String) -> Unit)? = null, onCopy: () -> Unit = {},
+    selected: Boolean = false, selecting: Boolean = false, onSelect: () -> Unit = {},
 ) {
     val mine = m.fromMe
-    var menu by remember { mutableStateOf(false) }
     val reactions = remember(m.reactions) { com.bluemob.app.chat.Rich.reactionsOf(m.reactions) }
     val att = remember(m.att) { com.bluemob.app.files.Attachment.fromJson(m.att) }
     val big = 20.dp
@@ -310,14 +347,24 @@ private fun Bubble(
     else RoundedCornerShape(if (withPrev) small else big, big, big, if (withNext || !withPrev) small else big)
     val tappable = mine && m.status != MessageStatus.LOCAL
     Column(
-        modifier.fillMaxWidth().padding(top = if (withPrev) 2.dp else 10.dp),
+        modifier.fillMaxWidth().padding(top = if (withPrev) 2.dp else 10.dp)
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(12.dp)),
         horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
     ) {
         if (showSender && m.senderName.isNotBlank()) Text(m.senderName, style = MaterialTheme.typography.labelMedium, color = Extra.sky, modifier = Modifier.padding(start = 10.dp, bottom = 2.dp))
+        // Picked: the reactions, in a pill above the message.
+        if (selected && onReact != null) Row(Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(4.dp)) {
+            com.bluemob.app.chat.Rich.QUICK_REACTIONS.forEach { e ->
+                val chosen = reactions[myId] == e
+                Text(e, style = MaterialTheme.typography.titleLarge, modifier = Modifier.clip(CircleShape)
+                    .background(if (chosen) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onReact(if (chosen) "" else e) }.padding(7.dp))
+            }
+        }
         Box {
         Box(
             Modifier.widthIn(max = 300.dp).clip(shape).background(if (mine) MaterialTheme.colorScheme.primary else Extra.bubbleThem)
-                .combinedClickable(enabled = tappable || onReply != null, onClick = { if (tappable) onInfo(m.id) else menu = true }, onLongClick = { menu = true })
+                .combinedClickable(onClick = { if (selecting || !tappable) onSelect() else onInfo(m.id) }, onLongClick = onSelect)
                 .padding(horizontal = if (att != null) 8.dp else 14.dp, vertical = if (att != null) 8.dp else 9.dp),
         ) {
             val onColor = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
@@ -340,28 +387,10 @@ private fun Bubble(
                 else com.bluemob.app.i18n.RawText(m.text, style = MaterialTheme.typography.bodyLarge, color = onColor)
             }
         }
-        // Long-press: reactions in a pill on top, then the actions with their icons.
-        androidx.compose.material3.DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(20.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shadowElevation = 8.dp) {
-            if (onReact != null) Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surface).padding(4.dp)) {
-                com.bluemob.app.chat.Rich.QUICK_REACTIONS.forEach { e ->
-                    val chosen = reactions[myId] == e
-                    Text(e, style = MaterialTheme.typography.titleLarge, modifier = Modifier.clip(CircleShape)
-                        .background(if (chosen) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else androidx.compose.ui.graphics.Color.Transparent)
-                        .clickable { menu = false; onReact(if (chosen) "" else e) }.padding(7.dp))
-                }
-            }
-            onReply?.let { androidx.compose.material3.DropdownMenuItem(text = { Text("Reply") }, onClick = { menu = false; it() },
-                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Reply, null) }) }
-            if (m.text.isNotBlank()) androidx.compose.material3.DropdownMenuItem(text = { Text("Copy") }, onClick = { menu = false; onCopy() },
-                leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) })
-            if (tappable) androidx.compose.material3.DropdownMenuItem(text = { Text("Message info") }, onClick = { menu = false; onInfo(m.id) },
-                leadingIcon = { Icon(Icons.Rounded.Info, null) })
-        }
         }
         if (reactions.isNotEmpty()) {
             Row(Modifier.padding(top = 2.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface)
-                .clickable(enabled = onReact != null) { menu = true }.padding(horizontal = 8.dp, vertical = 3.dp)) {
+                .clickable(enabled = onReact != null) { onSelect() }.padding(horizontal = 8.dp, vertical = 3.dp)) {
                 reactions.values.groupingBy { it }.eachCount().forEach { (e, n) -> Text(if (n > 1) "$e $n " else "$e ", style = MaterialTheme.typography.bodyMedium) }
             }
         }
@@ -393,6 +422,12 @@ private fun Bubble(
 @Composable
 private fun Composer(draft: String, onDraft: (String) -> Unit, onSend: () -> Unit, files: ChatFiles? = null) {
     var menu by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = menu) { menu = false }
+    Column {
+    // The attach panel: round icons in a grid, like a share sheet, above the message box.
+    androidx.compose.animation.AnimatedVisibility(menu && files != null) {
+        if (files != null) AttachPanel { k -> menu = false; files.onAttach(k) }
+    }
     Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         val recording = files?.recordingMs
         if (recording != null) {
@@ -403,11 +438,8 @@ private fun Composer(draft: String, onDraft: (String) -> Unit, onSend: () -> Uni
             }
         } else Row(Modifier.weight(1f).clip(RoundedCornerShape(22.dp)).background(Extra.sand).padding(start = if (files != null) 4.dp else 18.dp, end = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             if (files != null) Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.AttachFile, "Attach a photo or document", tint = Extra.ink2) }
-                androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    listOf("photo" to "📷  Photo", "video" to "🎬  Video", "doc" to "📄  Document").forEach { (k, label) ->
-                        androidx.compose.material3.DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; files.onAttach(k) })
-                    }
+                IconButton(onClick = { menu = !menu }) {
+                    Icon(if (menu) Icons.Rounded.Close else Icons.Outlined.AttachFile, if (menu) "Close" else "Attach", tint = Extra.ink2)
                 }
             }
             Box(Modifier.weight(1f).padding(vertical = 13.dp)) {
@@ -433,6 +465,36 @@ private fun Composer(draft: String, onDraft: (String) -> Unit, onSend: () -> Uni
             Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = if (draft.isBlank()) Extra.ink3 else MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(22.dp))
         }
     }
+    }
+}
+
+/** What can be attached: photo or video from the gallery, a document, your position, or your BlueMob contact card. */
+@Composable
+internal fun AttachPanel(onPick: (String) -> Unit) {
+    val items = listOf(
+        Triple("photo", "Gallery", Icons.Rounded.Image to com.bluemob.app.ui.theme.Palette.BrandBlue),
+        Triple("video", "Video", Icons.Rounded.Videocam to com.bluemob.app.ui.theme.Palette.Sunset),
+        Triple("doc", "Document", Icons.Rounded.Description to com.bluemob.app.ui.theme.Palette.Violet),
+        Triple("location", "Location", Icons.Rounded.LocationOn to com.bluemob.app.ui.theme.Palette.BrandGreen),
+        Triple("contact", "My contact", Icons.Rounded.Person to com.bluemob.app.ui.theme.Palette.Gold),
+    )
+    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh)
+        .padding(top = 10.dp, bottom = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(36.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(Extra.ink3.copy(alpha = 0.5f)))
+        items.chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp)) {
+                row.forEach { (k, label, look) ->
+                    Column(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { onPick(k) }.padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(56.dp).clip(CircleShape).background(look.second.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                            Icon(look.first, null, Modifier.size(26.dp), tint = look.second)
+                        }
+                        Text(label, style = MaterialTheme.typography.labelMedium, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
+                    }
+                }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
 }
 
 /** At the top of the Sky chat: get the offline AI, or see that it's on. */
@@ -442,7 +504,7 @@ private fun AiCard(ready: Boolean, onClick: () -> Unit) {
         Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(RoundedCornerShape(16.dp)).background(Extra.skyTint).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("🧠", style = MaterialTheme.typography.titleLarge)
+        com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Psychology, com.bluemob.app.ui.theme.Palette.Violet)
         Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
             Text(if (ready) "Offline AI is on" else "Make Sky smarter, offline", style = MaterialTheme.typography.titleSmall, color = Extra.sky)
             Text(

@@ -440,6 +440,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         toast(if (on) "Blocked. Their messages and calls won't reach you. Their SOS still will." else "Unblocked")
     }
 
+    fun deleteMessage(m: com.bluemob.app.data.MessageEntity) = viewModelScope.launch {
+        repo.deleteForMe(m.id)?.let { runCatching { java.io.File(it).delete() } }
+    }
+
     fun deleteChat(peer: String) = viewModelScope.launch {
         repo.deleteChat(peer).forEach { runCatching { java.io.File(it).delete() } }
         blueMob.audit.add(com.bluemob.app.audit.AuditKind.APP, "A chat was deleted from this phone")
@@ -639,6 +643,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** A short message at the bottom of the screen (from the UI). */
+    fun say(text: String) = toast(text)
     private fun toast(text: String) = android.widget.Toast.makeText(getApplication(), text, android.widget.Toast.LENGTH_LONG).show()
 
     fun removeSpot(id: String) = settings.removeSpot(id)

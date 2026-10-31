@@ -1,5 +1,13 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Contrast
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Sos
+import androidx.compose.material.icons.outlined.PersonalInjury
+import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.Badge
 import com.bluemob.app.ui.theme.Palette
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -265,22 +273,22 @@ fun ProfileScreen(
         item { GroupLabel("Safety") }
         item {
             Group {
-                SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "SOS",
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.Sos, Extra.rose, "SOS",
                     "Signal ${signalDefault.emoji} ${signalDefault.label} · " + if (sosContactCount == 0) "no SOS contacts yet" else "$sosContactCount SOS contact${if (sosContactCount == 1) "" else "s"}",
                     onClick = onSos) { chevron() }
-                SettingRow(Icons.Outlined.WarningAmber, Extra.ember, "Check-in timer",
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.Timer, Extra.ember, "Check-in timer",
                     if (checkInDue > 0L) "On: back by " + com.bluemob.app.safety.CheckInTimer.time(checkInDue) else "Going alone? An SOS if you don't check in by a time you set",
                     divider = true, onClick = onCheckIn) { chevron() }
-                if (onFallDetect != null) SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Fall detection",
+                if (onFallDetect != null) SettingRow(androidx.compose.material.icons.Icons.Outlined.PersonalInjury, Extra.rose, "Fall detection",
                     if (fallDetect) "On: after a hard fall and no movement, 30 seconds to cancel, then SOS" else "Off: send an SOS by itself after a hard fall",
                     divider = true) { androidx.compose.material3.Switch(fallDetect, onFallDetect) }
-                SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Power button SOS",
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.PowerSettingsNew, Extra.rose, "Power button SOS",
                     if (powerSos) "On: press the power button 5 times quickly, even locked. 5 seconds to cancel" else "Off: press the power button 5 times to send an SOS",
                     divider = true) { androidx.compose.material3.Switch(powerSos, onPowerSos) }
-                SettingRow(Icons.Outlined.WarningAmber, Extra.rose, "Emergency card on lock screen",
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.Badge, Extra.rose, "Emergency card on lock screen",
                     if (emergencyCard) "On: blood group and SOS contacts show without unlocking" else "Off: let whoever finds you see who to call",
                     divider = true, onClick = onEmergencyCardOpen) { chevron() }
-                SettingRow(Icons.Outlined.WarningAmber, Extra.ember, "Helpers can signal my phone",
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.Campaign, Extra.ember, "Helpers can signal my phone",
                     if (!remoteSignal) "Off: helpers can't make your phone sound or flash"
                     else "On: " + listOf("sound" to "sound", "flash" to "flash", "screen" to "screen light", "mic" to "microphone")
                         .filter { it.first in helperKinds }.joinToString(", ") { it.second }.ifBlank { "nothing chosen" },
@@ -292,7 +300,7 @@ fun ProfileScreen(
         item {
             Group {
                 SettingRow(Icons.Outlined.Key, Color(0xFF2F6F62), "Account & backup", "Number, blood group, PIN, recovery code, backups", onClick = onAccount) { chevron() }
-                SettingRow(Icons.Outlined.DeleteOutline, Extra.ember, "Storage & data", "What's kept on this phone, and clearing it", divider = true, onClick = onStorage) { chevron() }
+                SettingRow(androidx.compose.material.icons.Icons.Outlined.Storage, Extra.ember, "Storage & data", "What's kept on this phone, and clearing it", divider = true, onClick = onStorage) { chevron() }
             }
         }
 
@@ -302,7 +310,7 @@ fun ProfileScreen(
                 if (com.bluemob.app.Features.GAMES) SettingRow(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Games", "5 games, against the computer or people nearby", onClick = onGames) { chevron() }
                 // Appearance: follow the phone, or always light / dark.
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("🌗", fontSize = 20.sp)
+                    com.bluemob.app.ui.components.IconTile(androidx.compose.material.icons.Icons.Rounded.Contrast, com.bluemob.app.ui.theme.Palette.Violet)
                     Text("Theme", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(start = 14.dp))
                     listOf("auto" to "Auto", "light" to "Light", "dark" to "Dark").forEach { (k, l) ->
                         Text(l, style = MaterialTheme.typography.labelLarge, color = if (theme == k) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
@@ -312,7 +320,7 @@ fun ProfileScreen(
                 }
                 // Language: English or Hindi, or whatever the phone uses.
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("🌐", fontSize = 20.sp)
+                    com.bluemob.app.ui.components.IconTile(androidx.compose.material.icons.Icons.Rounded.Language, Extra.sky)
                     Text("Language", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(start = 14.dp))
                     (listOf("" to "Auto") + com.bluemob.app.i18n.Lang.SUPPORTED).forEach { (k, l) ->
                         Text(l, style = MaterialTheme.typography.labelLarge, color = if (language == k) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,

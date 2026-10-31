@@ -1,5 +1,19 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.CrisisAlert
+import androidx.compose.material.icons.rounded.Sos
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -91,9 +105,9 @@ fun ActivityScreen(
         item { Headline(s, before, range) }
         item {
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Kpi("💬", "Messages", s.messages(), before?.messages(), s.bins.map { it.msgs() }, ChartColors.sent, Modifier.weight(1f))
-                Kpi("📞", "Calls", s.calls(), before?.calls(), s.bins.map { it.calls() }, ChartColors.dialled, Modifier.weight(1f))
-                Kpi("👥", "People", s.people, before?.people, null, ChartColors.received, Modifier.weight(1f))
+                Kpi(androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Chat, "Messages", s.messages(), before?.messages(), s.bins.map { it.msgs() }, ChartColors.sent, Modifier.weight(1f))
+                Kpi(androidx.compose.material.icons.Icons.Rounded.Call, "Calls", s.calls(), before?.calls(), s.bins.map { it.calls() }, ChartColors.dialled, Modifier.weight(1f))
+                Kpi(androidx.compose.material.icons.Icons.Rounded.Groups, "People", s.people, before?.people, null, ChartColors.received, Modifier.weight(1f))
             }
         }
         item { GroupLabel("Messages") }
@@ -114,17 +128,19 @@ fun ActivityScreen(
         item { InsightCards(ins, names) }
         item { GroupLabel("Safety & learning") }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MiniStat("🆘", "SOS sent", s.count(ActivityType.SOS_SENT), Modifier.weight(1f))
-                MiniStat("📡", "SOS received", s.count(ActivityType.SOS_RECEIVED), Modifier.weight(1f))
-                MiniStat("🏃", "Rescues joined", s.count(ActivityType.HELPED), Modifier.weight(1f))
-            }
-        }
-        item {
-            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MiniStat("📖", "Guides read", learning.first, Modifier.weight(1f))
-                MiniStat("🧠", "Quizzes passed", learning.second, Modifier.weight(1f))
-                MiniStat("🔥", "days in a row", learning.third, Modifier.weight(1f))
+            // One line each: what, then how many.
+            val stats = listOf(
+                Triple(Icons.Rounded.Sos, "SOS sent", s.count(ActivityType.SOS_SENT)) to com.bluemob.app.ui.theme.Palette.Danger,
+                Triple(Icons.Rounded.CrisisAlert, "SOS received", s.count(ActivityType.SOS_RECEIVED)) to com.bluemob.app.ui.theme.Palette.Warning,
+                Triple(Icons.Rounded.DirectionsRun, "Rescues joined", s.count(ActivityType.HELPED)) to com.bluemob.app.ui.theme.Palette.BrandGreen,
+                Triple(Icons.Rounded.MenuBook, "Guides read", learning.first) to com.bluemob.app.ui.theme.Palette.BrandBlue,
+                Triple(Icons.Rounded.Psychology, "Quizzes passed", learning.second) to com.bluemob.app.ui.theme.Palette.Violet,
+                Triple(Icons.Rounded.LocalFireDepartment, "Days in a row", learning.third) to com.bluemob.app.ui.theme.Palette.Sunset,
+            )
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(vertical = 6.dp)) {
+                stats.chunked(2).forEach { row ->
+                    Row(Modifier.fillMaxWidth()) { row.forEach { (t, c) -> StatLine(t.first, t.second, t.third, c, Modifier.weight(1f)) } }
+                }
             }
         }
         item {
@@ -184,11 +200,14 @@ private fun Headline(s: ActivitySummary, before: ActivitySummary?, range: Activi
 
 /** A number with its change and a small trend line. */
 @Composable
-private fun Kpi(emoji: String, label: String, value: Int, before: Int?, trend: List<Int>?, color: Color, modifier: Modifier) {
+private fun Kpi(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: Int, before: Int?, trend: List<Int>?, color: Color, modifier: Modifier) {
     val d = delta(value, before)
     Column(modifier.clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(12.dp)
         .semantics(mergeDescendants = true) { contentDescription = "$label: $value" + (d?.first?.let { ", $it" } ?: "") }) {
-        Text("$emoji $label", style = MaterialTheme.typography.labelMedium, color = Extra.ink2, maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, color = Extra.ink2, maxLines = 1, modifier = Modifier.padding(start = 5.dp))
+        }
         Text("$value", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         d?.let { (t, up) -> Text(t, style = MaterialTheme.typography.labelSmall, color = if (up) ChartColors.received else ChartColors.missed, fontWeight = FontWeight.Bold) }
         if (trend != null && trend.size > 1 && trend.any { it > 0 }) Canvas(Modifier.padding(top = 6.dp).fillMaxWidth().height(24.dp)) {
@@ -379,15 +398,32 @@ private fun UsageDonut(usage: Map<String, Map<AppArea, Long>>, range: ActivityRa
             Text("Nothing counted yet. Time is counted only while BlueMob is on screen, from this version on.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
             return@Column
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Donut(byArea.mapIndexed { i, e -> e.value.toFloat() to ChartColors.areas[i % ChartColors.areas.size] }, Modifier.size(132.dp)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(com.bluemob.app.activity.Usage.words(total), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("~" + com.bluemob.app.activity.Usage.words(total / days) + "/day", style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
-                }
+        // Total and per day on one line, then one bar split by part of the app, then a two-column key.
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(com.bluemob.app.activity.Usage.words(total), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("  ~" + com.bluemob.app.activity.Usage.words(total / days) + " a day", style = MaterialTheme.typography.bodyMedium, color = Extra.ink3)
+        }
+        val shown = byArea.take(6)
+        val rest = total - shown.sumOf { it.value }
+        Row(Modifier.padding(top = 12.dp).fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp))) {
+            shown.forEachIndexed { i, (_, sec) ->
+                Box(Modifier.weight(sec.toFloat().coerceAtLeast(1f)).fillMaxHeight().background(ChartColors.areas[i % ChartColors.areas.size]))
             }
-            Column(Modifier.padding(start = 16.dp).weight(1f)) {
-                byArea.take(6).forEachIndexed { i, (a, sec) -> Legend(ChartColors.areas[i % ChartColors.areas.size], "${a.emoji} ${a.label}", "${sec * 100 / total}%") }
+            if (rest > 0) Box(Modifier.weight(rest.toFloat()).fillMaxHeight().background(Extra.line))
+        }
+        Column(Modifier.padding(top = 12.dp)) {
+            shown.chunked(2).forEachIndexed { r, pair ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                    pair.forEachIndexed { k, (a, sec) ->
+                        val i = r * 2 + k
+                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(ChartColors.areas[i % ChartColors.areas.size]))
+                            Text(a.label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 6.dp).weight(1f), maxLines = 1)
+                            Text("${sec * 100 / total}%", style = MaterialTheme.typography.labelMedium, color = Extra.ink2, modifier = Modifier.padding(end = 12.dp))
+                        }
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
     }
@@ -399,23 +435,43 @@ private val weekdays = listOf("", "Sunday", "Monday", "Tuesday", "Wednesday", "T
 @Composable
 private fun InsightCards(i: com.bluemob.app.activity.Insights, names: Map<String, String>) {
     val cards = buildList {
-        if (i.topPeople.isNotEmpty()) add(Triple("👥", "Your people", i.topPeople.joinToString { (id, n) -> "${names[id] ?: "someone"} ($n)" }))
-        i.busiestHour?.let { h -> add(Triple("⏰", "Busiest time", "around ${if (h % 12 == 0) 12 else h % 12} ${if (h < 12) "am" else "pm"}")) }
-        i.busiestWeekday?.let { add(Triple("📅", "Busiest day", weekdays.getOrElse(it) { "" })) }
-        add(Triple("💬", "Per day", "${"%.1f".format(i.messagesPerDay)} messages"))
-        i.avgCallSeconds?.let { add(Triple("⏱", "Average call", talk(it))) }
+        if (i.topPeople.isNotEmpty()) add(Triple("people", "Your people", i.topPeople.joinToString { (id, n) -> "${names[id] ?: "someone"} ($n)" }))
+        i.busiestHour?.let { h -> add(Triple("time", "Busiest time", "around ${if (h % 12 == 0) 12 else h % 12} ${if (h < 12) "am" else "pm"}")) }
+        i.busiestWeekday?.let { add(Triple("day", "Busiest day", weekdays.getOrElse(it) { "" })) }
+        add(Triple("perday", "Per day", "${"%.1f".format(i.messagesPerDay)} messages"))
+        i.avgCallSeconds?.let { add(Triple("call", "Average call", talk(it))) }
     }
-    val tints = listOf(com.bluemob.app.ui.theme.Palette.BrandBlue, com.bluemob.app.ui.theme.Palette.Violet, com.bluemob.app.ui.theme.Palette.BrandGreen, com.bluemob.app.ui.theme.Palette.Warning, com.bluemob.app.ui.theme.Palette.Danger)
-    if (cards.size <= 1) Text("Use BlueMob for a few days and patterns show up here.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
-    else Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        cards.forEachIndexed { n, (e, title, value) ->
-            val c = tints[n % tints.size]
-            Column(Modifier.width(150.dp).clip(RoundedCornerShape(22.dp)).background(c.copy(alpha = 0.14f)).padding(14.dp)) {
-                Text(e, fontSize = 24.sp)
-                Text(title, style = MaterialTheme.typography.labelMedium, color = c, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-                Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 3)
+    if (cards.size <= 1) { Text("Use BlueMob for a few days and patterns show up here.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2); return }
+    // A short list: icon, what, and the answer on the right.
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(vertical = 4.dp)) {
+        cards.forEachIndexed { n, (key, title, value) ->
+            if (n > 0) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 60.dp), color = Extra.line)
+            val (icon, c) = when (key) {
+                "people" -> Icons.Rounded.Groups to com.bluemob.app.ui.theme.Palette.BrandBlue
+                "time" -> Icons.Rounded.Schedule to com.bluemob.app.ui.theme.Palette.Violet
+                "day" -> Icons.Rounded.CalendarMonth to com.bluemob.app.ui.theme.Palette.BrandGreen
+                "perday" -> Icons.Rounded.ChatBubbleOutline to com.bluemob.app.ui.theme.Palette.Warning
+                else -> Icons.Rounded.Call to com.bluemob.app.ui.theme.Palette.Sunset
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(32.dp).clip(RoundedCornerShape(16.dp)).background(c.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.Icon(icon, null, Modifier.size(17.dp), tint = c)
+                }
+                Text(title, style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, modifier = Modifier.padding(start = 14.dp))
+                com.bluemob.app.i18n.RawText(value, style = MaterialTheme.typography.titleSmall.copy(textAlign = androidx.compose.ui.text.style.TextAlign.End), maxLines = 1,
+                    modifier = Modifier.weight(1f).padding(start = 12.dp))
             }
         }
+    }
+}
+
+/** One stat on one line: icon, what, then the number. */
+@Composable
+private fun StatLine(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, n: Int, c: Color, modifier: Modifier) {
+    Row(modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.Icon(icon, null, Modifier.size(18.dp), tint = c)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(start = 8.dp).weight(1f), maxLines = 1)
+        Text("$n", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
     }
 }
 

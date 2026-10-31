@@ -318,4 +318,23 @@ class PreviewShots {
                 replyTo = com.bluemob.app.chat.Rich.replyField("r2", "You", "What are you doing?")))
         com.bluemob.app.ui.chat.ChatScreen("b7e4", people[1], msgs, false, kotlinx.coroutines.flow.MutableSharedFlow(), "Arjun", me, {}, {}, { true }, {}, {}, {})
     }
+
+    private fun pickMsgs() = listOf(
+        com.bluemob.app.data.MessageEntity("s1", "b7e4", false, "Reached the stream, waiting for you", now - 120_000, com.bluemob.app.data.MessageStatus.READ),
+        com.bluemob.app.data.MessageEntity("s2", "b7e4", true, "Coming in 10 minutes", now - 60_000, com.bluemob.app.data.MessageStatus.READ))
+
+    @Test fun chatSelected() = shot {
+        com.bluemob.app.ui.chat.ChatScreen("b7e4", people[1], pickMsgs(), false, kotlinx.coroutines.flow.MutableSharedFlow(), "Arjun", me, {}, {}, { true }, {}, {}, {},
+            onReact = { _, _ -> }, onReply = { _, _ -> }, startSelected = "s1")
+    }
+
+    @Test fun attachPanel() = shot {
+        androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.padding(top = 300.dp)) { com.bluemob.app.ui.chat.AttachPanel {} }
+    }
+
+    @Test fun ratingCategories() = shot(tall = true) {
+        val cats = com.bluemob.app.trust.RatingCategory.entries.mapIndexed { i, c -> c to com.bluemob.app.trust.CategoryScore(listOf(4.5, 4.0, 4.75, 3.5, 5.0)[i % 5], 3 + i) }.toMap()
+        com.bluemob.app.ui.profile.PersonScreen("b7e4", "Ravi", null,
+            com.bluemob.app.trust.TrustScore(4.4, 12, 3, 0, 0, 1, emptyList(), cats, raters = 7), false, emptyList(), null, {}, {}, { _, _, _ -> })
+    }
 }

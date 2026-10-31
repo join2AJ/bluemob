@@ -1368,7 +1368,7 @@ your move	आपकी चाल
 ⛺ Straight to camp	⛺ सीधे कैंप
 ✅ It was real	✅ यह असली था
 ✅ Their SOS was real	✅ उनका SOS असली था
-✅ {} confirmed a real SOS	✅ {} ने असली SOS की पुष्टि की
+{} confirmed a real SOS	{} ने असली SOS की पुष्टि की
 ✓ Verified	✓ सत्यापित
 ✓ Verified in person	✓ ख़ुद मिलकर सत्यापित
 ✓ Verified! This is really {}	✓ सत्यापित! यह सच में {} हैं
@@ -1389,7 +1389,7 @@ your move	आपकी चाल
 🎬  Video	🎬  वीडियो
 👏 Appreciate their help	👏 उनकी मदद की सराहना करें
 👏 Thank	👏 धन्यवाद
-👏 {} thanked them	👏 {} ने धन्यवाद दिया
+{} thanked them	{} ने धन्यवाद दिया
 💬  Reply with a message	💬  संदेश से जवाब दें
 📄  Document	📄  दस्तावेज़
 📌  Pin to top	📌  ऊपर पिन करें
@@ -2203,3 +2203,14 @@ Teams	टीमें
 Replying to {}	{} को जवाब
 Replying to yourself	ख़ुद को जवाब
 Cancel reply	जवाब रद्द करें
+Attach	अटैच करें
+Delete this message?	यह मैसेज हटाएँ?
+Gallery	गैलरी
+It's deleted from this phone only. Anyone who already got it keeps their copy.	यह सिर्फ़ इस फ़ोन से हटेगा। जिसे यह पहले मिल चुका है, उसके पास इसकी कॉपी रहेगी।
+My contact	मेरा संपर्क
+Pinned	पिन किया हुआ
+Your position isn't known yet. Turn on location (Compass tab), then try again.	आपकी जगह अभी पता नहीं है। लोकेशन चालू करें (कम्पास टैब), फिर दोबारा कोशिश करें।
+Fingerprint or face	फ़िंगरप्रिंट या चेहरा
+out of 5 · {} person rated	5 में से · {} व्यक्ति ने रेटिंग दी
+out of 5 · {} people rated	5 में से · {} लोगों ने रेटिंग दी
+Info	जानकारी

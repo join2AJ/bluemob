@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.rescue
 
+import androidx.compose.material.icons.rounded.Support
 import androidx.compose.foundation.border
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -458,7 +459,7 @@ fun RescuesScreen(rescues: List<com.bluemob.app.rescue.RescueRoom>, onBack: () -
         if (rescues.isEmpty()) {
             item {
                 Column(Modifier.fillMaxWidth().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🛟", fontSize = 56.sp)
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Support, Extra.ember, size = 88.dp)
                     Text("No rescues yet", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
                     Text("When you send an SOS, or go to help someone, it's kept here with who came and what was said.",
                         style = MaterialTheme.typography.bodyMedium, color = Extra.ink2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 6.dp))

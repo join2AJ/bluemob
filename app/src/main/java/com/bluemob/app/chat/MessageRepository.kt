@@ -449,6 +449,13 @@ class MessageRepository(
         return files
     }
 
+    /** Deletes one message from this phone only (others keep their copy). Returns its attachment file to delete, if any. */
+    suspend fun deleteForMe(id: String): String? {
+        val m = dao.all().firstOrNull { it.id == id } ?: return null
+        dao.deleteOne(id)
+        return m.attPath
+    }
+
     fun clearAll() = scope.launch { dao.clear() }
 
     /** Read receipt for an incoming message: in a group it goes to whoever wrote it, for their copy. */
