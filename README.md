@@ -36,6 +36,23 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.1: knots you can learn by watching, and a battery-saving SOS signal
+
+- **Step-by-step knot animations for all 12 knots** (reef, bowline, figure-eight loop, sheet bend, double fisherman's,
+  clove hitch, two half hitches, taut-line, trucker's hitch, alpine butterfly, prusik, square lashing). Each step draws
+  the rope the way your hands move it: the standing part in blue, the end you move in orange with a pulsing ring, a
+  dotted line showing where it goes next, real over/under gaps at every crossing, the rope going round the back of a
+  post shown faintly through it, and red arrows when it's time to pull tight. The butterfly's twists morph from shape
+  to shape.
+- The instruction for the step sits big under the drawing; play/pause, back, next, from the start, and Slow. The step
+  list follows along, and tapping a step jumps to it. The guide's steps are the animation's captions (a test keeps
+  them in sync).
+- Knots are data (`assets/knots.json`), made and checked with `tools/knots` (author.py writes them, render.py draws
+  every step to a picture).
+- **SOS signal: "Don't start: I'll pick".** A choice under Default signal: opening the SOS signal starts nothing, to
+  save battery when no one is near; tap Screen, Flashlight, Sound or All to start. The signal screen also has an Off
+  button, and its choices use icons.
+
 ## Android 0.38: trip care — altitude, health cards, headcount, report, album
 
 - **Daily altitude check (Health tab):** the Lake Louise score (headache, stomach, tiredness, dizziness, 0–3 each)

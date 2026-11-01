@@ -1,5 +1,7 @@
 package com.bluemob.app.ui.sos
 
+import androidx.compose.material.icons.rounded.PowerSettingsNew
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Sos
 import androidx.compose.material.icons.rounded.LightMode
@@ -111,6 +113,8 @@ data class SosHubState(
     val defaultSignal: SignalMode,
     val contacts: List<SosContact>,
     val reached: Int = -1,
+    /** Opening the signal starts it (false: it waits for a tap, to save battery). */
+    val autoStart: Boolean = true,
 )
 
 @Composable
@@ -130,6 +134,8 @@ fun SosHubScreen(
     still: Boolean = false,
     rescue: com.bluemob.app.rescue.RescueRoom? = null,
     onOpenRescue: () -> Unit = {},
+    /** "Don't start: I'll pick": opening the signal starts nothing until a signal is tapped. */
+    onManualSignal: () -> Unit = {},
 ) {
     var note by rememberSaveable { mutableStateOf("") }
     var armed by remember { mutableStateOf(false) }
@@ -237,14 +243,14 @@ fun SosHubScreen(
                 modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
         }
         items(SignalMode.entries) { m ->
-            val (icon, tint) = when (m) {
-                SignalMode.SCREEN -> Icons.Rounded.LightMode to com.bluemob.app.ui.theme.Palette.Gold
-                SignalMode.TORCH -> Icons.Rounded.FlashlightOn to Extra.ember
-                SignalMode.SOUND -> Icons.AutoMirrored.Rounded.VolumeUp to Extra.sky
-                SignalMode.ALL -> Icons.Rounded.Sos to Extra.rose
-            }
-            com.bluemob.app.ui.components.ChoiceCard(icon, tint, m.label, m.tip, m == state.defaultSignal,
+            val (icon, tint) = signalLook(m)
+            com.bluemob.app.ui.components.ChoiceCard(icon, tint, m.label, m.tip, state.autoStart && m == state.defaultSignal,
                 tag = if (m == SignalMode.ALL) "Recommended" else null, modifier = Modifier.padding(bottom = 8.dp)) { onDefaultSignal(m) }
+        }
+        item {
+            com.bluemob.app.ui.components.ChoiceCard(androidx.compose.material.icons.Icons.Rounded.TouchApp, Extra.ink2, "Don't start: I'll pick",
+                "Opens with everything off, to save battery when no one is near. Tap a signal to start it.", !state.autoStart,
+                modifier = Modifier.padding(bottom = 8.dp), onClick = onManualSignal)
         }
         item { GroupLabel("More") }
         item {
@@ -388,7 +394,8 @@ private fun Field(label: String, value: String, hint: String, type: KeyboardType
 
 /** Full-screen ··· ––– ··· using the screen, the flashlight, a whistle tone, or all of them. */
 @Composable
-fun SosSignalScreen(start: SignalMode, defaultMode: SignalMode, signals: SignalController, onDefault: (SignalMode) -> Unit, onStop: () -> Unit) {
+fun SosSignalScreen(start: SignalMode?, defaultMode: SignalMode, signals: SignalController, onDefault: (SignalMode) -> Unit, onStop: () -> Unit) {
+    // Null: nothing running (opened with "Don't start: I'll pick", or switched off) until a signal is tapped.
     var mode by rememberSaveable { mutableStateOf(start) }
     var lit by remember { mutableStateOf(false) }
     val screen = mode == SignalMode.SCREEN || mode == SignalMode.ALL
@@ -410,6 +417,7 @@ fun SosSignalScreen(start: SignalMode, defaultMode: SignalMode, signals: SignalC
         onDispose { if (screen) window?.attributes = window?.attributes?.apply { screenBrightness = before ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE } }
     }
     LaunchedEffect(mode) {
+        if (mode == null) { lit = false; signals.torch(false); return@LaunchedEffect }
         while (true) {
             for ((on, ms) in SignalController.SOS_PATTERN) {
                 lit = on
@@ -427,17 +435,18 @@ fun SosSignalScreen(start: SignalMode, defaultMode: SignalMode, signals: SignalC
         Modifier.fillMaxSize().background(bg).statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("SOS SIGNAL · ${mode.label.uppercase()}", color = fg.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
+        Text("SOS SIGNAL · ${(mode?.label ?: "Off").uppercase()}", color = fg.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
         Text("··· ––– ···", color = fg, fontSize = 34.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp), maxLines = 1)
         Row(Modifier.fillMaxWidth().padding(top = 22.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SignalMode.entries.forEach { m ->
+            (SignalMode.entries + listOf<SignalMode?>(null)).forEach { m ->
                 Column(
                     Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(if (m == mode) Extra.rose else Color.Gray.copy(alpha = 0.25f))
                         .clickable { mode = m }.padding(vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(m.emoji, fontSize = 22.sp)
-                    Text(m.label, color = if (m == mode) Color.White else fg, style = MaterialTheme.typography.labelMedium)
+                    androidx.compose.material3.Icon(if (m == null) androidx.compose.material.icons.Icons.Rounded.PowerSettingsNew else signalLook(m).first, null,
+                        tint = if (m == mode) Color.White else fg, modifier = Modifier.size(24.dp))
+                    Text(m?.label ?: "Off", color = if (m == mode) Color.White else fg, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -447,9 +456,11 @@ fun SosSignalScreen(start: SignalMode, defaultMode: SignalMode, signals: SignalC
             Text(if (signals.hasTorch) "Flashlight" else "This phone has no flashlight", color = fg, style = MaterialTheme.typography.labelMedium)
         }
         Spacer(Modifier.height(30.dp))
-        Text(mode.tip + ". " + if (screen) "Point the screen at rescuers." else "Repeats until you stop it.", color = fg.copy(alpha = 0.85f),
-            style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
-        if (mode != defaultMode) TextButton(onClick = { onDefault(mode) }) { Text("Make ${mode.label} my default", color = fg) }
+        val m = mode
+        Text(if (m == null) "Nothing is on, to save battery. Tap a signal above to start it." else m.tip + ". " + if (screen) "Point the screen at rescuers." else "Repeats until you stop it.",
+            color = fg.copy(alpha = 0.85f), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        if (m == null) Unit
+        else if (m != defaultMode) TextButton(onClick = { onDefault(m) }) { Text("Make ${m.label} my default", color = fg) }
         else Text("This is your default", color = fg.copy(alpha = 0.6f), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(30.dp))
         Button(onClick = onStop, colors = ButtonDefaults.buttonColors(containerColor = Extra.rose, contentColor = Color.White),
@@ -571,4 +582,12 @@ fun HelperFlash(until: Long, onStop: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge, color = if (lit) Color.Black else Color.White, textAlign = TextAlign.Center, modifier = Modifier.padding(24.dp))
         }
     }
+}
+
+/** Each signal's icon and colour. */
+internal fun signalLook(m: SignalMode): Pair<androidx.compose.ui.graphics.vector.ImageVector, Color> = when (m) {
+    SignalMode.SCREEN -> androidx.compose.material.icons.Icons.Rounded.LightMode to com.bluemob.app.ui.theme.Palette.Gold
+    SignalMode.TORCH -> androidx.compose.material.icons.Icons.Rounded.FlashlightOn to Color(0xFFE07F2E)
+    SignalMode.SOUND -> androidx.compose.material.icons.Icons.AutoMirrored.Rounded.VolumeUp to Color(0xFF3D8FD9)
+    SignalMode.ALL -> androidx.compose.material.icons.Icons.Rounded.Sos to Color(0xFFD94F55)
 }

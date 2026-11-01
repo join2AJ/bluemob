@@ -22,6 +22,7 @@ fun SosRoutes(route: Route.SosArea, s: Shell) {
     val mySos by vm.mySos.collectAsStateWithLifecycle()
     val rescues by vm.rescues.collectAsStateWithLifecycle()
     val signalDefault by vm.signalDefault.collectAsStateWithLifecycle()
+    val signalAuto by vm.signalAuto.collectAsStateWithLifecycle()
     val sosContacts by vm.sosContacts.collectAsStateWithLifecycle()
     val radios by vm.radios.collectAsStateWithLifecycle()
     var sosReached by s.sosReached
@@ -29,16 +30,16 @@ fun SosRoutes(route: Route.SosArea, s: Shell) {
         Route.Sos -> {
             val people by vm.people.collectAsStateWithLifecycle()
             SosHubScreen(
-                SosHubState(mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, sosContacts, sosReached),
+                SosHubState(mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, sosContacts, sosReached, autoStart = signalAuto),
                 message = vm::sosMessage, onBack = s::pop,
                 onSend = { sosReached = vm.sendSos(it); s.askForSosPieces(radios) },
                 onSafe = { vm.cancelSos(); sosReached = -1 }, onSignal = { s.push(Route.Signal) },
-                onDefaultSignal = vm::setSignalDefault, onHowToHelp = { s.push(Route.Article("help-sos")) }, onContacts = { s.push(Route.SosContacts) },
+                onDefaultSignal = { vm.setSignalDefault(it); vm.setSignalAuto(true) }, onManualSignal = { vm.setSignalAuto(false) }, onHowToHelp = { s.push(Route.Article("help-sos")) }, onContacts = { s.push(Route.SosContacts) },
                 onText = s.actions.textSos, onPreviewAlert = vm::previewSosAlert,
                 rescue = rescues.firstOrNull { it.mine && it.id == mySos?.id }, onOpenRescue = { mySos?.let { s.push(Route.Rescue(it.id)) } },
             )
         }
-        Route.Signal -> SosSignalScreen(signalDefault, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = s::pop)
+        Route.Signal -> SosSignalScreen(if (signalAuto) signalDefault else null, signalDefault, vm.signals, onDefault = vm::setSignalDefault, onStop = s::pop)
         Route.SosContacts -> {
             val people by vm.people.collectAsStateWithLifecycle()
             SosContactsScreen(sosContacts, s::pop, onAdd = { n, p, id -> vm.addSosContact(n, p, id) }, onRemove = vm::removeSosContact,

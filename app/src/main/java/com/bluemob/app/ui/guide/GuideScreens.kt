@@ -250,6 +250,9 @@ fun ArticleScreen(article: Article, saved: Boolean, onBack: () -> Unit, onToggle
     var scale by rememberSaveable { mutableStateOf(1f) }
     var done by rememberSaveable(article.id) { mutableStateOf(setOf<Int>()) }
     var stepMode by rememberSaveable { mutableStateOf(false) }
+    // Knots: a step-by-step animation, with the steps list following along.
+    val knot = rememberKnot(article.id)
+    var knotStep by rememberSaveable(article.id) { mutableStateOf(0) }
     val speaker = rememberSpeaker()
     val body = MaterialTheme.typography.bodyLarge.let { it.copy(fontSize = it.fontSize * scale, lineHeight = it.lineHeight * scale) }
     if (stepMode) { StepByStep(article, speaker, scale, onClose = { stepMode = false; speaker.stop() }); return }
@@ -257,7 +260,10 @@ fun ArticleScreen(article: Article, saved: Boolean, onBack: () -> Unit, onToggle
     SubScreen(article.title, onBack, actions = {
         IconButton(onClick = onToggleSaved) { Text(if (saved) "★" else "☆", fontSize = 22.sp, color = if (saved) Extra.ember else MaterialTheme.colorScheme.onSurface) }
     }) {
-        item { GuideArt(article.category, Modifier.padding(top = 8.dp).fillMaxWidth().height(160.dp), articleId = article.id) }
+        item {
+            if (knot != null) KnotPlayer(knot, knotStep, { knotStep = it }, Modifier.padding(top = 8.dp))
+            else GuideArt(article.category, Modifier.padding(top = 8.dp).fillMaxWidth().height(160.dp), articleId = article.id)
+        }
         item {
             Column(Modifier.padding(top = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -293,10 +299,12 @@ fun ArticleScreen(article: Article, saved: Boolean, onBack: () -> Unit, onToggle
         item {
             Group(Modifier.padding(top = 4.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("${done.size} of ${article.steps.size} done · tap a step to tick it", style = MaterialTheme.typography.labelMedium, color = Extra.ink3)
+                    Text(if (knot != null) "Tap a step to watch it" else "${done.size} of ${article.steps.size} done · tap a step to tick it", style = MaterialTheme.typography.labelMedium, color = Extra.ink3)
                     article.steps.forEachIndexed { i, s ->
                         val ticked = i in done
-                        Row(Modifier.clip(RoundedCornerShape(10.dp)).clickable { done = if (ticked) done - i else done + i }) {
+                        val playing = knot != null && i == knotStep
+                        Row(Modifier.clip(RoundedCornerShape(10.dp)).background(if (playing) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent)
+                            .clickable { if (knot != null) knotStep = i.coerceAtMost(knot.steps.size - 1) else done = if (ticked) done - i else done + i }) {
                             Box(Modifier.size(28.dp).background(if (ticked) MaterialTheme.colorScheme.primary else Extra.pineTint, CircleShape), contentAlignment = Alignment.Center) {
                                 Text(if (ticked) "✓" else "${i + 1}", style = MaterialTheme.typography.labelLarge, color = if (ticked) Color.White else MaterialTheme.colorScheme.primary)
                             }

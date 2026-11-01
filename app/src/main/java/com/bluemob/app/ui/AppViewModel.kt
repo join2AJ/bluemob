@@ -83,6 +83,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val mySos = sosManager.mine
     val sosAlert = sosManager.alert
     val signalDefault = settings.signalDefault
+    val signalAuto = settings.signalAuto
+    fun setSignalAuto(on: Boolean) = settings.setSignalAuto(on)
     val spots = settings.spots
     val bookmarks = settings.bookmarks
     val signals = blueMob.signals

@@ -45,6 +45,11 @@ class AppSettings(context: Context) {
     )
     val signalDefault: StateFlow<SignalMode> = _signal.asStateFlow()
 
+    private val _signalAuto = MutableStateFlow(prefs.getBoolean("signal_auto", true))
+    /** Opening the SOS signal starts the default signal (true), or waits for a tap, to save battery (false). */
+    val signalAuto: StateFlow<Boolean> = _signalAuto.asStateFlow()
+    fun setSignalAuto(on: Boolean) { prefs.edit().putBoolean("signal_auto", on).apply(); _signalAuto.value = on }
+
     fun setSignalDefault(mode: SignalMode) {
         prefs.edit().putString("signal", mode.name).apply()
         _signal.value = mode

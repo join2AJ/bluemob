@@ -1,5 +1,7 @@
 package com.bluemob.app.ui
 
+import androidx.compose.foundation.layout.aspectRatio
+import com.bluemob.app.ui.guide.drawKnot
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -372,4 +374,40 @@ class PreviewShots {
     @Test fun tripPlanExtras() = shot(tall = true) {
         com.bluemob.app.ui.chat.TripGroupScreen(adminTrip, me, roll, people, null, com.bluemob.app.ui.chat.TripActions(), now = now, photoCount = 24, startTab = 1)
     }
+
+    /** One knot, every step, two to a row: to check the drawings. */
+    private fun knotSheet(id: String) = shot(tall = true) {
+        val k = com.bluemob.app.ui.guide.KnotDiagrams.all(androidx.compose.ui.platform.LocalContext.current).getValue(id)
+        androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.padding(6.dp)) {
+            k.steps.indices.chunked(2).forEach { row ->
+                androidx.compose.foundation.layout.Row {
+                    row.forEach { st ->
+                        androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.weight(1f).padding(3.dp)) {
+                            androidx.compose.foundation.Canvas(androidx.compose.ui.Modifier.fillMaxWidth().aspectRatio(1.6f)
+                                .background(androidx.compose.ui.graphics.Color(0xFFF3EEE4))) { drawKnot(k, st, 1f, 0.5f) }
+                            androidx.compose.material3.Text("${st + 1}. " + k.steps[st], style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 3)
+                        }
+                    }
+                    if (row.size == 1) androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.weight(1f))
+                }
+            }
+        }
+    }
+    @Test fun knot_reef() = knotSheet("reef")
+    @Test fun knot_bowline() = knotSheet("bowline")
+    @Test fun knot_figure8() = knotSheet("figure8")
+    @Test fun knot_sheetbend() = knotSheet("sheetbend")
+    @Test fun knot_doublefish() = knotSheet("doublefish")
+    @Test fun knot_clove() = knotSheet("clove")
+    @Test fun knot_halfhitch() = knotSheet("halfhitch")
+    @Test fun knot_taut() = knotSheet("taut")
+    @Test fun knot_trucker() = knotSheet("trucker")
+    @Test fun knot_butterfly() = knotSheet("butterfly")
+    @Test fun knot_prusik() = knotSheet("prusik")
+    @Test fun knot_lashing() = knotSheet("lashing")
+
+    @Test fun knotPlayerBowline() = shot(tall = true) {
+        com.bluemob.app.ui.guide.ArticleScreen(com.bluemob.app.guide.GuideContent.byId("knots-bowline")!!, false, {}, {}, {})
+    }
+
 }
