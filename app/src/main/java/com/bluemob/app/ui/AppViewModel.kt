@@ -115,6 +115,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         plainSettingsFiles = com.bluemob.app.crypto.SecurePrefs.plainFilesLeft(getApplication()),
     )
     fun headings(): Flow<Float> = blueMob.heading.headings()
+    fun cameraPose() = blueMob.heading.cameraPose()
+
+    // ---- peak finder ----
+    private val peaksFile get() = java.io.File(blueMob.filesDir, "peaks.json")
+    private val _peaks = kotlinx.coroutines.flow.MutableStateFlow(com.bluemob.app.peaks.Peaks.load(java.io.File(app.filesDir, "peaks.json")))
+    /** Peaks downloaded for an area (OpenStreetMap), kept for offline. */
+    val savedPeaks: kotlinx.coroutines.flow.StateFlow<com.bluemob.app.peaks.Peaks.Saved?> = _peaks
+    /** Downloads named peaks within 150 km of [lat], [lon]. Returns an error to show, or null. */
+    suspend fun downloadPeaks(lat: Double, lon: Double): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val got = com.bluemob.app.peaks.Peaks.download(lat, lon) ?: return@withContext "Couldn't download. Check the internet connection and try again."
+        if (got.isEmpty()) return@withContext "No named peaks found within 150 km."
+        val now = System.currentTimeMillis()
+        com.bluemob.app.peaks.Peaks.save(peaksFile, got, lat, lon, now)
+        _peaks.value = com.bluemob.app.peaks.Peaks.Saved(got, lat, lon, now)
+        null
+    }
 
     /** Ticks every 30 s so "last seen 5 min ago" stays fresh. */
     private val clock = flow {

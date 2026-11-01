@@ -168,7 +168,7 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
         Route.NewTrip -> {
             val mine = vm.groups.collectAsStateWithLifecycle().value.values.filter { it.trip && !it.isTeam && it.owner == vm.nodeId }
             val next = (mine.mapNotNull { Regex("""^Group (\d+)$""").find(it.name)?.groupValues?.get(1)?.toIntOrNull() }.maxOrNull() ?: 0) + 1
-            NewTripScreen(s::pop, onCreate = { n, end -> vm.createTrip(n, end)?.let { s.nav.replace(Route.Group(it)) } }, onJoin = { s.nav.replace(Route.JoinTrip) }, nextNumber = next)
+            NewTripScreen(s::pop, onCreate = { n, end -> vm.createTrip(n, end)?.let { s.nav.replace(Route.Group(it)) } }, onJoin = { s.nav.replace(Route.JoinTrip) }, nextNumber = next, onDemo = { s.push(Route.DemoTrip) })
         }
         is Route.NewTeam -> {
             val main = vm.groups.collectAsStateWithLifecycle().value[route.main]

@@ -36,6 +36,23 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.2: show it to someone, a demo trip, and a peak finder
+
+- **Show someone BlueMob** (You tab, top): the idea in one line, an animation of a message hopping from a phone with no
+  signal, through two phones, to one with internet and on to family; then six features, each with a demo that works
+  on this phone alone: a demo trip, what an SOS looks like to helpers, the compass, the peak finder, a knot, and Sky.
+  "Tell a friend" shares the one-line description.
+- **Trip groups explained:** "How a trip group works" in four steps (Groups tab → trip card → "How does it work? Try a
+  demo", and on the New trip group screen).
+- **Demo trip:** the real trip screen with pretend people and nothing sent. Tap Roll call and watch phones answer
+  (direct, through other phones, Kabir out of range); Plan shows checkpoints and who checked in; Health shows altitude
+  checks.
+- **Peak finder** (Compass tab): hold the phone up and peak names appear over the camera where they are, with height
+  and distance; tap one for details (how far above you, which way). Corrects for magnetic declination, the Earth's
+  curve and refraction. 30 / 100 / 250 km range. Works offline with famous Indian and Himalayan peaks built in, plus
+  every named peak within 150 km downloaded from OpenStreetMap with one tap while online (only a rough position is
+  sent; listed in the privacy policy). No camera permission? It still works on a sky background.
+
 ## Android 0.38.1: knots you can learn by watching, and a battery-saving SOS signal
 
 - **Step-by-step knot animations for all 12 knots** (reef, bowline, figure-eight loop, sheet bend, double fisherman's,

@@ -130,6 +130,10 @@ fun YouRoutes(route: Route.YouArea, s: Shell) {
             onFieldTest = { s.push(Route.FieldTest()) },
             autoReports = vm.autoErrorReports.collectAsStateWithLifecycle().value, onAutoReports = vm::setAutoErrorReports,
         )
+        Route.Showcase -> ShowcaseScreen(ShowcaseActions(
+            onSky = { s.push(Route.Chat(com.bluemob.app.bot.SkyBot.NODE_ID)) }, onSos = { s.vm.previewSosAlert() }, onDemoTrip = { s.push(Route.DemoTrip) },
+            onCompass = { s.onSkyAction("tab:compass") }, onPeaks = { s.push(Route.Peaks) },
+            onKnots = { s.push(Route.Article("knots-bowline")) }, onShare = s.actions.shareText), s::pop)
         is Route.FieldTest -> {
             val ft = vm.fieldTest
             val session by ft.session.collectAsStateWithLifecycle()

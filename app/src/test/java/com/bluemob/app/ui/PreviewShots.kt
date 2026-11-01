@@ -410,4 +410,11 @@ class PreviewShots {
         com.bluemob.app.ui.guide.ArticleScreen(com.bluemob.app.guide.GuideContent.byId("knots-bowline")!!, false, {}, {}, {})
     }
 
+
+    @Test fun showcase() = shot(tall = true) { com.bluemob.app.ui.profile.ShowcaseScreen(com.bluemob.app.ui.profile.ShowcaseActions()) {} }
+    @Test fun demoTrip() = shot(tall = true) { com.bluemob.app.ui.chat.DemoTripScreen({}) {} }
+    @Test fun peakFinder() = shot {
+        com.bluemob.app.ui.compass.PeakFinderScreen(com.bluemob.app.contacts.GeoPoint(31.0215, 78.1718, 8f, now), 3_800.0, null, kotlinx.coroutines.flow.emptyFlow(),
+            cameraAllowed = false, onAskCamera = {}, onAskLocation = {}, onDownload = { null }, onBack = {}, fixedPose = 75f to 2f)
+    }
 }

@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.outlined.Timer
@@ -123,6 +124,7 @@ fun ProfileScreen(
     onAutoStart: () -> Unit = {},
     onBackup: () -> Unit = {},
     onGames: () -> Unit = {},
+    onShowcase: () -> Unit = {},
     sosContactCount: Int = 0,
     background: Boolean = true,
     onBackground: (Boolean) -> Unit = {},
@@ -235,6 +237,20 @@ fun ProfileScreen(
             }
         }
 
+        // Showing BlueMob to someone: the idea, an animation, and demos that need no one else.
+        item {
+            androidx.compose.material3.Surface(onClick = onShowcase, shape = MaterialTheme.shapes.large, color = Palette.BrandBlue.copy(alpha = 0.14f),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Campaign, Palette.BrandBlue, size = 42.dp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Show someone BlueMob", style = MaterialTheme.typography.titleMedium)
+                        Text("What it does in one line, and demos that work on your phone alone", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    chevron()
+                }
+            }
+        }
         item { GroupLabel("Staying reachable") }
         item {
             Group {

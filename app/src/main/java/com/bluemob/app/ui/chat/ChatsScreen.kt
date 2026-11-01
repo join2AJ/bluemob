@@ -102,6 +102,8 @@ fun ChatsScreen(
     onNewGroup: () -> Unit = {},
     onNewTrip: () -> Unit = {},
     onJoinTrip: () -> Unit = {},
+    /** A pretend trip to try roll call and the rest. */
+    onDemoTrip: () -> Unit = {},
     onLeaveGroup: (String) -> Unit = {},
     /** Missed calls since the Calls list was last opened: the red badge. */
     callsSeenAt: Long = 0L,
@@ -116,7 +118,7 @@ fun ChatsScreen(
     when (tab) {
         ChatsTab.CALLS -> { CallsList(calls, people, contentPadding, missedToday, onTab = { tab = it }, onCallBack = onCallBack, onClear = onClearCalls, onDelete = onDeleteCall); return }
         ChatsTab.FILES -> { FilesList(conversations, people, contentPadding, missedToday, onTab = { tab = it }, filesFor = filesFor); return }
-        ChatsTab.GROUPS -> { GroupsList(groups, conversations, typing, rescues, pinned, contentPadding, missedToday, onTab = { tab = it }, onNewGroup = onNewGroup, onNewTrip = onNewTrip, onJoinTrip = onJoinTrip,
+        ChatsTab.GROUPS -> { GroupsList(groups, conversations, typing, rescues, pinned, contentPadding, missedToday, onTab = { tab = it }, onNewGroup = onNewGroup, onNewTrip = onNewTrip, onJoinTrip = onJoinTrip, onDemoTrip = onDemoTrip,
             onOpenRescue = onOpenRescue, onLeave = onLeaveGroup, onPin = onPin, onOpen = onOpen); return }
         ChatsTab.CHATS -> Unit
     }
@@ -469,7 +471,7 @@ private fun LiveRescueBanner(count: Int, onClick: () -> Unit) {
 private fun GroupsList(
     groups: List<com.bluemob.app.chat.ChatGroup>, conversations: Map<String, List<MessageEntity>>, typing: Set<String>,
     rescues: List<com.bluemob.app.rescue.RescueRoom>, pinned: Set<String>, contentPadding: PaddingValues, missed: Int,
-    onTab: (ChatsTab) -> Unit, onNewGroup: () -> Unit, onNewTrip: () -> Unit, onJoinTrip: () -> Unit, onOpenRescue: (String) -> Unit, onLeave: (String) -> Unit, onPin: (String, Boolean) -> Unit, onOpen: (String) -> Unit,
+    onTab: (ChatsTab) -> Unit, onNewGroup: () -> Unit, onNewTrip: () -> Unit, onJoinTrip: () -> Unit, onDemoTrip: () -> Unit = {}, onOpenRescue: (String) -> Unit, onLeave: (String) -> Unit, onPin: (String, Boolean) -> Unit, onOpen: (String) -> Unit,
 ) {
     androidx.activity.compose.BackHandler { onTab(ChatsTab.CHATS) }
     var leaving by remember { mutableStateOf<com.bluemob.app.chat.ChatGroup?>(null) }
@@ -522,9 +524,12 @@ private fun GroupsList(
                     Chip("New trip group", true, onNewTrip)
                     Chip("Join with a code", false, onJoinTrip)
                 }
-                Text(if (why) "Hide" else "How is it different from a group?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                Text(if (why) "Hide" else "How does it work? Try a demo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 10.dp).clip(RoundedCornerShape(8.dp)).clickable { why = !why }.padding(vertical = 4.dp))
-                if (why) com.bluemob.app.ui.chat.TripVsGroup(Modifier.padding(top = 8.dp))
+                if (why) {
+                    com.bluemob.app.ui.profile.TripHowItWorks(onDemoTrip, Modifier.padding(top = 8.dp))
+                    com.bluemob.app.ui.chat.TripVsGroup(Modifier.padding(top = 8.dp))
+                }
             }
         }
         item { Text("YOUR GROUPS · ${groups.size}", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }

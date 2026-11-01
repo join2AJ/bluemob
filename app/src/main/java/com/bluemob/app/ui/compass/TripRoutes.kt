@@ -1,5 +1,8 @@
 package com.bluemob.app.ui.compass
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,6 +24,19 @@ fun TripRoutes(route: Route.TripsArea, s: Shell) {
     when (route) {
         Route.Trips -> TripsScreen(trips, current, s::pop, onOpen = { s.push(Route.Trip(it)) },
             onNewTrip = { if (!s.system.locationPermission) s.actions.requestLocation(); vm.startNewTrip(it) })
+        Route.DemoTrip -> com.bluemob.app.ui.chat.DemoTripScreen(s::pop) { trail.say(it) }
+        Route.Peaks -> {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            var camera by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(
+                androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) }
+            androidx.compose.runtime.DisposableEffect(Unit) { trail.holdLocation(); onDispose { trail.releaseLocation() } }
+            val here = trail.myLocation.collectAsStateWithLifecycle().value
+            PeakFinderScreen(here, trail.altitude.collectAsStateWithLifecycle().value, trail.savedPeaks.collectAsStateWithLifecycle().value,
+                androidx.compose.runtime.remember { trail.cameraPose() }, camera,
+                onAskCamera = { s.actions.requestCamera { camera = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED } },
+                onAskLocation = s.actions.requestLocation,
+                onDownload = { here?.let { trail.downloadPeaks(it.lat, it.lon) } ?: "Waiting for your position" }, onBack = s::pop)
+        }
         is Route.Trip -> {
             val id = route.id
             val trip = trips.firstOrNull { it.id == id }

@@ -2333,3 +2333,50 @@ Next step	अगला चरण
 Don't start: I'll pick	शुरू न करें: मैं चुनूँगा
 Opens with everything off, to save battery when no one is near. Tap a signal to start it.	सब बंद रहकर खुलता है, ताकि कोई पास न हो तो बैटरी बचे। शुरू करने के लिए सिग्नल पर टैप करें।
 Nothing is on, to save battery. Tap a signal above to start it.	बैटरी बचाने के लिए कुछ भी चालू नहीं है। शुरू करने के लिए ऊपर किसी सिग्नल पर टैप करें।
+BlueMob lets a group talk, find each other and call for help where there's no mobile signal. Phones pass messages, calls and SOS to each other over Bluetooth and Wi-Fi, and one phone with internet can carry everyone's. Free, no ads, no account needed to start.	BlueMob से एक ग्रुप बिना मोबाइल सिग्नल के भी बात कर सकता है, एक-दूसरे को ढूँढ सकता है और मदद बुला सकता है। फ़ोन ब्लूटूथ और वाई-फ़ाई से मैसेज, कॉल और SOS एक-दूसरे को आगे बढ़ाते हैं, और इंटरनेट वाला एक फ़ोन सबका भेज सकता है। मुफ़्त, कोई विज्ञापन नहीं, शुरू करने के लिए अकाउंट ज़रूरी नहीं।
+No signal? Still connected.	सिग्नल नहीं? फिर भी जुड़े हुए।
+Show someone BlueMob	किसी को BlueMob दिखाएँ
+What it does in one line, and demos that work on your phone alone	एक लाइन में यह क्या करता है, और ऐसे डेमो जो सिर्फ़ आपके फ़ोन पर चलते हैं
+How a message gets through	मैसेज कैसे पहुँचता है
+You, no signal	आप, सिग्नल नहीं
+A friend	एक दोस्त
+Another hiker	दूसरा ट्रेकर
+Phone with internet	इंटरनेट वाला फ़ोन
+Family at home	घर पर परिवार
+You write, or press SOS. There's no signal here.	आप लिखते हैं या SOS दबाते हैं। यहाँ सिग्नल नहीं है।
+Your phone hands it to a friend's, over Bluetooth or Wi-Fi.	आपका फ़ोन इसे ब्लूटूथ या वाई-फ़ाई से दोस्त के फ़ोन को देता है।
+Their phone passes it on to the next. Each hop can be 50–100 m.	उनका फ़ोन इसे अगले को देता है। हर कदम 50–100 मीटर का हो सकता है।
+This phone has internet, so it sends it on for everyone.	इस फ़ोन में इंटरनेट है, तो यह सबके लिए आगे भेज देता है।
+Delivered, end-to-end encrypted. Calls work the same way.	पहुँच गया, एंड-टू-एंड एन्क्रिप्टेड। कॉल भी ऐसे ही चलती है।
+TRY IT ON THIS PHONE	इस फ़ोन पर आज़माएँ
+SOS that hops	आगे बढ़ता SOS
+Find each other	एक-दूसरे को ढूँढें
+Peak finder	चोटी पहचानें
+Survival guide, offline	सर्वाइवल गाइड, बिना इंटरनेट
+Sky, the offline helper	Sky, बिना इंटरनेट का सहायक
+Try a demo trip	डेमो ट्रिप आज़माएँ
+Try a demo trip: nothing is sent	डेमो ट्रिप आज़माएँ: कुछ भी भेजा नहीं जाता
+See what helpers see	देखें मदद करने वाले क्या देखते हैं
+Open the compass	कम्पास खोलें
+Open the peak finder	चोटी पहचानने वाला खोलें
+Watch a knot	गाँठ बनते देखें
+Tell a friend about BlueMob	दोस्त को BlueMob के बारे में बताएँ
+How a trip group works	ट्रिप ग्रुप कैसे काम करता है
+How does it work? Try a demo	यह कैसे काम करता है? डेमो आज़माएँ
+The leader makes a trip group and shows its QR code.	लीडर ट्रिप ग्रुप बनाता है और उसका QR कोड दिखाता है।
+Everyone scans it. Now all the phones know each other.	सब इसे स्कैन करते हैं। अब सब फ़ोन एक-दूसरे को जानते हैं।
+Roll call: one tap, and each phone answers with a tick: reached directly, through other phones, or over the internet.	रोल कॉल: एक टैप, और हर फ़ोन टिक से जवाब देता है: सीधे, दूसरे फ़ोनों के ज़रिए, या इंटरनेट से।
+On the way: a plan with checkpoints, a headcount at the bus, alerts if someone falls behind. The chat stays after the trip.	रास्ते में: चेकपॉइंट वाली योजना, बस पर गिनती, कोई पीछे छूटे तो अलर्ट। यात्रा के बाद भी चैट बनी रहती है।
+Demo: pretend people, nothing is sent	डेमो: काल्पनिक लोग, कुछ भी भेजा नहीं जाता
+This is a demo. In a real trip group, this opens for the admin.	यह डेमो है। असली ट्रिप ग्रुप में यह एडमिन के लिए खुलता है।
+Point your phone at the mountains to see their names, height and distance	पहाड़ों की तरफ़ फ़ोन करें और उनके नाम, ऊँचाई और दूरी देखें
+Download peaks around me	मेरे आसपास की चोटियाँ डाउनलोड करें
+Update peaks around me	मेरे आसपास की चोटियाँ अपडेट करें
+Downloading…	डाउनलोड हो रहा है…
+Use camera	कैमरा इस्तेमाल करें
+Done: peaks around you are saved on this phone.	हो गया: आपके आसपास की चोटियाँ इस फ़ोन पर सेव हो गईं।
+No named peaks found within 150 km.	150 किमी में कोई नाम वाली चोटी नहीं मिली।
+Waiting for your position…	आपकी जगह का इंतज़ार…
+Only famous peaks so far. Download the peaks around you while you have internet; they stay for offline.	अभी सिर्फ़ मशहूर चोटियाँ। इंटरनेट रहते अपने आसपास की चोटियाँ डाउनलोड करें; वे बिना इंटरनेट के भी रहेंगी।
+Turn on location so BlueMob knows where you are. GPS works without signal.	लोकेशन चालू करें ताकि BlueMob जाने आप कहाँ हैं। GPS बिना सिग्नल के भी चलता है।
+Names: © OpenStreetMap contributors. Hold the phone upright and away from metal. A nearer ridge can hide a peak.	नाम: © OpenStreetMap योगदानकर्ता। फ़ोन सीधा और धातु से दूर रखें। पास की पहाड़ी किसी चोटी को छिपा सकती है।

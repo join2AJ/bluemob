@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.compass
 
+import androidx.compose.material.icons.rounded.Landscape
 import androidx.compose.material.icons.rounded.ShareLocation
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -98,6 +99,7 @@ fun CompassScreen(
     compassAccuracy: Int = 3,
     /** Share where I am (coordinates and a map link) with any app. */
     onShareLocation: (GeoPoint) -> Unit = {},
+    onPeaks: () -> Unit = {},
 ) {
     DisposableEffect(hasLocationPermission) {
         if (hasLocationPermission) onHoldLocation()
@@ -211,6 +213,18 @@ fun CompassScreen(
             }
         }
         // Daylight: the most important number outdoors.
+        // Peak finder: the names of the mountains around you, over the camera.
+        item {
+            androidx.compose.material3.Surface(onClick = onPeaks, shape = MaterialTheme.shapes.large, color = Extra.pineTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Landscape, com.bluemob.app.ui.theme.Palette.BrandBlue)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Peak finder", style = MaterialTheme.typography.titleMedium)
+                        Text("Point your phone at the mountains to see their names, height and distance", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                }
+            }
+        }
         if (myLocation != null) item { SunCard(myLocation, now) }
         if (myLocation != null) item {
             Surface(onClick = { onShareLocation(myLocation) }, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {

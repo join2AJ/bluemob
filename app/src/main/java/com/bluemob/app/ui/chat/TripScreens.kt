@@ -98,7 +98,7 @@ private val endFormat = java.text.SimpleDateFormat("EEE d MMM, HH:mm", java.util
 /** Start a trip group: a name (or the next "Group N"), how long it lasts, then everyone joins with its code. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun NewTripScreen(onBack: () -> Unit, onCreate: (String, Long) -> Unit, onJoin: () -> Unit, nextNumber: Int = 1) {
+fun NewTripScreen(onBack: () -> Unit, onCreate: (String, Long) -> Unit, onJoin: () -> Unit, nextNumber: Int = 1, onDemo: (() -> Unit)? = null) {
     var name by rememberSaveable { mutableStateOf("") }
     var days by rememberSaveable { mutableStateOf(0) }
     SubScreen("New trip group", onBack) {
@@ -109,6 +109,7 @@ fun NewTripScreen(onBack: () -> Unit, onCreate: (String, Long) -> Unit, onJoin: 
                     style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.padding(top = 6.dp))
             }
         }
+        item { com.bluemob.app.ui.profile.TripHowItWorks(onDemo, Modifier.padding(top = 12.dp)) }
         item {
             OutlinedTextField(name, { name = it.take(40) }, label = { Text("Name of the trip") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
@@ -235,6 +236,8 @@ fun TripGroupScreen(
     photoCount: Int = 0,
     /** Previews only: which tab shows first. */
     startTab: Int = 0,
+    /** Shown above everything (the demo trip's note). */
+    banner: (@Composable () -> Unit)? = null,
 ) {
     val closedAt = g.closedTime(now)
     val owner = g.isOwner(myId)
@@ -299,6 +302,7 @@ fun TripGroupScreen(
         )
     }
     SubScreen(if (g.isTeam) "Team" else "Trip group", a.onBack) {
+        banner?.let { b -> item { b() } }
         item {
             HeroCard(if (closedAt > 0) androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF4B5563), Color(0xFF374151))) else Gradients.brand(), Modifier.padding(top = 12.dp)) {
                 RawText((if (g.isTeam) "👥 " else "🧭 ") + g.name, style = MaterialTheme.typography.titleLarge, color = Color.White)
