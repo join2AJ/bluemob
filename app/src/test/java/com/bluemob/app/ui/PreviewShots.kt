@@ -417,4 +417,20 @@ class PreviewShots {
         com.bluemob.app.ui.compass.PeakFinderScreen(com.bluemob.app.contacts.GeoPoint(31.0215, 78.1718, 8f, now), 3_800.0, null, kotlinx.coroutines.flow.emptyFlow(),
             cameraAllowed = false, onAskCamera = {}, onAskLocation = {}, onDownload = { null }, onBack = {}, fixedPose = 75f to 2f)
     }
+
+    @Test fun readyCheck() = shot(tall = true) {
+        val st = com.bluemob.app.ui.profile.ReadyCheck.State(meshOn = true, bluetooth = true, wifi = true, permissions = true, location = true, keepsRunning = false,
+            batterySaver = false, batteryPct = 64, sosContacts = 2, bloodGroup = true, emergencyCard = false, openTrip = true, fieldTestDone = false,
+            baseCamp = true, peaksSaved = false, backByTimer = false)
+        com.bluemob.app.ui.profile.ReadyScreen(com.bluemob.app.ui.profile.readyItems(st) {}) {}
+    }
+    @Test fun outdoorCards() = shot {
+        val h = 3_600_000L
+        androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.padding(16.dp)) {
+            val here = com.bluemob.app.contacts.GeoPoint(31.0215, 78.1718, 8f, now)
+            com.bluemob.app.ui.compass.DaylightCard(here, com.bluemob.app.settings.Spot("base", "Base camp", 31.06, 78.17, now), now)
+            com.bluemob.app.ui.compass.WeatherCard(listOf(1012f, 1011.5f, 1010f, 1008.5f, 1007f).mapIndexed { i, p ->
+                com.bluemob.app.safety.PressureTrend.Sample(now - (4 - i) * 45 * 60_000L, p - 380f, 3_400.0) }, now, androidx.compose.ui.Modifier.padding(top = 12.dp))
+        }
+    }
 }

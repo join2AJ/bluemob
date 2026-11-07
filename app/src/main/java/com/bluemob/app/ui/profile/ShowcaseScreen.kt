@@ -88,6 +88,13 @@ fun ShowcaseScreen(a: ShowcaseActions, onBack: () -> Unit) {
         )
         features.forEach { f -> item { FeatureCard(f) } }
         item {
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp).clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).padding(14.dp)) {
+                Text("No internet to install it?", style = MaterialTheme.typography.titleSmall)
+                Text("Give it phone to phone: open the Play Store, tap your profile picture → Manage apps & device → Share → Send, and pick BlueMob. They tap Receive. It works with no internet, and their copy updates normally later.",
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+        item {
             Button(onClick = { a.onShare(PITCH + "\n\nAsk me to show you, or get BlueMob from the person who shared this.") }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 24.dp)) {
                 Icon(Icons.Rounded.Share, null); Text("Tell a friend about BlueMob", Modifier.padding(start = 8.dp))
             }

@@ -371,6 +371,8 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             tripAds = vm.tripsNearby.collectAsStateWithLifecycle().value.values.sortedByDescending { it.seenAt },
                             joinNotes = vm.joinNotes.collectAsStateWithLifecycle().value, onJoinAd = vm::joinNearby,
                             myId = vm.nodeId, onTripRollCall = { vm.rollCall(it) }, onTripChat = { push(Route.Chat(it)) }, onSos = { push(Route.Sos) },
+                            here = hereFix, baseCamp = spots.firstOrNull { it.isBaseCamp && System.currentTimeMillis() - it.time < 3 * 86_400_000L },
+                            onReady = { push(Route.Ready) },
                         )
                         Tab.CHATS -> ChatsScreen(people, conversations, typing, padding, rescues, onOpenRescue = { if (it.isEmpty()) push(Route.Rescues) else push(Route.Rescue(it)) }, onNewChat = { push(Route.NewChat) }, onStarred = { push(Route.Starred) }, onNewTrip = { push(Route.NewTrip) }, onJoinTrip = { push(Route.JoinTrip) }, onDemoTrip = { push(Route.DemoTrip) },
                             calls = vm.callLog.collectAsStateWithLifecycle().value,
@@ -385,7 +387,9 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             altitude = vm.altitude.collectAsStateWithLifecycle().value, compassAccuracy = vm.compassAccuracy.collectAsStateWithLifecycle().value,
                             onShareLocation = { g -> actions.shareText(com.bluemob.app.util.Geo.shareText(g)) }, onPeaks = { push(Route.Peaks) },
                             onHoldLocation = vm::holdLocation, onReleaseLocation = vm::releaseLocation, onRequestLocation = actions.requestLocation,
-                            onSaveSpot = { n -> if (!system.locationPermission) actions.requestLocation() else vm.saveSpot(n) }, onRemoveSpot = vm::removeSpot,
+                            onSaveSpot = { n, kind, share -> if (!system.locationPermission) actions.requestLocation() else vm.saveSpot(n, kind, share) },
+                            pressure = vm.pressure.collectAsStateWithLifecycle().value,
+                            shareTrips = vm.groups.collectAsStateWithLifecycle().value.values.filter { it.trip && !it.isClosed(System.currentTimeMillis()) }.map { it.id to it.name }, onRemoveSpot = vm::removeSpot,
                             trail = TrailUi(trailOn, trailPoints, estimate, lostOn, vm.hasStepPermission() && vm.stepCounterAvailable, vm.stepCounterAvailable),
                             trailActions = TrailActions(
                                 onTrail = { on -> if (on) { if (!system.locationPermission) actions.requestLocation(); askSteps() }; vm.setTrail(on) },
@@ -401,7 +405,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             name, avatar, vm.nodeId, running, sharing, system.keepsRunning, signalDefault, log, padding,
                             onName = vm::setName, onAvatar = vm::setAvatar, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onToggleLocation = toggleLocation, onBatterySaver = actions.openBatterySaver, onKeepRunning = actions.askKeepRunning,
-                            onSos = { push(Route.Sos) }, onShowcase = { push(Route.Showcase) }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
+                            onSos = { push(Route.Sos) }, onShowcase = { push(Route.Showcase) }, onReady = { push(Route.Ready) }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
                             onBridge = { push(Route.Bridge) }, onMyRating = { push(Route.Person(vm.nodeId)) }, onActivity = { push(Route.Activity) },
                             game = vm.game.collectAsStateWithLifecycle().value,
                             onBadges = { push(Route.Badges) },

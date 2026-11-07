@@ -36,6 +36,23 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.3: ready check, storm warning, daylight, shared pins
+
+- **Ready for the trip?** (You tab and Nearby): green ticks with a Fix button for each: Bluetooth/Wi-Fi/mesh, location,
+  allowed to run in the background, battery, SOS contacts, blood group; and good-to-haves: a trip group, a field test,
+  base camp, a "back by" timer (the existing check-in timer), peaks downloaded, the emergency card.
+- **Storm warning from the barometer:** an air-pressure reading every 10 minutes (one sample, almost no battery),
+  turned into sea-level pressure with the GPS altitude so climbing isn't mistaken for bad weather. Falling 3 hPa in
+  3 hours: "bad weather likely within hours"; 6: "storm coming", with a notification (once in 6 hours) and a weather
+  card with the last hours drawn on the Compass tab. Phones without the sensor simply don't show it.
+- **Daylight left** on Nearby, and with a base camp saved for this trip, the walk back to it (4 km/h plus climb). When
+  the walk plus half an hour reaches sunset, "Time to head back" (once a day).
+- **Pins for the group:** a saved spot can be water, camp, danger or a plain spot, and can be shared with an open
+  trip group: everyone gets a message with the place and a map link, and the pin appears on their compass with who
+  shared it.
+- "Show someone BlueMob" explains how to give the app phone to phone with no internet: the Play Store's own "Share
+  apps", which keeps updates and payments working.
+
 ## Android 0.38.2: show it to someone, a demo trip, and a peak finder
 
 - **Show someone BlueMob** (You tab, top): the idea in one line, an animation of a message hopping from a phone with no

@@ -92,6 +92,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val compassAccuracy = blueMob.heading.accuracy
     val altitude = blueMob.location.altitude
     val sosContacts = settings.sosContacts
+    val pressure = settings.pressure
+    val profile = blueMob.profile.profile
     val radios = blueMob.radios.state
     val otherVersions = mesh.otherVersions
     val trailOn = trail.enabled
@@ -642,7 +644,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun batteryPct(): Int? = sosManager.batteryPct()
 
     fun toggleBookmark(articleId: String) = settings.toggleBookmark(articleId)
-    fun saveSpot(name: String) = savePlace(name, baseCamp = false)
+    fun saveSpot(name: String, kind: String = "", shareTo: String? = null) = savePlace(name, baseCamp = false, kind = kind, shareTo = shareTo)
 
     private var placing: kotlinx.coroutines.Job? = null
 
@@ -650,7 +652,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * Saves where we are as a spot or the base camp. GPS may need a minute for its first fix (longer indoors or
      * in airplane mode), so this keeps GPS on and waits for a good fix, telling the user what's happening.
      */
-    private fun savePlace(name: String, baseCamp: Boolean) {
+    private fun savePlace(name: String, baseCamp: Boolean, kind: String = "", shareTo: String? = null) {
         if (placing?.isActive == true) return toast("Still getting your position…")
         val tracker = blueMob.location
         if (!tracker.hasPermission()) return toast("Allow location first, then tap again")
@@ -672,9 +674,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val id = if (baseCamp) Spot.BASE_CAMP_ID else "spot-" + UUID.randomUUID().toString().take(8)
                 fun save(p: GeoPoint) {
                     if (baseCamp) settings.setBaseCamp(p.lat, p.lon)
-                    else { settings.removeSpot(id); settings.addSpot(Spot(id, name, p.lat, p.lon, System.currentTimeMillis())) }
+                    else { settings.removeSpot(id); settings.addSpot(Spot(id, name, p.lat, p.lon, System.currentTimeMillis(), kind)) }
                 }
                 save(here)
+                shareTo?.let { gid -> repo.sharePin(gid, kind, name, here.lat, here.lon) }
                 val ageMin = (System.currentTimeMillis() - here.time) / 60_000
                 val how = if (ageMin >= 2) "your last known position ($ageMin min old)" else "±${here.accuracyM.toInt()} m"
                 toast(if (baseCamp) "⛺ Base camp saved, $how" else "📍 $name saved, $how")

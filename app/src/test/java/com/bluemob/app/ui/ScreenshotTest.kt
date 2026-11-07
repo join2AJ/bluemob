@@ -145,7 +145,7 @@ class ScreenshotTest {
     }
     @Test fun messageInfo() = shot(tall = true) { MessageInfoScreen(chat[2], "Arjun", "3f9a1c2b7d4e8a01", "Asha") {} }
     @Test fun compass() = shot {
-        CompassScreen(people, listOf(Spot("s", "Base camp", 30.0830, 78.2640, now)), me, flowOf(20f), true, true, "s", pad, {}, {}, {}, {}, {})
+        CompassScreen(people, listOf(Spot("s", "Base camp", 30.0830, 78.2640, now)), me, flowOf(20f), true, true, "s", pad, {}, {}, {}, { _, _, _ -> }, {})
     }
     @Test fun guide() = shot { GuideScreen(setOf("burns"), pad, {}, {}) }
     @Test fun article() = shot { ArticleScreen(GuideContent.byId("burns")!!, true, {}, {}, {}) }
@@ -195,10 +195,10 @@ class ScreenshotTest {
         val last = trailPts.last()
         val est = PositionEstimate(last.lat, last.lon, false, trailPts[27].lat, trailPts[27].lon, now - 13 * 60_000, 6f, 310.0, 140.0, 150f, 56.0, now)
         CompassScreen(people, listOf(Spot(Spot.BASE_CAMP_ID, "Base camp", 30.0830, 78.2640, now)), GeoPoint(last.lat, last.lon, 56f, now), flowOf(150f), true, true,
-            Spot.BASE_CAMP_ID, pad, {}, {}, {}, {}, {}, trail = TrailUi(true, trailPts, est, lost = true))
+            Spot.BASE_CAMP_ID, pad, {}, {}, {}, { _, _, _ -> }, {}, trail = TrailUi(true, trailPts, est, lost = true))
     }
     @Test fun compassTrailOff() = shot(tall = true) {
-        CompassScreen(people, emptyList(), me, flowOf(20f), true, true, null, pad, {}, {}, {}, {}, {})
+        CompassScreen(people, emptyList(), me, flowOf(20f), true, true, null, pad, {}, {}, {}, { _, _, _ -> }, {})
     }
     @Test fun audit() = shot(tall = true) {
         var prev: AuditEntry? = null
@@ -328,7 +328,7 @@ class ScreenshotTest {
     }
     @Test fun compassLostPerson() = shot(tall = true) {
         val pos = com.bluemob.app.trail.PositionEstimate(30.0837, 78.2663, false, 30.0840, 78.2660, now - 6 * 60_000, 12f, 120.0, 200.0, 190f, 45.0, now - 40_000)
-        CompassScreen(listOf(people[1].copy(lost = pos, quality = LinkQuality.LOW)), emptyList(), me, flowOf(20f), true, true, "b7e4", pad, {}, {}, {}, {}, {})
+        CompassScreen(listOf(people[1].copy(lost = pos, quality = LinkQuality.LOW)), emptyList(), me, flowOf(20f), true, true, "b7e4", pad, {}, {}, {}, { _, _, _ -> }, {})
     }
     @Test fun ticTacToe() = shot { TicTacToeScreen {} }
     @Test fun dotsAndBoxes() = shot {

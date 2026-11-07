@@ -73,6 +73,7 @@ import kotlin.math.roundToInt
 
 private data class Target(val id: String, val name: String, val emoji: String, val point: GeoPoint, val person: Person? = null)
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun CompassScreen(
     people: List<Person>,
@@ -87,7 +88,7 @@ fun CompassScreen(
     onReleaseLocation: () -> Unit,
     onRequestLocation: () -> Unit,
     /** Saves where we are, under the name the user gives it. */
-    onSaveSpot: (String) -> Unit,
+    onSaveSpot: (String, String, String?) -> Unit,
     onRemoveSpot: (String) -> Unit,
     trail: TrailUi = TrailUi(),
     trailActions: TrailActions = TrailActions(),
@@ -100,6 +101,10 @@ fun CompassScreen(
     /** Share where I am (coordinates and a map link) with any app. */
     onShareLocation: (GeoPoint) -> Unit = {},
     onPeaks: () -> Unit = {},
+    /** Open trip groups a new pin can be shared with: (id, name). */
+    shareTrips: List<Pair<String, String>> = emptyList(),
+    /** Air-pressure readings, for the weather card. */
+    pressure: List<com.bluemob.app.safety.PressureTrend.Sample> = emptyList(),
 ) {
     DisposableEffect(hasLocationPermission) {
         if (hasLocationPermission) onHoldLocation()
@@ -111,6 +116,8 @@ fun CompassScreen(
     if (naming) {
         val stamp = remember { java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.getDefault()).format(java.util.Date()) }
         var spotName by rememberSaveable { mutableStateOf("Spot ${spots.count { !it.isBaseCamp } + 1}") }
+        var kind by rememberSaveable { mutableStateOf("") }
+        var shareTo by rememberSaveable { mutableStateOf(shareTrips.firstOrNull()?.first) }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { naming = false },
             title = { Text("Save this spot") },
@@ -119,13 +126,24 @@ fun CompassScreen(
                     androidx.compose.material3.OutlinedTextField(spotName, { spotName = it.take(40) }, label = { Text("Name") }, singleLine = true,
                         placeholder = { Text("e.g. Water source, Car park, Camp 2") })
                     Text("Saved with today's date and time: $stamp", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 6.dp))
+                    Text("What is it?", style = MaterialTheme.typography.labelMedium, color = Extra.ink3, modifier = Modifier.padding(top = 10.dp))
+                    androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Spot.KINDS.forEach { (k, label) -> com.bluemob.app.ui.components.Chip(Spot("x", "", 0.0, 0.0, 0, k).emoji + " " + label, kind == k) { kind = k } }
+                    }
+                    if (shareTrips.isNotEmpty()) {
+                        Text("Share with your trip group (it appears on everyone's compass)", style = MaterialTheme.typography.labelMedium, color = Extra.ink3, modifier = Modifier.padding(top = 10.dp))
+                        androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            com.bluemob.app.ui.components.Chip("Only me", shareTo == null) { shareTo = null }
+                            shareTrips.forEach { (id, n) -> com.bluemob.app.ui.components.Chip(n, shareTo == id) { shareTo = id } }
+                        }
+                    }
                 }
             },
-            confirmButton = { Button(onClick = { onSaveSpot(spotName.trim().ifBlank { "Spot" }); naming = false }) { Text("Save") } },
+            confirmButton = { Button(onClick = { onSaveSpot(spotName.trim().ifBlank { Spot.label(kind) }, kind, shareTo); naming = false }) { Text("Save") } },
             dismissButton = { TextButton(onClick = { naming = false }) { Text("Cancel") } },
         )
     }
-    val targets = spots.map { Target(it.id, it.name, if (it.isBaseCamp) "⛺" else "📍", GeoPoint(it.lat, it.lon, 0f, it.time)) } +
+    val targets = spots.map { Target(it.id, it.name + if (it.by.isNotBlank()) " · ${it.by}" else "", it.emoji, GeoPoint(it.lat, it.lon, 0f, it.time)) } +
         people.mapNotNull { p -> p.location?.let { Target(p.nodeId, if (p.lost != null) "${p.name} (lost)" else p.name, p.avatar ?: "🙂", it, p) } }
     var selected by rememberSaveable { mutableStateOf(initialTarget) }
     // "Retrace my trail": the target is a point on our own trail a little way back, so we walk back the way we came.
@@ -226,6 +244,7 @@ fun CompassScreen(
             }
         }
         if (myLocation != null) item { SunCard(myLocation, now) }
+        if (pressure.isNotEmpty()) item { WeatherCard(pressure, now, Modifier.padding(top = 12.dp)) }
         if (myLocation != null) item {
             Surface(onClick = { onShareLocation(myLocation) }, shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {

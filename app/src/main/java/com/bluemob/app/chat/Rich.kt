@@ -56,6 +56,8 @@ data class Rich(
     val health: String? = null,
     /** My daily altitude check, for the trip admin and my captain. */
     val ams: AmsCheck? = null,
+    /** A pin shared with the group: "kind|name|lat|lon" (water, camp, danger…), added to everyone's compass. */
+    val pin: String? = null,
 ) {
     fun encode(): String {
         val j = JSONObject()
@@ -81,6 +83,7 @@ data class Rich(
         ack?.let { j.put("ak", it) }
         health?.let { j.put("hc", it) }
         ams?.let { j.put("as", it.encode()) }
+        pin?.let { j.put("pn", it) }
         env?.let { j.put("rm", it) }
         return MARK + j.toString()
     }
@@ -122,6 +125,7 @@ data class Rich(
                 buddies = j.optJSONObject("bd")?.let { o -> o.keys().asSequence().take(MAX_MEMBERS).associateWith { o.optString(it) }.filter { (a, b) -> a.length <= 16 && b.length <= 16 && b.isNotBlank() } },
                 buddiesAt = j.optLong("ba"), announce = j.optInt("an") == 1, ack = j.optString("ak").takeIf { it.isNotBlank() && it.length <= 40 },
                 health = if (j.has("hc")) j.optString("hc").take(1_500) else null, ams = j.optString("as").takeIf { it.isNotBlank() }?.let(AmsCheck::decode),
+                pin = j.optString("pn").takeIf { it.isNotBlank() && it.length <= 200 },
             )
         }
 
@@ -135,6 +139,13 @@ data class Rich(
             val m = LinkedHashMap(reactionsOf(field))
             if (emoji.isBlank()) m.remove(who) else m[who] = emoji
             return m.entries.joinToString("\n") { "${it.key}|${it.value}" }
+        }
+
+        /** "kind|name|lat|lon" for a shared pin, and back. */
+        fun pinField(kind: String, name: String, lat: Double, lon: Double) = "${kind.take(10)}|${name.replace("|", " ").take(40)}|${"%.6f".format(java.util.Locale.US, lat)}|${"%.6f".format(java.util.Locale.US, lon)}"
+        fun pinParts(field: String): Triple<String, String, Pair<Double, Double>>? = field.split("|").takeIf { it.size == 4 }?.let { p ->
+            val lat = p[2].toDoubleOrNull(); val lon = p[3].toDoubleOrNull()
+            if (lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) null else Triple(p[0], p[1], lat to lon)
         }
 
         val QUICK_REACTIONS = listOf("👍", "❤️", "😂", "😮", "🙏", "✅")

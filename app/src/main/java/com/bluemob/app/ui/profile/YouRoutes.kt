@@ -130,6 +130,37 @@ fun YouRoutes(route: Route.YouArea, s: Shell) {
             onFieldTest = { s.push(Route.FieldTest()) },
             autoReports = vm.autoErrorReports.collectAsStateWithLifecycle().value, onAutoReports = vm::setAutoErrorReports,
         )
+        Route.Ready -> {
+            val radios by vm.radios.collectAsStateWithLifecycle()
+            val now = System.currentTimeMillis()
+            val st = ReadyCheck.State(
+                meshOn = vm.running.collectAsStateWithLifecycle().value, bluetooth = radios.bluetooth, wifi = radios.wifi, permissions = s.system.permissionsGranted,
+                location = s.system.locationPermission && radios.location, keepsRunning = s.system.keepsRunning, batterySaver = s.system.batterySaver,
+                batteryPct = androidx.compose.runtime.remember { vm.batteryPct() },
+                sosContacts = vm.sosContacts.collectAsStateWithLifecycle().value.size, bloodGroup = vm.profile.collectAsStateWithLifecycle().value.bloodGroup != null,
+                emergencyCard = vm.emergencyCard.collectAsStateWithLifecycle().value,
+                openTrip = vm.groups.collectAsStateWithLifecycle().value.values.any { it.trip && !it.isClosed(now) },
+                fieldTestDone = androidx.compose.runtime.remember { vm.fieldTest.report().sent > 0 },
+                baseCamp = vm.spots.collectAsStateWithLifecycle().value.any { it.isBaseCamp && now - it.time < 3 * 86_400_000L },
+                peaksSaved = vm.savedPeaks.collectAsStateWithLifecycle().value != null,
+                backByTimer = vm.checkInDue.collectAsStateWithLifecycle().value > now,
+            )
+            ReadyScreen(readyItems(st) { what ->
+                when (what) {
+                    "connections" -> s.push(Route.Connections)
+                    "location" -> s.actions.requestLocation()
+                    "power" -> s.push(Route.Power("battery"))
+                    "sos-contacts" -> s.push(Route.SosContacts)
+                    "account" -> s.push(Route.Account)
+                    "new-trip" -> s.push(Route.NewTrip)
+                    "field-test" -> s.push(Route.FieldTest())
+                    "compass" -> s.onSkyAction("tab:compass")
+                    "check-in" -> s.push(Route.CheckIn)
+                    "peaks" -> s.push(Route.Peaks)
+                    "emergency-card" -> s.push(Route.EmergencyCard)
+                }
+            }, s::pop)
+        }
         Route.Showcase -> ShowcaseScreen(ShowcaseActions(
             onSky = { s.push(Route.Chat(com.bluemob.app.bot.SkyBot.NODE_ID)) }, onSos = { s.vm.previewSosAlert() }, onDemoTrip = { s.push(Route.DemoTrip) },
             onCompass = { s.onSkyAction("tab:compass") }, onPeaks = { s.push(Route.Peaks) },

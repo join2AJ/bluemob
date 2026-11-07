@@ -15,11 +15,17 @@ enum class SignalMode(val label: String, val emoji: String, val tip: String) {
 }
 
 /** A place the user saved, to walk back to with the compass. */
-data class Spot(val id: String, val name: String, val lat: Double, val lon: Double, val time: Long) {
+data class Spot(val id: String, val name: String, val lat: Double, val lon: Double, val time: Long,
+    /** "" a spot, or "water", "camp", "danger"; and who shared it (pins from a trip group). */
+    val kind: String = "", val by: String = "") {
     val isBaseCamp: Boolean get() = id == BASE_CAMP_ID
+    val emoji: String get() = when { isBaseCamp -> "⛺"; kind == "water" -> "💧"; kind == "camp" -> "⛺"; kind == "danger" -> "⚠"; else -> "📍" }
 
     companion object {
         const val BASE_CAMP_ID = "base"
+        /** Kinds of pins, with their label. */
+        val KINDS = listOf("" to "Spot", "water" to "Water", "camp" to "Camp", "danger" to "Danger")
+        fun label(kind: String) = KINDS.firstOrNull { it.first == kind }?.second ?: "Spot"
     }
 }
 
@@ -119,6 +125,14 @@ class AppSettings(context: Context) {
     fun setPinned(id: String, on: Boolean) {
         _pinned.value = if (on) _pinned.value + id else _pinned.value - id
         prefs.edit().putStringSet("pinned_chats", _pinned.value).apply()
+    }
+
+    private val _pressure = MutableStateFlow(com.bluemob.app.safety.PressureTrend.fromJson(prefs.getString("pressure", null)))
+    /** Air-pressure readings of the last 12 hours (for the weather trend). */
+    val pressure: StateFlow<List<com.bluemob.app.safety.PressureTrend.Sample>> = _pressure.asStateFlow()
+    fun addPressure(s: com.bluemob.app.safety.PressureTrend.Sample) {
+        _pressure.value = (_pressure.value + s).filter { s.at - it.at <= com.bluemob.app.safety.PressureTrend.KEEP_MS }
+        prefs.edit().putString("pressure", com.bluemob.app.safety.PressureTrend.toJson(_pressure.value)).apply()
     }
 
     private val _starred = MutableStateFlow(prefs.getStringSet("starred_messages", emptySet())!!.toSet())
@@ -322,13 +336,13 @@ class AppSettings(context: Context) {
         val a = JSONArray(prefs.getString("spots", "[]"))
         (0 until a.length()).map { i ->
             val o = a.getJSONObject(i)
-            Spot(o.getString("id"), o.getString("name"), o.getDouble("lat"), o.getDouble("lon"), o.getLong("t"))
+            Spot(o.getString("id"), o.getString("name"), o.getDouble("lat"), o.getDouble("lon"), o.getLong("t"), o.optString("k"), o.optString("by"))
         }
     }.getOrDefault(emptyList())
 
     private fun saveSpots() {
         val a = JSONArray()
-        _spots.value.forEach { a.put(JSONObject().put("id", it.id).put("name", it.name).put("lat", it.lat).put("lon", it.lon).put("t", it.time)) }
+        _spots.value.forEach { a.put(JSONObject().put("id", it.id).put("name", it.name).put("lat", it.lat).put("lon", it.lon).put("t", it.time).put("k", it.kind).put("by", it.by)) }
         prefs.edit().putString("spots", a.toString()).apply()
     }
 }

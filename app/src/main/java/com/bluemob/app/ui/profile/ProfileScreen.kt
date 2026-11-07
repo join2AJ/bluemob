@@ -1,5 +1,6 @@
 package com.bluemob.app.ui.profile
 
+import androidx.compose.material.icons.rounded.Hiking
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Contrast
@@ -125,6 +126,7 @@ fun ProfileScreen(
     onBackup: () -> Unit = {},
     onGames: () -> Unit = {},
     onShowcase: () -> Unit = {},
+    onReady: () -> Unit = {},
     sosContactCount: Int = 0,
     background: Boolean = true,
     onBackground: (Boolean) -> Unit = {},
@@ -246,6 +248,19 @@ fun ProfileScreen(
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text("Show someone BlueMob", style = MaterialTheme.typography.titleMedium)
                         Text("What it does in one line, and demos that work on your phone alone", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                    }
+                    chevron()
+                }
+            }
+        }
+        item {
+            androidx.compose.material3.Surface(onClick = onReady, shape = MaterialTheme.shapes.large, color = Palette.BrandGreen.copy(alpha = 0.14f),
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Hiking, Palette.BrandGreen, size = 42.dp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Ready for the trip?", style = MaterialTheme.typography.titleMedium)
+                        Text("Check your phone's settings before you lose signal", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
                     }
                     chevron()
                 }

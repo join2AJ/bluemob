@@ -121,6 +121,11 @@ fun NearbyScreen(
     onTripRollCall: (String) -> Unit = {},
     onTripChat: (String) -> Unit = {},
     onSos: () -> Unit = {},
+    /** Where we are, and the base camp saved for this trip: the daylight card. */
+    here: com.bluemob.app.contacts.GeoPoint? = null,
+    baseCamp: com.bluemob.app.settings.Spot? = null,
+    /** "Ready for the trip?" check. */
+    onReady: (() -> Unit)? = null,
 ) {
     val list = state.people
     var filter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(NearbyFilter.ALL) }
@@ -142,6 +147,16 @@ fun NearbyScreen(
         contentPadding = PaddingValues(start = Space.lg, end = Space.lg, top = contentPadding.calculateTopPadding(), bottom = 24.dp),
     ) {
         item { LargeTitle("Nearby", over = "${greeting()}, ${state.name}") }
+        here?.let { h -> item { com.bluemob.app.ui.compass.DaylightCard(h, baseCamp, System.currentTimeMillis(), Modifier.padding(bottom = 12.dp)) } }
+        onReady?.let { go -> item {
+            androidx.compose.material3.Surface(onClick = go, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Hiking, com.bluemob.app.ui.theme.Palette.BrandGreen, size = 34.dp)
+                    Text("Going out? Check you're ready for the trip", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                    Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        } }
         state.radios?.let { radios ->
             item { RadioStrip(radios, state.online, onConnections, Modifier.padding(bottom = 12.dp), background) }
             radios.firstProblem()?.let { problem ->

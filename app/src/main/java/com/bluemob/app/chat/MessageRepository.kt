@@ -62,6 +62,8 @@ class MessageRepository(
     private val onRoomEnvelope: (String) -> Unit = {},
     /** The first receipt for one of our messages (a member's copy of a group message included): (it, hops, over the internet). */
     private val onDelivered: (MessageEntity, Int, Boolean) -> Unit = { _, _, _ -> },
+    /** A pin someone shared in a trip group: (group, message ID, sender's name, "kind|name|lat|lon"). */
+    private val onPin: (String, String, String, String) -> Unit = { _, _, _, _ -> },
 ) {
     /** Every message shown in a chat (copies that only carry group messages and reactions are left out). */
     val messages: StateFlow<List<MessageEntity>> = dao.observeAll().map { all -> all.filter { !it.hidden } }.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -377,6 +379,17 @@ class MessageRepository(
         send(gid, if (missing.isEmpty()) "🚌 Headcount: all $total here" else "🚌 Headcount: ${here.size} of $total here. Missing: ${missing.joinToString { nameOf(it) }}")
     }
 
+    /** Shares a pin (water, camp, danger…) with a trip group: a chat message with the place, and the pin for everyone's compass. */
+    fun sharePin(gid: String, kind: String, name: String, lat: Double, lon: Double) {
+        val label = com.bluemob.app.settings.Spot.label(kind)
+        val icon = when (kind) { "water" -> "💧"; "camp" -> "⛺"; "danger" -> "⚠️"; else -> "📍" }
+        scope.launch {
+            sendToGroup(gid, "$icon $label: $name\n%.5f, %.5f · https://maps.google.com/?q=%.5f,%.5f".format(java.util.Locale.US, lat, lon, lat, lon), "", System.currentTimeMillis()) {
+                it.copy(pin = Rich.pinField(kind, name, lat, lon))
+            }
+        }
+    }
+
     /** "I reached this checkpoint": saved here, and told to the group (it gets there when the group is in reach). */
     fun checkIn(gid: String, stopId: String, auto: Boolean = false) {
         val store = groups ?: return
@@ -662,6 +675,7 @@ class MessageRepository(
                 groups.put(ChatGroup(gid, rich.groupName.ifBlank { "Group" }, mapOf(e.fromNodeId to ""), now, trip = rich.trip, owner = rich.meta?.owner.orEmpty()))
             }
         }
+        if (gid != null && rich.pin != null && e.fromNodeId != myId) onPin(gid, rich.groupMsgId ?: e.messageId, rich.members[e.fromNodeId].orEmpty().ifBlank { e.name.orEmpty() }, rich.pin)
         if (gid != null && groups != null) groups.get(gid)?.takeIf { it.trip }?.let { g ->
             var changed = g
             // A newer itinerary, from whoever plans this group.

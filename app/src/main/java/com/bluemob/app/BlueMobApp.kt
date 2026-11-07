@@ -77,6 +77,7 @@ class BlueMobApp : Application() {
     lateinit var sosCircle: com.bluemob.app.sos.SosCircle private set
     lateinit var peerStatus: com.bluemob.app.nearby.PeerStatus private set
     lateinit var heading: HeadingSensor private set
+    val barometer: com.bluemob.app.safety.Barometer by lazy { com.bluemob.app.safety.Barometer(this) }
     lateinit var audit: AuditLog private set
     lateinit var trail: TrailRecorder private set
     lateinit var lost: LostMode private set
@@ -290,15 +291,48 @@ class BlueMobApp : Application() {
             groups = groups, me = { identity.nodeId to identity.displayName.value }, blocked = { it in settings.blocked.value },
             onRoomEnvelope = { mesh.receiveRoomEnvelope(it) },
             onDelivered = { m, hops, internet -> if (m.parent.isNotBlank()) fieldTest.delivered(m.parent, m.peer, hops, internet, (m.deliveredAt ?: m.createdAt) - m.createdAt) },
+            onPin = { _, mid, by, field ->
+                com.bluemob.app.chat.Rich.pinParts(field)?.let { (kind, name, ll) ->
+                    val id = "pin-" + mid.take(24)
+                    if (settings.spots.value.none { it.id == id })
+                        settings.addSpot(com.bluemob.app.settings.Spot(id, name.ifBlank { com.bluemob.app.settings.Spot.label(kind) }, ll.first, ll.second, System.currentTimeMillis(), kind, by))
+                }
+            },
         )
         tripAds = com.bluemob.app.nearby.TripAds(mesh, appScope, { groups.groups.value.values }, { identity.nodeId })
         // Trip groups this phone runs (as admin or captain): automatic roll calls, alerts, and the end of the trip.
         appScope.launch {
             val alerted = HashSet<String>()
             val summarized = HashSet<String>()
+            var minute = 0
+            var lastWeatherAlert = 0L
             while (true) {
                 kotlinx.coroutines.delay(60_000)
                 val now = System.currentTimeMillis()
+                minute++
+                // Weather: an air-pressure reading every 10 minutes; a warning when it falls fast (once in 6 hours).
+                if (minute % 10 == 1 && barometer.available) barometer.read()?.let { hPa ->
+                    settings.addPressure(com.bluemob.app.safety.PressureTrend.Sample(now, hPa, location.altitude.value))
+                    val level = com.bluemob.app.safety.PressureTrend.level(com.bluemob.app.safety.PressureTrend.tendency(settings.pressure.value, now))
+                    if (level >= com.bluemob.app.safety.PressureTrend.Level.FALLING_FAST && now - lastWeatherAlert > 6 * 3_600_000L) {
+                        lastWeatherAlert = now
+                        notifier.note(com.bluemob.app.i18n.Lang.tr("🌩 Air pressure: ${level.label}"), com.bluemob.app.i18n.Lang.tr(level.advice), id = 7811)
+                    }
+                }
+                // Daylight: time to turn back to a base camp saved for this trip (in the last 3 days)?
+                val camp = settings.spots.value.firstOrNull { it.isBaseCamp && now - it.time < 3 * 86_400_000L }
+                val fix = location.location.value
+                if (camp != null && fix != null && now - fix.time < 15 * 60_000L) {
+                    val sun = com.bluemob.app.util.SunMoon.times(now, fix.lat, fix.lon)
+                    val dist = com.bluemob.app.util.Geo.distanceM(fix, com.bluemob.app.contacts.GeoPoint(camp.lat, camp.lon, 0f, camp.time))
+                    val plan = com.bluemob.app.safety.Daylight.plan(sun.set, now, dist)
+                    val key = "dusk:" + now / 86_400_000L
+                    if (plan?.turnBack == true && key !in alerted) {
+                        alerted += key
+                        notifier.note(com.bluemob.app.i18n.Lang.tr("🌅 Time to head back"),
+                            com.bluemob.app.i18n.Lang.tr("${com.bluemob.app.util.SunMoon.span(plan.lightLeftMs)} of light left, and base camp is about ${com.bluemob.app.util.SunMoon.span(plan.walkMs ?: 0)} away."), id = 7812)
+                    }
+                }
                 fieldTest.purgeIfOld(now)
                 val gs = groups.groups.value
                 // In touch with someone: connected now, or last met or online.
