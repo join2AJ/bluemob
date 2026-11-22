@@ -163,7 +163,14 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
             val g = vm.groups.collectAsStateWithLifecycle().value[route.group]
             if (g == null) LaunchedEffect(Unit) { s.pop() }
             else ItineraryScreen(g, vm.nodeId, nameOf = { id -> people.firstOrNull { it.nodeId == id }?.name ?: g.members[id].orEmpty().ifBlank { "Someone" } },
-                here = vm::here, onSave = { vm.setItinerary(g.id, it) }, onCheckIn = { vm.checkIn(g.id, it) }, onBack = s::pop)
+                here = vm::here, onSave = { vm.setItinerary(g.id, it) }, onCheckIn = { vm.checkIn(g.id, it) }, onBack = s::pop,
+                places = androidx.compose.runtime.remember {
+                    val me = vm.here()
+                    vm.spots.value.map { PlacePick(it.name, it.lat, it.lon, if (it.isBaseCamp) "Base camp" else "Saved place") } +
+                        (vm.peakLibrary.value.all + com.bluemob.app.peaks.Peaks.BUILT_IN)
+                            .sortedBy { p -> me?.let { com.bluemob.app.peaks.Peaks.distanceM(it.lat, it.lon, p.lat, p.lon) } ?: -p.eleM.toDouble() }
+                            .take(200).map { PlacePick(it.name, it.lat, it.lon, "Peak") }
+                })
         }
         Route.NewTrip -> {
             val mine = vm.groups.collectAsStateWithLifecycle().value.values.filter { it.trip && !it.isTeam && it.owner == vm.nodeId }

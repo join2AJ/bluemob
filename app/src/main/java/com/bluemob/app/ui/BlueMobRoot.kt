@@ -1,6 +1,5 @@
 package com.bluemob.app.ui
 
-import com.bluemob.app.ui.components.appGlow
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -593,7 +592,7 @@ internal fun Tabs(tab: Tab, unread: Int, onTab: (Tab) -> Unit, onSos: () -> Unit
     val barHeight = 52.dp
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.background).appGlow()) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
             content(PaddingValues(top = topInset + barHeight))
             Row(
                 Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).statusBarsPadding().height(barHeight).padding(horizontal = 16.dp),

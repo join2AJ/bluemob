@@ -262,14 +262,20 @@ class PreviewShots {
 
     private val day0 = java.util.Calendar.getInstance().apply { timeInMillis = now; set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0) }.timeInMillis
     private val plan = listOf(
-        com.bluemob.app.chat.Stop("s1", day0 + 6 * 3_600_000L, "Start at Gaurikund", "Meet at the bus stand. Water and rain jackets"),
-        com.bluemob.app.chat.Stop("s2", day0 + 11 * 3_600_000L, "Rambara bridge", checkpoint = true, lat = 30.7, lon = 79.0, radiusM = 150),
-        com.bluemob.app.chat.Stop("s3", now + 3 * 3_600_000L, "Linchauli", "Lunch and rest", checkpoint = true),
-        com.bluemob.app.chat.Stop("s4", day0 + 30 * 3_600_000L, "Kedarnath temple", "Darshan, then back to camp"))
+        com.bluemob.app.chat.Stop("s1", day0 + 6 * 3_600_000L, "Start at Gaurikund", "Meet at the bus stand. Water and rain jackets", lat = 30.6526, lon = 79.0254),
+        com.bluemob.app.chat.Stop("s2", day0 + 11 * 3_600_000L, "Rambara bridge", checkpoint = true, lat = 30.6869, lon = 79.0466, radiusM = 150),
+        com.bluemob.app.chat.Stop("s3", now + 3 * 3_600_000L, "Linchauli", "Lunch and rest", checkpoint = true, lat = 30.7154, lon = 79.0589),
+        com.bluemob.app.chat.Stop("s4", day0 + 30 * 3_600_000L, "Kedarnath temple", "Darshan, then back to camp", lat = 30.7352, lon = 79.0669))
     private val planned = adminTrip.copy(itinerary = plan, itineraryAt = now, advertise = true, passcode = "4821",
         checkins = mapOf("s2" to mapOf(me to now - 3 * 3_600_000L, "a1c2" to now - 3 * 3_600_000L, "b7e4" to now - 2 * 3_600_000L)))
     @Test fun itinerary() = shot(tall = true) {
-        com.bluemob.app.ui.chat.ItineraryScreen(planned, me, { id -> people.firstOrNull { it.nodeId == id }?.name ?: "Someone" }, { null }, {}, {}, {}, now = now)
+        com.bluemob.app.ui.chat.ItineraryScreen(planned, me, { id -> people.firstOrNull { it.nodeId == id }?.name ?: "Someone" },
+            { com.bluemob.app.contacts.GeoPoint(30.6700, 79.0380, 8f, now) }, {}, {}, {}, now = now)
+    }
+    @Test fun stopEditor() = shot(tall = true) {
+        com.bluemob.app.ui.chat.StopEditorPage(com.bluemob.app.chat.Stop("preview", day0 + 8 * 3_600_000L, ""), day0, { null },
+            listOf(com.bluemob.app.ui.chat.PlacePick("Base camp", 30.70, 79.05, "Base camp"), com.bluemob.app.ui.chat.PlacePick("Kedarnath", 30.796, 79.066, "Peak"),
+                com.bluemob.app.ui.chat.PlacePick("Bharatekhunta", 30.80, 79.10, "Peak")), {}, {}, {})
     }
     private val busy = planned.copy(buddies = mapOf(me to "a1c2", "a1c2" to me, "b7e4" to "c3d9", "c3d9" to "b7e4"),
         announcements = listOf(com.bluemob.app.chat.Announcement("an1", "Bus leaves at 6:00. Bring rain jackets", now - 20 * 60_000L, me)),

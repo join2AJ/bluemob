@@ -36,6 +36,12 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.9: itinerary with places, Nearby as before
+
+- **Itinerary, with where.** A small offline route sketch at the top (numbered stops joined in order, the next one green, checkpoints gold, you in blue, north up). Stops are grouped under *Day 1 · Sun 22 Nov*; each shows its time, its place with how far it is from you, and *Map* to open it in Google Maps.
+- **A full-screen stop editor:** name; day (with its date) and time, with quick times; *Where*: your position, a saved place or a peak kept on the phone, or latitude and longitude typed in (decimal or degrees-minutes-seconds), and *Map* to check it. Any stop can have a place now, not only checkpoints; a checkpoint with a place checks people in by themselves within 50, 150 or 500 m.
+- **Nearby is back to the 0.38.7 design**, and the main tabs no longer have the glow (it left a hard edge under the top bar); screens opened from them keep it.
+
 ## Android 0.38.8: notifications, easier trip groups and home
 
 - **Every new message notifies**, also while BlueMob is open on another screen; only the chat you're looking at stays quiet. When the phone blocks BlueMob's notifications, Chats says so at the top with *Turn on*.
