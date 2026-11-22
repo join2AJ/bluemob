@@ -145,6 +145,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.bluemob.app.peaks.PeakLibrary.search(q) }
     fun removePeakArea(a: com.bluemob.app.peaks.PeakArea) = keepPeaks(_peakLib.value.withoutArea(a.name, a.at))
     fun removeMyPeak(id: String) = keepPeaks(_peakLib.value.withoutMine(id))
+    /** Keeps one peak found online (it needs a height to be placed above the horizon). */
+    fun savePeak(f: com.bluemob.app.peaks.FoundPlace) {
+        val ele = f.eleM ?: return
+        keepPeaks(_peakLib.value.withMine(com.bluemob.app.peaks.Peak(f.name, f.lat, f.lon, ele, "saved:%.4f,%.4f".format(java.util.Locale.US, f.lat, f.lon))))
+    }
     /** Adds a peak to this phone straight away, and asks the BlueMob team to add it for everyone. Returns a note to show. */
     suspend fun addMissingPeak(name: String, lat: Double, lon: Double, ele: Int, note: String): String {
         val p = com.bluemob.app.peaks.Peak(name.trim().take(60), lat, lon, ele, com.bluemob.app.peaks.PeakLibrary.MINE_PREFIX + "%.4f,%.4f".format(java.util.Locale.US, lat, lon))

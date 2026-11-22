@@ -75,7 +75,7 @@ data class PeakLibrary(val areas: List<PeakArea> = emptyList(), val mine: List<P
         /** Overpass question: peaks and places whose name contains [q] (case-insensitive). */
         fun searchQuery(q: String): String {
             val safe = cleanQuery(q)
-            return "[out:json][timeout:40];(" +
+            return "[out:json][timeout:25];(" +
                 "node[\"natural\"=\"peak\"][\"name\"~\"$safe\",i]($BBOX);" +
                 "node[\"natural\"=\"peak\"][\"name:en\"~\"$safe\",i]($BBOX);" +
                 "node[\"place\"~\"^(city|town|village|hamlet|locality)$\"][\"name\"~\"$safe\",i]($BBOX););out body 40;"
@@ -95,15 +95,46 @@ data class PeakLibrary(val areas: List<PeakArea> = emptyList(), val mine: List<P
                 .sortedWith(compareByDescending<FoundPlace> { it.isPeak }.thenByDescending { it.eleM ?: 0 })
         }.getOrDefault(emptyList())
 
+        /** OpenStreetMap's place search (Nominatim): fast, finds peaks, towns, valleys and states. */
+        fun nominatimUrl(q: String) = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=15&extratags=1&countrycodes=in,np,bt,pk&q=" +
+            java.net.URLEncoder.encode(q.trim().take(60), "UTF-8")
+
+        fun parseNominatim(json: String): List<FoundPlace> = runCatching {
+            val a = JSONArray(json)
+            (0 until a.length()).mapNotNull { i ->
+                val o = a.optJSONObject(i) ?: return@mapNotNull null
+                val display = o.optString("display_name")
+                val name = o.optString("name").ifBlank { display.substringBefore(",") }.trim().take(60)
+                val lat = o.optString("lat").toDoubleOrNull() ?: return@mapNotNull null
+                val lon = o.optString("lon").toDoubleOrNull() ?: return@mapNotNull null
+                if (name.isBlank()) return@mapNotNull null
+                val peak = o.optString("category") == "natural" && o.optString("type") in setOf("peak", "volcano", "hill")
+                val ele = o.optJSONObject("extratags")?.optString("ele")?.let { Peaks.parseEle(it) }
+                FoundPlace(name, lat, lon, ele, peak, display.substringAfter(", ", "").split(", ").takeLast(2).joinToString(", "))
+            }.distinctBy { it.name.lowercase() to (it.lat * 50).toInt() }
+        }.getOrDefault(emptyList())
+
+        private fun get(url: String): String? {
+            val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            c.connectTimeout = 12_000; c.readTimeout = 20_000
+            c.setRequestProperty("User-Agent", "BlueMob/1 (Android; peak finder)")
+            c.setRequestProperty("Accept-Language", "en")
+            return try { if (c.responseCode == 200) c.inputStream.bufferedReader().readText() else null } finally { c.disconnect() }
+        }
+
+        /** Online search: the place search first; peaks by name from Overpass if it finds nothing. Null when offline. */
         fun search(q: String): List<FoundPlace>? = runCatching {
+            val fast = get(nominatimUrl(q))?.let(::parseNominatim)
+            if (!fast.isNullOrEmpty()) return@runCatching fast
             val c = java.net.URL("https://overpass-api.de/api/interpreter").openConnection() as java.net.HttpURLConnection
-            c.requestMethod = "POST"; c.doOutput = true; c.connectTimeout = 20_000; c.readTimeout = 60_000
-            c.setRequestProperty("User-Agent", "BlueMob (Android) peak finder")
+            c.requestMethod = "POST"; c.doOutput = true; c.connectTimeout = 12_000; c.readTimeout = 30_000
+            c.setRequestProperty("User-Agent", "BlueMob/1 (Android; peak finder)")
             c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            try {
+            val slow = try {
                 c.outputStream.use { it.write(("data=" + java.net.URLEncoder.encode(searchQuery(q), "UTF-8")).toByteArray()) }
                 if (c.responseCode != 200) null else parseSearch(c.inputStream.bufferedReader().readText())
-            } finally { c.disconnect() }
+            } catch (e: java.io.IOException) { null } finally { c.disconnect() }
+            slow ?: fast
         }.getOrNull()
 
         // ---- "add a missing peak" ----

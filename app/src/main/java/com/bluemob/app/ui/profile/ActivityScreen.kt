@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -100,7 +101,17 @@ fun ActivityScreen(
     // The same length of time just before, to say "up 20%".
     val before = remember(events, range) { range.days?.let { Activity.summarize(events, range, now - it * 86_400_000L) } }
     val ins = remember(events, range) { com.bluemob.app.activity.Insights.of(events, range, now) }
-    SubScreen("Your activity", onBack) {
+    val glowA = ChartColors.sent; val glowB = ChartColors.received; val glowC = androidx.compose.ui.graphics.Color(0xFF8B5CF6)
+    SubScreen("Your activity", onBack, backdrop = Modifier.drawBehind {
+        // Soft aurora glows behind the cards: blue at the top, green on the right, violet low down.
+        fun glow(c: androidx.compose.ui.graphics.Color, x: Float, y: Float, r: Float, a: Float) = drawCircle(
+            androidx.compose.ui.graphics.Brush.radialGradient(listOf(c.copy(alpha = a), c.copy(alpha = 0f)), center = androidx.compose.ui.geometry.Offset(size.width * x, size.height * y), radius = size.width * r),
+            radius = size.width * r, center = androidx.compose.ui.geometry.Offset(size.width * x, size.height * y))
+        glow(glowA, 0.1f, 0.12f, 0.9f, 0.32f)
+        glow(glowB, 1.0f, 0.42f, 0.8f, 0.22f)
+        glow(glowC, 0.05f, 0.82f, 0.9f, 0.26f)
+        glow(glowA, 0.95f, 1.0f, 0.7f, 0.2f)
+    }) {
         item { RangePicker(range) { range = it } }
         item { Headline(s, before, range) }
         item {
@@ -137,7 +148,7 @@ fun ActivityScreen(
                 Triple(Icons.Rounded.Psychology, "Quizzes passed", learning.second) to com.bluemob.app.ui.theme.Palette.Violet,
                 Triple(Icons.Rounded.LocalFireDepartment, "Days in a row", learning.third) to com.bluemob.app.ui.theme.Palette.Sunset,
             )
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(vertical = 6.dp)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(vertical = 6.dp)) {
                 stats.chunked(2).forEach { row ->
                     Row(Modifier.fillMaxWidth()) { row.forEach { (t, c) -> StatLine(t.first, t.second, t.third, c, Modifier.weight(1f)) } }
                 }
@@ -202,7 +213,7 @@ private fun Headline(s: ActivitySummary, before: ActivitySummary?, range: Activi
 @Composable
 private fun Kpi(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: Int, before: Int?, trend: List<Int>?, color: Color, modifier: Modifier) {
     val d = delta(value, before)
-    Column(modifier.clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(12.dp)
+    Column(modifier.clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(12.dp)
         .semantics(mergeDescendants = true) { contentDescription = "$label: $value" + (d?.first?.let { ", $it" } ?: "") }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.material3.Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
@@ -229,7 +240,7 @@ private fun BarChart(s: ActivitySummary, series: List<Pair<ActivityType, Color>>
     val grid = Extra.line
     val day = remember { SimpleDateFormat("EEE", Locale.getDefault()) }
     val date = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(16.dp)) {
         // Totals as the legend.
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             series.forEach { (t, c) ->
@@ -330,7 +341,7 @@ private fun DeliveryDonut(i: com.bluemob.app.activity.Insights) {
     ).map { (k, l, c) -> Triple(l, i.delivery[k] ?: 0, c) }.filter { it.second > 0 } + listOfNotNull(
         if (i.waiting > 0) Triple("Not delivered yet", i.waiting, Extra.ink3) else null)
     val total = parts.sumOf { it.second }.coerceAtLeast(1)
-    Row(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp),
+    Row(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Donut(parts.map { it.second.toFloat() to it.third }, Modifier.size(132.dp)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -363,7 +374,7 @@ private fun Heatmap(events: List<ActivityEvent>, range: ActivityRange, now: Long
     val base = ChartColors.sent
     val empty = Extra.sand
     val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(16.dp)) {
         if (max <= 1 && grid.sumOf { it.sum() } == 0) {
             Text("Use BlueMob for a few days and patterns show up here.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
             return@Column
@@ -393,7 +404,7 @@ private fun UsageDonut(usage: Map<String, Map<AppArea, Long>>, range: ActivityRa
     val inRange = if (range.days == null) usage.values.toList() else keys.mapNotNull { usage[it] }
     val byArea = inRange.flatMap { it.entries }.groupBy({ it.key }, { it.value }).mapValues { it.value.sum() }.entries.sortedByDescending { it.value }
     val total = byArea.sumOf { it.value }
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(16.dp)) {
         if (total == 0L) {
             Text("Nothing counted yet. Time is counted only while BlueMob is on screen, from this version on.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2)
             return@Column
@@ -443,7 +454,7 @@ private fun InsightCards(i: com.bluemob.app.activity.Insights, names: Map<String
     }
     if (cards.size <= 1) { Text("Use BlueMob for a few days and patterns show up here.", style = MaterialTheme.typography.bodyMedium, color = Extra.ink2); return }
     // A short list: icon, what, and the answer on the right.
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface).padding(vertical = 4.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(vertical = 4.dp)) {
         cards.forEachIndexed { n, (key, title, value) ->
             if (n > 0) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 60.dp), color = Extra.line)
             val (icon, c) = when (key) {
@@ -477,7 +488,7 @@ private fun StatLine(icon: androidx.compose.ui.graphics.vector.ImageVector, labe
 
 @Composable
 private fun MiniStat(emoji: String, label: String, n: Int, modifier: Modifier) {
-    Column(modifier.clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
+    Column(modifier.clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(12.dp)) {
         Text(emoji, fontSize = 20.sp)
         Text("$n", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(label, style = MaterialTheme.typography.labelSmall, color = Extra.ink2, maxLines = 2)

@@ -36,6 +36,13 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.6: faster peak search, Sky, activity
+
+- **Peak search that answers.** Searching now uses OpenStreetMap's place search: quick, and it finds states, valleys and towns as well as peaks. A built-in list of popular trek areas (Kedarkantha, Hampta, Valley of Flowers, Uttarakhand, Ladakh…) shows before you type and matches as you type, even offline and misspelt ("uttrakhand"). A peak found online can be *saved* on its own, or its whole *area* downloaded.
+- **See what's on your phone.** Every area, your saved peaks and the 39 famous built-in peaks are listed; tap one to see its peaks, highest first.
+- **Sky:** tapping Sky's picture in the chat opens *Make Sky smarter*.
+- **Your activity** has a softer, glowing background behind see-through cards.
+
 ## Android 0.38.5: peaks on this phone
 
 - **Search, download, keep several areas.** The peak finder's new *Search, download areas, add a missing peak* opens *Peaks on this phone*. Search a peak or a place by name (Hampta, Manali, Kedarkantha); peaks already on the phone show at once, offline. *Download area* keeps every named peak within 150 km of it. Up to 12 areas are kept together, so a whole trek's worth works offline; update or remove each one.

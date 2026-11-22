@@ -32,9 +32,11 @@ fun SubScreen(
     title: String,
     onBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
+    /** Drawn over the page background, behind the content: glows, a gradient. */
+    backdrop: Modifier = Modifier,
     content: LazyListScope.() -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().background(Extra.sand)) {
+    Column(Modifier.fillMaxSize().background(Extra.sand).then(backdrop)) {
         Column(Modifier.background(MaterialTheme.colorScheme.surface).statusBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }

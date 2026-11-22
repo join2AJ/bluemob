@@ -53,7 +53,7 @@ fun ChatRoutes(route: Route.ChatArea, s: Shell) {
             ChatScreen(
                 nodeId = id, person = people.firstOrNull { it.nodeId == id }, messages = conversations[id].orEmpty(), typing = id in typing,
                 meshEvents = vm.meshEvents, myName = name, myId = vm.nodeId, onBack = s::pop, onSend = { vm.send(id, it) },
-                onPing = { vm.ping(id) }, onInfo = { s.push(Route.Info(it)) }, onPerson = { if (id != SkyBot.NODE_ID) s.push(Route.Person(id)) }, onAction = s.onSkyAction,
+                onPing = { vm.ping(id) }, onInfo = { s.push(Route.Info(it)) }, onPerson = { if (id != SkyBot.NODE_ID) s.push(Route.Person(id)) else s.push(Route.SkyAi) }, onAction = s.onSkyAction,
                 files = s.chatFiles(id), techDetails = vm.techDetails.collectAsStateWithLifecycle().value,
                 group = vm.groups.collectAsStateWithLifecycle().value[id],
                 onReply = { t, m -> vm.reply(id, t, m) }, onReact = vm::react, onDelete = { vm.deleteMessage(it) },

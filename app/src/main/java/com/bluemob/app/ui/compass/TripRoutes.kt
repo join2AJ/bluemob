@@ -42,7 +42,7 @@ fun TripRoutes(route: Route.TripsArea, s: Shell) {
             androidx.compose.runtime.DisposableEffect(Unit) { trail.holdLocation(); onDispose { trail.releaseLocation() } }
             PeakLibraryScreen(trail.peakLibrary.collectAsStateWithLifecycle().value, trail.myLocation.collectAsStateWithLifecycle().value, PeakLibraryActions(
                 onBack = s::pop, onDownload = { n, la, lo -> trail.downloadPeaks(la, lo, n) }, onSearch = trail::searchPeaks,
-                onRemoveArea = trail::removePeakArea, onRemoveMine = trail::removeMyPeak, onAddMissing = trail::addMissingPeak))
+                onRemoveArea = trail::removePeakArea, onRemoveMine = trail::removeMyPeak, onSavePeak = trail::savePeak, onAddMissing = trail::addMissingPeak))
         }
         is Route.Trip -> {
             val id = route.id
