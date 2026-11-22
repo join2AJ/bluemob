@@ -12,6 +12,7 @@ import com.bluemob.app.data.MessageStatus
 import com.bluemob.app.mesh.LinkQuality
 import com.bluemob.app.mesh.PeerState
 import com.bluemob.app.settings.SignalMode
+import com.bluemob.app.rescue.RescueAsk
 import com.bluemob.app.settings.Spot
 import com.bluemob.app.audit.AuditVerification
 import com.bluemob.app.data.AuditEntry
@@ -638,6 +639,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun sendRescue(id: String, text: String) = blueMob.rescue.send(id, text)
     fun arrivedRescue(id: String) = blueMob.rescue.arrived(id)
     fun leaveRescue(id: String) = blueMob.rescue.leave(id)
+    /** "I'm safe: stop SOS": stops our SOS and closes our rescue everywhere. */
+    fun stopMySos(roomId: String) { sosManager.cancel(); blueMob.rescue.endMine(roomId) }
+    fun closeRescue(id: String, outcome: String) = blueMob.rescue.closeAsHelper(id, outcome)
+    val rescueSnooze = settings.rescueSnooze
+    /** "Still need help" / "Keep open": ask again in a day. */
+    fun keepRescueOpen(id: String) = settings.snoozeRescue(id, System.currentTimeMillis() + RescueAsk.AGAIN_MS)
     fun cancelSos() = sosManager.cancel()
     fun dismissSosAlert() = sosManager.dismissAlert()
     fun setSignalDefault(mode: SignalMode) = settings.setSignalDefault(mode)

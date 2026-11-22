@@ -27,11 +27,16 @@ android {
             buildConfigField("String", key.replaceFirstChar { it.uppercase() }.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase(),
                 "\"" + ((project.findProperty(key) as String?) ?: "") + "\"")
         }
+        // About us: where donations and app requests go. Fill in gradle.properties; left empty, the donate button hides,
+        // email opens with no address filled in, and WhatsApp asks which chat to send to.
+        listOf("supportUpi" to "SUPPORT_UPI", "devEmail" to "DEV_EMAIL", "devWhatsapp" to "DEV_WHATSAPP").forEach { (key, field) ->
+            buildConfigField("String", field, "\"" + ((project.findProperty(key) as String?) ?: "") + "\"")
+        }
         // Optional: `-PonlyAbi=arm64-v8a` builds for one phone type only (a smaller APK to share for testing).
         (project.findProperty("onlyAbi") as String?)?.let { ndk { abiFilters += it } }
         targetSdk = 35
-        versionCode = 55
-        versionName = "0.38.3"
+        versionCode = 56
+        versionName = "0.38.4"
     }
 
     signingConfigs {

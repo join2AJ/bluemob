@@ -405,7 +405,7 @@ private fun MainShell(vm: AppViewModel, system: SystemStatus, actions: SystemAct
                             name, avatar, vm.nodeId, running, sharing, system.keepsRunning, signalDefault, log, padding,
                             onName = vm::setName, onAvatar = vm::setAvatar, onToggleMesh = { if (it) vm.startMesh() else vm.stopMesh() },
                             onToggleLocation = toggleLocation, onBatterySaver = actions.openBatterySaver, onKeepRunning = actions.askKeepRunning,
-                            onSos = { push(Route.Sos) }, onShowcase = { push(Route.Showcase) }, onReady = { push(Route.Ready) }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
+                            onSos = { push(Route.Sos) }, onShowcase = { push(Route.Showcase) }, onReady = { push(Route.Ready) }, onAbout = { push(Route.About) }, onReplayIntro = vm::replayIntro, onForgetPeople = vm::forgetPeople, onClearMessages = vm::clearMessages,
                             onBridge = { push(Route.Bridge) }, onMyRating = { push(Route.Person(vm.nodeId)) }, onActivity = { push(Route.Activity) },
                             game = vm.game.collectAsStateWithLifecycle().value,
                             onBadges = { push(Route.Badges) },

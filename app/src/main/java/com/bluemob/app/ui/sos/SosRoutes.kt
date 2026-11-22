@@ -33,7 +33,7 @@ fun SosRoutes(route: Route.SosArea, s: Shell) {
                 SosHubState(mySos, people.count { it.presence == Presence.ONLINE }, signalDefault, sosContacts, sosReached, autoStart = signalAuto),
                 message = vm::sosMessage, onBack = s::pop,
                 onSend = { sosReached = vm.sendSos(it); s.askForSosPieces(radios) },
-                onSafe = { vm.cancelSos(); sosReached = -1 }, onSignal = { s.push(Route.Signal) },
+                onSafe = { mySos?.id?.let { vm.stopMySos(it) } ?: vm.cancelSos(); sosReached = -1 }, onSignal = { s.push(Route.Signal) },
                 onDefaultSignal = { vm.setSignalDefault(it); vm.setSignalAuto(true) }, onManualSignal = { vm.setSignalAuto(false) }, onHowToHelp = { s.push(Route.Article("help-sos")) }, onContacts = { s.push(Route.SosContacts) },
                 onText = s.actions.textSos, onPreviewAlert = vm::previewSosAlert,
                 rescue = rescues.firstOrNull { it.mine && it.id == mySos?.id }, onOpenRescue = { mySos?.let { s.push(Route.Rescue(it.id)) } },
@@ -54,6 +54,7 @@ fun SosRoutes(route: Route.SosArea, s: Shell) {
             val trustScores by vm.trustScores.collectAsStateWithLifecycle()
             val running by vm.running.collectAsStateWithLifecycle()
             val online by vm.online.collectAsStateWithLifecycle()
+            val snooze by vm.rescueSnooze.collectAsStateWithLifecycle()
             val room = rescues.firstOrNull { it.id == route.id }
             // A group heard about a moment ago may still be on its way: wait a little before giving up.
             if (room == null) LaunchedEffect(Unit) { delay(1_500); s.pop() }
@@ -63,7 +64,8 @@ fun SosRoutes(route: Route.SosArea, s: Shell) {
                 onBack = s::pop, onJoin = { vm.joinRescue(room.id) }, onSend = { vm.sendRescue(room.id, it) },
                 onArrived = { vm.arrivedRescue(room.id) }, onLeave = { vm.leaveRescue(room.id) },
                 onNavigate = { s.showOnCompass(room.victimId) }, onGuide = { s.push(Route.Article(it)) },
-                onSignal = { s.push(Route.Signal) }, onSafe = { vm.cancelSos(); sosReached = -1 },
+                onSignal = { s.push(Route.Signal) }, onSafe = { vm.stopMySos(room.id); sosReached = -1 },
+                snoozedUntil = snooze[room.id], onKeepOpen = { vm.keepRescueOpen(room.id) }, onClose = { vm.closeRescue(room.id, it); s.pop() },
                 readiness = if (!room.mine) emptyMap() else mapOf(
                     "location" to (s.system.locationPermission && radios.location), "bluetooth" to radios.bluetooth,
                     "mesh" to running, "internet" to online),

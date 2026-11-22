@@ -36,6 +36,13 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.4: closing a rescue, About us
+
+- **Your own SOS can be stopped from anywhere on the rescue screen.** The red tag at the top now reads *SOS ON · STOP*; tap it, or *I'm safe: stop SOS*, and confirm. Your SOS stops and the rescue closes on every helper's phone, even if the SOS had already stopped but the group was left open.
+- **BlueMob asks.** After 12 hours your rescue shows *Your SOS has been on for 3 days. Do you still need help?* ([I'm safe: stop SOS] / [Still need help]); a notification asks once a day too. *Still need help* stays quiet for a day.
+- **Helpers close a rescue with how it ended:** Found safe, Found and getting care, Not found, or False alarm. The answer goes to the group. After a day an open rescue asks *Is this rescue over?*; *Rescue over? Close it* is always under the helpers list.
+- **About us** (the pink card on the You tab): our story, *Support us* (donate by UPI, share with a friend) and *Build an app like this*, a request form sent through your own email or WhatsApp. Set `supportUpi`, `devEmail` and `devWhatsapp` in `gradle.properties`; while `supportUpi` is empty the donate button stays hidden.
+
 ## Android 0.38.3: ready check, storm warning, daylight, shared pins
 
 - **Ready for the trip?** (You tab and Nearby): green ticks with a Fix button for each: Bluetooth/Wi-Fi/mesh, location,

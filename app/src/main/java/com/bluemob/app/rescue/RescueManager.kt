@@ -158,6 +158,21 @@ class RescueManager(
         audit.add(AuditKind.SOS, "Arrived at the rescue for ${room(roomId)?.victimName ?: "someone"}")
     }
 
+    /** Our own rescue is over: closed here and on every helper's phone, even if the SOS itself already stopped. */
+    fun endMine(roomId: String) {
+        val r = room(roomId)?.takeIf { it.mine && !it.ended } ?: return
+        post(roomId, RescueRoom.ENDED, "${r.victimName} is safe now")
+        audit.add(AuditKind.SOS, "Closed my rescue: I'm safe")
+    }
+
+    /** A rescue we helped with is over: the outcome goes to the group, and it's closed on this phone. */
+    fun closeAsHelper(roomId: String, outcome: String) {
+        val r = room(roomId)?.takeIf { !it.mine && !it.ended } ?: return
+        if (r.iAmIn) post(roomId, RescueRoom.TEXT, "Closing this rescue: $outcome")
+        scope.launch { dao.insert(RescueMessage("end-" + r.id, r.id, r.victimId, r.victimName, RescueRoom.ENDED, "Closed: $outcome", System.currentTimeMillis(), local = true)) }
+        audit.add(AuditKind.SOS, "Closed the rescue for ${r.victimName}: $outcome")
+    }
+
     fun leave(roomId: String) {
         post(roomId, RescueRoom.LEAVE, "I can't come after all")
         audit.add(AuditKind.SOS, "Left the rescue for ${room(roomId)?.victimName ?: "someone"}")

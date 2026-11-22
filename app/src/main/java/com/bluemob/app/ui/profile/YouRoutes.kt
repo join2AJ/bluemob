@@ -130,6 +130,10 @@ fun YouRoutes(route: Route.YouArea, s: Shell) {
             onFieldTest = { s.push(Route.FieldTest()) },
             autoReports = vm.autoErrorReports.collectAsStateWithLifecycle().value, onAutoReports = vm::setAutoErrorReports,
         )
+        Route.About -> AboutScreen(onBack = s::pop, onShare = {
+            actions.shareText("BlueMob keeps your group in touch where there's no signal: phone to phone over Bluetooth and Wi-Fi, with a free SOS that hops until it reaches someone. " +
+                "Ask me to send it to you phone to phone, or find BlueMob on the Play Store.")
+        })
         Route.Ready -> {
             val radios by vm.radios.collectAsStateWithLifecycle()
             val now = System.currentTimeMillis()

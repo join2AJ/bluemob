@@ -70,6 +70,8 @@ import com.bluemob.app.guide.GuideContent
 import com.bluemob.app.rescue.Helper
 import com.bluemob.app.rescue.HelperStatus
 import com.bluemob.app.rescue.RescueRoom
+import com.bluemob.app.rescue.RescueAsk
+import com.bluemob.app.ui.theme.Palette
 import com.bluemob.app.ui.components.Avatar
 import com.bluemob.app.ui.components.Chip
 import com.bluemob.app.ui.components.GroupLabel
@@ -93,6 +95,11 @@ class RescueActions(
     /** For the person in need: flash and beep so helpers can find them. */
     val onSignal: () -> Unit = {},
     val onSafe: () -> Unit = {},
+    /** Until when the user said "still need help" / "keep open"; no question before then. */
+    val snoozedUntil: Long? = null,
+    val onKeepOpen: () -> Unit = {},
+    /** A helper closes the rescue with how it ended (one of [RescueAsk.OUTCOMES]). */
+    val onClose: (String) -> Unit = {},
     /** Rate someone in this rescue: (their ID, what). */
     val onRate: (String, com.bluemob.app.trust.RatingKind) -> Unit = { _, _ -> },
     /** For the person in need: what's on that helps them be found ("location", "bluetooth", "mesh", "internet"), and turning one on. */
@@ -112,7 +119,12 @@ private val VICTIM_REPLIES = listOf("I can hear you!", "I can see your light", "
 @Composable
 fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<Float>, actions: RescueActions, rated: Set<String> = emptySet(),
     /** The person in trouble's blood group and age, from their SOS, e.g. "🩸 B+ · age 34". */
-    medical: String? = null) {
+    medical: String? = null, now: Long = System.currentTimeMillis()) {
+    var confirmStop by remember { mutableStateOf(false) }
+    var closing by remember { mutableStateOf(false) }
+    val ask = RescueAsk.ask(room, now, actions.snoozedUntil)
+    if (confirmStop) StopDialog(actions.onSafe) { confirmStop = false }
+    if (closing) CloseDialog(room.victimName, actions.onClose) { closing = false }
     val heading by remember(headings) { headings }.collectAsStateWithLifecycle(initialValue = 0f)
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
@@ -139,6 +151,9 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
                         room.ended -> Tag("ENDED", Extra.sand2, Extra.ink2)
                         room.myStatus == HelperStatus.ARRIVED -> Tag("ARRIVED", MaterialTheme.colorScheme.primary, Color.White)
                         room.myStatus == HelperStatus.COMING -> Tag("ON THE WAY", Extra.sky, Color.White)
+                        room.mine -> Row(Modifier.clip(RoundedCornerShape(50)).clickable { confirmStop = true }, verticalAlignment = Alignment.CenterVertically) {
+                            Tag("SOS ON · STOP", Extra.rose, Color.White, dot = Color.White)
+                        }
                         else -> Tag("SOS", Extra.rose, Color.White, dot = Color.White)
                     }
                 }
@@ -148,11 +163,15 @@ fun RescueScreen(room: RescueRoom, myId: String, me: GeoPoint?, headings: Flow<F
 
         LazyColumn(Modifier.weight(1f), state = list, contentPadding = PaddingValues(16.dp)) {
             if (room.ended) item { RateRescue(room, myId, rated, actions) }
+            if (ask != RescueAsk.Ask.NONE) item { AskCard(room, ask, now, actions, onStop = { confirmStop = true }, onClose = { closing = true }) }
             item {
-                if (room.mine) VictimCard(room, actions) else TargetCard(room, me, heading, guideId, actions, medical)
+                if (room.mine) VictimCard(room, actions) { confirmStop = true } else TargetCard(room, me, heading, guideId, actions, medical)
             }
             item { GroupLabel(if (room.mine) "Who's coming" else "Who's helping") }
             item { HelpersCard(room, myId) }
+            if (!room.mine && !room.ended && ask == RescueAsk.Ask.NONE) item {
+                TextButton(onClick = { closing = true }, modifier = Modifier.padding(top = 4.dp)) { Text("Rescue over? Close it") }
+            }
             // Helpers close by: make their phone call out, so you find them even if they can't answer.
             if (!room.mine && !room.ended) item {
                 Surface(shape = MaterialTheme.shapes.large, color = Extra.skyTint, modifier = Modifier.padding(top = 12.dp)) {
@@ -274,7 +293,7 @@ private fun TargetCard(room: RescueRoom, me: GeoPoint?, heading: Float, guideId:
 
 /** For the person in need: who's coming, and what to do while waiting. */
 @Composable
-private fun VictimCard(room: RescueRoom, actions: RescueActions) {
+private fun VictimCard(room: RescueRoom, actions: RescueActions, onStop: () -> Unit) {
     val nearest = room.coming.mapNotNull { h -> room.distanceM(h)?.let { h to it } }.minByOrNull { it.second }
     Surface(shape = MaterialTheme.shapes.large, color = if (room.coming.isEmpty()) Extra.emberTint else Extra.pineTint) {
         Column(Modifier.padding(16.dp).fillMaxWidth()) {
@@ -312,10 +331,63 @@ private fun VictimCard(room: RescueRoom, actions: RescueActions) {
             }
             if (!room.ended) Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = actions.onSignal, colors = ButtonDefaults.buttonColors(containerColor = Extra.rose, contentColor = Color.White)) { Text("Signal: light & sound") }
-                OutlinedButton(onClick = actions.onSafe) { Text("I'm safe now") }
+                OutlinedButton(onClick = onStop) { Text("I'm safe: stop SOS") }
             }
         }
     }
+}
+
+/** After a while, ask: does the person still need help? Is this rescue over? */
+@Composable
+private fun AskCard(room: RescueRoom, ask: RescueAsk.Ask, now: Long, actions: RescueActions, onStop: () -> Unit, onClose: () -> Unit) {
+    Surface(shape = MaterialTheme.shapes.large, color = Palette.Gold.copy(alpha = 0.18f), modifier = Modifier.padding(bottom = 12.dp)) {
+        Column(Modifier.padding(14.dp).fillMaxWidth()) {
+            val open = RescueAsk.openFor(room, now)
+            if (ask == RescueAsk.Ask.STILL_NEED_HELP) {
+                Text("Your SOS has been on for $open", style = MaterialTheme.typography.titleMedium)
+                Text("Do you still need help? If you're safe, stop it: your SOS stops going out, and everyone helping is told.",
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onStop, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text("I'm safe: stop SOS") }
+                    OutlinedButton(onClick = actions.onKeepOpen) { Text("Still need help") }
+                }
+            } else {
+                Text("Is this rescue over?", style = MaterialTheme.typography.titleMedium)
+                Text("It has been open for $open. Tell the group how it ended and close it, or keep it open.",
+                    style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onClose) { Text("Close it") }
+                    OutlinedButton(onClick = actions.onKeepOpen) { Text("Keep open") }
+                }
+            }
+        }
+    }
+}
+
+/** Stop my SOS, after a check, so it isn't stopped by mistake. */
+@Composable
+private fun StopDialog(onStop: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.AlertDialog(onDismissRequest = onDismiss,
+        title = { Text("Stop your SOS?") },
+        text = { Text("Do this only if you're safe. Your SOS stops going out, this rescue closes, and everyone helping is told you're safe.") },
+        confirmButton = { Button(onClick = { onDismiss(); onStop() }) { Text("I'm safe: stop SOS") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Still need help") } })
+}
+
+/** How did it end? The answer goes to the group, then the rescue closes on this phone. */
+@Composable
+private fun CloseDialog(name: String, onClose: (String) -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.AlertDialog(onDismissRequest = onDismiss,
+        title = { Text("How did it end for $name?") },
+        text = {
+            Column {
+                Text("Your answer goes to the group. The rescue then closes on your phone.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+                RescueAsk.OUTCOMES.forEach { o ->
+                    OutlinedButton(onClick = { onDismiss(); onClose(o) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text(o) }
+                }
+            }
+        },
+        confirmButton = {}, dismissButton = { TextButton(onClick = onDismiss) { Text("Keep open") } })
 }
 
 @Composable

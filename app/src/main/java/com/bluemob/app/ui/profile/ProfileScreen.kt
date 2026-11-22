@@ -127,6 +127,7 @@ fun ProfileScreen(
     onGames: () -> Unit = {},
     onShowcase: () -> Unit = {},
     onReady: () -> Unit = {},
+    onAbout: () -> Unit = {},
     sosContactCount: Int = 0,
     background: Boolean = true,
     onBackground: (Boolean) -> Unit = {},
@@ -266,6 +267,7 @@ fun ProfileScreen(
                 }
             }
         }
+        item { SupportCard(onAbout) }
         item { GroupLabel("Staying reachable") }
         item {
             Group {

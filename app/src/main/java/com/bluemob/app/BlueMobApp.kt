@@ -319,6 +319,19 @@ class BlueMobApp : Application() {
                         notifier.note(com.bluemob.app.i18n.Lang.tr("🌩 Air pressure: ${level.label}"), com.bluemob.app.i18n.Lang.tr(level.advice), id = 7811)
                     }
                 }
+                // A rescue open for long: once a day, ask whether it's over (our own SOS after 12 h, others' after a day).
+                if (minute % 30 == 2) rescue.rooms.value.forEach { r ->
+                    val ask = com.bluemob.app.rescue.RescueAsk.ask(r, now, settings.rescueSnooze.value[r.id])
+                    val key = "rask:${r.id}:" + now / 86_400_000L
+                    if (ask != com.bluemob.app.rescue.RescueAsk.Ask.NONE && alerted.add(key)) {
+                        val open = com.bluemob.app.rescue.RescueAsk.openFor(r, now)
+                        if (ask == com.bluemob.app.rescue.RescueAsk.Ask.STILL_NEED_HELP)
+                            notifier.note(com.bluemob.app.i18n.Lang.tr("Your SOS has been on for $open"), com.bluemob.app.i18n.Lang.tr("Do you still need help? If you're safe, tap to stop it."),
+                                route = com.bluemob.app.ui.nav.Route.Rescue(r.id).key, id = 7820)
+                        else notifier.note(com.bluemob.app.i18n.Lang.tr("Is the rescue for ${r.victimName} over?"), com.bluemob.app.i18n.Lang.tr("Tap to tell the group how it ended, or keep it open."),
+                            route = com.bluemob.app.ui.nav.Route.Rescue(r.id).key, id = 7821 + (r.id.hashCode() and 0xff))
+                    }
+                }
                 // Daylight: time to turn back to a base camp saved for this trip (in the last 3 days)?
                 val camp = settings.spots.value.firstOrNull { it.isBaseCamp && now - it.time < 3 * 86_400_000L }
                 val fix = location.location.value

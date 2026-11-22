@@ -135,6 +135,14 @@ class AppSettings(context: Context) {
         prefs.edit().putString("pressure", com.bluemob.app.safety.PressureTrend.toJson(_pressure.value)).apply()
     }
 
+    private val _rescueSnooze = MutableStateFlow(runCatching { org.json.JSONObject(prefs.getString("rescue_snooze", "{}")!!).let { o -> o.keys().asSequence().associateWith { o.getLong(it) } } }.getOrDefault(emptyMap()))
+    /** Rescues the user said to keep open: don't ask "is it over?" again until then. */
+    val rescueSnooze: StateFlow<Map<String, Long>> = _rescueSnooze.asStateFlow()
+    fun snoozeRescue(id: String, until: Long) {
+        _rescueSnooze.value = _rescueSnooze.value.filterValues { it > System.currentTimeMillis() } + (id to until)
+        prefs.edit().putString("rescue_snooze", org.json.JSONObject(_rescueSnooze.value as Map<*, *>).toString()).apply()
+    }
+
     private val _starred = MutableStateFlow(prefs.getStringSet("starred_messages", emptySet())!!.toSet())
     /** Messages starred to find again (their IDs). */
     val starredMessages: StateFlow<Set<String>> = _starred.asStateFlow()

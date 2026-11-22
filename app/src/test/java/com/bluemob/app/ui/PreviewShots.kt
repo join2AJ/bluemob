@@ -307,6 +307,14 @@ class PreviewShots {
         com.bluemob.app.ui.system.AutoStartScreen(false, com.bluemob.app.settings.RadioPolicy.ASK, com.bluemob.app.settings.RadioPolicy.ALLOW, false, true, {}, {}, {}, {}, {}, {})
     }
     @Test fun reportModern() = shot(tall = true) { com.bluemob.app.ui.profile.ReportScreen({}, {}, { _, _, _, _, _ -> null }) }
+    @Test fun aboutSupport() = shot(tall = true) { com.bluemob.app.ui.profile.AboutScreen({}, {}, startOpen = "support") }
+    @Test fun aboutBuild() = shot(tall = true) { com.bluemob.app.ui.profile.AboutScreen({}, {}, startOpen = "build") }
+    @Test fun rescueAskMine() = shot(tall = true) {
+        com.bluemob.app.ui.rescue.RescueScreen(room("m21", true, 21 * day, false, 2, "Lost the trail after the bridge"), "me", null, kotlinx.coroutines.flow.flowOf(0f), com.bluemob.app.ui.rescue.RescueActions(), now = now)
+    }
+    @Test fun rescueAskHelper() = shot(tall = true) {
+        com.bluemob.app.ui.rescue.RescueScreen(room("h3", false, 3 * day, false, 2, "Twisted ankle near the stream", "Ravi"), "h0", null, kotlinx.coroutines.flow.flowOf(0f), com.bluemob.app.ui.rescue.RescueActions(), now = now)
+    }
     @Test fun rescueWithPattern() = shot(tall = true) {
         val room = ScreenshotTest().rescueRoom(false)
         com.bluemob.app.ui.rescue.RescueScreen(room.copy(victimId = "5742990ae65f20fe"), "3f9a1c2b7d4e8a01", null, kotlinx.coroutines.flow.flowOf(0f), com.bluemob.app.ui.rescue.RescueActions())
