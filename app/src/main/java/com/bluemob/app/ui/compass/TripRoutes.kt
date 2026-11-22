@@ -35,7 +35,14 @@ fun TripRoutes(route: Route.TripsArea, s: Shell) {
                 androidx.compose.runtime.remember { trail.cameraPose() }, camera,
                 onAskCamera = { s.actions.requestCamera { camera = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED } },
                 onAskLocation = s.actions.requestLocation,
-                onDownload = { here?.let { trail.downloadPeaks(it.lat, it.lon) } ?: "Waiting for your position" }, onBack = s::pop)
+                onDownload = { here?.let { trail.downloadPeaks(it.lat, it.lon) } ?: "Waiting for your position" }, onBack = s::pop,
+                onLibrary = { s.push(Route.PeakLibrary) })
+        }
+        Route.PeakLibrary -> {
+            androidx.compose.runtime.DisposableEffect(Unit) { trail.holdLocation(); onDispose { trail.releaseLocation() } }
+            PeakLibraryScreen(trail.peakLibrary.collectAsStateWithLifecycle().value, trail.myLocation.collectAsStateWithLifecycle().value, PeakLibraryActions(
+                onBack = s::pop, onDownload = { n, la, lo -> trail.downloadPeaks(la, lo, n) }, onSearch = trail::searchPeaks,
+                onRemoveArea = trail::removePeakArea, onRemoveMine = trail::removeMyPeak, onAddMissing = trail::addMissingPeak))
         }
         is Route.Trip -> {
             val id = route.id

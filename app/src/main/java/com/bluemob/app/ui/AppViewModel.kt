@@ -121,18 +121,39 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun cameraPose() = blueMob.heading.cameraPose()
 
     // ---- peak finder ----
-    private val peaksFile get() = java.io.File(blueMob.filesDir, "peaks.json")
-    private val _peaks = kotlinx.coroutines.flow.MutableStateFlow(com.bluemob.app.peaks.Peaks.load(java.io.File(app.filesDir, "peaks.json")))
-    /** Peaks downloaded for an area (OpenStreetMap), kept for offline. */
-    val savedPeaks: kotlinx.coroutines.flow.StateFlow<com.bluemob.app.peaks.Peaks.Saved?> = _peaks
-    /** Downloads named peaks within 150 km of [lat], [lon]. Returns an error to show, or null. */
-    suspend fun downloadPeaks(lat: Double, lon: Double): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    private val peaksFile get() = java.io.File(blueMob.filesDir, "peak-library.json")
+    private val _peakLib = kotlinx.coroutines.flow.MutableStateFlow(
+        com.bluemob.app.peaks.PeakLibrary.load(java.io.File(app.filesDir, "peak-library.json"), java.io.File(app.filesDir, "peaks.json")))
+    /** Every peak area downloaded, and peaks added by hand, kept for offline. */
+    val peakLibrary: kotlinx.coroutines.flow.StateFlow<com.bluemob.app.peaks.PeakLibrary> = _peakLib
+    /** All kept peaks, for the peak finder; null when nothing is kept. */
+    val savedPeaks: kotlinx.coroutines.flow.StateFlow<com.bluemob.app.peaks.Peaks.Saved?> =
+        _peakLib.map { it.asSaved() }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, _peakLib.value.asSaved())
+    private fun keepPeaks(l: com.bluemob.app.peaks.PeakLibrary) {
+        _peakLib.value = l
+        runCatching { peaksFile.writeText(com.bluemob.app.peaks.PeakLibrary.encode(l)) }
+    }
+    /** Downloads named peaks within 150 km of [lat], [lon] as the area [name]. Returns an error to show, or null. */
+    suspend fun downloadPeaks(lat: Double, lon: Double, name: String = "Around you"): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val got = com.bluemob.app.peaks.Peaks.download(lat, lon) ?: return@withContext "Couldn't download. Check the internet connection and try again."
         if (got.isEmpty()) return@withContext "No named peaks found within 150 km."
-        val now = System.currentTimeMillis()
-        com.bluemob.app.peaks.Peaks.save(peaksFile, got, lat, lon, now)
-        _peaks.value = com.bluemob.app.peaks.Peaks.Saved(got, lat, lon, now)
+        keepPeaks(_peakLib.value.withArea(com.bluemob.app.peaks.PeakArea(name, lat, lon, System.currentTimeMillis(), got)))
         null
+    }
+    /** Online search for peaks and places by name. Null result means it failed (no internet). */
+    suspend fun searchPeaks(q: String): List<com.bluemob.app.peaks.FoundPlace>? =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.bluemob.app.peaks.PeakLibrary.search(q) }
+    fun removePeakArea(a: com.bluemob.app.peaks.PeakArea) = keepPeaks(_peakLib.value.withoutArea(a.name, a.at))
+    fun removeMyPeak(id: String) = keepPeaks(_peakLib.value.withoutMine(id))
+    /** Adds a peak to this phone straight away, and asks the BlueMob team to add it for everyone. Returns a note to show. */
+    suspend fun addMissingPeak(name: String, lat: Double, lon: Double, ele: Int, note: String): String {
+        val p = com.bluemob.app.peaks.Peak(name.trim().take(60), lat, lon, ele, com.bluemob.app.peaks.PeakLibrary.MINE_PREFIX + "%.4f,%.4f".format(java.util.Locale.US, lat, lon))
+        keepPeaks(_peakLib.value.withMine(p))
+        val err = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.bluemob.app.util.ProblemReport.send(settings.bridgeUrl.value, com.bluemob.app.peaks.PeakLibrary.requestText(name, lat, lon, ele, note),
+                com.bluemob.app.BuildConfig.VERSION_NAME, "", "", category = "⛰️ Peak request", sub = "Missing peak")
+        }
+        return if (err == null) "Added on your phone, and sent to the BlueMob team to add for everyone." else "Added on your phone. The request to the team wasn't sent: $err"
     }
 
     /** Ticks every 30 s so "last seen 5 min ago" stays fresh. */

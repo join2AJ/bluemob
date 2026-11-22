@@ -307,6 +307,12 @@ class PreviewShots {
         com.bluemob.app.ui.system.AutoStartScreen(false, com.bluemob.app.settings.RadioPolicy.ASK, com.bluemob.app.settings.RadioPolicy.ALLOW, false, true, {}, {}, {}, {}, {}, {})
     }
     @Test fun reportModern() = shot(tall = true) { com.bluemob.app.ui.profile.ReportScreen({}, {}, { _, _, _, _, _ -> null }) }
+    @Test fun peakLibrary() = shot(tall = true) {
+        val area = com.bluemob.app.peaks.PeakArea("Sankri", 31.07, 78.18, now - 3 * day, List(214) { com.bluemob.app.peaks.Peak("P$it", 31.0, 78.0 + it / 1000.0, 4000, "osm:$it") })
+        val lib = com.bluemob.app.peaks.PeakLibrary(listOf(area, area.copy(name = "Manali", at = now - 20 * day, lat = 32.24, peaks = area.peaks.take(160))),
+            listOf(com.bluemob.app.peaks.Peak("Ghost Peak", 30.5012, 79.1034, 5100, "mine:1")))
+        com.bluemob.app.ui.compass.PeakLibraryScreen(lib, com.bluemob.app.contacts.GeoPoint(31.0215, 78.1718, 8f, now), com.bluemob.app.ui.compass.PeakLibraryActions(), startAdding = true)
+    }
     @Test fun aboutSupport() = shot(tall = true) { com.bluemob.app.ui.profile.AboutScreen({}, {}, startOpen = "support") }
     @Test fun aboutBuild() = shot(tall = true) { com.bluemob.app.ui.profile.AboutScreen({}, {}, startOpen = "build") }
     @Test fun rescueAskMine() = shot(tall = true) {

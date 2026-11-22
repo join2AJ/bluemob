@@ -59,6 +59,7 @@ sealed interface Route {
     data object Trips : TripsArea { override val key = "trips" }
     data class Trip(val id: String) : TripsArea { override val key get() = "trip:$id" }
     data object Peaks : TripsArea { override val key = "peaks" }
+    data object PeakLibrary : TripsArea { override val key = "peak-library" }
     data object DemoTrip : TripsArea { override val key = "demo-trip" }
 
     /** The You tab's pages: people, account, settings. */
@@ -103,7 +104,7 @@ sealed interface Route {
             "trip" to ::Trip, "person" to ::Person, "verify" to ::Verify, "autostart" to ::Power, "sos-coming" to ::SosComing, "field-test" to ::FieldTest, "new-team" to ::NewTeam, "itinerary" to ::Itinerary, "buddies" to ::Buddies, "altitude" to ::Altitude, "headcount" to ::Headcount, "trip-photos" to ::TripPhotos,
         )
         private val plain: Map<String, Route> by lazy {
-            listOf(NewChat, Starred, Peaks, DemoTrip, Showcase, Ready, About, NewGroup, SkyAi, NewTrip, JoinTrip, FieldTest(), GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, EmergencyCard, HelperSignals, Connections,
+            listOf(NewChat, Starred, Peaks, PeakLibrary, DemoTrip, Showcase, Ready, About, NewGroup, SkyAi, NewTrip, JoinTrip, FieldTest(), GuidePacks, Sos, Signal, SosContacts, CheckIn, Rescues, Games, Trips, News, Account, EmergencyCard, HelperSignals, Connections,
                 AutoStart, Audit, Badges, Activity, Bridge, Backup, Storage, Diagnostics, Report, Calls, Call).associateBy { it.key }
         }
 

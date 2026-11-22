@@ -36,6 +36,12 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.5: peaks on this phone
+
+- **Search, download, keep several areas.** The peak finder's new *Search, download areas, add a missing peak* opens *Peaks on this phone*. Search a peak or a place by name (Hampta, Manali, Kedarkantha); peaks already on the phone show at once, offline. *Download area* keeps every named peak within 150 km of it. Up to 12 areas are kept together, so a whole trek's worth works offline; update or remove each one.
+- **Add a missing peak.** Name, latitude and longitude (decimal, or degrees-minutes-seconds), and height; *I'm standing on it* fills in your position. It shows in your peak finder straight away and goes to the team's admin page as a *⛰️ Peak request*, so it can be added for everyone.
+- The single area older versions kept is carried over as *Around you*.
+
 ## Android 0.38.4: closing a rescue, About us
 
 - **Your own SOS can be stopped from anywhere on the rescue screen.** The red tag at the top now reads *SOS ON · STOP*; tap it, or *I'm safe: stop SOS*, and confirm. Your SOS stops and the rescue closes on every helper's phone, even if the SOS had already stopped but the group was left open.

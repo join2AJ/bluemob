@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Landscape
 import androidx.compose.material3.Icon
@@ -85,6 +86,8 @@ fun PeakFinderScreen(
     /** Downloads peaks around here; returns an error to show, or null. */
     onDownload: suspend () -> String?,
     onBack: () -> Unit,
+    /** Opens "Peaks on this phone": search, download areas, add a missing peak. */
+    onLibrary: () -> Unit = {},
     /** Previews only: a fixed direction to look. */
     fixedPose: Pair<Float, Float>? = null,
 ) {
@@ -196,7 +199,7 @@ fun PeakFinderScreen(
                 if (!cameraAllowed) Chip("Use camera", false) { onAskCamera() }
             }
             Text(when {
-                saved != null -> "${saved.peaks.size} peaks downloaded for this area " + java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(saved.at)) + ", plus famous peaks"
+                saved != null -> "${saved.peaks.size} peaks on this phone, updated " + java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(saved.at)) + ", plus famous peaks"
                 else -> "Only famous peaks so far. Download the peaks around you while you have internet; they stay for offline."
             }, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f), modifier = Modifier.padding(top = 10.dp))
             note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Color(0xFFFFD27A), modifier = Modifier.padding(top = 4.dp)) }
@@ -208,6 +211,11 @@ fun PeakFinderScreen(
                 Icon(Icons.Rounded.CloudDownload, null, tint = Color.White, modifier = Modifier.size(18.dp))
                 Text(if (busy) "Downloading…" else if (saved != null) "Update peaks around me" else "Download peaks around me", style = MaterialTheme.typography.labelLarge,
                     color = Color.White, modifier = Modifier.padding(start = 8.dp))
+            }
+            Row(Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.18f)).clickable(onClick = onLibrary)
+                .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Search, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Text("Search, download areas, add a missing peak", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(start = 8.dp))
             }
             Text("Names: © OpenStreetMap contributors. Hold the phone upright and away from metal. A nearer ridge can hide a peak.",
                 style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp))
