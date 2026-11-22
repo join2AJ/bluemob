@@ -25,6 +25,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -227,7 +230,7 @@ fun ProfileScreen(
                 // Level, rank and medals: what you've done that makes you (and others) safer.
                 game?.takeIf { com.bluemob.app.Features.BADGES }?.let { LevelPill(it, Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).clickable(onClick = onBadges)) }
                 // Your rating and your week, as two tiles: tap one for the details.
-                Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth().padding(top = 14.dp).height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     StatTile(Modifier.weight(1f), Icons.Filled.Star, Palette.Gold, "Trust",
                         if (myRatingCount == 0) "New" else "%.1f".format(com.bluemob.app.trust.Trust.quarter(myStars)),
                         if (myRatingCount == 0) "No ratings yet" else "$myRatingCount ${if (myRatingCount == 1) "rating" else "ratings"}", onMyRating) {
@@ -443,7 +446,7 @@ private fun SilenceDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
 @Composable
 private fun StatTile(modifier: Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: androidx.compose.ui.graphics.Color, label: String, value: String, sub: String,
     onClick: () -> Unit, extra: @Composable () -> Unit = {}) {
-    Column(modifier.clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).clickable(onClick = onClick).padding(14.dp)) {
+    Column(modifier.fillMaxHeight().clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).clickable(onClick = onClick).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(26.dp).clip(CircleShape).background(tint.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
                 Icon(icon, null, Modifier.size(15.dp), tint = tint)
@@ -453,6 +456,8 @@ private fun StatTile(modifier: Modifier, icon: androidx.compose.ui.graphics.vect
         }
         com.bluemob.app.i18n.RawText(value, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp), maxLines = 1)
         extra()
-        Text(sub, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1)
+        // The last line sits at the bottom, so two tiles side by side line up.
+        Spacer(Modifier.weight(1f))
+        Text(sub, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
     }
 }

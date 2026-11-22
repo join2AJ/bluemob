@@ -1,6 +1,21 @@
 package com.bluemob.app.ui.chat
 
+import com.bluemob.app.ui.components.appGlow
 import androidx.compose.material.icons.rounded.Hiking
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.DirectionsBus
+import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Handshake
@@ -252,6 +267,7 @@ fun TripGroupScreen(
     val closedAt = g.closedTime(now)
     val owner = g.isOwner(myId)
     val manage = g.canManage(myId) && closedAt == 0L
+    val total = g.members.size
     val nameOf = { id: String -> if (id == myId) "You" else people.firstOrNull { it.nodeId == id }?.name ?: g.members[id].orEmpty().ifBlank { main?.members?.get(id).orEmpty().ifBlank { "Someone" } } }
     var showCode by rememberSaveable { mutableStateOf(g.members.isEmpty()) }
     var leaving by remember { mutableStateOf(false) }
@@ -311,7 +327,7 @@ fun TripGroupScreen(
             dismissButton = { TextButton(onClick = { adding = false }) { Text("Cancel") } },
         )
     }
-    SubScreen(if (g.isTeam) "Team" else "Trip group", a.onBack, backdrop = Modifier.background(Palette.BrandGreen.copy(alpha = 0.06f))) {
+    SubScreen(if (g.isTeam) "Team" else "Trip group", a.onBack, backdrop = Modifier.background(Palette.BrandGreen.copy(alpha = 0.06f)).appGlow()) {
         banner?.let { b -> item { b() } }
         item {
             HeroCard(if (closedAt > 0) androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF4B5563), Color(0xFF374151))) else Gradients.brand(), Modifier.padding(top = 12.dp)) {
@@ -325,7 +341,6 @@ fun TripGroupScreen(
                     else -> null
                 }
                 role?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.95f), modifier = Modifier.padding(top = 2.dp)) }
-                val total = g.members.size
                 Text(when {
                     closedAt > 0 -> "The trip ended ${endFormat.format(java.util.Date(closedAt))}. The group stays, so you can keep in touch"
                     total == 0 -> "Only you so far. Show the code below to the others"
@@ -334,19 +349,43 @@ fun TripGroupScreen(
                 }, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.padding(top = 4.dp))
                 if (g.autoMin > 0 && closedAt == 0L) Text("⏱ Automatic roll call every ${g.autoMin} min", style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.85f), modifier = Modifier.padding(top = 2.dp))
-                FlowRow(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (manage) Surface(onClick = a.onRollCall, enabled = total > 0, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
-                        Text("📋 Roll call", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
-                    }
-                    if (manage) Surface(onClick = a.onHeadcount, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
-                        Text("🚌 Headcount", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
-                    }
-                    if (manage) Surface(onClick = { announcing = true }, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
-                        Text("📣 Announce", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
-                    }
-                    Surface(onClick = a.onOpenChat, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
-                        Text(if (g.isTeam) "💬 Team chat" else "💬 Group chat", style = MaterialTheme.typography.labelLarge, color = Color.White,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
+            }
+        }
+        // Things to DO: round buttons with a label, like a phone's call screen. They never stay "picked".
+        item {
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                if (manage) TripAction(Icons.Rounded.Checklist, "Roll call", Palette.BrandBlue, enabled = total > 0, onClick = a.onRollCall)
+                if (manage) TripAction(Icons.Rounded.DirectionsBus, "Headcount", Palette.Warning, onClick = a.onHeadcount)
+                if (manage) TripAction(Icons.Rounded.Campaign, "Announce", Palette.Violet) { announcing = true }
+                TripAction(Icons.AutoMirrored.Rounded.Chat, if (g.isTeam) "Team chat" else "Group chat", Palette.BrandGreen, onClick = a.onOpenChat)
+            }
+        }
+        // A new leader's first three steps, until they're done.
+        if (manage && !g.isTeam) {
+            val steps = listOf(
+                Triple("Get everyone in", "Show the join code; each person scans it", total > 0),
+                Triple("Do a roll call", "Checks every phone can be reached", roll != null),
+                Triple("Add the plan", "Where you stop and when, with checkpoints", g.itinerary.isNotEmpty()),
+            )
+            if (steps.any { !it.third }) item {
+                val next = steps.indexOfFirst { !it.third }
+                Column(Modifier.fillMaxWidth().padding(top = 14.dp).clip(MaterialTheme.shapes.large).background(Palette.Gold.copy(alpha = 0.14f)).padding(16.dp)) {
+                    Text("Get your group ready", style = MaterialTheme.typography.titleMedium)
+                    steps.forEachIndexed { k, (title, sub, done) ->
+                        Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(30.dp).clip(CircleShape).background(if (done) Palette.BrandGreen else if (k == next) Palette.Gold else Extra.line),
+                                contentAlignment = Alignment.Center) {
+                                if (done) Icon(Icons.Rounded.Check, "Done", tint = Color.White, modifier = Modifier.size(18.dp))
+                                else Text("${k + 1}", style = MaterialTheme.typography.labelLarge, color = if (k == next) Color.Black else Extra.ink2)
+                            }
+                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(title, style = MaterialTheme.typography.titleSmall, color = if (done) Extra.ink3 else MaterialTheme.colorScheme.onSurface)
+                                Text(sub, style = MaterialTheme.typography.bodySmall, color = Extra.ink3)
+                            }
+                            if (k == next) Button(onClick = {
+                                when (k) { 0 -> { tab = 1; showCode = true }; 1 -> a.onRollCall(); else -> a.onItinerary() }
+                            }, enabled = k != 1 || total > 0, contentPadding = PaddingValues(horizontal = 14.dp)) { Text(listOf("Show code", "Roll call", "Add plan")[k]) }
+                        }
                     }
                 }
             }
@@ -365,10 +404,29 @@ fun TripGroupScreen(
         }
         g.announcements.lastOrNull()?.let { ann -> item { AnnouncementCard(g, ann, myId, nameOf, now, a.onAck) } }
         item {
-            com.bluemob.app.ui.components.Segmented(listOf("People", "Plan", "Health", if (manage || owner) "Settings" else "More"), tab, Modifier.padding(top = 18.dp)) { tab = it }
-            Text(listOf("Everyone in the trip, and how each phone was last reached", "The route with its checkpoints, buddy pairs and the join code",
-                "Daily altitude check and who feels unwell", if (manage || owner) "Roll-call timing, teams, the report and ending the trip" else "The report and leaving the trip")[tab.coerceIn(0, 3)],
-                style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 8.dp, start = 4.dp, bottom = 2.dp))
+            val nextStop = g.itinerary.firstOrNull { it.at > now }
+            val unwell = g.amsChecks.values.count { now - it.at < DAY && it.level.ordinal > 0 }
+            val tiles = listOf(
+                Triple(Icons.Rounded.Groups, "People", roll?.let { "${it.reached} of ${it.members.size} reached" } ?: "${total + 1} people"),
+                Triple(Icons.Rounded.Map, "Plan", nextStop?.let { "Next: ${it.title}" } ?: if (g.itinerary.isEmpty()) "Route, buddies, join code" else "All stops passed"),
+                Triple(Icons.Rounded.Favorite, "Health", if (unwell > 0) "$unwell feeling unwell" else if (g.amsDaily) "Daily altitude check on" else "Altitude & how people feel"),
+                Triple(Icons.Rounded.Tune, if (manage || owner) "Settings" else "More", if (manage || owner) "Roll-call timer, teams, end trip" else "Report, leave the trip"),
+            )
+            Text("OPEN A SECTION", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(top = 20.dp, start = 4.dp, bottom = 8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                tiles.chunked(2).forEachIndexed { r, row ->
+                    Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        row.forEachIndexed { c, (icon, title, sub) ->
+                            val k = r * 2 + c
+                            SectionTile(icon, title, sub, tab == k, Modifier.weight(1f)) { tab = k }
+                        }
+                    }
+                }
+            }
+            Row(Modifier.padding(top = 22.dp, start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(tiles[tab.coerceIn(0, 3)].first, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                Text(tiles[tab.coerceIn(0, 3)].second, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
+            }
         }
         if (tab == 1) {
         if (g.itinerary.isNotEmpty() || g.canPlan(myId)) item { ItineraryCard(g, myId, now, a.onItinerary) }
@@ -403,7 +461,6 @@ fun TripGroupScreen(
             }
         }
         tripExtras(g, myId, photoCount, a)
-        if (!g.isTeam && closedAt == 0L) item { Steps() }
         }
         if (tab == 2) tripHealthTab(g, myId, now, nameOf, myCard, a)
         if (tab == 0) {
@@ -487,6 +544,35 @@ fun TripGroupScreen(
             OutlinedButton(onClick = { leaving = true }, Modifier.fillMaxWidth().padding(top = 10.dp)) { Text(if (g.isTeam) "Leave the team" else "Leave the trip group", color = Extra.rose) }
         }
         }
+    }
+}
+
+/** A round button with a label under it: something you do, not a place you go. */
+@Composable
+private fun TripAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, color: Color, enabled: Boolean = true, onClick: () -> Unit) {
+    Column(Modifier.width(84.dp).clip(RoundedCornerShape(16.dp)).clickable(enabled = enabled, onClick = onClick).padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(54.dp).clip(CircleShape).background(color.copy(alpha = if (enabled) 0.18f else 0.08f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = if (enabled) color else Extra.ink3, modifier = Modifier.size(26.dp))
+        }
+        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, color = if (enabled) MaterialTheme.colorScheme.onSurface else Extra.ink3, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+/** One section of a trip group: icon, name and how it stands now. The open one is filled. */
+@Composable
+private fun SectionTile(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, sub: String, open: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val c = MaterialTheme.colorScheme.primary
+    Column(modifier.fillMaxHeight().clip(MaterialTheme.shapes.large)
+        .background(if (open) c.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
+        .border(if (open) 2.dp else 1.dp, if (open) c else Extra.line, MaterialTheme.shapes.large)
+        .clickable(onClick = onClick).semantics { selected = open }.padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = c, modifier = Modifier.size(24.dp))
+            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 8.dp).weight(1f))
+            if (open) Icon(Icons.Rounded.Check, "Open", tint = c, modifier = Modifier.size(18.dp))
+        }
+        Text(sub, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, maxLines = 2, modifier = Modifier.padding(top = 4.dp))
     }
 }
 

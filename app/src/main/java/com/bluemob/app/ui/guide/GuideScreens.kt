@@ -134,11 +134,11 @@ fun GuideScreen(bookmarks: Set<String>, contentPadding: PaddingValues, onOpen: (
             com.bluemob.app.guide.GuideDashboard.ofTheDay(all)?.let { a ->
                 item { GroupLabel("Guide of the day") }
                 item {
-                    Box(Modifier.fillMaxWidth().height(120.dp).clip(MaterialTheme.shapes.large).clickable { onOpen(a.id) }) {
-                        GuideArt(a.category, Modifier.fillMaxSize(), articleId = a.id)
-                        Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f)))).padding(14.dp)) {
-                            Text(a.title, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("${a.category.label} · ${a.minutes} min", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f))
+                    Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).clickable { onOpen(a.id) }) {
+                        GuideArt(a.category, Modifier.fillMaxWidth().height(120.dp), articleId = a.id)
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Text(a.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text("${a.category.label} · ${a.minutes} min", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
                         }
                     }
                 }

@@ -287,7 +287,8 @@ class BlueMobApp : Application() {
         offlineAi = com.bluemob.app.bot.OfflineAi(this, appScope)
         messages = MessageRepository(db.messages(), mesh.router, appScope, onAttachment = { files.onMessage(it) }, sky = { text, partial -> skyReply(text, partial) },
             record = { kind, peer, text -> audit.add(kind, text.replace("{name}", contacts.contacts.value[peer]?.name ?: "someone")) },
-            onIncoming = { peer, text -> contacts.markOnline(peer); if (!inForeground) notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
+            // Always notify, even with BlueMob open on another screen: only the chat on screen is skipped (MessageRepository knows which).
+            onIncoming = { peer, text -> contacts.markOnline(peer); notifier.message(peer, groups.get(peer)?.let { "👥 " + it.name } ?: contacts.contacts.value[peer]?.name ?: "Someone", text) },
             groups = groups, me = { identity.nodeId to identity.displayName.value }, blocked = { it in settings.blocked.value },
             onRoomEnvelope = { mesh.receiveRoomEnvelope(it) },
             onDelivered = { m, hops, internet -> if (m.parent.isNotBlank()) fieldTest.delivered(m.parent, m.peer, hops, internet, (m.deliveredAt ?: m.createdAt) - m.createdAt) },

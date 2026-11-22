@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -160,6 +161,7 @@ fun ChatsScreen(
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
         item { LargeTitle("Chats", modifier = Modifier.padding(horizontal = Space.lg)) }
         item { ChatsCallsTabs(ChatsTab.CHATS, missedToday) { tab = it } }
+        item { NotificationsOffBanner() }
         item {
             Row(
                 Modifier.padding(horizontal = Space.lg).fillMaxWidth().clip(MaterialTheme.shapes.small).background(Extra.sand).padding(horizontal = 12.dp, vertical = 11.dp),
@@ -575,5 +577,43 @@ private fun CallBackButton(video: Boolean, big: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center) {
         androidx.compose.material3.Icon(if (video) androidx.compose.material.icons.Icons.Rounded.Videocam else androidx.compose.material.icons.Icons.Rounded.Call,
             if (video) "Video call" else "Voice call", Modifier.size(if (big) 20.dp else 17.dp), tint = tint)
+    }
+}
+
+
+/** Shown when this phone won't show BlueMob's message notifications: new messages would arrive silently. */
+@Composable
+private fun NotificationsOffBanner() {
+    if (androidx.compose.ui.platform.LocalInspectionMode.current) return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var off by remember { mutableStateOf(false) }
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(owner) {
+        fun check() {
+            off = runCatching {
+                val nm = androidx.core.app.NotificationManagerCompat.from(context)
+                !nm.areNotificationsEnabled() ||
+                    (android.os.Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel("messages")?.importance == android.app.NotificationManager.IMPORTANCE_NONE)
+            }.getOrDefault(false)
+        }
+        check()
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) check() }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
+    if (!off) return
+    Row(Modifier.padding(horizontal = Space.lg).padding(bottom = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.rose.copy(alpha = 0.14f)).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.NotificationsOff, null, tint = Extra.rose, modifier = Modifier.size(26.dp))
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text("Notifications are off", style = MaterialTheme.typography.titleSmall)
+            Text("New messages arrive without a sound or alert. Turn them on to hear about every message.", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
+        }
+        androidx.compose.material3.TextButton(onClick = {
+            val i = if (android.os.Build.VERSION.SDK_INT >= 26) android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+            else android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + context.packageName))
+            runCatching { context.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        }) { Text("Turn on") }
     }
 }

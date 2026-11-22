@@ -36,6 +36,14 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.8: notifications, easier trip groups and home
+
+- **Every new message notifies**, also while BlueMob is open on another screen; only the chat you're looking at stays quiet. When the phone blocks BlueMob's notifications, Chats says so at the top with *Turn on*.
+- **Trip groups, easier to follow.** Things you *do* (Roll call, Headcount, Announce, Group chat) are round buttons with labels. A new leader gets *Get your group ready*: share the code → roll call → add the plan, ticked off as they're done, with the button for the next step. The four sections are big tiles with how each stands now ("3 of 4 reached", "Next: Juda ka Talab"); the open one is outlined and its name heads what's below.
+- **Nearby home:** every shortcut in one grid at the top (Trip group, Check all, Ask Sky, First aid, Ready?, Battery, Connections); the radar is shorter and the long card list is gone.
+- **A soft glowing background** on every tab and screen.
+- **Guide of the day:** the title sits under the picture, not on it. **You:** the Trust and This week tiles are the same height, lines aligned.
+
 ## Android 0.38.7: clearer tabs and groups
 
 - **You can see which tab is picked.** Every tab bar (Chats / Groups / Calls / Files, a trip group's People / Plan / Health / Settings, Activity's 7 / 30 / 90 days) fills the picked one in the brand colour. Under a trip group's tabs, a line says what that tab holds. The trip group's buttons (Roll call, Headcount, Announce, Group chat) now all look alike, so none looks "picked".

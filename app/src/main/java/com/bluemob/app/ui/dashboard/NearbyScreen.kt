@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Hiking
+import androidx.compose.material.icons.rounded.EmojiPeople
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.SettingsInputAntenna
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.SmartToy
@@ -148,15 +153,28 @@ fun NearbyScreen(
     ) {
         item { LargeTitle("Nearby", over = "${greeting()}, ${state.name}") }
         here?.let { h -> item { com.bluemob.app.ui.compass.DaylightCard(h, baseCamp, System.currentTimeMillis(), Modifier.padding(bottom = 12.dp)) } }
-        onReady?.let { go -> item {
-            androidx.compose.material3.Surface(onClick = go, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    com.bluemob.app.ui.components.IconBadge(androidx.compose.material.icons.Icons.Rounded.Hiking, com.bluemob.app.ui.theme.Palette.BrandGreen, size = 34.dp)
-                    Text("Going out? Check you're ready for the trip", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(start = 12.dp))
-                    Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        // Everything you can do, in one place, without scrolling: tap an icon.
+        item {
+            val c = state.check
+            val tiles = listOfNotNull(
+                Quick(Icons.Rounded.Hiking, "Trip group", Palette.BrandGreen) { trips.firstOrNull { !it.first.isClosed(System.currentTimeMillis()) && !it.first.isTeam }?.let { onTrip(it.first.id) } ?: onNewTrip() },
+                Quick(Icons.Rounded.EmojiPeople, if (c == null) "Check all" else "Answers", Extra.ember) { if (c == null) onCheckEveryone() },
+                Quick(Icons.Outlined.SmartToy, "Ask Sky", Extra.sky, onTalkToSky),
+                Quick(Icons.Outlined.MenuBook, "First aid", Palette.Pine, onOpenGuide),
+                onReady?.let { Quick(Icons.Rounded.Checklist, "Ready?", Palette.BrandBlue, it) },
+                Quick(Icons.Outlined.BatterySaver, "Battery", Color(0xFF3A9A5B), onOpenBattery),
+                Quick(Icons.Rounded.SettingsInputAntenna, "Connections", Palette.Violet, onConnections),
+                if (com.bluemob.app.Features.GAMES) Quick(com.bluemob.app.ui.components.BlueMobIcons.Games, "Games", Extra.ember, onGames) else null,
+            )
+            Column(Modifier.fillMaxWidth().padding(bottom = 14.dp).clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)).padding(vertical = 8.dp)) {
+                tiles.chunked(4).forEach { row ->
+                    Row(Modifier.fillMaxWidth()) {
+                        row.forEach { q -> QuickButton(q, Modifier.weight(1f)) }
+                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
                 }
             }
-        } }
+        }
         state.radios?.let { radios ->
             item { RadioStrip(radios, state.online, onConnections, Modifier.padding(bottom = 12.dp), background) }
             radios.firstProblem()?.let { problem ->
@@ -194,7 +212,7 @@ fun NearbyScreen(
 
         item {
             Box(
-                Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(28.dp)).background(Gradients.night),
+                Modifier.fillMaxWidth().aspectRatio(1.25f).clip(RoundedCornerShape(28.dp)).background(Gradients.night),
             ) {
                 RadarSweep(list.map { it.toBlip(state.sharingLocation && state.hasMyFix) }, Modifier.fillMaxSize(), active = state.running, onTap = onOpenChat)
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -234,7 +252,7 @@ fun NearbyScreen(
         if (tripAds.isNotEmpty()) item { com.bluemob.app.ui.chat.NearbyTripGroups(tripAds, joinNotes, onJoinAd) }
 
         // "Check on everyone": one tap asks every phone nearby "Are you OK?".
-        item {
+        state.check?.let { _ -> item {
             val c = state.check
             Surface(onClick = if (c == null) onCheckEveryone else ({}), shape = MaterialTheme.shapes.large, color = if (c?.help?.isNotEmpty() == true) Extra.emberTint else Extra.pineTint,
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
@@ -254,7 +272,7 @@ fun NearbyScreen(
                     if (c != null) androidx.compose.material3.TextButton(onClick = onClearCheck) { Text("Done") }
                 }
             }
-        }
+        } }
         item { SectionHeader("Around you") }
         if (list.isNotEmpty()) item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
@@ -285,15 +303,6 @@ fun NearbyScreen(
             }
         }
 
-        item { SectionHeader("Ready for anything") }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                FeatureCard(Icons.Outlined.SmartToy, Extra.sky, "Ask Sky", "Your built-in guide. Lives on your phone, works offline.", onTalkToSky)
-                FeatureCard(Icons.Outlined.MenuBook, Palette.Pine, "Survival guide", "First aid, water, fire, shelter and more. Stored on your phone.", onOpenGuide)
-                if (com.bluemob.app.Features.GAMES) FeatureCard(com.bluemob.app.ui.components.BlueMobIcons.Games, Extra.ember, "Play a game", "With someone nearby, or against the computer when no one's around.", onGames)
-                FeatureCard(Icons.Outlined.BatterySaver, Color(0xFF3A9A5B), "Make the battery last", powerNote(power.first, power.second), onOpenBattery)
-            }
-        }
         item {
             Text(if (state.online) "This phone has internet right now." else "Off-grid: no internet here, and that's fine. BlueMob talks phone to phone.",
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.fillMaxWidth().padding(top = 24.dp))
@@ -451,5 +460,19 @@ private fun TripCard(trips: List<Pair<com.bluemob.app.chat.ChatGroup, com.bluemo
             Text(if (first == null) "Start" else "New", style = MaterialTheme.typography.labelLarge, color = com.bluemob.app.ui.theme.Palette.BrandBlue,
                 modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Color.White).clickable(onClick = onNewTrip).padding(horizontal = 14.dp, vertical = 7.dp))
         }
+    }
+}
+
+
+/** One shortcut on Nearby: an icon in a soft circle with its name under it. */
+private class Quick(val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val color: Color, val onClick: () -> Unit)
+
+@Composable
+private fun QuickButton(q: Quick, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(16.dp)).clickable(onClick = q.onClick).padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(50.dp).clip(RoundedCornerShape(16.dp)).background(q.color.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.Icon(q.icon, null, tint = q.color, modifier = Modifier.size(26.dp))
+        }
+        Text(q.label, style = MaterialTheme.typography.labelMedium, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
     }
 }
