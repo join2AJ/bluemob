@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CellTower
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Email
@@ -103,7 +104,13 @@ fun AboutScreen(onBack: () -> Unit, onShare: () -> Unit, startOpen: String? = nu
                         Text("Stay in touch where there's no signal · version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = Extra.ink2)
                     }
                 }
-                Text("Phones talk to each other over Bluetooth and Wi-Fi, with no network. Messages and SOS hop from phone to phone until they reach someone. " +
+                Row(Modifier.padding(top = 14.dp).fillMaxWidth().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)).padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.CellTower, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    Text("Works where there's no mobile tower. Phones connect straight to each other using Bluetooth and Wi-Fi: no SIM, no signal, no internet needed.",
+                        style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
+                }
+                Text("Messages and SOS hop from phone to phone until they reach someone, and when any phone has internet, on to family far away. " +
                     "Trip groups with roll call, a compass back to camp, a peak finder, knots, first aid and a weather warning: all offline.",
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 12.dp))
                 Text("No ads · SOS is free, always · your data stays on your phone", style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 10.dp))

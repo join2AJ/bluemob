@@ -1,6 +1,8 @@
 package com.bluemob.app.ui.chat
 
 import androidx.compose.material.icons.rounded.Hiking
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,6 +16,8 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -67,24 +71,31 @@ import com.bluemob.app.ui.theme.Gradients
 import com.bluemob.app.ui.theme.Palette
 import com.bluemob.app.safety.FieldTest
 
-/** What makes a trip group different from a normal group, in a few lines (Groups tab, New trip group). */
+/** What makes a trip group different from a chat group, side by side (Groups tab, New trip group). */
 @Composable
 fun TripVsGroup(modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(Extra.sand).padding(16.dp)) {
-        Text("Trip group or normal group?", style = MaterialTheme.typography.titleSmall)
-        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text("👥 Group", style = MaterialTheme.typography.labelLarge)
-                listOf("You pick people you've met", "Everyone is equal", "Stays until you leave").forEach {
-                    Text("• $it", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
-                }
-            }
-            Column(Modifier.weight(1f)) {
-                Text("🧭 Trip group", style = MaterialTheme.typography.labelLarge)
-                listOf("Join by one QR code or shared code", "An admin, teams and captains", "Roll calls, automatic checks and an alert when a phone can't be reached",
-                    "Tracking ends with the trip; the chat stays").forEach {
-                    Text("• $it", style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(top = 4.dp))
-                }
+    Column(modifier.fillMaxWidth()) {
+        Text("Chat group or trip group?", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GroupKind(androidx.compose.material.icons.Icons.Rounded.Groups, Palette.BrandBlue, "Chat group", "For talking",
+                listOf("You add people you've met", "Everyone is equal", "Stays until you leave"), Modifier.weight(1f))
+            GroupKind(androidx.compose.material.icons.Icons.Rounded.Hiking, Palette.BrandGreen, "Trip group", "For going somewhere together",
+                listOf("Everyone joins with one code", "A leader, teams and captains", "Roll calls and an alert if a phone can't be reached", "Tracking ends with the trip; the chat stays"),
+                Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun GroupKind(icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, title: String, sub: String, points: List<String>, modifier: Modifier) {
+    Column(modifier.fillMaxHeight().clip(MaterialTheme.shapes.large).background(color.copy(alpha = 0.12f)).padding(14.dp)) {
+        com.bluemob.app.ui.components.IconBadge(icon, color, size = 38.dp)
+        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp))
+        Text(sub, style = MaterialTheme.typography.labelMedium, color = color)
+        points.forEach { p ->
+            Row(Modifier.padding(top = 8.dp)) {
+                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.CheckCircle, null, tint = color, modifier = Modifier.size(16.dp).padding(top = 2.dp))
+                Text(p, style = MaterialTheme.typography.bodySmall, color = Extra.ink2, modifier = Modifier.padding(start = 6.dp))
             }
         }
     }
@@ -101,6 +112,8 @@ private val endFormat = java.text.SimpleDateFormat("EEE d MMM, HH:mm", java.util
 fun NewTripScreen(onBack: () -> Unit, onCreate: (String, Long) -> Unit, onJoin: () -> Unit, nextNumber: Int = 1, onDemo: (() -> Unit)? = null) {
     var name by rememberSaveable { mutableStateOf("") }
     var days by rememberSaveable { mutableStateOf(0) }
+    // One suggestion, picked afresh each time the screen opens.
+    val suggested = rememberSaveable { listOf("Trek team", "Family at the mela", "Yatra group", "College trip", "Group $nextNumber").random() }
     SubScreen("New trip group", onBack) {
         item {
             HeroCard(Gradients.brand(), Modifier.padding(top = 12.dp)) {
@@ -112,12 +125,9 @@ fun NewTripScreen(onBack: () -> Unit, onCreate: (String, Long) -> Unit, onJoin: 
         item { com.bluemob.app.ui.profile.TripHowItWorks(onDemo, Modifier.padding(top = 12.dp)) }
         item {
             OutlinedTextField(name, { name = it.take(40) }, label = { Text("Name of the trip") }, singleLine = true,
+                placeholder = { RawText(suggested, color = Extra.ink3) },
+                supportingText = { Text(if (name.isBlank()) "Leave it empty to use \"$suggested\"" else " ") },
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
-        }
-        item {
-            FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                (listOf("Group $nextNumber") + listOf("Trek team", "Family at the mela", "Yatra group", "College trip")).forEach { RawChip(it, name == it) { name = it } }
-            }
         }
         item { GroupLabel("The trip ends") }
         item {
@@ -130,7 +140,7 @@ fun NewTripScreen(onBack: () -> Unit, onCreate: (String, Long) -> Unit, onJoin: 
                 style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         }
         item {
-            Button(onClick = { onCreate(name.ifBlank { "Group $nextNumber" }, if (days == 0) 0 else System.currentTimeMillis() + days * DAY) },
+            Button(onClick = { onCreate(name.ifBlank { suggested }, if (days == 0) 0 else System.currentTimeMillis() + days * DAY) },
                 Modifier.fillMaxWidth().padding(top = 18.dp)) { Text("Create and show the code") }
         }
         item {
@@ -301,7 +311,7 @@ fun TripGroupScreen(
             dismissButton = { TextButton(onClick = { adding = false }) { Text("Cancel") } },
         )
     }
-    SubScreen(if (g.isTeam) "Team" else "Trip group", a.onBack) {
+    SubScreen(if (g.isTeam) "Team" else "Trip group", a.onBack, backdrop = Modifier.background(Palette.BrandGreen.copy(alpha = 0.06f))) {
         banner?.let { b -> item { b() } }
         item {
             HeroCard(if (closedAt > 0) androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF4B5563), Color(0xFF374151))) else Gradients.brand(), Modifier.padding(top = 12.dp)) {
@@ -325,8 +335,8 @@ fun TripGroupScreen(
                 if (g.autoMin > 0 && closedAt == 0L) Text("⏱ Automatic roll call every ${g.autoMin} min", style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.85f), modifier = Modifier.padding(top = 2.dp))
                 FlowRow(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (manage) Surface(onClick = a.onRollCall, enabled = total > 0, shape = RoundedCornerShape(50), color = Color.White) {
-                        Text("📋 Roll call", style = MaterialTheme.typography.labelLarge, color = Palette.BrandBlue, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
+                    if (manage) Surface(onClick = a.onRollCall, enabled = total > 0, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
+                        Text("📋 Roll call", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
                     }
                     if (manage) Surface(onClick = a.onHeadcount, shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
                         Text("🚌 Headcount", style = MaterialTheme.typography.labelLarge, color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
@@ -355,7 +365,10 @@ fun TripGroupScreen(
         }
         g.announcements.lastOrNull()?.let { ann -> item { AnnouncementCard(g, ann, myId, nameOf, now, a.onAck) } }
         item {
-            com.bluemob.app.ui.components.Segmented(listOf("People", "Plan", "Health", if (manage || owner) "Settings" else "More"), tab, Modifier.padding(top = 14.dp)) { tab = it }
+            com.bluemob.app.ui.components.Segmented(listOf("People", "Plan", "Health", if (manage || owner) "Settings" else "More"), tab, Modifier.padding(top = 18.dp)) { tab = it }
+            Text(listOf("Everyone in the trip, and how each phone was last reached", "The route with its checkpoints, buddy pairs and the join code",
+                "Daily altitude check and who feels unwell", if (manage || owner) "Roll-call timing, teams, the report and ending the trip" else "The report and leaving the trip")[tab.coerceIn(0, 3)],
+                style = MaterialTheme.typography.bodySmall, color = Extra.ink3, modifier = Modifier.padding(top = 8.dp, start = 4.dp, bottom = 2.dp))
         }
         if (tab == 1) {
         if (g.itinerary.isNotEmpty() || g.canPlan(myId)) item { ItineraryCard(g, myId, now, a.onItinerary) }

@@ -115,7 +115,7 @@ fun ActivityScreen(
         item { RangePicker(range) { range = it } }
         item { Headline(s, before, range) }
         item {
-            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Kpi(androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Chat, "Messages", s.messages(), before?.messages(), s.bins.map { it.msgs() }, ChartColors.sent, Modifier.weight(1f))
                 Kpi(androidx.compose.material.icons.Icons.Rounded.Call, "Calls", s.calls(), before?.calls(), s.bins.map { it.calls() }, ChartColors.dialled, Modifier.weight(1f))
                 Kpi(androidx.compose.material.icons.Icons.Rounded.Groups, "People", s.people, before?.people, null, ChartColors.received, Modifier.weight(1f))
@@ -213,15 +213,16 @@ private fun Headline(s: ActivitySummary, before: ActivitySummary?, range: Activi
 @Composable
 private fun Kpi(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: Int, before: Int?, trend: List<Int>?, color: Color, modifier: Modifier) {
     val d = delta(value, before)
-    Column(modifier.clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(12.dp)
+    Column(modifier.fillMaxHeight().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(14.dp)
         .semantics(mergeDescendants = true) { contentDescription = "$label: $value" + (d?.first?.let { ", $it" } ?: "") }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.material3.Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
             Text(label, style = MaterialTheme.typography.labelMedium, color = Extra.ink2, maxLines = 1, modifier = Modifier.padding(start = 5.dp))
         }
         Text("$value", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        d?.let { (t, up) -> Text(t, style = MaterialTheme.typography.labelSmall, color = if (up) ChartColors.received else ChartColors.missed, fontWeight = FontWeight.Bold) }
-        if (trend != null && trend.size > 1 && trend.any { it > 0 }) Canvas(Modifier.padding(top = 6.dp).fillMaxWidth().height(24.dp)) {
+        Text(d?.first ?: " ", style = MaterialTheme.typography.labelSmall, color = if (d?.second != false) ChartColors.received else ChartColors.missed, fontWeight = FontWeight.Bold)
+        if (trend == null || trend.size < 2 || trend.none { it > 0 }) Spacer(Modifier.padding(top = 6.dp).height(24.dp))
+        else Canvas(Modifier.padding(top = 6.dp).fillMaxWidth().height(24.dp)) {
             val max = trend.max().coerceAtLeast(1)
             val step = size.width / (trend.size - 1)
             val path = Path()

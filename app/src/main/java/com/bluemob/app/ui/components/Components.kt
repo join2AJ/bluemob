@@ -361,9 +361,10 @@ fun Segmented(options: List<String>, picked: Int, modifier: Modifier = Modifier,
     Row(modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.sand).padding(4.dp)) {
         options.forEachIndexed { i, label ->
             val on = i == picked
-            Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(if (on) MaterialTheme.colorScheme.surface else Color.Transparent)
-                .clickable(role = Role.Tab) { onSelect(i) }.semantics { selected = on }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
-                Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(if (on) MaterialTheme.colorScheme.primary else Color.Transparent)
+                .clickable(role = Role.Tab) { onSelect(i) }.semantics { selected = on }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium, maxLines = 1,
+                    color = if (on) MaterialTheme.colorScheme.onPrimary else Extra.ink2)
             }
         }
     }

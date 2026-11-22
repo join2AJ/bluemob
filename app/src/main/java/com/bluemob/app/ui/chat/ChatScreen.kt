@@ -180,6 +180,7 @@ fun ChatScreen(
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         ChatWallpaper(myId, MaterialTheme.colorScheme.onBackground, Modifier.matchParentSize())
+        group?.let { g -> Box(Modifier.matchParentSize().background((if (g.trip) com.bluemob.app.ui.theme.Palette.BrandGreen else com.bluemob.app.ui.theme.Palette.BrandBlue).copy(alpha = 0.07f))) }
         Column(Modifier.fillMaxSize().imePadding()) {
             // Header (or, with a message picked, what you can do with it)
             Column(Modifier.background(MaterialTheme.colorScheme.surface).statusBarsPadding()) {

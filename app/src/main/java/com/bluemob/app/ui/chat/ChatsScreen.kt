@@ -73,6 +73,8 @@ private enum class ChatFilter(val label: String) { ALL("All"), PEOPLE("People"),
 
 private data class Entry(val id: String, val name: String, val emoji: String?, val presence: Presence, val sharesName: Boolean, val status: String, val isBot: Boolean,
     val isGroup: Boolean = false, val pinned: Boolean = false,
+    /** "Trip" or "Chat group": which kind of group, shown as a tag. */
+    val kind: String? = null,
     /** Reachable right now: nearby, or online on the internet. */
     val online: Boolean = false)
 
@@ -260,6 +262,8 @@ private fun ChatRow(e: Entry, messages: List<MessageEntity>, typing: Boolean, on
                 Text(e.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (e.sharesName) Text(shortId(e.id), style = MaterialTheme.typography.labelSmall, color = Extra.ink3)
                 if (e.isBot) Tag("On this phone", Extra.skyTint, Extra.sky)
+                e.kind?.let { k -> val c = if (k == "Chat group") com.bluemob.app.ui.theme.Palette.BrandBlue else com.bluemob.app.ui.theme.Palette.BrandGreen
+                    Tag(k.uppercase(), c.copy(alpha = 0.16f), c) }
                 if (e.pinned) androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.PushPin, "Pinned", tint = Extra.ink3, modifier = Modifier.size(14.dp))
             }
             Text(
@@ -305,10 +309,11 @@ private fun ChatsCallsTabs(current: ChatsTab, missed: Int, onTab: (ChatsTab) -> 
     Row(Modifier.padding(horizontal = Space.lg).padding(bottom = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Extra.sand).padding(4.dp)) {
         ChatsTab.entries.forEach { t ->
             val label = if (t == ChatsTab.CALLS && missed > 0 && current != ChatsTab.CALLS) "Calls · $missed" else t.label
-            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (current == t) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent)
-                .clickable { onTab(t) }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
-                Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1,
-                    color = if (t == ChatsTab.CALLS && missed > 0 && current != ChatsTab.CALLS) Extra.rose else MaterialTheme.colorScheme.onSurface)
+            val on = current == t
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(if (on) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent)
+                .clickable { onTab(t) }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                    color = when { on -> MaterialTheme.colorScheme.onPrimary; t == ChatsTab.CALLS && missed > 0 -> Extra.rose; else -> Extra.ink2 })
             }
         }
     }
@@ -485,7 +490,9 @@ private fun GroupsList(
         )
     }
     val lastTime = { id: String -> conversations[id]?.lastOrNull()?.createdAt ?: 0L }
-    val sorted = groups.sortedWith(compareByDescending<com.bluemob.app.chat.ChatGroup> { it.id in pinned }.thenByDescending { lastTime(it.id) })
+    var show by rememberSaveable { mutableStateOf(0) }
+    val sorted = groups.filter { show == 0 || (show == 2) == it.trip }
+        .sortedWith(compareByDescending<com.bluemob.app.chat.ChatGroup> { it.id in pinned }.thenByDescending { lastTime(it.id) })
     val live = rescues.filter { !it.ended }.sortedByDescending { it.startedAt }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = contentPadding.calculateTopPadding(), bottom = 24.dp)) {
         item { LargeTitle("Groups", modifier = Modifier.padding(horizontal = Space.lg)) }
@@ -533,6 +540,9 @@ private fun GroupsList(
             }
         }
         item { Text("YOUR GROUPS · ${groups.size}", style = MaterialTheme.typography.labelSmall, color = Extra.ink3, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 8.dp)) }
+        if (groups.any { it.trip } && groups.any { !it.trip }) item {
+            com.bluemob.app.ui.components.Segmented(listOf("All", "Chat groups", "Trip groups"), show, Modifier.padding(horizontal = Space.lg).padding(bottom = 6.dp)) { show = it }
+        }
         if (groups.isEmpty()) item {
             Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("👨‍👩‍👧‍👦", fontSize = 44.sp)
@@ -542,7 +552,8 @@ private fun GroupsList(
         }
         itemsIndexed(sorted, key = { _, g -> g.id }) { i, g ->
             if (i > 0) InsetDivider()
-            ChatRow(Entry(g.id, g.name, if (g.trip && !g.isTeam) "🧭" else "👥", Presence.OFFLINE, false, groupLine(g), false, isGroup = true, pinned = g.id in pinned),
+            ChatRow(Entry(g.id, g.name, if (g.trip && !g.isTeam) "🧭" else "👥", Presence.OFFLINE, false, groupLine(g), false, isGroup = true, pinned = g.id in pinned,
+                kind = when { g.isTeam -> "Team"; g.trip -> "Trip"; else -> "Chat group" }),
                 conversations[g.id].orEmpty(), g.id in typing, onDelete = { leaving = g }, onPin = { onPin(g.id, g.id !in pinned) }) { onOpen(g.id) }
         }
     }

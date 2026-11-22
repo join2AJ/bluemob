@@ -36,6 +36,14 @@ through Meera, who has internet.
 | 6 | Games with people nearby, trip money, insights, offline maps | | ✅ |
 | 7–8 | Voice and video calls | | |
 
+## Android 0.38.7: clearer tabs and groups
+
+- **You can see which tab is picked.** Every tab bar (Chats / Groups / Calls / Files, a trip group's People / Plan / Health / Settings, Activity's 7 / 30 / 90 days) fills the picked one in the brand colour. Under a trip group's tabs, a line says what that tab holds. The trip group's buttons (Roll call, Headcount, Announce, Group chat) now all look alike, so none looks "picked".
+- **Chat group or trip group?** The two kinds are explained side by side in matching cards. *Your groups* can be filtered (All / Chat groups / Trip groups), each row carries a CHAT GROUP, TRIP or TEAM tag, and inside, a chat group is tinted blue and a trip group green.
+- **New trip group:** one suggested name inside the box, different each time; leave it empty to use it.
+- **Your activity:** the three tiles at the top are the same height.
+- **About us:** says plainly that BlueMob works where there's no mobile tower, using Bluetooth and Wi-Fi.
+
 ## Android 0.38.6: faster peak search, Sky, activity
 
 - **Peak search that answers.** Searching now uses OpenStreetMap's place search: quick, and it finds states, valleys and towns as well as peaks. A built-in list of popular trek areas (Kedarkantha, Hampta, Valley of Flowers, Uttarakhand, Ladakh…) shows before you type and matches as you type, even offline and misspelt ("uttrakhand"). A peak found online can be *saved* on its own, or its whole *area* downloaded.
